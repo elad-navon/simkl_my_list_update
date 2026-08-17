@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My List - Continue Watching</title>
+<style>
+  :root {
+    --bg: #14151a;
+    --card: #1e2029;
+    --card-hover: #262837;
+    --text: #f2f2f5;
+    --muted: #9a9cae;
+    --accent: #f5c518;
+    --accent2: #4fd1c5;
+    --danger: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 5vw 80px;
+    background: radial-gradient(circle at top, #1b1d27 0%, var(--bg) 55%);
+    color: var(--text);
+    font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  header { text-align: center; margin-bottom: 20px; position: relative; }
+  header h1 { font-size: 2.1rem; margin: 0 0 6px; letter-spacing: 0.5px; }
+  header p { color: var(--muted); margin: 0; font-size: 0.95rem; }
+  .toolbar {
+    display: flex; justify-content: center; gap: 10px; margin-top: 18px;
+  }
+  button.pill {
+    background: var(--card); color: var(--text); border: 1px solid #383a4a;
+    border-radius: 20px; padding: 8px 18px; font-size: 0.85rem; cursor: pointer;
+  }
+  button.pill:hover { background: var(--card-hover); }
+  .summary-bar {
+    display: flex; justify-content: center; gap: 28px; flex-wrap: wrap;
+    margin: 26px auto 0; max-width: 700px; background: var(--card);
+    border-radius: 14px; padding: 18px 24px; box-shadow: 0 6px 22px rgba(0,0,0,0.35);
+  }
+  .summary-bar .stat { text-align: center; }
+  .summary-bar .stat .num { font-size: 1.6rem; font-weight: 700; color: var(--accent); }
+  .summary-bar .stat .label {
+    font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 24px; max-width: 1400px; margin: 40px auto 0;
+  }
+  .card {
+    background: var(--card); border-radius: 14px; overflow: hidden;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35); transition: transform 0.15s ease, box-shadow 0.15s ease;
+    display: flex; flex-direction: column; position: relative;
+  }
+  .card:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(0,0,0,0.5); background: var(--card-hover); }
+  .card .badge {
+    position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.65);
+    color: var(--accent); font-weight: 700; font-size: 0.85rem; padding: 4px 10px;
+    border-radius: 20px; backdrop-filter: blur(3px);
+  }
+  .poster { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; background: #2a2c38; display: block; }
+  .poster.placeholder {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.6rem; font-weight: 700; color: var(--muted);
+  }
+  .card-body { padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+  .card-body h3 { margin: 0; font-size: 1.02rem; line-height: 1.3; min-height: 2.6em; }
+  .next-up { font-size: 0.8rem; color: var(--accent2); font-weight: 600; margin-top: -4px; }
+  .progress-track { width: 100%; height: 6px; border-radius: 4px; background: #33354280; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); }
+  .stats {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px;
+    font-size: 0.82rem; color: var(--muted); margin-top: 2px;
+  }
+  .stats .v { color: var(--text); font-weight: 600; }
+  .time-left { margin-top: 6px; font-size: 0.88rem; color: var(--accent); font-weight: 700; }
+  footer { text-align: center; color: var(--muted); font-size: 0.78rem; margin-top: 50px; }
+
+  .center-box {
+    max-width: 480px; margin: 60px auto; background: var(--card); border-radius: 14px;
+    padding: 30px; text-align: center; box-shadow: 0 6px 22px rgba(0,0,0,0.35);
+  }
+  .center-box input {
+    width: 100%; padding: 10px 12px; margin: 8px 0; border-radius: 8px;
+    border: 1px solid #383a4a; background: #14151a; color: var(--text); font-size: 0.9rem;
+  }
+  .center-box label { display: block; text-align: left; font-size: 0.8rem; color: var(--muted); margin-top: 10px; }
+  .center-box code { background: #14151a; padding: 2px 6px; border-radius: 4px; }
+  .pin-code {
+    font-size: 2rem; letter-spacing: 6px; font-weight: 700; color: var(--accent);
+    margin: 16px 0; font-family: monospace;
+  }
+  .spinner {
+    width: 28px; height: 28px; border: 3px solid #383a4a; border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.9s linear infinite; margin: 18px auto;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-box { color: var(--danger); font-size: 0.85rem; margin-top: 10px; white-space: pre-wrap; }
+  a { color: var(--accent2); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>My List &mdash; Continue Watching</h1>
+  <p id="subtitle">Loading&hellip;</p>
+  <div class="toolbar">
+    <button class="pill" id="refreshBtn">&#8635; Refresh</button>
+    <button class="pill" id="settingsBtn">&#9881; Settings</button>
+  </div>
+</header>
+
+<div id="app"></div>
+
+<footer>Data from SIMKL &amp; TMDB &mdash; runs entirely in your browser, no server involved.</footer>
+
+<script>
+"use strict";
+
+// ---------------------------------------------------------------------
+// Config - not hardcoded. Stored only in this browser's localStorage,
+// so this HTML file itself never contains your keys (safe to commit).
+// ---------------------------------------------------------------------
+const SIMKL_BASE = "https://api.simkl.com";
+const TMDB_BASE = "https://api.themoviedb.org/3";
+const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w342";
+const APP_NAME = "my-list-summary-web";
+const APP_VERSION = "1.0";
+
+const LS_CLIENT_ID = "simkl_client_id";
+const LS_TMDB_KEY = "tmdb_api_key";
+const LS_TOKEN = "simkl_access_token";
+
+const app = document.getElementById("app");
+const subtitle = document.getElementById("subtitle");
+
+function getConfig() {
+  return {
+    clientId: localStorage.getItem(LS_CLIENT_ID) || "",
+    tmdbKey: localStorage.getItem(LS_TMDB_KEY) || "",
+  };
+}
+
+// ---------------------------------------------------------------------
+// Settings screen (first run, or via the Settings button)
+// ---------------------------------------------------------------------
+function showSettings(afterSaveCallback) {
+  const cfg = getConfig();
+  app.innerHTML = `
+    <div class="center-box">
+      <h2>Setup</h2>
+      <p style="color:var(--muted);font-size:0.85rem">
+        These are stored only in this browser's local storage - never written
+        into this HTML file, so it's safe to keep this file in a public repo.
+      </p>
+      <label>SIMKL Client ID
+        (<a href="https://simkl.com/settings/developer/" target="_blank">create an app</a>)</label>
+      <input type="text" id="clientIdInput" value="${cfg.clientId}">
+      <label>TMDB API Key
+        (<a href="https://www.themoviedb.org/settings/api" target="_blank">get a free key</a>)</label>
+      <input type="text" id="tmdbKeyInput" value="${cfg.tmdbKey}">
+      <div style="margin-top:18px">
+        <button class="pill" id="saveSettingsBtn">Save</button>
+      </div>
+      <div class="error-box" id="settingsError"></div>
+    </div>
+  `;
+  subtitle.textContent = "Setup required";
+  document.getElementById("saveSettingsBtn").onclick = () => {
+    const clientId = document.getElementById("clientIdInput").value.trim();
+    const tmdbKey = document.getElementById("tmdbKeyInput").value.trim();
+    if (!clientId || !tmdbKey) {
+      document.getElementById("settingsError").textContent = "Both fields are required.";
+      return;
+    }
+    localStorage.setItem(LS_CLIENT_ID, clientId);
+    localStorage.setItem(LS_TMDB_KEY, tmdbKey);
+    if (afterSaveCallback) afterSaveCallback();
+  };
+}
+
+// ---------------------------------------------------------------------
+// SIMKL auth (PIN flow) + fetching
+// ---------------------------------------------------------------------
+async function simklRequest(url) {
+  let res;
+  try {
+    res = await fetch(url);
+  } catch (e) {
+    throw new Error(
+      "Network/CORS error reaching SIMKL. Your browser may be blocking " +
+      "cross-origin requests to api.simkl.com. Original error: " + e.message
+    );
+  }
+  if (!res.ok && res.status !== 404) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`SIMKL request failed (${res.status}): ${body.slice(0, 300)}`);
+  }
+  if (res.status === 404) return null;
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+async function getAccessToken() {
+  const cached = localStorage.getItem(LS_TOKEN);
+  if (cached) return cached;
+
+  const { clientId } = getConfig();
+  const pinParams = new URLSearchParams({
+    client_id: clientId, "app-name": APP_NAME, "app-version": APP_VERSION,
+  });
+  const pinData = await simklRequest(`${SIMKL_BASE}/oauth/pin?${pinParams}`);
+  const userCode = pinData.user_code;
+  const verificationUrl = pinData.verification_url || "https://simkl.com/pin";
+  const intervalSec = pinData.interval || 5;
+  const expiresIn = pinData.expires_in || 900;
+
+  app.innerHTML = `
+    <div class="center-box">
+      <h2>One-time authorization</h2>
+      <p>1. Go to <a href="${verificationUrl}" target="_blank">${verificationUrl}</a></p>
+      <p>2. Enter this code:</p>
+      <div class="pin-code">${userCode}</div>
+      <div class="spinner"></div>
+      <p style="color:var(--muted);font-size:0.85rem">Waiting for approval&hellip;</p>
+    </div>
+  `;
+  subtitle.textContent = "Waiting for authorization";
+
+  const deadline = Date.now() + expiresIn * 1000;
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, intervalSec * 1000));
+    const pollParams = new URLSearchParams({
+      client_id: clientId, "app-name": APP_NAME, "app-version": APP_VERSION,
+    });
+    let poll;
+    try {
+      poll = await simklRequest(`${SIMKL_BASE}/oauth/pin/${userCode}?${pollParams}`);
+    } catch (e) {
+      continue; // keep polling through transient errors
+    }
+    if (poll && poll.result === "OK" && poll.access_token) {
+      localStorage.setItem(LS_TOKEN, poll.access_token);
+      return poll.access_token;
+    }
+  }
+  throw new Error("Timed out waiting for PIN approval. Refresh the page to try again.");
+}
+
+async function simklGet(path, token, extraParams) {
+  const { clientId } = getConfig();
+  const params = new URLSearchParams({
+    client_id: clientId, "app-name": APP_NAME, "app-version": APP_VERSION,
+    ...(extraParams || {}),
+  });
+  let res;
+  try {
+    res = await fetch(`${SIMKL_BASE}${path}?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch (e) {
+    throw new Error("Network/CORS error reaching SIMKL: " + e.message);
+  }
+  if (res.status === 401) {
+    localStorage.removeItem(LS_TOKEN);
+    throw new Error("SIMKL access token expired or revoked. Refresh the page to re-authenticate.");
+  }
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`SIMKL request failed (${res.status}): ${body.slice(0, 300)}`);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+async function getWatchingShows(token) {
+  const data = await simklGet("/sync/all-items/shows/watching", token, {
+    extended: "full", episode_watched_at: "yes",
+  });
+  if (!data) return [];
+  return Array.isArray(data) ? data : (data.shows || []);
+}
+
+// ---------------------------------------------------------------------
+// TMDB - per-episode runtimes
+// ---------------------------------------------------------------------
+async function tmdbGet(path, params) {
+  const { tmdbKey } = getConfig();
+  const p = new URLSearchParams({ api_key: tmdbKey, ...(params || {}) });
+  let res;
+  try {
+    res = await fetch(`${TMDB_BASE}${path}?${p}`);
+  } catch (e) {
+    throw new Error("Network/CORS error reaching TMDB: " + e.message);
+  }
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`TMDB request failed (${res.status}): ${body.slice(0, 300)}`);
+  }
+  return res.json();
+}
+
+class TmdbCache {
+  constructor() { this.show = new Map(); this.season = new Map(); }
+  async getShow(tmdbId) {
+    if (!this.show.has(tmdbId)) this.show.set(tmdbId, await tmdbGet(`/tv/${tmdbId}`));
+    return this.show.get(tmdbId);
+  }
+  async getSeason(tmdbId, seasonNum) {
+    const key = `${tmdbId}:${seasonNum}`;
+    if (!this.season.has(key)) {
+      this.season.set(key, await tmdbGet(`/tv/${tmdbId}/season/${seasonNum}`));
+    }
+    return this.season.get(key);
+  }
+}
+
+function showAverageRuntime(showDetail) {
+  if (!showDetail) return 0;
+  const ert = showDetail.episode_run_time || [];
+  if (ert.length) return ert.reduce((a, b) => a + b, 0) / ert.length;
+  return (showDetail.last_episode_to_air || {}).runtime || 0;
+}
+
+function watchedEpisodeNumbersBySeason(item) {
+  const result = {};
+  for (const season of item.seasons || []) {
+    const num = season.number;
+    result[num] = new Set((season.episodes || []).map(e => e.number).filter(n => n != null));
+  }
+  return result;
+}
+
+async function remainingViaTmdb(item, tmdbId, cache) {
+  const showDetail = await cache.getShow(tmdbId);
+  if (!showDetail) return null;
+
+  const avgRuntime = showAverageRuntime(showDetail);
+  const watchedBySeason = watchedEpisodeNumbersBySeason(item);
+  const today = new Date().toISOString().slice(0, 10);
+
+  let remainingEps = 0;
+  let remainingMinutes = 0;
+
+  for (const seasonInfo of showDetail.seasons || []) {
+    const seasonNum = seasonInfo.season_number;
+    if (seasonNum == null || seasonNum === 0) continue; // skip specials
+
+    const seasonDetail = await cache.getSeason(tmdbId, seasonNum);
+    if (!seasonDetail) continue;
+
+    const watchedSet = watchedBySeason[seasonNum] || new Set();
+
+    for (const ep of seasonDetail.episodes || []) {
+      const epNum = ep.episode_number;
+      const airDate = ep.air_date;
+      if (!airDate || airDate > today) continue; // not aired yet
+      if (watchedSet.has(epNum)) continue; // already watched
+      remainingEps += 1;
+      remainingMinutes += ep.runtime || avgRuntime;
+    }
+  }
+  return [remainingEps, remainingMinutes];
+}
+
+function simklAiredMinusWatchedCount(item) {
+  const total = item.total_episodes_count || 0;
+  const notAired = item.not_aired_episodes_count || 0;
+  const watched = item.watched_episodes_count || 0;
+  return Math.max(Math.max(total - notAired, 0) - watched, 0);
+}
+
+function formatTime(minutes) {
+  minutes = Math.round(minutes);
+  return [Math.floor(minutes / 60), minutes % 60];
+}
+
+function parseNextEpisode(nextToWatch) {
+  if (!nextToWatch) return [null, null];
+  const m = /S(\d+)E(\d+)/i.exec(nextToWatch);
+  if (!m) return [null, null];
+  return [parseInt(m[1], 10), parseInt(m[2], 10)];
+}
+
+// ---------------------------------------------------------------------
+// Build rows (mirrors the Python core logic)
+// ---------------------------------------------------------------------
+async function getMyListRows(token) {
+  const items = await getWatchingShows(token);
+  const cache = new TmdbCache();
+  const rows = [];
+  let totalRemainingEps = 0;
+  let totalRemainingMinutes = 0;
+
+  for (const item of items) {
+    if (item.status !== "watching") continue;
+
+    const nextToWatch = item.next_to_watch;
+    if (!nextToWatch) continue;
+
+    const show = item.show || {};
+    const title = show.title || "Unknown";
+    const tmdbId = (show.ids || {}).tmdb;
+    const watched = item.watched_episodes_count || 0;
+    const totalEpisodes = item.total_episodes_count || 0;
+    const notAired = item.not_aired_episodes_count || 0;
+    const available = Math.max(totalEpisodes - notAired, 0);
+
+    const [nextSeason, nextEpisode] = parseNextEpisode(nextToWatch);
+    const nextLabel = nextSeason != null
+      ? `S${String(nextSeason).padStart(2, "0")}E${String(nextEpisode).padStart(2, "0")}`
+      : nextToWatch;
+
+    let posterUrl = null;
+    let result = null;
+    if (tmdbId) {
+      const showDetail = await cache.getShow(tmdbId);
+      if (showDetail && showDetail.poster_path) posterUrl = TMDB_IMAGE_BASE + showDetail.poster_path;
+      result = await remainingViaTmdb(item, tmdbId, cache);
+    }
+
+    let remaining, remainingMinutes;
+    if (result && result[0] > 0) {
+      [remaining, remainingMinutes] = result;
+    } else {
+      remaining = Math.max(simklAiredMinusWatchedCount(item), 1);
+      remainingMinutes = remaining * (show.runtime || 0);
+    }
+
+    totalRemainingEps += remaining;
+    totalRemainingMinutes += remainingMinutes;
+
+    const [hours, mins] = formatTime(remainingMinutes);
+    rows.push({
+      title, posterUrl, totalEpisodes, available, watched, remaining,
+      hours, mins, nextLabel,
+    });
+  }
+
+  rows.forEach((r, i) => { r.index = i + 1; });
+  return [rows, totalRemainingEps, totalRemainingMinutes];
+}
+
+// ---------------------------------------------------------------------
+// Render
+// ---------------------------------------------------------------------
+function renderRows(rows, totalRemainingEps, totalRemainingMinutes) {
+  const [totalHours, totalMins] = formatTime(totalRemainingMinutes);
+
+  if (!rows.length) {
+    app.innerHTML = `<div class="center-box"><h2>My List is empty</h2>
+      <p style="color:var(--muted)">No shows with a new episode to watch right now.</p></div>`;
+    subtitle.textContent = "Nothing to watch right now";
+    return;
+  }
+
+  const cards = rows.map(row => {
+    const posterHtml = row.posterUrl
+      ? `<img class="poster" src="${row.posterUrl}" alt="${row.title}">`
+      : `<div class="poster placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
+    const totalEps = row.totalEpisodes || 0;
+    const progressPct = totalEps ? (row.watched / totalEps * 100) : 0;
+    return `
+      <div class="card">
+        <div class="badge">#${row.index}</div>
+        ${posterHtml}
+        <div class="card-body">
+          <h3>${row.title}</h3>
+          <div class="next-up">Next: ${row.nextLabel}</div>
+          <div class="progress-track"><div class="progress-fill" style="width:${progressPct}%"></div></div>
+          <div class="stats">
+            <div>Total <span class="v">${totalEps}</span></div>
+            <div>Available <span class="v">${row.available}</span></div>
+            <div>Watched <span class="v">${row.watched}</span></div>
+            <div>Remaining <span class="v">${row.remaining}</span></div>
+          </div>
+          <div class="time-left">&#128337; ${row.hours}h ${row.mins}m left</div>
+        </div>
+      </div>`;
+  }).join("\n");
+
+  app.innerHTML = `
+    <div class="summary-bar">
+      <div class="stat"><div class="num">${rows.length}</div><div class="label">Shows</div></div>
+      <div class="stat"><div class="num">${totalRemainingEps}</div><div class="label">Episodes left</div></div>
+      <div class="stat"><div class="num">${totalHours}h ${totalMins}m</div><div class="label">Watch time left</div></div>
+    </div>
+    <div class="grid">${cards}</div>
+  `;
+  subtitle.textContent = "Updated " + new Date().toLocaleString();
+}
+
+function showError(err) {
+  app.innerHTML = `
+    <div class="center-box">
+      <h2>Something went wrong</h2>
+      <div class="error-box">${(err && err.message) || err}</div>
+      <p style="color:var(--muted);font-size:0.8rem;margin-top:14px">
+        If this mentions CORS/network errors reaching api.simkl.com, your
+        browser may be blocking direct requests to SIMKL from this page -
+        in that case you'll need the local-server version instead.
+      </p>
+    </div>
+  `;
+  subtitle.textContent = "Error";
+}
+
+// ---------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------
+async function main() {
+  const { clientId, tmdbKey } = getConfig();
+  if (!clientId || !tmdbKey) {
+    showSettings(main);
+    return;
+  }
+
+  app.innerHTML = `<div class="spinner" style="margin-top:80px"></div>`;
+  subtitle.textContent = "Fetching your My List\u2026";
+
+  try {
+    const token = await getAccessToken();
+    app.innerHTML = `<div class="spinner" style="margin-top:80px"></div>`;
+    subtitle.textContent = "Fetching your My List\u2026";
+    const [rows, totalEps, totalMinutes] = await getMyListRows(token);
+    renderRows(rows, totalEps, totalMinutes);
+  } catch (err) {
+    showError(err);
+  }
+}
+
+document.getElementById("refreshBtn").onclick = main;
+document.getElementById("settingsBtn").onclick = () => showSettings(main);
+
+main();
+</script>
+</body>
+</html>
