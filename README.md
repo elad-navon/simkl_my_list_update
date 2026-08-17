@@ -1,256 +1,90 @@
-# SIMKL My List Update
+# SIMKL My List Summary
 
-A lightweight browser-based dashboard that shows the TV shows currently
-being watched on SIMKL and calculates the remaining watch time using
-episode data from TMDB.
+A single self-contained HTML page that answers one question: **for the
+shows in my SIMKL "My List" (status *Watching*, with a new episode
+waiting), how many episodes are left, and how much time will it take
+to catch up?**
 
-## Overview
+Everything runs as JavaScript **in your browser** — no server, no
+backend, nothing to keep running in the background. Episode/watch
+status comes from [SIMKL](https://simkl.com); per-episode runtimes and
+poster/backdrop artwork come from [TMDB](https://www.themoviedb.org)
+(more accurate than SIMKL's single show-level runtime value).
 
-This project is a single-page HTML application. It runs entirely in the
-user's browser and does not require a backend server.
+## Setup
 
-The application:
+1. Open `simkl_live.html` in your browser (double-click it, or host it
+   anywhere — see [Publishing it](#publishing-it-eg-for-a-startme-shortcut)
+   below).
+2. First run shows a **Setup** screen — paste in:
+   - **SIMKL Client ID** — create a free app at
+     [simkl.com/settings/developer](https://simkl.com/settings/developer/)
+     (any redirect_uri value works, this uses the PIN flow).
+   - **TMDB API Key** — get a free key at
+     [themoviedb.org/settings/api](https://www.themoviedb.org/settings/api).
 
--   Connects to SIMKL to retrieve the user's currently watching shows.
--   Uses SIMKL authentication through the PIN authorization flow.
--   Retrieves TV show and episode information from TMDB.
--   Calculates the number of remaining aired episodes.
--   Calculates estimated remaining watch time.
--   Displays posters, progress, next episode, episode counts, and total
-    remaining watch time.
--   Stores configuration and the SIMKL access token in the browser's
-    `localStorage`.
--   Keeps API credentials out of the HTML source file.
+   These are saved only in your browser's `localStorage` — **never**
+   written into the HTML file itself, so it's safe to keep this file
+   in a public git repo.
+3. You'll then see a one-time SIMKL PIN code — approve it at the link
+   shown. The access token is also cached in `localStorage`.
+4. From then on, every time you open the page (or hit **Refresh**), it
+   fetches live data and renders the current state.
 
-## Live Demo
+## Features
 
-GitHub Pages:
+- One card per show: poster/banner, progress bar, total / available /
+  watched / remaining episode counts, time left, and the next episode
+  to watch (e.g. `S03E01`).
+- **Poster ↔ Banner toggle** (top toolbar) — banners are TMDB's
+  landscape "backdrop" images.
+- **⟳ icon** on each card — cycles to another available poster/banner
+  for that show, if TMDB has more than one. Does nothing if there's
+  only one.
+- Only **English or no-language** artwork is used (no foreign-text
+  posters).
+- **Settings** (⚙) — edit your SIMKL/TMDB keys any time.
 
-`https://elad-navon.github.io/simkl_my_list_update/`
+## A note on CORS
 
-## Requirements
+This relies on your browser being allowed to call `api.simkl.com` and
+`api.themoviedb.org` directly. TMDB is known to support this. SIMKL's
+support is unconfirmed — if you see a "Network/CORS error reaching
+SIMKL" message, your browser is blocking it.
 
-You need:
+## Publishing it (e.g. for a StartMe shortcut)
 
-1.  A SIMKL account.
-2.  A SIMKL Client ID.
-3.  A TMDB API key.
-4.  A modern web browser with JavaScript enabled.
+Since your API keys are never stored *in* the file, you can safely put
+`simkl_live.html` in a git repo:
 
-## First-Time Setup
-
-When the application is opened for the first time, it displays a Setup
-screen.
-
-Enter:
-
-### SIMKL Client ID
-
-Create or obtain a SIMKL application from:
-
-https://simkl.com/settings/developer/
-
-### TMDB API Key
-
-Obtain a TMDB API key from:
-
-https://www.themoviedb.org/settings/api
-
-Click **Save** after entering both values.
-
-The values are stored only in the browser's `localStorage` and are not
-written into `index.html`.
-
-## SIMKL Authentication
-
-After configuration, the application starts the SIMKL PIN authorization
-flow.
-
-The application:
-
-1.  Requests a PIN from SIMKL.
-2.  Displays the verification URL and authorization code.
-3.  Waits for the user to approve the authorization.
-4.  Stores the returned SIMKL access token in browser `localStorage`.
-5.  Uses the token for subsequent SIMKL API requests.
-
-If the token expires or is revoked, it is removed from local storage and
-the user is asked to authenticate again.
-
-## How Remaining Time Is Calculated
-
-For each show currently marked as `watching`, the application:
-
-1.  Reads the user's watched episode information from SIMKL.
-2.  Retrieves the corresponding show data from TMDB.
-3.  Retrieves season and episode data from TMDB.
-4.  Ignores specials.
-5.  Ignores episodes that have not aired yet.
-6.  Ignores episodes already marked as watched.
-7.  Counts the remaining aired episodes.
-8.  Uses the episode runtime from TMDB when available.
-9.  Falls back to the show's average episode runtime when an episode
-    runtime is unavailable.
-
-The application then displays:
-
--   Total shows
--   Total episodes remaining
--   Total estimated watch time
--   Watched episodes
--   Available episodes
--   Next episode to watch
--   Progress
--   Show poster
-
-## Data Sources
-
-### SIMKL
-
-Used for:
-
--   User authentication
--   Currently watching list
--   Watched episode information
--   Next episode to watch
--   Show and episode identifiers
-
-API base URL:
-
-`https://api.simkl.com`
-
-### TMDB
-
-Used for:
-
--   Show details
--   Season information
--   Episode information
--   Episode air dates
--   Episode runtimes
--   Poster images
-
-API base URL:
-
-`https://api.themoviedb.org/3`
-
-## Architecture
-
-The project intentionally has no backend.
-
-``` text
-Browser
-   |
-   +-- SIMKL API
-   |     +-- Authentication
-   |     +-- My List
-   |     +-- Watched episodes
-   |
-   +-- TMDB API
-         +-- Show metadata
-         +-- Seasons
-         +-- Episodes
-         +-- Runtime
-         +-- Posters
+```
+git add simkl_live.html
+git commit -m "update"
+git push
 ```
 
-Everything is implemented in a single `index.html` file containing:
+To view it as a rendered page (not raw code) from a link:
+- **GitHub Pages** (free for public repos): enable it under
+  *Settings → Pages*, then link to
+  `https://<username>.github.io/<repo>/simkl_live.html`.
+- **htmlpreview.github.io** (no setup, works for private repos too if
+  you're logged in):
+  `https://htmlpreview.github.io/?https://github.com/<username>/<repo>/blob/main/simkl_live.html`
 
--   HTML markup
--   CSS styling
--   JavaScript application logic
+Either way, since the page computes everything live on load, the link
+always shows current data — no need to regenerate or re-push anything
+after you watch more episodes.
 
-## Local Storage
+## Notes
 
-The application uses browser `localStorage` for:
-
--   SIMKL Client ID
--   TMDB API key
--   SIMKL access token
-
-The keys are defined internally as:
-
--   `simkl_client_id`
--   `tmdb_api_key`
--   `simkl_access_token`
-
-The credentials are therefore not hardcoded into the source file and are
-not committed to GitHub.
-
-## Caching
-
-A small in-memory TMDB cache is used during each refresh.
-
-Show and season requests are cached so the same TMDB resource is not
-requested repeatedly during a single calculation.
-
-The cache is not persisted between page reloads.
-
-## User Interface
-
-The interface provides:
-
--   Dark themed dashboard
--   Responsive show grid
--   Show posters
--   Watch progress bars
--   Remaining episode counts
--   Estimated remaining watch time
--   Refresh button
--   Settings button
--   Setup and authorization screens
--   Error handling
-
-## Refreshing Data
-
-Click **Refresh** to run the application again and retrieve the latest
-information from SIMKL and TMDB.
-
-The application does not use a background server or scheduled process.
-
-## Limitations
-
-### Browser / CORS
-
-The application makes API requests directly from the browser.
-
-If the browser or an API blocks cross-origin requests, the application
-may display a CORS/network error. In that case, a server-side or
-local-server version may be required.
-
-### Runtime Accuracy
-
-Remaining watch time is an estimate.
-
-The calculation prefers the runtime reported for each TMDB episode. If
-that value is unavailable, the application's average show runtime is
-used.
-
-### API Availability
-
-The application depends on SIMKL and TMDB being reachable and returning
-the expected API responses.
-
-## Project Structure
-
-``` text
-simkl_my_list_update/
-└── index.html
-```
-
-## Deployment
-
-The project can be hosted as a static site using GitHub Pages.
-
-Because the application consists of a single HTML file and runs entirely
-in the browser, no server-side deployment is required.
+- **Membership in "My List"** is taken directly from SIMKL's own
+  `next_to_watch` field — this always matches what the site itself
+  shows, rather than being re-derived from episode counts.
+- **Remaining episode counts / time** are computed per-episode against
+  TMDB (aired date ≤ today, not already marked watched), falling back
+  to SIMKL's own aggregate counts only if a show has no TMDB match.
+- Read-only — this never modifies your SIMKL data.
 
 ## Version
 
-Current application version:
-
-`1.0`
-
-## License
-
-No license has been specified yet.
+Current: **v5**
