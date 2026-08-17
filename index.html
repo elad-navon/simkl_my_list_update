@@ -62,6 +62,15 @@
     color: var(--accent); font-weight: 700; font-size: 0.85rem; padding: 4px 10px;
     border-radius: 20px; backdrop-filter: blur(3px);
   }
+  .cycle-btn {
+    position: absolute; top: 8px; right: 8px; width: 28px; height: 28px;
+    border-radius: 50%; border: none; background: rgba(0,0,0,0.65);
+    color: var(--text); font-size: 1rem; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; backdrop-filter: blur(3px);
+  }
+  .cycle-btn:hover { background: rgba(0,0,0,0.85); }
+  .cycle-btn.disabled { opacity: 0.35; cursor: default; }
   .poster { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; background: #2a2c38; display: block; }
   .poster.banner-img { aspect-ratio: 16 / 9; }
   .poster.placeholder {
@@ -317,7 +326,11 @@ async function tmdbGet(path, params) {
 class TmdbCache {
   constructor() { this.show = new Map(); this.season = new Map(); }
   async getShow(tmdbId) {
-    if (!this.show.has(tmdbId)) this.show.set(tmdbId, await tmdbGet(`/tv/${tmdbId}`));
+    if (!this.show.has(tmdbId)) {
+      // append_to_response=images pulls ALL available posters/backdrops for
+      // this show in the same request, so we can offer alternates later.
+      this.show.set(tmdbId, await tmdbGet(`/tv/${tmdbId}`, { append_to_response: "images" }));
+    }
     return this.show.get(tmdbId);
   }
   async getSeason(tmdbId, seasonNum) {
@@ -427,11 +440,32 @@ async function getMyListRows(token) {
 
     let posterUrl = null;
     let bannerUrl = null;
+    let posterPaths = [];
+    let backdropPaths = [];
+    let posterIndex = 0;
+    let bannerIndex = 0;
     let result = null;
     if (tmdbId) {
       const showDetail = await cache.getShow(tmdbId);
-      if (showDetail && showDetail.poster_path) posterUrl = TMDB_IMAGE_BASE + showDetail.poster_path;
-      if (showDetail && showDetail.backdrop_path) bannerUrl = TMDB_BACKDROP_BASE + showDetail.backdrop_path;
+      if (showDetail) {
+        if (showDetail.poster_path) posterUrl = TMDB_IMAGE_BASE + showDetail.poster_path;
+        if (showDetail.backdrop_path) bannerUrl = TMDB_BACKDROP_BASE + showDetail.backdrop_path;
+
+        const imgs = showDetail.images || {};
+        posterPaths = (imgs.posters || []).map(p => p.file_path).filter(Boolean);
+        backdropPaths = (imgs.backdrops || []).map(p => p.file_path).filter(Boolean);
+
+        // Make sure the primary image SIMKL/TMDB picked as default is
+        // included and is the starting point when cycling.
+        if (showDetail.poster_path) {
+          posterIndex = posterPaths.indexOf(showDetail.poster_path);
+          if (posterIndex === -1) { posterPaths.unshift(showDetail.poster_path); posterIndex = 0; }
+        }
+        if (showDetail.backdrop_path) {
+          bannerIndex = backdropPaths.indexOf(showDetail.backdrop_path);
+          if (bannerIndex === -1) { backdropPaths.unshift(showDetail.backdrop_path); bannerIndex = 0; }
+        }
+      }
       result = await remainingViaTmdb(item, tmdbId, cache);
     }
 
@@ -448,7 +482,8 @@ async function getMyListRows(token) {
 
     const [hours, mins] = formatTime(remainingMinutes);
     rows.push({
-      title, posterUrl, bannerUrl, totalEpisodes, available, watched, remaining,
+      title, posterUrl, bannerUrl, posterPaths, backdropPaths, posterIndex, bannerIndex,
+      totalEpisodes, available, watched, remaining,
       hours, mins, nextLabel,
     });
   }
@@ -470,6 +505,22 @@ function updateImageModeButton() {
   btn.textContent = mode === "banner" ? "\u{1F3AC} Switch to Posters" : "\u{1F3AC} Switch to Banners";
 }
 
+function cycleImage(arrIdx) {
+  const row = lastRows && lastRows[arrIdx];
+  if (!row) return;
+  const isBanner = getImageMode() === "banner";
+  const paths = isBanner ? row.backdropPaths : row.posterPaths;
+  if (!paths || paths.length <= 1) return; // nothing else to switch to
+  if (isBanner) {
+    row.bannerIndex = (row.bannerIndex + 1) % paths.length;
+    row.bannerUrl = TMDB_BACKDROP_BASE + paths[row.bannerIndex];
+  } else {
+    row.posterIndex = (row.posterIndex + 1) % paths.length;
+    row.posterUrl = TMDB_IMAGE_BASE + paths[row.posterIndex];
+  }
+  renderRows(lastRows, lastTotalEps, lastTotalMinutes);
+}
+
 function renderRows(rows, totalRemainingEps, totalRemainingMinutes) {
   lastRows = rows;
   lastTotalEps = totalRemainingEps;
@@ -487,7 +538,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes) {
   const mode = getImageMode();
   const isBanner = mode === "banner";
 
-  const cards = rows.map(row => {
+  const cards = rows.map((row, arrIdx) => {
     const imageUrl = isBanner ? (row.bannerUrl || row.posterUrl) : row.posterUrl;
     const posterClass = "poster" + (isBanner ? " banner-img" : "");
     const posterHtml = imageUrl
@@ -495,9 +546,16 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes) {
       : `<div class="${posterClass} placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
     const totalEps = row.totalEpisodes || 0;
     const progressPct = totalEps ? (row.watched / totalEps * 100) : 0;
+
+    const altCount = (isBanner ? row.backdropPaths : row.posterPaths || []).length;
+    const cycleDisabled = altCount <= 1;
+    const cycleTitle = cycleDisabled ? "No alternate image available" : "Try another image";
+
     return `
       <div class="card">
         <div class="badge">#${row.index}</div>
+        <button class="cycle-btn${cycleDisabled ? " disabled" : ""}" title="${cycleTitle}"
+                onclick="cycleImage(${arrIdx})">&#8635;</button>
         ${posterHtml}
         <div class="card-body">
           <h3>${row.title}</h3>
