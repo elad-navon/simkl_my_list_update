@@ -24,7 +24,18 @@
     font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
   header { text-align: center; margin-bottom: 20px; position: relative; }
-  header h1 { font-size: 2.1rem; margin: 0 0 6px; letter-spacing: 0.5px; }
+  header h1 {
+    font-size: 3rem; margin: 0 0 8px; letter-spacing: 0.5px; font-weight: 800;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 6px 30px rgba(245, 197, 24, 0.25);
+  }
+  .version-tag {
+    font-size: 0.72rem; font-weight: 600; color: var(--muted); background: var(--card);
+    border: 1px solid #383a4a; border-radius: 20px; padding: 3px 10px;
+    vertical-align: middle; margin-left: 10px; letter-spacing: 0.04em;
+    -webkit-text-fill-color: var(--muted);
+  }
   header p { color: var(--muted); margin: 0; font-size: 0.95rem; }
   .toolbar {
     display: flex; justify-content: center; gap: 10px; margin-top: 18px;
@@ -35,14 +46,15 @@
   }
   button.pill:hover { background: var(--card-hover); }
   .summary-bar {
-    display: flex; justify-content: center; gap: 28px; flex-wrap: wrap;
-    margin: 26px auto 0; max-width: 700px; background: var(--card);
-    border-radius: 14px; padding: 18px 24px; box-shadow: 0 6px 22px rgba(0,0,0,0.35);
+    display: flex; justify-content: center; gap: 48px; flex-wrap: wrap;
+    margin: 30px auto 0; max-width: 780px; background: var(--card);
+    border-radius: 18px; padding: 28px 36px; box-shadow: 0 10px 30px rgba(0,0,0,0.4);
   }
-  .summary-bar .stat { text-align: center; }
-  .summary-bar .stat .num { font-size: 1.6rem; font-weight: 700; color: var(--accent); }
+  .summary-bar .stat { text-align: center; min-width: 120px; }
+  .summary-bar .stat .num { font-size: 2.8rem; font-weight: 800; color: var(--accent); line-height: 1.1; }
   .summary-bar .stat .label {
-    font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;
+    font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em;
+    margin-top: 4px;
   }
   .grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -116,7 +128,7 @@
 <body>
 
 <header>
-  <h1>My List &mdash; Continue Watching</h1>
+  <h1>My List &mdash; Continue Watching<span class="version-tag">v5</span></h1>
   <p id="subtitle">Loading&hellip;</p>
   <div class="toolbar">
     <button class="pill" id="refreshBtn">&#8635; Refresh</button>
@@ -329,7 +341,13 @@ class TmdbCache {
     if (!this.show.has(tmdbId)) {
       // append_to_response=images pulls ALL available posters/backdrops for
       // this show in the same request, so we can offer alternates later.
-      this.show.set(tmdbId, await tmdbGet(`/tv/${tmdbId}`, { append_to_response: "images" }));
+      // include_image_language restricts results to English + untagged
+      // (no-language) images only, per user preference.
+      this.show.set(tmdbId, await tmdbGet(`/tv/${tmdbId}`, {
+        append_to_response: "images",
+        language: "en-US",
+        include_image_language: "en,null",
+      }));
     }
     return this.show.get(tmdbId);
   }
@@ -448,23 +466,28 @@ async function getMyListRows(token) {
     if (tmdbId) {
       const showDetail = await cache.getShow(tmdbId);
       if (showDetail) {
-        if (showDetail.poster_path) posterUrl = TMDB_IMAGE_BASE + showDetail.poster_path;
-        if (showDetail.backdrop_path) bannerUrl = TMDB_BACKDROP_BASE + showDetail.backdrop_path;
-
         const imgs = showDetail.images || {};
-        posterPaths = (imgs.posters || []).map(p => p.file_path).filter(Boolean);
-        backdropPaths = (imgs.backdrops || []).map(p => p.file_path).filter(Boolean);
+        // Only English or no-language (textless/unspecified) images.
+        const isEnglishOrNoLang = p => p.iso_639_1 === "en" || p.iso_639_1 == null;
+        posterPaths = (imgs.posters || []).filter(isEnglishOrNoLang).map(p => p.file_path).filter(Boolean);
+        backdropPaths = (imgs.backdrops || []).filter(isEnglishOrNoLang).map(p => p.file_path).filter(Boolean);
 
-        // Make sure the primary image SIMKL/TMDB picked as default is
-        // included and is the starting point when cycling.
-        if (showDetail.poster_path) {
+        // Prefer TMDB's own primary pick as the starting image, but only if
+        // it actually passes the language filter - otherwise start from the
+        // first filtered result so we never show a non-English default.
+        if (showDetail.poster_path && posterPaths.includes(showDetail.poster_path)) {
           posterIndex = posterPaths.indexOf(showDetail.poster_path);
-          if (posterIndex === -1) { posterPaths.unshift(showDetail.poster_path); posterIndex = 0; }
+        } else {
+          posterIndex = 0;
         }
-        if (showDetail.backdrop_path) {
+        if (posterPaths.length) posterUrl = TMDB_IMAGE_BASE + posterPaths[posterIndex];
+
+        if (showDetail.backdrop_path && backdropPaths.includes(showDetail.backdrop_path)) {
           bannerIndex = backdropPaths.indexOf(showDetail.backdrop_path);
-          if (bannerIndex === -1) { backdropPaths.unshift(showDetail.backdrop_path); bannerIndex = 0; }
+        } else {
+          bannerIndex = 0;
         }
+        if (backdropPaths.length) bannerUrl = TMDB_BACKDROP_BASE + backdropPaths[bannerIndex];
       }
       result = await remainingViaTmdb(item, tmdbId, cache);
     }
