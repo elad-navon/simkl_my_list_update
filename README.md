@@ -36,6 +36,12 @@ poster/backdrop artwork come from [TMDB](https://www.themoviedb.org)
 - One card per show: poster/banner, progress bar, total / available /
   watched / remaining episode counts, time left, and the next episode
   to watch (e.g. `S03E01`).
+- **My List ↔ Airing Next toggle** (top toolbar) — My List shows what
+  you have left to watch; Airing Next shows upcoming (not-yet-aired)
+  episodes for the shows you're actively watching, plus true future
+  premieres (series you haven't started at all) from your Plan to
+  Watch list — soonest first. Plan to Watch shows that already aired
+  but you just haven't started ("backlog") are excluded.
 - **Poster ↔ Banner toggle** (top toolbar) — banners are TMDB's
   landscape "backdrop" images.
 - **⟳ icon** on each card — cycles to another available poster/banner
@@ -44,6 +50,14 @@ poster/backdrop artwork come from [TMDB](https://www.themoviedb.org)
 - Only **English or no-language** artwork is used (no foreign-text
   posters).
 - **Settings** (⚙) — edit your SIMKL/TMDB keys any time.
+
+## A known limitation
+
+Air dates come from TMDB. SIMKL's own Airing Next/Calendar pulls from
+**TheTVDB** instead, which tends to have better coverage of local and
+international content (e.g. local-language reality shows). A show
+that appears in SIMKL's Airing Next may not appear here if TMDB
+doesn't have accurate episode air-date data for it.
 
 ## A note on CORS
 
@@ -87,4 +101,4 @@ after you watch more episodes.
 
 ## Version
 
-Current: **v5**
+Current: **v8**

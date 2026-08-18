@@ -100,6 +100,11 @@
   }
   .stats .v { color: var(--text); font-weight: 700; }
   .time-left { margin-top: 8px; font-size: 1.05rem; color: var(--accent); font-weight: 700; }
+  .air-date { margin-top: 8px; font-size: 1.05rem; color: var(--accent2); font-weight: 700; }
+  .section-note {
+    text-align: center; color: var(--muted); font-size: 0.85rem;
+    max-width: 700px; margin: 22px auto 0;
+  }
   footer { text-align: center; color: var(--muted); font-size: 0.78rem; margin-top: 50px; }
 
   .center-box {
@@ -128,10 +133,11 @@
 <body>
 
 <header>
-  <h1>My List &mdash; Continue Watching<span class="version-tag">v5</span></h1>
+  <h1>My List &mdash; Continue Watching<span class="version-tag">v8</span></h1>
   <p id="subtitle">Loading&hellip;</p>
   <div class="toolbar">
     <button class="pill" id="refreshBtn">&#8635; Refresh</button>
+    <button class="pill" id="viewModeBtn">&#128197; Airing Next</button>
     <button class="pill" id="imageModeBtn">&#127916; Switch to Banners</button>
     <button class="pill" id="settingsBtn">&#9881; Settings</button>
   </div>
@@ -159,6 +165,7 @@ const LS_CLIENT_ID = "simkl_client_id";
 const LS_TMDB_KEY = "tmdb_api_key";
 const LS_TOKEN = "simkl_access_token";
 const LS_IMAGE_MODE = "simkl_image_mode"; // "poster" or "banner"
+const LS_VIEW_MODE = "simkl_view_mode";   // "list" or "airing" (not restored on load - always starts on "list")
 
 const app = document.getElementById("app");
 const subtitle = document.getElementById("subtitle");
@@ -315,6 +322,14 @@ async function getWatchingShows(token) {
   return Array.isArray(data) ? data : (data.shows || []);
 }
 
+async function getPlanToWatchShows(token) {
+  const data = await simklGet("/sync/all-items/shows/plantowatch", token, {
+    extended: "full",
+  });
+  if (!data) return [];
+  return Array.isArray(data) ? data : (data.shows || []);
+}
+
 // ---------------------------------------------------------------------
 // TMDB - per-episode runtimes
 // ---------------------------------------------------------------------
@@ -430,9 +445,41 @@ function parseNextEpisode(nextToWatch) {
 // ---------------------------------------------------------------------
 // Build rows (mirrors the Python core logic)
 // ---------------------------------------------------------------------
-async function getMyListRows(token) {
+function computeImages(showDetail) {
+  // Shared by getMyListRows and getAiringNextRows - returns the initial
+  // poster/banner URLs plus the full filtered candidate lists (for the
+  // per-card cycle button), restricted to English or no-language artwork.
+  const out = {
+    posterUrl: null, bannerUrl: null,
+    posterPaths: [], backdropPaths: [],
+    posterIndex: 0, bannerIndex: 0,
+  };
+  if (!showDetail) return out;
+
+  const imgs = showDetail.images || {};
+  const isEnglishOrNoLang = p => p.iso_639_1 === "en" || p.iso_639_1 == null;
+  out.posterPaths = (imgs.posters || []).filter(isEnglishOrNoLang).map(p => p.file_path).filter(Boolean);
+  out.backdropPaths = (imgs.backdrops || []).filter(isEnglishOrNoLang).map(p => p.file_path).filter(Boolean);
+
+  // Prefer TMDB's own primary pick as the starting image, but only if it
+  // actually passes the language filter - otherwise start from the first
+  // filtered result so we never show a non-English default.
+  if (showDetail.poster_path && out.posterPaths.includes(showDetail.poster_path)) {
+    out.posterIndex = out.posterPaths.indexOf(showDetail.poster_path);
+  }
+  if (out.posterPaths.length) out.posterUrl = TMDB_IMAGE_BASE + out.posterPaths[out.posterIndex];
+
+  if (showDetail.backdrop_path && out.backdropPaths.includes(showDetail.backdrop_path)) {
+    out.bannerIndex = out.backdropPaths.indexOf(showDetail.backdrop_path);
+  }
+  if (out.backdropPaths.length) out.bannerUrl = TMDB_BACKDROP_BASE + out.backdropPaths[out.bannerIndex];
+
+  return out;
+}
+
+async function getMyListRows(token, cache) {
   const items = await getWatchingShows(token);
-  const cache = new TmdbCache();
+  cache = cache || new TmdbCache();
   const rows = [];
   let totalRemainingEps = 0;
   let totalRemainingMinutes = 0;
@@ -456,39 +503,11 @@ async function getMyListRows(token) {
       ? `S${String(nextSeason).padStart(2, "0")}E${String(nextEpisode).padStart(2, "0")}`
       : nextToWatch;
 
-    let posterUrl = null;
-    let bannerUrl = null;
-    let posterPaths = [];
-    let backdropPaths = [];
-    let posterIndex = 0;
-    let bannerIndex = 0;
+    let images = computeImages(null);
     let result = null;
     if (tmdbId) {
       const showDetail = await cache.getShow(tmdbId);
-      if (showDetail) {
-        const imgs = showDetail.images || {};
-        // Only English or no-language (textless/unspecified) images.
-        const isEnglishOrNoLang = p => p.iso_639_1 === "en" || p.iso_639_1 == null;
-        posterPaths = (imgs.posters || []).filter(isEnglishOrNoLang).map(p => p.file_path).filter(Boolean);
-        backdropPaths = (imgs.backdrops || []).filter(isEnglishOrNoLang).map(p => p.file_path).filter(Boolean);
-
-        // Prefer TMDB's own primary pick as the starting image, but only if
-        // it actually passes the language filter - otherwise start from the
-        // first filtered result so we never show a non-English default.
-        if (showDetail.poster_path && posterPaths.includes(showDetail.poster_path)) {
-          posterIndex = posterPaths.indexOf(showDetail.poster_path);
-        } else {
-          posterIndex = 0;
-        }
-        if (posterPaths.length) posterUrl = TMDB_IMAGE_BASE + posterPaths[posterIndex];
-
-        if (showDetail.backdrop_path && backdropPaths.includes(showDetail.backdrop_path)) {
-          bannerIndex = backdropPaths.indexOf(showDetail.backdrop_path);
-        } else {
-          bannerIndex = 0;
-        }
-        if (backdropPaths.length) bannerUrl = TMDB_BACKDROP_BASE + backdropPaths[bannerIndex];
-      }
+      images = computeImages(showDetail);
       result = await remainingViaTmdb(item, tmdbId, cache);
     }
 
@@ -505,7 +524,7 @@ async function getMyListRows(token) {
 
     const [hours, mins] = formatTime(remainingMinutes);
     rows.push({
-      title, posterUrl, bannerUrl, posterPaths, backdropPaths, posterIndex, bannerIndex,
+      title, ...images,
       totalEpisodes, available, watched, remaining,
       hours, mins, nextLabel,
     });
@@ -516,11 +535,117 @@ async function getMyListRows(token) {
 }
 
 // ---------------------------------------------------------------------
+// Airing Next - next upcoming (not-yet-aired) episode for shows you're
+// actively watching, sorted soonest-first.
+// ---------------------------------------------------------------------
+async function nextAiringEpisode(tmdbId, showDetail, cache) {
+  if (!showDetail) return null;
+  const today = new Date().toISOString().slice(0, 10);
+  let best = null;
+
+  for (const seasonInfo of showDetail.seasons || []) {
+    const seasonNum = seasonInfo.season_number;
+    if (seasonNum == null || seasonNum === 0) continue; // skip specials
+
+    const seasonDetail = await cache.getSeason(tmdbId, seasonNum);
+    if (!seasonDetail) continue;
+
+    for (const ep of seasonDetail.episodes || []) {
+      const airDate = ep.air_date;
+      if (!airDate || airDate < today) continue; // today or later (no time-of-day data to be stricter)
+      if (!best || airDate < best.airDate) {
+        best = { airDate, season: seasonNum, episode: ep.episode_number };
+      }
+    }
+  }
+  return best;
+}
+
+function formatAirDate(airDate) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(airDate + "T00:00:00");
+  const diffDays = Math.round((target - today) / 86400000);
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Tomorrow";
+  if (diffDays > 1 && diffDays < 7) {
+    return target.toLocaleDateString(undefined, { weekday: "long" });
+  }
+  return target.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
+
+async function buildAiringRow(item, cache, requirePremiere) {
+  const show = item.show || {};
+  const tmdbId = (show.ids || {}).tmdb;
+  if (!tmdbId) return null; // no way to know the air date without TMDB
+
+  const showDetail = await cache.getShow(tmdbId);
+  const next = await nextAiringEpisode(tmdbId, showDetail, cache);
+  if (!next) return null; // nothing upcoming known for this show
+
+  // For Plan to Watch shows, only include ones that haven't premiered at
+  // all yet (next episode is the literal series premiere, S01E01) - a
+  // Plan to Watch show that's already been airing for years but the user
+  // just hasn't started isn't a "premiere", it's backlog, so it's excluded.
+  if (requirePremiere && !(next.season === 1 && next.episode === 1)) return null;
+
+  const images = computeImages(showDetail);
+  const nextLabel = `S${String(next.season).padStart(2, "0")}E${String(next.episode).padStart(2, "0")}`;
+
+  return {
+    title: show.title || "Unknown",
+    ...images,
+    nextLabel,
+    airDate: next.airDate,
+    airDateLabel: formatAirDate(next.airDate),
+  };
+}
+
+async function getAiringNextRows(token, cache) {
+  cache = cache || new TmdbCache();
+
+  const [watchingItems, planToWatchItems] = await Promise.all([
+    getWatchingShows(token),
+    getPlanToWatchShows(token),
+  ]);
+
+  const rows = [];
+  const seenTmdbIds = new Set();
+
+  for (const item of watchingItems) {
+    if (item.status !== "watching") continue;
+    const row = await buildAiringRow(item, cache, /* requirePremiere */ false);
+    if (!row) continue;
+    const tmdbId = (item.show || {}).ids && item.show.ids.tmdb;
+    if (tmdbId) seenTmdbIds.add(tmdbId);
+    rows.push(row);
+  }
+
+  for (const item of planToWatchItems) {
+    if (item.status !== "plantowatch") continue;
+    const tmdbId = (item.show || {}).ids && item.show.ids.tmdb;
+    if (tmdbId && seenTmdbIds.has(tmdbId)) continue; // already added from Watching
+    const row = await buildAiringRow(item, cache, /* requirePremiere */ true);
+    if (!row) continue;
+    rows.push(row);
+  }
+
+  rows.sort((a, b) => (a.airDate < b.airDate ? -1 : a.airDate > b.airDate ? 1 : 0));
+  rows.forEach((r, i) => { r.index = i + 1; });
+  return rows;
+}
+
+// ---------------------------------------------------------------------
 // Render
 // ---------------------------------------------------------------------
 let lastRows = null;
 let lastTotalEps = 0;
 let lastTotalMinutes = 0;
+let airingRows = null;       // lazily fetched, cached until next Refresh
+let sharedCache = null;      // TmdbCache reused across both views for one session
+let simklToken = null;
+let currentView = "list";    // "list" | "airing"
 
 function updateImageModeButton() {
   const btn = document.getElementById("imageModeBtn");
@@ -528,8 +653,14 @@ function updateImageModeButton() {
   btn.textContent = mode === "banner" ? "\u{1F3AC} Switch to Posters" : "\u{1F3AC} Switch to Banners";
 }
 
+function updateViewModeButton() {
+  const btn = document.getElementById("viewModeBtn");
+  btn.textContent = currentView === "airing" ? "\u{1F4C5} My List" : "\u{1F4C5} Airing Next";
+}
+
 function cycleImage(arrIdx) {
-  const row = lastRows && lastRows[arrIdx];
+  const rows = currentView === "airing" ? airingRows : lastRows;
+  const row = rows && rows[arrIdx];
   if (!row) return;
   const isBanner = getImageMode() === "banner";
   const paths = isBanner ? row.backdropPaths : row.posterPaths;
@@ -541,13 +672,34 @@ function cycleImage(arrIdx) {
     row.posterIndex = (row.posterIndex + 1) % paths.length;
     row.posterUrl = TMDB_IMAGE_BASE + paths[row.posterIndex];
   }
-  renderRows(lastRows, lastTotalEps, lastTotalMinutes);
+  if (currentView === "airing") {
+    renderAiringRows(airingRows);
+  } else {
+    renderRows(lastRows, lastTotalEps, lastTotalMinutes);
+  }
+}
+
+function cardImageBits(row, isBanner, arrIdx) {
+  const imageUrl = isBanner ? (row.bannerUrl || row.posterUrl) : row.posterUrl;
+  const posterClass = "poster" + (isBanner ? " banner-img" : "");
+  const posterHtml = imageUrl
+    ? `<img class="${posterClass}" src="${imageUrl}" alt="${row.title}">`
+    : `<div class="${posterClass} placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
+  const altCount = (isBanner ? row.backdropPaths : row.posterPaths || []).length;
+  const cycleDisabled = altCount <= 1;
+  const cycleTitle = cycleDisabled ? "No alternate image available" : "Try another image";
+  const cycleBtn = `<button class="cycle-btn${cycleDisabled ? " disabled" : ""}" title="${cycleTitle}"
+                onclick="cycleImage(${arrIdx})">&#8635;</button>`;
+  return { posterHtml, cycleBtn };
 }
 
 function renderRows(rows, totalRemainingEps, totalRemainingMinutes) {
   lastRows = rows;
   lastTotalEps = totalRemainingEps;
   lastTotalMinutes = totalRemainingMinutes;
+  currentView = "list";
+  localStorage.setItem(LS_VIEW_MODE, "list");
+  updateViewModeButton();
 
   const [totalHours, totalMins] = formatTime(totalRemainingMinutes);
 
@@ -562,23 +714,14 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes) {
   const isBanner = mode === "banner";
 
   const cards = rows.map((row, arrIdx) => {
-    const imageUrl = isBanner ? (row.bannerUrl || row.posterUrl) : row.posterUrl;
-    const posterClass = "poster" + (isBanner ? " banner-img" : "");
-    const posterHtml = imageUrl
-      ? `<img class="${posterClass}" src="${imageUrl}" alt="${row.title}">`
-      : `<div class="${posterClass} placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
+    const { posterHtml, cycleBtn } = cardImageBits(row, isBanner, arrIdx);
     const totalEps = row.totalEpisodes || 0;
     const progressPct = totalEps ? (row.watched / totalEps * 100) : 0;
-
-    const altCount = (isBanner ? row.backdropPaths : row.posterPaths || []).length;
-    const cycleDisabled = altCount <= 1;
-    const cycleTitle = cycleDisabled ? "No alternate image available" : "Try another image";
 
     return `
       <div class="card">
         <div class="badge">#${row.index}</div>
-        <button class="cycle-btn${cycleDisabled ? " disabled" : ""}" title="${cycleTitle}"
-                onclick="cycleImage(${arrIdx})">&#8635;</button>
+        ${cycleBtn}
         ${posterHtml}
         <div class="card-body">
           <h3>${row.title}</h3>
@@ -601,6 +744,44 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes) {
       <div class="stat"><div class="num">${totalRemainingEps}</div><div class="label">Episodes left</div></div>
       <div class="stat"><div class="num">${totalHours}h ${totalMins}m</div><div class="label">Watch time left</div></div>
     </div>
+    <div class="grid${isBanner ? " banner-mode" : ""}">${cards}</div>
+  `;
+  subtitle.textContent = "Updated " + new Date().toLocaleString();
+  updateImageModeButton();
+}
+
+function renderAiringRows(rows) {
+  currentView = "airing";
+  localStorage.setItem(LS_VIEW_MODE, "airing");
+  updateViewModeButton();
+
+  if (!rows.length) {
+    app.innerHTML = `<div class="center-box"><h2>Nothing airing soon</h2>
+      <p style="color:var(--muted)">No upcoming episodes found across your SIMKL lists.</p></div>`;
+    subtitle.textContent = "Nothing airing soon";
+    return;
+  }
+
+  const mode = getImageMode();
+  const isBanner = mode === "banner";
+
+  const cards = rows.map((row, arrIdx) => {
+    const { posterHtml, cycleBtn } = cardImageBits(row, isBanner, arrIdx);
+    return `
+      <div class="card">
+        <div class="badge">#${row.index}</div>
+        ${cycleBtn}
+        ${posterHtml}
+        <div class="card-body">
+          <h3>${row.title}</h3>
+          <div class="next-up">Next: ${row.nextLabel}</div>
+          <div class="air-date">&#128197; ${row.airDateLabel}</div>
+        </div>
+      </div>`;
+  }).join("\n");
+
+  app.innerHTML = `
+    <p class="section-note">${rows.length} shows have new episodes or premieres coming up.</p>
     <div class="grid${isBanner ? " banner-mode" : ""}">${cards}</div>
   `;
   subtitle.textContent = "Updated " + new Date().toLocaleString();
@@ -637,9 +818,12 @@ async function main() {
 
   try {
     const token = await getAccessToken();
+    simklToken = token;
+    sharedCache = new TmdbCache();
+    airingRows = null; // reset - re-fetch lazily next time Airing Next is opened
     app.innerHTML = `<div class="spinner" style="margin-top:80px"></div>`;
     subtitle.textContent = "Fetching your My List\u2026";
-    const [rows, totalEps, totalMinutes] = await getMyListRows(token);
+    const [rows, totalEps, totalMinutes] = await getMyListRows(token, sharedCache);
     renderRows(rows, totalEps, totalMinutes);
   } catch (err) {
     showError(err);
@@ -651,13 +835,35 @@ document.getElementById("settingsBtn").onclick = () => showSettings(main);
 document.getElementById("imageModeBtn").onclick = () => {
   const current = getImageMode();
   localStorage.setItem(LS_IMAGE_MODE, current === "banner" ? "poster" : "banner");
-  if (lastRows) {
+  if (currentView === "airing" && airingRows) {
+    renderAiringRows(airingRows); // instant, no re-fetch
+  } else if (lastRows) {
     renderRows(lastRows, lastTotalEps, lastTotalMinutes); // instant, no re-fetch
   } else {
     updateImageModeButton();
   }
 };
+document.getElementById("viewModeBtn").onclick = async () => {
+  if (currentView === "airing") {
+    renderRows(lastRows || [], lastTotalEps, lastTotalMinutes);
+    return;
+  }
+  if (!simklToken) return; // not authenticated/loaded yet
+  if (airingRows) {
+    renderAiringRows(airingRows);
+    return;
+  }
+  app.innerHTML = `<div class="spinner" style="margin-top:80px"></div>`;
+  subtitle.textContent = "Fetching Airing Next\u2026";
+  try {
+    airingRows = await getAiringNextRows(simklToken, sharedCache);
+    renderAiringRows(airingRows);
+  } catch (err) {
+    showError(err);
+  }
+};
 updateImageModeButton();
+updateViewModeButton();
 
 main();
 </script>
