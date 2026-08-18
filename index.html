@@ -133,7 +133,7 @@
 <body>
 
 <header>
-  <h1>My List &mdash; Continue Watching<span class="version-tag">v8</span></h1>
+  <h1>My List &mdash; Continue Watching<span class="version-tag">v10</span></h1>
   <p id="subtitle">Loading&hellip;</p>
   <div class="toolbar">
     <button class="pill" id="refreshBtn">&#8635; Refresh</button>
@@ -356,12 +356,14 @@ class TmdbCache {
     if (!this.show.has(tmdbId)) {
       // append_to_response=images pulls ALL available posters/backdrops for
       // this show in the same request, so we can offer alternates later.
-      // include_image_language restricts results to English + untagged
-      // (no-language) images only, per user preference.
+      // include_image_language asks for English + untagged (no-language) +
+      // Hebrew images - English/no-language is preferred (see computeImages),
+      // Hebrew is used only as a fallback for shows that only have
+      // Hebrew-text artwork (some Israeli shows).
       this.show.set(tmdbId, await tmdbGet(`/tv/${tmdbId}`, {
         append_to_response: "images",
         language: "en-US",
-        include_image_language: "en,null",
+        include_image_language: "en,null,he",
       }));
     }
     return this.show.get(tmdbId);
@@ -448,7 +450,11 @@ function parseNextEpisode(nextToWatch) {
 function computeImages(showDetail) {
   // Shared by getMyListRows and getAiringNextRows - returns the initial
   // poster/banner URLs plus the full filtered candidate lists (for the
-  // per-card cycle button), restricted to English or no-language artwork.
+  // per-card cycle button). Prefers English or no-language artwork; if a
+  // show has NEITHER for posters or backdrops, falls back to Hebrew
+  // (some Israeli shows only have Hebrew-text artwork on TMDB) - decided
+  // independently for posters vs. backdrops, since a show might have an
+  // English poster but only a Hebrew backdrop, or vice versa.
   const out = {
     posterUrl: null, bannerUrl: null,
     posterPaths: [], backdropPaths: [],
@@ -458,12 +464,19 @@ function computeImages(showDetail) {
 
   const imgs = showDetail.images || {};
   const isEnglishOrNoLang = p => p.iso_639_1 === "en" || p.iso_639_1 == null;
-  out.posterPaths = (imgs.posters || []).filter(isEnglishOrNoLang).map(p => p.file_path).filter(Boolean);
-  out.backdropPaths = (imgs.backdrops || []).filter(isEnglishOrNoLang).map(p => p.file_path).filter(Boolean);
+  const isHebrew = p => p.iso_639_1 === "he";
+
+  const enPosters = (imgs.posters || []).filter(isEnglishOrNoLang);
+  const enBackdrops = (imgs.backdrops || []).filter(isEnglishOrNoLang);
+
+  out.posterPaths = (enPosters.length ? enPosters : (imgs.posters || []).filter(isHebrew))
+    .map(p => p.file_path).filter(Boolean);
+  out.backdropPaths = (enBackdrops.length ? enBackdrops : (imgs.backdrops || []).filter(isHebrew))
+    .map(p => p.file_path).filter(Boolean);
 
   // Prefer TMDB's own primary pick as the starting image, but only if it
-  // actually passes the language filter - otherwise start from the first
-  // filtered result so we never show a non-English default.
+  // actually made it into the (English/no-language, or Hebrew-fallback)
+  // list above - otherwise start from the first result in that list.
   if (showDetail.poster_path && out.posterPaths.includes(showDetail.poster_path)) {
     out.posterIndex = out.posterPaths.indexOf(showDetail.poster_path);
   }
@@ -522,13 +535,35 @@ async function getMyListRows(token, cache) {
     totalRemainingEps += remaining;
     totalRemainingMinutes += remainingMinutes;
 
+    // Air date of the specific "next episode to watch" (not the show's
+    // next upcoming one) - used to sort: shows you're only a little behind
+    // on (aired recently) float to the top; old backlog sinks to the
+    // bottom. cache.getSeason is already warm from remainingViaTmdb above,
+    // so this normally costs no extra request.
+    let nextAirDate = null;
+    if (tmdbId && nextSeason != null) {
+      const seasonDetail = await cache.getSeason(tmdbId, nextSeason);
+      const ep = seasonDetail && (seasonDetail.episodes || []).find(e => e.episode_number === nextEpisode);
+      if (ep && ep.air_date) nextAirDate = ep.air_date;
+    }
+
     const [hours, mins] = formatTime(remainingMinutes);
     rows.push({
       title, ...images,
       totalEpisodes, available, watched, remaining,
-      hours, mins, nextLabel,
+      hours, mins, nextLabel, nextAirDate,
     });
   }
+
+  // Sort by the air date of the next episode to watch, most recent first;
+  // shows with no known date (or a very old backlog) sink toward the end.
+  rows.sort((a, b) => {
+    if (a.nextAirDate == null && b.nextAirDate == null) return 0;
+    if (a.nextAirDate == null) return 1;
+    if (b.nextAirDate == null) return -1;
+    if (a.nextAirDate === b.nextAirDate) return 0;
+    return a.nextAirDate > b.nextAirDate ? -1 : 1;
+  });
 
   rows.forEach((r, i) => { r.index = i + 1; });
   return [rows, totalRemainingEps, totalRemainingMinutes];
@@ -572,7 +607,7 @@ function formatAirDate(airDate) {
   if (diffDays > 1 && diffDays < 7) {
     return target.toLocaleDateString(undefined, { weekday: "long" });
   }
-  return target.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  return target.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
 }
 
 async function buildAiringRow(item, cache, requirePremiere) {

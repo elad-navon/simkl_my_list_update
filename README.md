@@ -48,7 +48,9 @@ poster/backdrop artwork come from [TMDB](https://www.themoviedb.org)
   for that show, if TMDB has more than one. Does nothing if there's
   only one.
 - Only **English or no-language** artwork is used (no foreign-text
-  posters).
+  posters), except shows that have **no English/no-language image at
+  all** (some Israeli shows only have Hebrew-text artwork on TMDB) —
+  those fall back to Hebrew rather than showing no image.
 - **Settings** (⚙) — edit your SIMKL/TMDB keys any time.
 
 ## A known limitation
@@ -101,4 +103,4 @@ after you watch more episodes.
 
 ## Version
 
-Current: **v8**
+Current: **v10**
