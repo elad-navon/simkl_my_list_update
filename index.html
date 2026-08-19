@@ -33,16 +33,16 @@
   .version-tag {
     font-size: 0.72rem; font-weight: 600; color: var(--muted); background: var(--card);
     border: 1px solid #383a4a; border-radius: 20px; padding: 3px 10px;
-    vertical-align: middle; margin-left: 10px; letter-spacing: 0.04em;
+    vertical-align: baseline; margin-left: 10px; position: relative; top: 5px; letter-spacing: 0.04em;
     -webkit-text-fill-color: var(--muted);
   }
-  header p { color: var(--muted); margin: 0; font-size: 0.95rem; }
+  header p { color: var(--muted); margin: 0; font-size: 0.95rem; font-weight: 700; }
   .toolbar {
     display: flex; justify-content: center; gap: 10px; margin-top: 18px;
   }
   button.pill {
     background: var(--card); color: var(--text); border: 1px solid #383a4a;
-    border-radius: 20px; padding: 8px 18px; font-size: 0.85rem; cursor: pointer;
+    border-radius: 20px; padding: 8px 18px; font-size: 0.85rem; font-weight: 700; cursor: pointer;
   }
   button.pill:hover { background: var(--card-hover); }
   .summary-bar {
@@ -149,7 +149,7 @@
 <body>
 
 <header>
-  <h1>My List - Continue Watching<span class="version-tag">v10</span></h1>
+  <h1>My List - Continue Watching<span class="version-tag">V11</span></h1>
   <p id="subtitle">Loading&hellip;</p>
   <div class="toolbar">
     <button class="pill" id="refreshBtn">&#8635; Refresh</button>
@@ -531,7 +531,7 @@ async function getMyListRows(token, cache) {
     const [nextSeason, nextEpisode] = parseNextEpisode(nextToWatch);
     const nextLabel = nextSeason != null
       ? `S${String(nextSeason).padStart(2, "0")}E${String(nextEpisode).padStart(2, "0")}`
-      : nextToWatch;
+      : "";
 
     let nextEpisodeTitle = null;
 
@@ -566,7 +566,7 @@ async function getMyListRows(token, cache) {
       const ep = seasonDetail && (seasonDetail.episodes || []).find(e => e.episode_number === nextEpisode);
       if (ep) {
         if (ep.air_date) nextAirDate = ep.air_date;
-        if (ep.name) episodeTitle = ep.name;
+        if (ep.name && !/^Episode\s+\d+$/i.test(ep.name.trim())) episodeTitle = ep.name.trim();
       }
     }
 
@@ -649,12 +649,14 @@ async function buildAiringRow(item, cache, requirePremiere) {
   if (requirePremiere && !(next.season === 1 && next.episode === 1)) return null;
 
   const images = computeImages(showDetail);
-  const nextLabel = `S${String(next.season).padStart(2, "0")}E${String(next.episode).padStart(2, "0")}`;
+  const nextLabel = (next.season != null && next.episode != null)
+    ? `S${String(next.season).padStart(2, "0")}E${String(next.episode).padStart(2, "0")}`
+    : "";
 
   const seasonDetail = await cache.getSeason(tmdbId, next.season);
   const episodeDetail = seasonDetail && (seasonDetail.episodes || [])
     .find(e => e.episode_number === next.episode);
-  const nextEpisodeTitle = episodeDetail && episodeDetail.name ? episodeDetail.name : null;
+  const nextEpisodeTitle = episodeDetail && episodeDetail.name && !/^Episode\s+\d+$/i.test(episodeDetail.name.trim()) ? episodeDetail.name.trim() : null;
 
   return {
     title: show.title || "Unknown",
@@ -720,8 +722,8 @@ function updateImageModeButton() {
 function updatePageTitle() {
   const isAiring = currentView === "airing";
   pageTitle.innerHTML = isAiring
-    ? 'Airing Next<span class="version-tag">v10</span>'
-    : 'My List - Continue Watching<span class="version-tag">v10</span>';
+    ? 'Airing Next<span class="version-tag">V11</span>'
+    : 'My List - Continue Watching<span class="version-tag">V11</span>';
   document.title = isAiring ? "Airing Next" : "My List - Continue Watching";
 }
 
@@ -859,13 +861,14 @@ function renderAiringRows(rows) {
         <div class="card-body">
           <h3>${row.title}</h3>
           <div class="next-up">Next: ${row.nextLabel}</div>
+          ${row.nextEpisodeTitle ? `<div class="episode-title">${row.nextEpisodeTitle}</div>` : ""}
           <div class="air-date">&#128197; ${row.airDateLabel}</div>
         </div>
       </div>`;
   }).join("\n");
 
   app.innerHTML = `
-    <p class="section-note">${rows.length} shows have new episodes or premieres coming up.</p>
+    <p class="section-note" style="font-weight:700;">${rows.length} shows have new episodes or premieres coming up.</p>
     <div class="grid${isBanner ? " banner-mode" : ""}">${cards}</div>
   `;
   subtitle.textContent = "Updated " + new Date().toLocaleString();
