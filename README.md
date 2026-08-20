@@ -1,106 +1,297 @@
-# SIMKL My List Summary
+# SIMKL Airing Next - My List
 
-A single self-contained HTML page that answers one question: **for the
-shows in my SIMKL "My List" (status *Watching*, with a new episode
-waiting), how many episodes are left, and how much time will it take
-to catch up?**
+גרסה: **V17**
 
-Everything runs as JavaScript **in your browser** — no server, no
-backend, nothing to keep running in the background. Episode/watch
-status comes from [SIMKL](https://simkl.com); per-episode runtimes and
-poster/backdrop artwork come from [TMDB](https://www.themoviedb.org)
-(more accurate than SIMKL's single show-level runtime value).
+קובץ HTML עצמאי להצגת שתי תצוגות המבוססות על רשימת הצפייה האישית
+ב-SIMKL:
 
-## Setup
+-   **My List - Continue Watching** - סדרות שנמצאות במצב Watching ובהן
+    קיימים פרקים ששודרו ועדיין לא נצפו.
+-   **Airing Next** - הפרק הבא הצפוי עבור הסדרות ברשימות המשתמש.
 
-1. Open `simkl_live.html` in your browser (double-click it, or host it
-   anywhere — see [Publishing it](#publishing-it-eg-for-a-startme-shortcut)
-   below).
-2. First run shows a **Setup** screen — paste in:
-   - **SIMKL Client ID** — create a free app at
-     [simkl.com/settings/developer](https://simkl.com/settings/developer/)
-     (any redirect_uri value works, this uses the PIN flow).
-   - **TMDB API Key** — get a free key at
-     [themoviedb.org/settings/api](https://www.themoviedb.org/settings/api).
+## מה הקובץ עושה
 
-   These are saved only in your browser's `localStorage` — **never**
-   written into the HTML file itself, so it's safe to keep this file
-   in a public git repo.
-3. You'll then see a one-time SIMKL PIN code — approve it at the link
-   shown. The access token is also cached in `localStorage`.
-4. From then on, every time you open the page (or hit **Refresh**), it
-   fetches live data and renders the current state.
+הקובץ רץ ישירות בדפדפן ללא שרת Backend.
 
-## Features
+הנתונים מגיעים משני מקורות עיקריים:
 
-- One card per show: poster/banner, progress bar, total / available /
-  watched / remaining episode counts, time left, and the next episode
-  to watch (e.g. `S03E01`).
-- **My List ↔ Airing Next toggle** (top toolbar) — My List shows what
-  you have left to watch; Airing Next shows upcoming (not-yet-aired)
-  episodes for the shows you're actively watching, plus true future
-  premieres (series you haven't started at all) from your Plan to
-  Watch list — soonest first. Plan to Watch shows that already aired
-  but you just haven't started ("backlog") are excluded.
-- **Poster ↔ Banner toggle** (top toolbar) — banners are TMDB's
-  landscape "backdrop" images.
-- **⟳ icon** on each card — cycles to another available poster/banner
-  for that show, if TMDB has more than one. Does nothing if there's
-  only one.
-- Only **English or no-language** artwork is used (no foreign-text
-  posters), except shows that have **no English/no-language image at
-  all** (some Israeli shows only have Hebrew-text artwork on TMDB) —
-  those fall back to Hebrew rather than showing no image.
-- **Settings** (⚙) — edit your SIMKL/TMDB keys any time.
+### SIMKL
 
-## A known limitation
+SIMKL הוא מקור האמת עבור:
 
-Air dates come from TMDB. SIMKL's own Airing Next/Calendar pulls from
-**TheTVDB** instead, which tends to have better coverage of local and
-international content (e.g. local-language reality shows). A show
-that appears in SIMKL's Airing Next may not appear here if TMDB
-doesn't have accurate episode air-date data for it.
+-   רשימת הסדרות במצב Watching.
+-   רשימת הסדרות במצב Plan to Watch.
+-   מספר הפרקים שנצפו.
+-   מספר הפרקים ששודרו.
+-   מצב הצפייה של כל סדרה.
+-   לוח השידורים של Airing Next.
+-   תאריך ושעת השידור של הפרקים ב-Airing Next.
 
-## A note on CORS
+עבור Airing Next הקובץ משתמש ישירות ב:
 
-This relies on your browser being allowed to call `api.simkl.com` and
-`api.themoviedb.org` directly. TMDB is known to support this. SIMKL's
-support is unconfirmed — if you see a "Network/CORS error reaching
-SIMKL" message, your browser is blocking it.
+`https://data.simkl.in/calendar/tv.json`
 
-## Publishing it (e.g. for a StartMe shortcut)
+המשמעות החשובה היא שהקובץ **לא משתמש ב-TMDB כדי לקבוע אם פרק עתידי או
+מהו מועד השידור שלו**.
 
-Since your API keys are never stored *in* the file, you can safely put
-`simkl_live.html` in a git repo:
+### TMDB
 
-```
-git add simkl_live.html
-git commit -m "update"
-git push
-```
+TMDB משמש בעיקר עבור:
 
-To view it as a rendered page (not raw code) from a link:
-- **GitHub Pages** (free for public repos): enable it under
-  *Settings → Pages*, then link to
-  `https://<username>.github.io/<repo>/simkl_live.html`.
-- **htmlpreview.github.io** (no setup, works for private repos too if
-  you're logged in):
-  `https://htmlpreview.github.io/?https://github.com/<username>/<repo>/blob/main/simkl_live.html`
+-   פוסטרים.
+-   תמונות Banner/Backdrop.
+-   שמות פרקים כאשר SIMKL Calendar לא מחזיר שם פרק.
+-   זמני ריצה לצורך חישוב זמן הצפייה שנותר ב-My List.
 
-Either way, since the page computes everything live on load, the link
-always shows current data — no need to regenerate or re-push anything
-after you watch more episodes.
+תאריכי השידור של Airing Next אינם נלקחים מ-TMDB.
 
-## Notes
+------------------------------------------------------------------------
 
-- **Membership in "My List"** is taken directly from SIMKL's own
-  `next_to_watch` field — this always matches what the site itself
-  shows, rather than being re-derived from episode counts.
-- **Remaining episode counts / time** are computed per-episode against
-  TMDB (aired date ≤ today, not already marked watched), falling back
-  to SIMKL's own aggregate counts only if a show has no TMDB match.
-- Read-only — this never modifies your SIMKL data.
+# תיקון חשוב - ON STANDBY
 
-## Version
+אחד התיקונים המרכזיים בגרסה זו הוא הטיפול בפרקים ששודרו אך עדיין לא
+נצפו.
 
-Current: **v10**
+הקובץ משתמש בנתוני SIMKL כדי לחשב:
+
+`Aired episodes - Watched episodes`
+
+ולא מאפשר לנתוני `air_date` של TMDB לשנות את הספירה.
+
+זה חשוב במיוחד במקרים שבהם קיימים מספר פרקים ששודרו ועדיין לא נצפו.
+
+לדוגמה:
+
+אם SIMKL מדווח:
+
+-   2 פרקים ששודרו
+-   0 פרקים שנצפו
+
+המערכת תציג:
+
+**2 episodes left**
+
+ולא תסתמך על TMDB כדי להחליט שרק פרק אחד זמין.
+
+------------------------------------------------------------------------
+
+# Airing Next
+
+תהליך Airing Next:
+
+1.  הקובץ מקבל מ-SIMKL את רשימת ה-Watching.
+2.  הקובץ מקבל מ-SIMKL את רשימת ה-Plan to Watch.
+3.  הקובץ מוריד את SIMKL TV Calendar.
+4.  הקובץ מנרמל את מבנה ה-Calendar.
+5.  כל פרק נבדק לפי תאריך השידור של SIMKL.
+6.  מתבצעת התאמה לסדרה לפי SIMKL ID.
+7.  קיימים מנגנוני Fallback לפי TVDB, TMDB ו-IMDb.
+8.  אם אין ID מתאים, קיימת התאמה אחרונה לפי שם הסדרה.
+9.  נבחר הפרק העתידי הקרוב ביותר.
+10. התוצאות ממוינות לפי מועד השידור.
+
+## Plan to Watch
+
+עבור סדרות שנמצאות ב-Plan to Watch, הקובץ מציג רק:
+
+**S01E01**
+
+כלומר, Premiere אמיתי של הסדרה.
+
+אם סדרה נמצאת ב-Plan to Watch אבל הפרק הבא שלה הוא למשל S02E01, היא לא
+תופיע ב-Airing Next.
+
+אם אותה סדרה כבר נמצאת ב-Watching, היא לא תתווסף שוב דרך Plan to Watch.
+
+------------------------------------------------------------------------
+
+# My List
+
+My List מציגה רק סדרות שנמצאות במצב:
+
+`watching`
+
+סדרה תוצג כאשר קיימים פרקים ששודרו ועדיין לא נצפו.
+
+לכל סדרה מוצגים:
+
+-   שם הסדרה.
+-   הפרק הבא לצפייה.
+-   שם הפרק, כאשר זמין.
+-   מספר הפרקים שנותרו.
+-   זמן הצפייה המשוער שנותר.
+-   תמונת הסדרה.
+
+המערכת מחשבת גם:
+
+-   מספר הסדרות.
+-   מספר הפרקים הכולל שנותר.
+-   זמן הצפייה הכולל שנותר.
+
+------------------------------------------------------------------------
+
+# תמונות
+
+התמונות מגיעות מ-TMDB.
+
+ניתן לעבור בין:
+
+-   Posters
+-   Banners
+
+בנוסף, כאשר קיימות מספר תמונות זמינות לסדרה, ניתן ללחוץ על כפתור הסיבוב
+בפינה העליונה של הכרטיס כדי לעבור בין התמונות.
+
+------------------------------------------------------------------------
+
+# הגדרות
+
+בהפעלה הראשונה יש להזין:
+
+1.  **SIMKL Client ID**
+2.  **TMDB API Key**
+
+הערכים נשמרים ב-`localStorage` של הדפדפן בלבד.
+
+הם אינם נכתבים לתוך קובץ ה-HTML.
+
+לכן ניתן לשמור את הקובץ ב-GitHub או במאגר ציבורי בלי להכניס אליו את
+המפתחות עצמם.
+
+------------------------------------------------------------------------
+
+# התחברות ל-SIMKL
+
+הקובץ משתמש ב-SIMKL OAuth PIN Flow.
+
+בהפעלה הראשונה:
+
+1.  נוצר קוד PIN.
+2.  נפתח קישור ל-SIMKL.
+3.  המשתמש מאשר את האפליקציה.
+4.  מתקבל Access Token.
+5.  ה-Token נשמר ב-localStorage של הדפדפן.
+
+אין צורך להכניס את ה-Access Token לתוך הקוד.
+
+------------------------------------------------------------------------
+
+# שמירת נתונים
+
+הקובץ שומר ב-localStorage:
+
+-   SIMKL Client ID
+-   TMDB API Key
+-   SIMKL Access Token
+-   מצב התצוגה של התמונות
+-   מצב התצוגה האחרון
+
+הקובץ עצמו אינו מכיל את המפתחות האישיים.
+
+------------------------------------------------------------------------
+
+# רענון נתונים
+
+כפתור **Refresh**:
+
+-   מבצע התחברות מחדש לפי הצורך.
+-   טוען מחדש את רשימת ה-SIMKL.
+-   מאפס את Cache של TMDB.
+-   מאפס את נתוני Airing Next.
+-   טוען את הנתונים העדכניים.
+
+Airing Next נטען מחדש כאשר נכנסים לתצוגה לאחר Refresh.
+
+------------------------------------------------------------------------
+
+# CORS והרצה מקומית
+
+הקובץ מבצע בקשות ישירות מהדפדפן אל:
+
+-   SIMKL API
+-   SIMKL Calendar
+-   TMDB API
+-   TMDB Image CDN
+
+לכן דפדפן או סביבת אבטחה מסוימת עלולים לחסום בקשות Cross-Origin.
+
+אם מתקבלת שגיאת CORS מול SIMKL, יש להשתמש בגרסה שרצה באמצעות Local
+Server.
+
+------------------------------------------------------------------------
+
+# מבנה טכני
+
+הקובץ הוא Single-File HTML וכולל בתוכו:
+
+-   HTML
+-   CSS
+-   JavaScript
+-   Favicon
+-   ממשק משתמש
+-   OAuth PIN Flow
+-   SIMKL API integration
+-   SIMKL Calendar parser
+-   TMDB integration
+-   Image caching
+-   My List calculation
+-   Airing Next calculation
+
+אין צורך ב:
+
+-   Node.js
+-   React
+-   Python
+-   Backend
+-   Database
+-   Build process
+
+------------------------------------------------------------------------
+
+# מקורות מידע
+
+## SIMKL API
+
+`https://api.simkl.com`
+
+## SIMKL TV Calendar
+
+`https://data.simkl.in/calendar/tv.json`
+
+## TMDB API
+
+`https://api.themoviedb.org/3`
+
+## TMDB Images
+
+`https://image.tmdb.org/t/p/`
+
+------------------------------------------------------------------------
+
+# גרסה V17 - Baseline
+
+גרסה זו נחשבת לגרסת Baseline יציבה של הפרויקט.
+
+המאפיינים החשובים שלה:
+
+-   **ON STANDBY מטופלת נכון.**
+-   **Airing Next משתמש ב-SIMKL Calendar.**
+-   **תאריכי Airing Next מגיעים מ-SIMKL.**
+-   **TMDB משמש לתמונות ולמידע תצוגתי בלבד.**
+-   **My List משתמש בנתוני SIMKL לחישוב פרקים ששודרו ולא נצפו.**
+-   **קיימת תמיכה ב-Watching וב-Plan to Watch.**
+
+במקרה של שינוי עתידי, מומלץ לשמור עותק של V17 לפני ביצוע שינויים במנגנון
+Airing Next או בחישוב My List.
+
+------------------------------------------------------------------------
+
+# קובץ הפרויקט
+
+קובץ האפליקציה:
+
+`index(8)_simkl_airing_fixed.html`
+
+גרסה:
+
+`V17`
