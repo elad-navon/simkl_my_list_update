@@ -198,7 +198,7 @@
 <body>
 
 <header>
-  <h1>My List - Continue Watching<span class="version-tag">V17</span></h1>
+  <h1>My List - Continue Watching<span class="version-tag">V21</span></h1>
   <p id="subtitle">Loading&hellip;</p>
   <div class="toolbar">
     <button class="pill" id="refreshBtn">&#8635; Refresh</button>
@@ -210,7 +210,7 @@
 
 <div id="app"></div>
 
-<footer>Schedule from SIMKL &amp; artwork from TMDB &mdash; runs entirely in your browser, no server involved.</footer>
+<footer>Data from SIMKL &amp; TMDB &mdash; runs entirely in your browser, no server involved.</footer>
 
 <script>
 "use strict";
@@ -397,361 +397,6 @@ async function getPlanToWatchShows(token) {
 }
 
 // ---------------------------------------------------------------------
-// ---------------------------------------------------------------------
-// SIMKL Airing Next - use SIMKL's own episode data directly.
-// This is intentionally NOT based on TMDB air_date values.
-// SIMKL episode objects expose the actual schedule in `date`.
-// ---------------------------------------------------------------------
-async function getSimklTvCalendar() {
-  let res;
-  try {
-    res = await fetch("https://data.simkl.in/calendar/tv.json", {
-      headers: { "Accept": "application/json" },
-      cache: "no-store",
-    });
-  } catch (e) {
-    throw new Error("Unable to reach the SIMKL TV calendar: " + e.message);
-  }
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`SIMKL TV calendar failed (${res.status}): ${body.slice(0, 250)}`);
-  }
-
-  return res.json();
-}
-
-function simklEpisodeTimestamp(value) {
-  if (value == null) return null;
-
-  if (typeof value === "number") {
-    const ms = value < 100000000000 ? value * 1000 : value;
-    const d = new Date(ms);
-    return Number.isNaN(d.getTime()) ? null : d;
-  }
-
-  const s = String(value).trim();
-  if (!s) return null;
-
-  const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-function simklEpisodeIsUpcoming(ep) {
-  const raw = ep && ep.date;
-  const d = simklEpisodeTimestamp(raw);
-  if (!d) return false;
-
-  // SIMKL's calendar is a schedule. If an entry contains only a date
-  // (no time), keep today's entry visible rather than treating midnight
-  // as already aired.
-  const s = String(raw).trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
-    return s >= today;
-  }
-
-  return d.getTime() >= Date.now();
-}
-
-function formatSimklAirDate(value) {
-  const target = simklEpisodeTimestamp(value);
-  if (!target) return "Unknown";
-
-  const now = new Date();
-  const startToday = new Date(now);
-  startToday.setHours(0, 0, 0, 0);
-
-  const startTarget = new Date(target);
-  startTarget.setHours(0, 0, 0, 0);
-
-  const diffDays = Math.round((startTarget - startToday) / 86400000);
-  const raw = String(value).trim();
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-    if (diffDays === 0) return "Today";
-    if (diffDays === 1) return "Tomorrow";
-    return target.toLocaleDateString(undefined, {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  }
-
-  const time = target.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-
-  if (diffDays === 0) return `Today, ${time}`;
-  if (diffDays === 1) return `Tomorrow, ${time}`;
-  if (diffDays > 1 && diffDays < 7) {
-    return `${target.toLocaleDateString(undefined, { weekday: "long" })}, ${time}`;
-  }
-
-  return target.toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }) + `, ${time}`;
-}
-
-function normalizeSimklCalendar(data) {
-  const result = [];
-  const seen = new Set();
-
-  const pick = (obj, keys) => {
-    for (const k of keys) {
-      if (obj && obj[k] != null) return obj[k];
-    }
-    return null;
-  };
-
-  function looksLikeDateKey(key) {
-    return /^\d{4}-\d{2}-\d{2}(?:[T ][0-9:.+-Z]+)?$/.test(String(key));
-  }
-
-  function extractIds(obj, inherited) {
-    const ids = { ...inherited };
-    if (!obj || typeof obj !== "object") return ids;
-
-    // Only treat explicit ID containers / named ID fields as IDs.
-    // Do NOT treat a generic "id" as a SIMKL id - that caused unrelated
-    // nested objects to inherit the wrong show ID in the previous parser.
-    if (obj.ids && typeof obj.ids === "object") {
-      for (const type of ["simkl", "tvdb", "tmdb", "imdb", "mal"]) {
-        if (obj.ids[type] != null) ids[type] = obj.ids[type];
-      }
-    }
-
-    for (const [type, keys] of Object.entries({
-      simkl: ["simkl_id", "simklId"],
-      tvdb: ["tvdb_id", "tvdbId"],
-      tmdb: ["tmdb_id", "tmdbId"],
-      imdb: ["imdb_id", "imdbId"],
-      mal: ["mal_id", "malId"],
-    })) {
-      const value = pick(obj, keys);
-      if (value != null) ids[type] = value;
-    }
-
-    return ids;
-  }
-
-  function extractDate(obj, inheritedDate) {
-    if (!obj || typeof obj !== "object") return inheritedDate;
-
-    for (const key of [
-      "date", "air_date", "airDate", "air_datetime", "airDatetime",
-      "datetime", "air_time", "airTime", "release_date", "releaseDate",
-      "released", "release"
-    ]) {
-      if (obj[key] != null && simklEpisodeTimestamp(obj[key])) {
-        return obj[key];
-      }
-    }
-
-    return inheritedDate;
-  }
-
-  function extractSeason(obj, inheritedSeason, contextType) {
-    if (!obj || typeof obj !== "object") return inheritedSeason;
-
-    const explicit = pick(obj, [
-      "season", "season_number", "seasonNumber",
-      "season_num", "seasonNum"
-    ]);
-    if (explicit != null) return Number(explicit);
-
-    // SIMKL's standard show model uses number inside a season object.
-    if (contextType === "season" && obj.number != null) {
-      return Number(obj.number);
-    }
-
-    return inheritedSeason;
-  }
-
-  function extractEpisode(obj, inheritedEpisode, contextType) {
-    if (!obj || typeof obj !== "object") return inheritedEpisode;
-
-    const explicit = pick(obj, [
-      "episode", "episode_number", "episodeNumber",
-      "ep", "episode_num", "episodeNum"
-    ]);
-    if (explicit != null) return Number(explicit);
-
-    // SIMKL's standard show model uses number inside an episode object.
-    if (contextType === "episode" && obj.number != null) {
-      return Number(obj.number);
-    }
-
-    return inheritedEpisode;
-  }
-
-  function extractTitle(obj, inheritedTitle, contextType) {
-    if (!obj || typeof obj !== "object") return inheritedTitle;
-
-    if (contextType === "episode") {
-      for (const key of [
-        "title", "name", "episode_title", "episodeTitle",
-        "episode_name", "episodeName"
-      ]) {
-        if (typeof obj[key] === "string" && obj[key].trim()) {
-          return obj[key].trim();
-        }
-      }
-    }
-
-    for (const key of ["show_title", "showTitle", "title", "name"]) {
-      if (typeof obj[key] === "string" && obj[key].trim()) {
-        return obj[key].trim();
-      }
-    }
-
-    return inheritedTitle;
-  }
-
-  function visit(node, context) {
-    if (node == null) return;
-
-    if (Array.isArray(node)) {
-      for (const item of node) visit(item, context);
-      return;
-    }
-
-    if (typeof node !== "object") return;
-
-    const ids = extractIds(node, context.ids);
-    const date = extractDate(node, context.date);
-    const season = extractSeason(node, context.season, context.type);
-    const episode = extractEpisode(node, context.episode, context.type);
-    const title = extractTitle(node, context.title, context.type);
-
-    // If the object itself has the complete episode information, record it.
-    const d = simklEpisodeTimestamp(date);
-    if (
-      d &&
-      Number.isFinite(season) && season > 0 &&
-      Number.isFinite(episode) && episode > 0 &&
-      (ids.simkl != null || ids.tvdb != null || ids.tmdb != null || ids.imdb != null)
-    ) {
-      const key = [
-        ids.simkl ?? "", ids.tvdb ?? "", ids.tmdb ?? "", ids.imdb ?? "",
-        season, episode, String(date)
-      ].join("|");
-
-      if (!seen.has(key)) {
-        seen.add(key);
-        result.push({
-          ids: { ...ids },
-          season,
-          episode,
-          date,
-          title: title || null
-        });
-      }
-    }
-
-    // Preserve structural context for nested show/season/episode objects.
-    for (const [key, value] of Object.entries(node)) {
-      let nextType = null;
-      const lower = key.toLowerCase();
-
-      if (lower === "show" || lower === "series" || lower === "tvshow") {
-        nextType = "show";
-      } else if (lower === "season" || lower === "seasons") {
-        nextType = "season";
-      } else if (
-        lower === "episode" ||
-        lower === "episodes" ||
-        lower === "ep"
-      ) {
-        nextType = "episode";
-      }
-
-      const nextDate = looksLikeDateKey(key) ? key : date;
-
-      visit(value, {
-        ids,
-        date: nextDate,
-        season,
-        episode,
-        title,
-        type: nextType
-      });
-    }
-  }
-
-  visit(data, {
-    ids: {},
-    date: null,
-    season: null,
-    episode: null,
-    title: null,
-    type: null
-  });
-
-  return result;
-}
-
-function findNextSimklCalendarEpisode(item, calendar) {
-  const show = item.show || {};
-  const ids = show.ids || {};
-  const showTitle = String(show.title || "").trim().toLowerCase();
-  const showYear = show.year != null ? Number(show.year) : null;
-
-  const sameIds = (epIds) => {
-    const e = epIds || {};
-
-    if (ids.simkl != null && e.simkl != null &&
-        String(ids.simkl) === String(e.simkl)) return true;
-    if (ids.tvdb != null && e.tvdb != null &&
-        String(ids.tvdb) === String(e.tvdb)) return true;
-    if (ids.tmdb != null && e.tmdb != null &&
-        String(ids.tmdb) === String(e.tmdb)) return true;
-    if (ids.imdb != null && e.imdb != null &&
-        String(ids.imdb) === String(e.imdb)) return true;
-
-    return false;
-  };
-
-  const candidates = calendar.filter(ep => {
-    if (!simklEpisodeIsUpcoming(ep)) return false;
-    if (sameIds(ep.ids)) return true;
-
-    // Final fallback for calendar entries where an external ID is missing.
-    if (showTitle && ep.title) {
-      const epTitle = String(ep.title).trim().toLowerCase();
-      if (epTitle === showTitle) return true;
-    }
-
-    return false;
-  });
-
-  candidates.sort((a, b) => {
-    const ta = simklEpisodeTimestamp(a.date)?.getTime() ?? Infinity;
-    const tb = simklEpisodeTimestamp(b.date)?.getTime() ?? Infinity;
-    return ta - tb;
-  });
-
-  return candidates[0] || null;
-}
-
-async function nextAiringEpisodeFromSimkl(item, calendar) {
-  const next = findNextSimklCalendarEpisode(item, calendar);
-  if (!next) return null;
-
-  return {
-    airDate: next.date,
-    season: next.season,
-    episode: next.episode,
-    title: next.title,
-  };
-}
-
 // TMDB - per-episode runtimes
 // ---------------------------------------------------------------------
 async function tmdbGet(path, params) {
@@ -781,20 +426,58 @@ class TmdbCache {
       // Hebrew images - English/no-language is preferred (see computeImages),
       // Hebrew is used only as a fallback for shows that only have
       // Hebrew-text artwork (some Israeli shows).
-      this.show.set(tmdbId, await tmdbGet(`/tv/${tmdbId}`, {
-        append_to_response: "images",
-        language: "en-US",
-        include_image_language: "en,null,he",
-      }));
+      // TMDB is purely supplementary now (images/runtime estimate only,
+      // never episode counts) - a failure here degrades gracefully to
+      // null rather than crashing whichever show triggered it.
+      let result = null;
+      try {
+        result = await tmdbGet(`/tv/${tmdbId}`, {
+          append_to_response: "images",
+          language: "en-US",
+          include_image_language: "en,null,he",
+        });
+      } catch (e) {
+        result = null;
+      }
+      this.show.set(tmdbId, result);
     }
     return this.show.get(tmdbId);
   }
   async getSeason(tmdbId, seasonNum) {
     const key = `${tmdbId}:${seasonNum}`;
     if (!this.season.has(key)) {
-      this.season.set(key, await tmdbGet(`/tv/${tmdbId}/season/${seasonNum}`));
+      let result = null;
+      try {
+        result = await tmdbGet(`/tv/${tmdbId}/season/${seasonNum}`);
+      } catch (e) {
+        result = null;
+      }
+      this.season.set(key, result);
     }
     return this.season.get(key);
+  }
+}
+
+class SimklEpisodeCache {
+  // Caches GET /tv/episodes/{simkl_id} per show. This is SIMKL's OWN
+  // episode data (via TheTVDB), including a full date+time WITH timezone
+  // offset for each episode - unlike TMDB, which only gives a bare date
+  // (no time), anchored to the show's origin country. Using SIMKL's own
+  // data here is what keeps this page in sync with what simkl.com itself
+  // shows for "airing next" / next-episode dates.
+  constructor() { this.map = new Map(); }
+  async get(simklId, token) {
+    if (!this.map.has(simklId)) {
+      let episodes = null;
+      try {
+        const data = await simklGet(`/tv/episodes/${simklId}`, token, { extended: "full" });
+        episodes = Array.isArray(data) ? data : null;
+      } catch (e) {
+        episodes = null; // fall back to TMDB dates for this show
+      }
+      this.map.set(simklId, episodes);
+    }
+    return this.map.get(simklId);
   }
 }
 
@@ -805,45 +488,59 @@ function showAverageRuntime(showDetail) {
   return (showDetail.last_episode_to_air || {}).runtime || 0;
 }
 
-function watchedEpisodeNumbersBySeason(item) {
-  const result = {};
-  for (const season of item.seasons || []) {
-    const num = season.number;
-    result[num] = new Set((season.episodes || []).map(e => e.number).filter(n => n != null));
+/**
+ * Average runtime of only the remaining episodes (from TMDB season data).
+ * Returns 0 if not enough data is available.
+ */
+async function averageRuntimeOfRemainingEpisodes(tmdbId, nextSeason, nextEpisode, remainingCount, cache) {
+  if (!tmdbId || nextSeason == null || remainingCount <= 0) return 0;
+
+  const runtimes = [];
+  let seasonNum = nextSeason;
+  let epNum = nextEpisode;
+  let collected = 0;
+
+  while (collected < remainingCount && seasonNum < 50) {
+    const seasonDetail = await cache.getSeason(tmdbId, seasonNum);
+    if (!seasonDetail || !seasonDetail.episodes) break;
+
+    for (const ep of seasonDetail.episodes) {
+      if (ep.episode_number < epNum) continue;
+      if (ep.runtime && ep.runtime > 0) {
+        runtimes.push(ep.runtime);
+      }
+      collected++;
+      if (collected >= remainingCount) break;
+    }
+    seasonNum++;
+    epNum = 1;
   }
-  return result;
+
+  if (runtimes.length === 0) return 0;
+  return runtimes.reduce((a, b) => a + b, 0) / runtimes.length;
 }
 
-async function remainingViaTmdb(item, tmdbId, cache) {
-  const showDetail = await cache.getShow(tmdbId);
-  if (!showDetail) return null;
+/**
+ * Best available runtime:
+ * 1. Average of the remaining episodes (TMDB)
+ * 2. Show-level average from TMDB
+ * 3. show.runtime from SIMKL
+ */
+async function getBestRuntime(item, showDetail, nextSeason, nextEpisode, remaining, cache) {
+  const tmdbId = (item.show || {}).ids && (item.show || {}).ids.tmdb;
+  const simklRuntime = (item.show || {}).runtime || 0;
 
-  const avgRuntime = showAverageRuntime(showDetail);
-  const watchedBySeason = watchedEpisodeNumbersBySeason(item);
-  const today = todayLocalDateStr();
-
-  let remainingEps = 0;
-  let remainingMinutes = 0;
-
-  for (const seasonInfo of showDetail.seasons || []) {
-    const seasonNum = seasonInfo.season_number;
-    if (seasonNum == null || seasonNum === 0) continue; // skip specials
-
-    const seasonDetail = await cache.getSeason(tmdbId, seasonNum);
-    if (!seasonDetail) continue;
-
-    const watchedSet = watchedBySeason[seasonNum] || new Set();
-
-    for (const ep of seasonDetail.episodes || []) {
-      const epNum = ep.episode_number;
-      const airDate = ep.air_date;
-      if (!airDate || airDate > today) continue; // not aired yet
-      if (watchedSet.has(epNum)) continue; // already watched
-      remainingEps += 1;
-      remainingMinutes += ep.runtime || avgRuntime;
-    }
+  if (tmdbId && nextSeason != null) {
+    const remainingAvg = await averageRuntimeOfRemainingEpisodes(
+      tmdbId, nextSeason, nextEpisode, remaining, cache
+    );
+    if (remainingAvg > 0) return remainingAvg;
   }
-  return [remainingEps, remainingMinutes];
+
+  const tmdbAvg = showAverageRuntime(showDetail);
+  if (tmdbAvg > 0) return tmdbAvg;
+
+  return simklRuntime || 0;
 }
 
 function simklAiredMinusWatchedCount(item) {
@@ -924,9 +621,10 @@ function computeImages(showDetail) {
   return out;
 }
 
-async function getMyListRows(token, cache) {
+async function getMyListRows(token, cache, episodeCache) {
   const items = await getWatchingShows(token);
   cache = cache || new TmdbCache();
+  episodeCache = episodeCache || new SimklEpisodeCache();
   const rows = [];
   let totalRemainingEps = 0;
   let totalRemainingMinutes = 0;
@@ -940,6 +638,7 @@ async function getMyListRows(token, cache) {
     const show = item.show || {};
     const title = show.title || "Unknown";
     const tmdbId = (show.ids || {}).tmdb;
+    const simklId = (show.ids || {}).simkl;
     const watched = item.watched_episodes_count || 0;
     const totalEpisodes = item.total_episodes_count || 0;
     const notAired = item.not_aired_episodes_count || 0;
@@ -950,46 +649,62 @@ async function getMyListRows(token, cache) {
       ? `S${String(nextSeason).padStart(2, "0")}E${String(nextEpisode).padStart(2, "0")}`
       : "";
 
-    let nextEpisodeTitle = null;
-
     let images = computeImages(null);
-    let result = null;
+    let showDetail = null;
     if (tmdbId) {
-      const showDetail = await cache.getShow(tmdbId);
-      images = computeImages(showDetail);
-      result = await remainingViaTmdb(item, tmdbId, cache);
+      // TMDB is now purely supplementary (images/runtime estimate) - if it
+      // fails for this one show, that shouldn't take down the whole list.
+      try {
+        showDetail = await cache.getShow(tmdbId);
+        images = computeImages(showDetail);
+      } catch (e) {
+        showDetail = null;
+      }
     }
 
-    // SIMKL is the source of truth for the number of aired episodes
-    // that are still unwatched. Do not let TMDB air_date data override
-    // this count - that was the reason ON STANDBY could show only 1
-    // episode when SIMKL had 2 aired/unwatched episodes.
-    const simklRemaining = simklAiredMinusWatchedCount(item);
+    // SIMKL's own aggregate counts are the sole source of truth for how
+    // many episodes remain - this is exactly what simkl.com itself shows.
+    // Runtime estimate prefers per-remaining-episode data from TMDB,
+    // then TMDB show average, then SIMKL show.runtime.
+    const remaining = simklAiredMinusWatchedCount(item);
+    if (remaining <= 0) continue;
 
-    if (simklRemaining <= 0) continue;
-
-    const remaining = simklRemaining;
-    const runtimeMinutes = result && result[1] > 0
-      ? (result[1] / Math.max(result[0], 1))
-      : (show.runtime || 0);
-    const remainingMinutes = remaining * runtimeMinutes;
+    const avgRuntime = await getBestRuntime(
+      item, showDetail, nextSeason, nextEpisode, remaining, cache
+    );
+    const remainingMinutes = remaining * avgRuntime;
 
     totalRemainingEps += remaining;
     totalRemainingMinutes += remainingMinutes;
 
-    // Air date of the specific "next episode to watch" (not the show's
-    // next upcoming one) - used to sort: shows you're only a little behind
-    // on (aired recently) float to the top; old backlog sinks to the
-    // bottom. cache.getSeason is already warm from remainingViaTmdb above,
-    // so this normally costs no extra request.
+    // Air date/time of the specific "next episode to watch" (not the
+    // show's next upcoming one) - used to sort: shows you're only a
+    // little behind on (aired recently) float to the top; old backlog
+    // sinks to the bottom. Prefer SIMKL's own episode data (has an exact
+    // time + timezone offset, so it matches simkl.com); fall back to TMDB
+    // (date only) if SIMKL doesn't have it for some reason.
     let nextAirDate = null;
     let episodeTitle = null;
-    if (tmdbId && nextSeason != null) {
+
+    if (simklId && nextSeason != null) {
+      const simklEpisodes = await episodeCache.get(simklId, token);
+      const simklEp = simklEpisodes && simklEpisodes.find(
+        e => e.season === nextSeason && e.episode === nextEpisode
+      );
+      if (simklEp && simklEp.date) nextAirDate = simklEp.date;
+      if (simklEp && simklEp.title && !/^Episode\s+\d+$/i.test(String(simklEp.title).trim())) {
+        episodeTitle = String(simklEp.title).trim();
+      }
+    }
+
+    if (nextAirDate == null && tmdbId && nextSeason != null) {
       const seasonDetail = await cache.getSeason(tmdbId, nextSeason);
       const ep = seasonDetail && (seasonDetail.episodes || []).find(e => e.episode_number === nextEpisode);
       if (ep) {
         if (ep.air_date) nextAirDate = ep.air_date;
-        if (ep.name && !/^Episode\s+\d+$/i.test(ep.name.trim())) episodeTitle = ep.name.trim();
+        if (!episodeTitle && ep.name && !/^Episode\s+\d+$/i.test(ep.name.trim())) {
+          episodeTitle = ep.name.trim();
+        }
       }
     }
 
@@ -1001,14 +716,18 @@ async function getMyListRows(token, cache) {
     });
   }
 
-  // Sort by the air date of the next episode to watch, most recent first;
-  // shows with no known date (or a very old backlog) sink toward the end.
+  // Sort by the air date/time of the next episode to watch, most recent
+  // first; shows with no known date (or a very old backlog) sink toward
+  // the end. Compares actual timestamps (not raw strings), since SIMKL
+  // dates carry a timezone offset that lexical string comparison can get
+  // wrong across different offsets.
   rows.sort((a, b) => {
     if (a.nextAirDate == null && b.nextAirDate == null) return 0;
     if (a.nextAirDate == null) return 1;
     if (b.nextAirDate == null) return -1;
-    if (a.nextAirDate === b.nextAirDate) return 0;
-    return a.nextAirDate > b.nextAirDate ? -1 : 1;
+    const tsA = airDateToTimestamp(a.nextAirDate);
+    const tsB = airDateToTimestamp(b.nextAirDate);
+    return tsB - tsA;
   });
 
   rows.forEach((r, i) => { r.index = i + 1; });
@@ -1016,37 +735,153 @@ async function getMyListRows(token, cache) {
 }
 
 // ---------------------------------------------------------------------
-function formatAirDate(airDate) {
-  return formatSimklAirDate(airDate);
+// Airing Next - next upcoming (not-yet-aired) episode for shows you're
+// actively watching, sorted soonest-first.
+// ---------------------------------------------------------------------
+async function nextAiringEpisode(tmdbId, showDetail, cache) {
+  // Fallback path only (used when SIMKL has no episode data for a show).
+  if (!showDetail) return null;
+  const today = todayLocalDateStr();
+  let best = null;
+
+  for (const seasonInfo of showDetail.seasons || []) {
+    const seasonNum = seasonInfo.season_number;
+    if (seasonNum == null || seasonNum === 0) continue; // skip specials
+
+    const seasonDetail = await cache.getSeason(tmdbId, seasonNum);
+    if (!seasonDetail) continue;
+
+    for (const ep of seasonDetail.episodes || []) {
+      const airDate = ep.air_date;
+      if (!airDate || airDate < today) continue; // today or later (no time-of-day data to be stricter)
+      if (!best || airDate < best.airDate) {
+        best = { airDate, season: seasonNum, episode: ep.episode_number };
+      }
+    }
+  }
+  return best;
 }
 
+async function nextAiringEpisodeSimkl(simklId, token, episodeCache) {
+  // Preferred path: SIMKL's own /tv/episodes data, which includes a full
+  // date+time WITH timezone offset per episode - this is what keeps day/
+  // time labels in sync with what simkl.com itself displays, unlike TMDB
+  // which only has a bare date anchored to the show's origin country.
+  const episodes = await episodeCache.get(simklId, token);
+  if (!episodes) return null;
 
-async function buildAiringRow(item, cache, calendar, requirePremiere) {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const cutoff = startOfToday.getTime();
+
+  let best = null;
+  for (const ep of episodes) {
+    if (ep.season == null || ep.season === 0) continue; // skip specials
+    if (ep.episode == null || !ep.date) continue;
+    const ts = new Date(ep.date).getTime();
+    if (isNaN(ts) || ts < cutoff) continue; // today or later
+    if (!best || ts < best.ts) {
+      best = { ts, airDate: ep.date, season: ep.season, episode: ep.episode };
+    }
+  }
+  return best;
+}
+
+function hasTimeComponent(dateStr) {
+  // "YYYY-MM-DD" is exactly 10 chars (TMDB, date-only); a full ISO
+  // datetime with time+offset (SIMKL) is longer.
+  return typeof dateStr === "string" && dateStr.length > 10;
+}
+
+function airDateToTimestamp(dateStr) {
+  const d = hasTimeComponent(dateStr) ? new Date(dateStr) : new Date(dateStr + "T00:00:00");
+  return d.getTime();
+}
+
+function formatAirDate(dateStr) {
+  const withTime = hasTimeComponent(dateStr);
+  const today = new Date();
+  const target = withTime ? new Date(dateStr) : new Date(dateStr + "T00:00:00");
+  const sameYear = target.getFullYear() === today.getFullYear();
+
+  if (withTime) {
+    // We have SIMKL's real date+time (with timezone offset), so "Today"/
+    // "Tomorrow" are trustworthy here - they're computed from the actual
+    // moment, not guessed from a bare date. This is what keeps day labels
+    // in sync with what simkl.com itself shows.
+    const startOfDay = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+    const diffDays = Math.round((startOfDay(target) - startOfDay(today)) / 86400000);
+    const timeStr = target.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+
+    let dayLabel;
+    if (diffDays === 0) dayLabel = "Today";
+    else if (diffDays === 1) dayLabel = "Tomorrow";
+    else if (diffDays > 1 && diffDays < 7) dayLabel = target.toLocaleDateString(undefined, { weekday: "long" });
+    else {
+      dayLabel = target.toLocaleDateString(undefined, sameYear
+        ? { weekday: "short", month: "short", day: "numeric" }
+        : { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+    }
+    return `${dayLabel}, ${timeStr}`;
+  }
+
+  // Fallback path (SIMKL episode data unavailable for this show): only a
+  // bare date, no reliable time-of-day - deliberately NOT using "Today"/
+  // "Tomorrow" here, since that guess is what caused the mismatch with
+  // SIMKL's own calendar in the first place.
+  return target.toLocaleDateString(undefined, sameYear
+    ? { weekday: "short", month: "short", day: "numeric" }
+    : { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+}
+
+async function buildAiringRow(item, cache, episodeCache, token, requirePremiere) {
+  // Fast-path guard, trusting SIMKL's own aggregate field directly: if
+  // SIMKL itself says there are zero not-yet-aired episodes for this show,
+  // there is definitively nothing upcoming - skip immediately rather than
+  // going episode-by-episode (which is also where the earlier mismatch
+  // came from, if TMDB's per-episode dates disagree with SIMKL's own
+  // judgment).
+  if (item.not_aired_episodes_count === 0) return null;
+
   const show = item.show || {};
-  const next = await nextAiringEpisodeFromSimkl(item, calendar);
-  if (!next) return null;
+  const tmdbId = (show.ids || {}).tmdb;
+  const simklId = (show.ids || {}).simkl;
 
-  // Plan-to-watch: only a literal series/season premiere.
+  // Prefer SIMKL's own episode data (exact date+time, matches simkl.com);
+  // fall back to TMDB (date only) if SIMKL has nothing for this show.
+  let next = simklId ? await nextAiringEpisodeSimkl(simklId, token, episodeCache) : null;
+
+  const showDetail = tmdbId ? await cache.getShow(tmdbId) : null;
+  if (!next && tmdbId) {
+    next = await nextAiringEpisode(tmdbId, showDetail, cache);
+  }
+  if (!next) return null; // nothing upcoming known for this show, from either source
+
+  // For Plan to Watch shows, only include ones that haven't premiered at
+  // all yet (next episode is the literal series premiere, S01E01) - a
+  // Plan to Watch show that's already been airing for years but the user
+  // just hasn't started isn't a "premiere", it's backlog, so it's excluded.
   if (requirePremiere && !(next.season === 1 && next.episode === 1)) return null;
 
-  const tmdbId = (show.ids || {}).tmdb;
-  const showDetail = tmdbId ? await cache.getShow(tmdbId) : null;
   const images = computeImages(showDetail);
+  const nextLabel = (next.season != null && next.episode != null)
+    ? `S${String(next.season).padStart(2, "0")}E${String(next.episode).padStart(2, "0")}`
+    : "";
 
-  let nextEpisodeTitle = next.title;
-
-  // If the calendar did not include an episode title, use TMDB only for
-  // presentation. It never decides whether the episode is upcoming.
-  if (!nextEpisodeTitle && tmdbId && next.season != null) {
+  // Episode title: prefer SIMKL's own title if we have it, else TMDB's.
+  let nextEpisodeTitle = null;
+  if (simklId) {
+    const simklEpisodes = await episodeCache.get(simklId, token);
+    const match = simklEpisodes && simklEpisodes.find(e => e.season === next.season && e.episode === next.episode);
+    if (match && match.title && !/^Episode\s+\d+$/i.test(String(match.title).trim())) {
+      nextEpisodeTitle = String(match.title).trim();
+    }
+  }
+  if (!nextEpisodeTitle && tmdbId && showDetail) {
     const seasonDetail = await cache.getSeason(tmdbId, next.season);
     const episodeDetail = seasonDetail && (seasonDetail.episodes || [])
       .find(e => e.episode_number === next.episode);
-
-    if (
-      episodeDetail &&
-      episodeDetail.name &&
-      !/^Episode\s+\d+$/i.test(episodeDetail.name.trim())
-    ) {
+    if (episodeDetail && episodeDetail.name && !/^Episode\s+\d+$/i.test(episodeDetail.name.trim())) {
       nextEpisodeTitle = episodeDetail.name.trim();
     }
   }
@@ -1054,68 +889,46 @@ async function buildAiringRow(item, cache, calendar, requirePremiere) {
   return {
     title: show.title || "Unknown",
     ...images,
-    nextLabel: `S${String(next.season).padStart(2, "0")}E${String(next.episode).padStart(2, "0")}`,
+    nextLabel,
     nextEpisodeTitle,
     airDate: next.airDate,
-    airDateLabel: formatSimklAirDate(next.airDate),
+    airDateLabel: formatAirDate(next.airDate),
   };
 }
 
-async function getAiringNextRows(token, cache) {
+async function getAiringNextRows(token, cache, episodeCache) {
   cache = cache || new TmdbCache();
+  episodeCache = episodeCache || new SimklEpisodeCache();
 
-  const [watchingItems, planToWatchItems, calendarData] = await Promise.all([
+  const [watchingItems, planToWatchItems] = await Promise.all([
     getWatchingShows(token),
     getPlanToWatchShows(token),
-    getSimklTvCalendar(),
   ]);
 
-  const calendar = normalizeSimklCalendar(calendarData);
-
   const rows = [];
-  const seenSimklIds = new Set();
+  const seenTmdbIds = new Set();
 
   for (const item of watchingItems) {
     if (item.status !== "watching") continue;
-
-    const row = await buildAiringRow(
-      item,
-      cache,
-      calendar,
-      false
-    );
-
+    const row = await buildAiringRow(item, cache, episodeCache, token, /* requirePremiere */ false);
     if (!row) continue;
-
-    const simklId = (item.show || {}).ids && item.show.ids.simkl;
-    if (simklId != null) seenSimklIds.add(String(simklId));
-
+    const tmdbId = (item.show || {}).ids && item.show.ids.tmdb;
+    if (tmdbId) seenTmdbIds.add(tmdbId);
     rows.push(row);
   }
 
   for (const item of planToWatchItems) {
     if (item.status !== "plantowatch") continue;
-
-    const simklId = (item.show || {}).ids && item.show.ids.simkl;
-    if (simklId != null && seenSimklIds.has(String(simklId))) continue;
-
-    const row = await buildAiringRow(
-      item,
-      cache,
-      calendar,
-      true
-    );
-
+    const tmdbId = (item.show || {}).ids && item.show.ids.tmdb;
+    if (tmdbId && seenTmdbIds.has(tmdbId)) continue; // already added from Watching
+    const row = await buildAiringRow(item, cache, episodeCache, token, /* requirePremiere */ true);
     if (!row) continue;
     rows.push(row);
   }
 
-  rows.sort((a, b) => {
-    const ta = simklEpisodeTimestamp(a.airDate)?.getTime() ?? Infinity;
-    const tb = simklEpisodeTimestamp(b.airDate)?.getTime() ?? Infinity;
-    return ta - tb;
-  });
-
+  // Compare actual timestamps, not raw strings - SIMKL dates carry a
+  // timezone offset that lexical string comparison can get wrong.
+  rows.sort((a, b) => airDateToTimestamp(a.airDate) - airDateToTimestamp(b.airDate));
   rows.forEach((r, i) => { r.index = i + 1; });
   return rows;
 }
@@ -1128,6 +941,7 @@ let lastTotalEps = 0;
 let lastTotalMinutes = 0;
 let airingRows = null;       // lazily fetched, cached until next Refresh
 let sharedCache = null;      // TmdbCache reused across both views for one session
+let sharedEpisodeCache = null; // SimklEpisodeCache, same idea
 let simklToken = null;
 let currentView = "list";    // "list" | "airing"
 
@@ -1253,7 +1067,7 @@ function renderAiringRows(rows) {
 
   if (!rows.length) {
     app.innerHTML = `<div class="center-box"><h2>Nothing airing soon</h2>
-      <p style="color:var(--muted)">No upcoming episodes from SIMKL are currently in your lists.</p></div>`;
+      <p style="color:var(--muted)">No upcoming episodes found across your SIMKL lists.</p></div>`;
     subtitle.textContent = "Nothing airing soon";
     return;
   }
@@ -1317,10 +1131,11 @@ async function main() {
     const token = await getAccessToken();
     simklToken = token;
     sharedCache = new TmdbCache();
+    sharedEpisodeCache = new SimklEpisodeCache();
     airingRows = null; // reset - re-fetch lazily next time Airing Next is opened
     app.innerHTML = `<div class="spinner" style="margin-top:80px"></div>`;
     subtitle.textContent = "Fetching your My List\u2026";
-    const [rows, totalEps, totalMinutes] = await getMyListRows(token, sharedCache);
+    const [rows, totalEps, totalMinutes] = await getMyListRows(token, sharedCache, sharedEpisodeCache);
     renderRows(rows, totalEps, totalMinutes);
   } catch (err) {
     showError(err);
@@ -1351,9 +1166,9 @@ document.getElementById("viewModeBtn").onclick = async () => {
     return;
   }
   app.innerHTML = `<div class="spinner" style="margin-top:80px"></div>`;
-  subtitle.textContent = "Fetching SIMKL Airing Next\u2026";
+  subtitle.textContent = "Fetching Airing Next\u2026";
   try {
-    airingRows = await getAiringNextRows(simklToken, sharedCache);
+    airingRows = await getAiringNextRows(simklToken, sharedCache, sharedEpisodeCache);
     renderAiringRows(airingRows);
   } catch (err) {
     showError(err);
