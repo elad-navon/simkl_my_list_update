@@ -65,15 +65,15 @@
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   }
   .card {
-    background: var(--card); border-radius: 14px; overflow: hidden;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.35); transition: transform 0.15s ease, box-shadow 0.15s ease;
+    background: var(--card); border-radius: 14px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35); transition: background 0.15s ease;
     display: flex; flex-direction: column; position: relative;
   }
-  .card:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(0,0,0,0.5); background: var(--card-hover); }
-  .card .badge {
-    position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.65);
+  .card:hover { background: var(--card-hover); }
+  .badge {
+    position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.65);
     color: var(--accent); font-weight: 700; font-size: 0.85rem; padding: 4px 10px;
-    border-radius: 20px; backdrop-filter: blur(3px);
+    border-radius: 20px; backdrop-filter: blur(3px); z-index: 10;
   }
   .cycle-btn {
     position: absolute; top: 8px; right: 8px; width: 28px; height: 28px;
@@ -84,7 +84,22 @@
   }
   .cycle-btn:hover { background: rgba(0,0,0,0.85); }
   .cycle-btn.disabled { opacity: 0.35; cursor: default; }
-  .poster-wrap { position: relative; }
+  .imdb-btn {
+    position: absolute; bottom: 8px; left: 8px; z-index: 10;
+    border: none; background: transparent; padding: 0; margin: 0;
+    cursor: pointer; line-height: 0;
+    filter: drop-shadow(0 2px 5px rgba(0,0,0,0.55));
+    transition: transform 0.12s ease;
+  }
+  .imdb-btn:hover { transform: scale(1.08); }
+  .imdb-btn svg { display: block; }
+  .poster-wrap {
+    position: relative; border-radius: 10px; overflow: hidden;
+    margin: 10px 10px 0; transition: box-shadow 0.18s ease;
+  }
+  .card:hover .poster-wrap {
+    box-shadow: 0 0 0 3px var(--accent2), 0 0 18px 3px rgba(79, 209, 197, 0.6);
+  }
   .poster { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; background: #2a2c38; display: block; }
   .poster.banner-img { aspect-ratio: 16 / 9; }
   .poster.placeholder {
@@ -198,14 +213,13 @@
 <body>
 
 <header>
-  <h1>My List - Continue Watching<span class="version-tag">V20</span></h1>
+  <h1>My List - Continue Watching<span class="version-tag">V24</span></h1>
   <p id="subtitle">Loading&hellip;</p>
   <div class="toolbar">
     <button class="pill" id="refreshBtn">&#8635; Refresh</button>
     <button class="pill" id="viewModeBtn">&#128197; Airing Next</button>
     <button class="pill" id="imageModeBtn">&#127916; Switch to Banners</button>
     <button class="pill" id="settingsBtn">&#9881; Settings</button>
-    <button class="pill" id="debugBtn">&#128027; Debug show</button>
   </div>
 </header>
 
@@ -662,6 +676,7 @@ async function getMyListRows(token, cache, episodeCache) {
     const title = show.title || "Unknown";
     const tmdbId = (show.ids || {}).tmdb;
     const simklId = (show.ids || {}).simkl;
+    const imdbId = (show.ids || {}).imdb;
     const watched = item.watched_episodes_count || 0;
     const totalEpisodes = item.total_episodes_count || 0;
     const notAired = item.not_aired_episodes_count || 0;
@@ -730,7 +745,7 @@ async function getMyListRows(token, cache, episodeCache) {
 
     const [hours, mins] = formatTime(remainingMinutes);
     rows.push({
-      title, ...images,
+      title, imdbId, ...images,
       totalEpisodes, available, watched, remaining,
       hours, mins, nextLabel, episodeTitle, nextAirDate,
     });
@@ -760,6 +775,11 @@ async function getMyListRows(token, cache, episodeCache) {
 // ---------------------------------------------------------------------
 async function nextAiringEpisode(tmdbId, showDetail, cache) {
   // Fallback path only (used when SIMKL has no episode data for a show).
+  // TMDB has no time-of-day, only a date - so "today" is ambiguous (may
+  // have already aired earlier today, or not yet). To avoid this showing
+  // up in Airing Next AND simultaneously counting as "available" in My
+  // List (a confusing overlap), we conservatively require STRICTLY a
+  // future day here.
   if (!showDetail) return null;
   const today = todayLocalDateStr();
   let best = null;
@@ -773,7 +793,7 @@ async function nextAiringEpisode(tmdbId, showDetail, cache) {
 
     for (const ep of seasonDetail.episodes || []) {
       const airDate = ep.air_date;
-      if (!airDate || airDate < today) continue; // today or later (no time-of-day data to be stricter)
+      if (!airDate || airDate <= today) continue; // strictly future days only
       if (!best || airDate < best.airDate) {
         best = { airDate, season: seasonNum, episode: ep.episode_number };
       }
@@ -784,22 +804,23 @@ async function nextAiringEpisode(tmdbId, showDetail, cache) {
 
 async function nextAiringEpisodeSimkl(simklId, token, episodeCache) {
   // Preferred path: SIMKL's own /tv/episodes data, which includes a full
-  // date+time WITH timezone offset per episode - this is what keeps day/
-  // time labels in sync with what simkl.com itself displays, unlike TMDB
-  // which only has a bare date anchored to the show's origin country.
+  // date+time WITH timezone offset per episode. Uses the exact CURRENT
+  // moment as the cutoff (not "start of today") - once an episode's real
+  // air time has passed, it's excluded here, since My List's remaining
+  // count (driven by SIMKL's own aired/not-aired judgment) will already
+  // treat it as available. Without this, an episode that aired earlier
+  // today would confusingly show up in both places at once.
   const episodes = await episodeCache.get(simklId, token);
   if (!episodes) return null;
 
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const cutoff = startOfToday.getTime();
+  const now = Date.now();
 
   let best = null;
   for (const ep of episodes) {
     if (ep.season == null || ep.season === 0) continue; // skip specials
     if (ep.episode == null || !ep.date) continue;
     const ts = new Date(ep.date).getTime();
-    if (isNaN(ts) || ts < cutoff) continue; // today or later
+    if (isNaN(ts) || ts <= now) continue; // strictly in the future
     if (!best || ts < best.ts) {
       best = { ts, airDate: ep.date, season: ep.season, episode: ep.episode };
     }
@@ -866,6 +887,7 @@ async function buildAiringRow(item, cache, episodeCache, token, requirePremiere)
   const show = item.show || {};
   const tmdbId = (show.ids || {}).tmdb;
   const simklId = (show.ids || {}).simkl;
+  const imdbId = (show.ids || {}).imdb;
 
   // Prefer SIMKL's own episode data (exact date+time, matches simkl.com);
   // fall back to TMDB (date only) if SIMKL has nothing for this show.
@@ -908,6 +930,7 @@ async function buildAiringRow(item, cache, episodeCache, token, requirePremiere)
 
   return {
     title: show.title || "Unknown",
+    imdbId,
     ...images,
     nextLabel,
     nextEpisodeTitle,
@@ -1012,7 +1035,19 @@ function cycleImage(arrIdx) {
   }
 }
 
-function cardImageBits(row, isBanner, arrIdx) {
+const IMDB_LOGO_SVG = `<svg viewBox="0 0 64 32" width="34" height="17" xmlns="http://www.w3.org/2000/svg" aria-label="IMDb">
+  <rect width="64" height="32" rx="4" fill="#F5C518"/>
+  <text x="32" y="23" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="18" fill="#000000">IMDb</text>
+</svg>`;
+
+function imdbButtonHtml(imdbId) {
+  if (!imdbId) return "";
+  const url = `https://www.imdb.com/title/${imdbId}/`;
+  return `<button class="imdb-btn" title="Open on IMDb"
+              onclick="event.stopPropagation(); window.open('${url}', '_blank')">${IMDB_LOGO_SVG}</button>`;
+}
+
+function cardImageBits(row, isBanner, arrIdx, extraOverlayHtml) {
   const imageUrl = isBanner ? (row.bannerUrl || row.posterUrl) : row.posterUrl;
   const posterClass = "poster" + (isBanner ? " banner-img" : "");
   const posterHtml = imageUrl
@@ -1022,8 +1057,11 @@ function cardImageBits(row, isBanner, arrIdx) {
   const cycleDisabled = altCount <= 1;
   const cycleTitle = cycleDisabled ? "No alternate image available" : "Try another image";
   const cycleBtn = `<button class="cycle-btn${cycleDisabled ? " disabled" : ""}" title="${cycleTitle}"
-                onclick="cycleImage(${arrIdx})">&#8635;</button>`;
-  return { posterHtml, cycleBtn };
+                onclick="event.stopPropagation(); cycleImage(${arrIdx})">&#8635;</button>`;
+  const imdbBtn = imdbButtonHtml(row.imdbId);
+  const badgeHtml = `<div class="badge">#${row.index}</div>`;
+  const wrapHtml = `<div class="poster-wrap">${badgeHtml}${posterHtml}${cycleBtn}${imdbBtn}${extraOverlayHtml || ""}</div>`;
+  return { wrapHtml };
 }
 
 function renderRows(rows, totalRemainingEps, totalRemainingMinutes) {
@@ -1047,18 +1085,13 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes) {
   const isBanner = mode === "banner";
 
   const cards = rows.map((row, arrIdx) => {
-    const { posterHtml, cycleBtn } = cardImageBits(row, isBanner, arrIdx);
     const remainingText = row.remaining === 1 ? "1 episode left" : `${row.remaining} episodes left`;
     const episodeTitle = row.episodeTitle ? `<div class="episode-title">${row.episodeTitle}</div>` : "";
+    const { wrapHtml } = cardImageBits(row, isBanner, arrIdx, `<div class="remaining-badge">${remainingText}</div>`);
 
     return `
       <div class="card">
-        <div class="badge">#${row.index}</div>
-        ${cycleBtn}
-        <div class="poster-wrap">
-          ${posterHtml}
-          <div class="remaining-badge">${remainingText}</div>
-        </div>
+        ${wrapHtml}
         <div class="card-body">
           <h3>${row.title}</h3>
           <div class="next-up my-list-next">Next: ${row.nextLabel}</div>
@@ -1096,12 +1129,10 @@ function renderAiringRows(rows) {
   const isBanner = mode === "banner";
 
   const cards = rows.map((row, arrIdx) => {
-    const { posterHtml, cycleBtn } = cardImageBits(row, isBanner, arrIdx);
+    const { wrapHtml } = cardImageBits(row, isBanner, arrIdx);
     return `
       <div class="card">
-        <div class="badge">#${row.index}</div>
-        ${cycleBtn}
-        ${posterHtml}
+        ${wrapHtml}
         <div class="card-body">
           <h3>${row.title}</h3>
           <div class="next-up">Next: ${row.nextLabel}</div>
@@ -1164,81 +1195,6 @@ async function main() {
 
 document.getElementById("refreshBtn").onclick = main;
 document.getElementById("settingsBtn").onclick = () => showSettings(main);
-document.getElementById("debugBtn").onclick = async () => {
-  const query = window.prompt("Show title (or part of it) to debug:");
-  if (!query) return;
-  if (!simklToken) { window.alert("Load the page first."); return; }
-
-  app.innerHTML = `<div class="spinner" style="margin-top:80px"></div>`;
-  subtitle.textContent = "Debugging\u2026";
-
-  try {
-    const [watchingItems, planItems] = await Promise.all([
-      getWatchingShows(simklToken),
-      getPlanToWatchShows(simklToken),
-    ]);
-    const all = [...watchingItems, ...planItems];
-    const q = query.toLowerCase();
-    const matches = all.filter(it => (((it.show || {}).title) || "").toLowerCase().includes(q));
-
-    if (!matches.length) {
-      app.innerHTML = `<div class="center-box"><h2>No match</h2><p style="color:var(--muted)">No show titled like "${query}" found in Watching or Plan to Watch.</p></div>`;
-      subtitle.textContent = "No match";
-      return;
-    }
-
-    const cache = sharedCache || new TmdbCache();
-    const episodeCache = sharedEpisodeCache || new SimklEpisodeCache();
-
-    const sections = [];
-    for (const item of matches) {
-      const show = item.show || {};
-      const tmdbId = (show.ids || {}).tmdb;
-      const simklId = (show.ids || {}).simkl;
-
-      let simklEpisodes = null;
-      let simklError = null;
-      if (simklId) {
-        try {
-          simklEpisodes = await simklGet(`/tv/episodes/${simklId}`, simklToken, { extended: "full" });
-        } catch (e) {
-          simklError = e.message;
-        }
-      }
-
-      let tmdbSeasons = null;
-      if (tmdbId) {
-        const showDetail = await cache.getShow(tmdbId);
-        tmdbSeasons = showDetail ? (showDetail.seasons || []).map(s => s.season_number) : null;
-      }
-
-      sections.push(`
-        <div class="center-box" style="text-align:left;max-width:800px">
-          <h3>${show.title}</h3>
-          <p style="font-size:0.85rem;color:var(--muted)">
-            status: <b style="color:var(--text)">${item.status}</b> &middot;
-            next_to_watch: <b style="color:var(--text)">${item.next_to_watch || "(none)"}</b> &middot;
-            watched: <b style="color:var(--text)">${item.watched_episodes_count}</b> &middot;
-            total: <b style="color:var(--text)">${item.total_episodes_count}</b> &middot;
-            not_aired: <b style="color:var(--text)">${item.not_aired_episodes_count}</b>
-          </p>
-          <p style="font-size:0.85rem;color:var(--muted)">
-            ids: tmdb=<b style="color:var(--text)">${tmdbId || "none"}</b>,
-            simkl=<b style="color:var(--text)">${simklId || "none"}</b>
-          </p>
-          <p style="font-size:0.85rem;color:var(--muted)">TMDB seasons available: ${tmdbSeasons ? tmdbSeasons.join(", ") : "n/a"}</p>
-          <p style="font-size:0.85rem;color:var(--muted)">SIMKL /tv/episodes raw response${simklError ? " (error: " + simklError + ")" : ""}:</p>
-          <pre style="white-space:pre-wrap;font-size:0.72rem;background:#14151a;padding:10px;border-radius:8px;max-height:320px;overflow:auto">${JSON.stringify(simklEpisodes, null, 2)}</pre>
-        </div>
-      `);
-    }
-
-    app.innerHTML = sections.join("");
-    subtitle.textContent = `Debug results for "${query}"`;
-  } catch (err) {
-    showError(err);
-  }
-};
 document.getElementById("imageModeBtn").onclick = () => {
   const current = getImageMode();
   localStorage.setItem(LS_IMAGE_MODE, current === "banner" ? "poster" : "banner");
