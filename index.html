@@ -198,13 +198,14 @@
 <body>
 
 <header>
-  <h1>My List - Continue Watching<span class="version-tag">V21</span></h1>
+  <h1>My List - Continue Watching<span class="version-tag">V20</span></h1>
   <p id="subtitle">Loading&hellip;</p>
   <div class="toolbar">
     <button class="pill" id="refreshBtn">&#8635; Refresh</button>
     <button class="pill" id="viewModeBtn">&#128197; Airing Next</button>
     <button class="pill" id="imageModeBtn">&#127916; Switch to Banners</button>
     <button class="pill" id="settingsBtn">&#9881; Settings</button>
+    <button class="pill" id="debugBtn">&#128027; Debug show</button>
   </div>
 </header>
 
@@ -488,59 +489,81 @@ function showAverageRuntime(showDetail) {
   return (showDetail.last_episode_to_air || {}).runtime || 0;
 }
 
-/**
- * Average runtime of only the remaining episodes (from TMDB season data).
- * Returns 0 if not enough data is available.
- */
-async function averageRuntimeOfRemainingEpisodes(tmdbId, nextSeason, nextEpisode, remainingCount, cache) {
-  if (!tmdbId || nextSeason == null || remainingCount <= 0) return 0;
-
-  const runtimes = [];
-  let seasonNum = nextSeason;
-  let epNum = nextEpisode;
-  let collected = 0;
-
-  while (collected < remainingCount && seasonNum < 50) {
-    const seasonDetail = await cache.getSeason(tmdbId, seasonNum);
-    if (!seasonDetail || !seasonDetail.episodes) break;
-
-    for (const ep of seasonDetail.episodes) {
-      if (ep.episode_number < epNum) continue;
-      if (ep.runtime && ep.runtime > 0) {
-        runtimes.push(ep.runtime);
-      }
-      collected++;
-      if (collected >= remainingCount) break;
-    }
-    seasonNum++;
-    epNum = 1;
-  }
-
-  if (runtimes.length === 0) return 0;
-  return runtimes.reduce((a, b) => a + b, 0) / runtimes.length;
+function averageEpisodeRuntime(showDetail, fallbackRuntime) {
+  // Used only as a last-resort per-episode fallback when TMDB has no exact
+  // runtime for a specific remaining episode (see estimateRemainingMinutes)
+  // - never as a flat multiplier for the whole remaining count, since
+  // TMDB's overall-series average can be way off for shows whose episode
+  // length changed a lot across seasons (e.g. Stranger Things' later
+  // seasons run much longer than its early ones).
+  return (showDetail && showAverageRuntime(showDetail)) || fallbackRuntime || 0;
 }
 
-/**
- * Best available runtime:
- * 1. Average of the remaining episodes (TMDB)
- * 2. Show-level average from TMDB
- * 3. show.runtime from SIMKL
- */
-async function getBestRuntime(item, showDetail, nextSeason, nextEpisode, remaining, cache) {
-  const tmdbId = (item.show || {}).ids && (item.show || {}).ids.tmdb;
-  const simklRuntime = (item.show || {}).runtime || 0;
+function watchedEpisodeNumbersBySeason(item) {
+  const result = {};
+  for (const season of item.seasons || []) {
+    const num = season.number;
+    result[num] = new Set((season.episodes || []).map(e => e.number).filter(n => n != null));
+  }
+  return result;
+}
 
-  if (tmdbId && nextSeason != null) {
-    const remainingAvg = await averageRuntimeOfRemainingEpisodes(
-      tmdbId, nextSeason, nextEpisode, remaining, cache
-    );
-    if (remainingAvg > 0) return remainingAvg;
+async function estimateRemainingMinutes(item, tmdbId, simklId, token, cache, episodeCache, remainingCount, fallbackRuntime) {
+  // SIMKL's aggregate count (remainingCount, passed in) is always the
+  // authoritative number of remaining episodes - this function only
+  // estimates how long they'll take to watch, as accurately as possible:
+  // it identifies the SPECIFIC remaining episodes via SIMKL's own
+  // per-episode aired/watched data, then prices each one using TMDB's
+  // exact per-episode runtime where available, falling back to the show's
+  // average only for the specific episodes TMDB doesn't have.
+  const showDetail = tmdbId ? await cache.getShow(tmdbId) : null; // never throws (see TmdbCache)
+  const avgRuntime = averageEpisodeRuntime(showDetail, fallbackRuntime);
+
+  if (remainingCount <= 0) return 0;
+
+  // "season-episode" -> exact TMDB runtime, wherever TMDB has it.
+  const tmdbRuntimeMap = new Map();
+  if (showDetail) {
+    for (const seasonInfo of showDetail.seasons || []) {
+      const seasonNum = seasonInfo.season_number;
+      if (seasonNum == null || seasonNum === 0) continue;
+      const seasonDetail = await cache.getSeason(tmdbId, seasonNum);
+      if (!seasonDetail) continue;
+      for (const ep of seasonDetail.episodes || []) {
+        if (ep.runtime) tmdbRuntimeMap.set(`${seasonNum}-${ep.episode_number}`, ep.runtime);
+      }
+    }
   }
 
-  const tmdbAvg = showAverageRuntime(showDetail);
-  if (tmdbAvg > 0) return tmdbAvg;
+  // Identify which specific episodes are remaining, via SIMKL's own data.
+  let identifiedKeys = [];
+  if (simklId) {
+    const simklEpisodes = await episodeCache.get(simklId, token);
+    if (simklEpisodes) {
+      const watchedBySeason = watchedEpisodeNumbersBySeason(item);
+      const now = Date.now();
+      identifiedKeys = simklEpisodes
+        .filter(ep => ep.season != null && ep.season !== 0 && ep.episode != null && ep.date)
+        .map(ep => ({ season: ep.season, episode: ep.episode, ts: new Date(ep.date).getTime() }))
+        .filter(ep => !isNaN(ep.ts) && ep.ts <= now)
+        .filter(ep => !(watchedBySeason[ep.season] || new Set()).has(ep.episode))
+        .sort((a, b) => a.ts - b.ts)
+        .map(ep => `${ep.season}-${ep.episode}`);
+    }
+  }
 
-  return simklRuntime || 0;
+  // Price up to remainingCount identified episodes with their exact (or
+  // per-episode-fallback) runtime; if we couldn't identify enough specific
+  // episodes to match SIMKL's aggregate count, pad the remainder with the
+  // average so the count itself is still fully accounted for.
+  let minutes = 0;
+  const useCount = Math.min(identifiedKeys.length, remainingCount);
+  for (let i = 0; i < useCount; i++) {
+    minutes += tmdbRuntimeMap.get(identifiedKeys[i]) || avgRuntime;
+  }
+  minutes += (remainingCount - useCount) * avgRuntime;
+
+  return minutes;
 }
 
 function simklAiredMinusWatchedCount(item) {
@@ -663,16 +686,13 @@ async function getMyListRows(token, cache, episodeCache) {
     }
 
     // SIMKL's own aggregate counts are the sole source of truth for how
-    // many episodes remain - this is exactly what simkl.com itself shows.
-    // Runtime estimate prefers per-remaining-episode data from TMDB,
-    // then TMDB show average, then SIMKL show.runtime.
-    const remaining = simklAiredMinusWatchedCount(item);
-    if (remaining <= 0) continue;
-
-    const avgRuntime = await getBestRuntime(
-      item, showDetail, nextSeason, nextEpisode, remaining, cache
+    // many episodes remain - this is exactly what simkl.com itself shows,
+    // and needs no per-episode matching against TMDB at all. TMDB is used
+    // only to estimate how long they'll take to watch.
+    const remaining = Math.max(simklAiredMinusWatchedCount(item), 1);
+    const remainingMinutes = await estimateRemainingMinutes(
+      item, tmdbId, simklId, token, cache, episodeCache, remaining, show.runtime
     );
-    const remainingMinutes = remaining * avgRuntime;
 
     totalRemainingEps += remaining;
     totalRemainingMinutes += remainingMinutes;
@@ -1144,6 +1164,81 @@ async function main() {
 
 document.getElementById("refreshBtn").onclick = main;
 document.getElementById("settingsBtn").onclick = () => showSettings(main);
+document.getElementById("debugBtn").onclick = async () => {
+  const query = window.prompt("Show title (or part of it) to debug:");
+  if (!query) return;
+  if (!simklToken) { window.alert("Load the page first."); return; }
+
+  app.innerHTML = `<div class="spinner" style="margin-top:80px"></div>`;
+  subtitle.textContent = "Debugging\u2026";
+
+  try {
+    const [watchingItems, planItems] = await Promise.all([
+      getWatchingShows(simklToken),
+      getPlanToWatchShows(simklToken),
+    ]);
+    const all = [...watchingItems, ...planItems];
+    const q = query.toLowerCase();
+    const matches = all.filter(it => (((it.show || {}).title) || "").toLowerCase().includes(q));
+
+    if (!matches.length) {
+      app.innerHTML = `<div class="center-box"><h2>No match</h2><p style="color:var(--muted)">No show titled like "${query}" found in Watching or Plan to Watch.</p></div>`;
+      subtitle.textContent = "No match";
+      return;
+    }
+
+    const cache = sharedCache || new TmdbCache();
+    const episodeCache = sharedEpisodeCache || new SimklEpisodeCache();
+
+    const sections = [];
+    for (const item of matches) {
+      const show = item.show || {};
+      const tmdbId = (show.ids || {}).tmdb;
+      const simklId = (show.ids || {}).simkl;
+
+      let simklEpisodes = null;
+      let simklError = null;
+      if (simklId) {
+        try {
+          simklEpisodes = await simklGet(`/tv/episodes/${simklId}`, simklToken, { extended: "full" });
+        } catch (e) {
+          simklError = e.message;
+        }
+      }
+
+      let tmdbSeasons = null;
+      if (tmdbId) {
+        const showDetail = await cache.getShow(tmdbId);
+        tmdbSeasons = showDetail ? (showDetail.seasons || []).map(s => s.season_number) : null;
+      }
+
+      sections.push(`
+        <div class="center-box" style="text-align:left;max-width:800px">
+          <h3>${show.title}</h3>
+          <p style="font-size:0.85rem;color:var(--muted)">
+            status: <b style="color:var(--text)">${item.status}</b> &middot;
+            next_to_watch: <b style="color:var(--text)">${item.next_to_watch || "(none)"}</b> &middot;
+            watched: <b style="color:var(--text)">${item.watched_episodes_count}</b> &middot;
+            total: <b style="color:var(--text)">${item.total_episodes_count}</b> &middot;
+            not_aired: <b style="color:var(--text)">${item.not_aired_episodes_count}</b>
+          </p>
+          <p style="font-size:0.85rem;color:var(--muted)">
+            ids: tmdb=<b style="color:var(--text)">${tmdbId || "none"}</b>,
+            simkl=<b style="color:var(--text)">${simklId || "none"}</b>
+          </p>
+          <p style="font-size:0.85rem;color:var(--muted)">TMDB seasons available: ${tmdbSeasons ? tmdbSeasons.join(", ") : "n/a"}</p>
+          <p style="font-size:0.85rem;color:var(--muted)">SIMKL /tv/episodes raw response${simklError ? " (error: " + simklError + ")" : ""}:</p>
+          <pre style="white-space:pre-wrap;font-size:0.72rem;background:#14151a;padding:10px;border-radius:8px;max-height:320px;overflow:auto">${JSON.stringify(simklEpisodes, null, 2)}</pre>
+        </div>
+      `);
+    }
+
+    app.innerHTML = sections.join("");
+    subtitle.textContent = `Debug results for "${query}"`;
+  } catch (err) {
+    showError(err);
+  }
+};
 document.getElementById("imageModeBtn").onclick = () => {
   const current = getImageMode();
   localStorage.setItem(LS_IMAGE_MODE, current === "banner" ? "poster" : "banner");
