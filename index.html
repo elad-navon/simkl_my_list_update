@@ -24,28 +24,43 @@
     color: var(--text);
     font-family: "Segoe UI", Arial, Helvetica, sans-serif;
   }
-  header { text-align: center; margin-bottom: 20px; position: relative; }
-  header h1 {
-    font-size: 3rem; margin: 0 0 8px; letter-spacing: 0.5px; font-weight: 800;
-    background: linear-gradient(90deg, var(--accent2), var(--accent));
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-    text-shadow: 0 6px 30px rgba(245, 197, 24, 0.25);
+  header { text-align: center; margin-bottom: 26px; position: relative; }
+  .navbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 22px; max-width: 1400px; margin: 0 auto; padding: 18px 32px;
+    background: #0a0a0d; border-radius: 0; box-shadow: 0 10px 32px rgba(0,0,0,0.45);
+    box-sizing: border-box;
   }
+  .navbar-logo { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
+  .logo-icon { display: flex; align-items: center; }
+  .logo-text { font-size: 1.9rem; font-weight: 800; color: #fff; letter-spacing: 0.5px; }
+  .logo-accent { color: var(--accent); }
   .version-tag {
-    font-size: 0.72rem; font-weight: 600; color: var(--muted); background: var(--card);
-    border: 1px solid #383a4a; border-radius: 20px; padding: 3px 10px;
-    vertical-align: baseline; margin-left: 10px; position: relative; top: 5px; letter-spacing: 0.04em;
-    -webkit-text-fill-color: var(--muted);
+    font-size: 0.7rem; font-weight: 600; color: var(--muted); background: var(--card);
+    border: 1px solid #383a4a; border-radius: 20px; padding: 3px 9px;
+    margin-left: 6px; letter-spacing: 0.04em;
   }
-  header p { color: var(--muted); margin: 0; font-size: 0.95rem; font-weight: 700; }
-  .toolbar {
-    display: flex; justify-content: center; gap: 10px; margin-top: 18px;
+  .navbar-nav { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; }
+  .nav-item {
+    display: flex; align-items: center; gap: 9px; position: relative;
+    background: transparent; border: none; color: #d8d9de;
+    font-size: 1.02rem; font-weight: 700; letter-spacing: 0.02em;
+    padding: 12px 16px; border-radius: 12px; cursor: pointer;
   }
-  button.pill {
-    background: var(--card); color: var(--text); border: 1px solid #383a4a;
-    border-radius: 20px; padding: 8px 18px; font-size: 0.85rem; font-weight: 700; cursor: pointer;
+  .nav-icon { line-height: 1; display: inline-flex; }
+  .nav-item:hover { color: #fff; background: rgba(255,255,255,0.06); }
+  .nav-item.active { color: var(--accent); }
+  .nav-item.active::after {
+    content: ""; position: absolute; left: 14px; right: 14px; bottom: 4px;
+    height: 2px; background: var(--accent); border-radius: 0;
   }
-  button.pill:hover { background: var(--card-hover); }
+  .theme-toggle {
+    flex: 0 0 auto; width: 44px; height: 44px; border-radius: 12px;
+    background: rgba(255,255,255,0.08); border: none; color: #fff;
+    font-size: 1.3rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .theme-toggle:hover { background: rgba(255,255,255,0.16); }
+  header p { color: var(--muted); margin: 14px 0 0; font-size: 0.95rem; font-weight: 700; }
   .summary-bar {
     display: flex; justify-content: center; gap: 48px; flex-wrap: wrap;
     margin: 30px auto 0; max-width: 780px; background: var(--card);
@@ -164,7 +179,7 @@
     font-size: 0.95em;
     margin-right: 3px;
   }
-  .remaining-badge { position: absolute; right: 8px; bottom: 8px; background: rgba(0,0,0,0.72); color: #fff; font-size: 0.68rem; font-weight: 700; line-height: 1; padding: 5px 7px; border-radius: 5px; backdrop-filter: blur(3px); }
+  .remaining-badge { position: absolute; right: 8px; bottom: 8px; background: rgba(0,0,0,0.72); color: #F5C518; font-size: 0.68rem; font-weight: 800; line-height: 1; padding: 5px 7px; border-radius: 5px; backdrop-filter: blur(3px); }
   .remaining-badge:empty { display: none; }
   .next-up {
     margin: 2px 0 0;
@@ -187,7 +202,42 @@
     text-align: center; color: var(--muted); font-size: 0.85rem;
     max-width: 700px; margin: 22px auto 0;
   }
-  footer { text-align: center; color: var(--muted); font-size: 0.78rem; margin-top: 50px; }
+  .recent-section {
+    max-width: 1400px; margin: 40px auto 0;
+  }
+  .section-title {
+    color: var(--text); font-size: 2.5rem; font-weight: 800;
+    margin: 0 0 20px; padding: 0 4px;
+  }
+  .recent-scroll {
+    display: grid; gap: 16px;
+    /* grid-template-columns set inline per-render to exactly match the
+       item count, so N posters always fill the row width exactly with
+       no wrapping - see renderRecentlyWatchedHtml. */
+  }
+  .recent-poster-wrap {
+    position: relative; border-radius: 10px; overflow: hidden;
+    transition: box-shadow 0.18s ease;
+  }
+  .recent-card:hover .recent-poster-wrap {
+    box-shadow: 0 0 0 3px var(--accent2), 0 0 18px 3px rgba(79, 209, 197, 0.6);
+  }
+  .recent-poster {
+    width: 100%; aspect-ratio: 2 / 3; object-fit: cover;
+    background: #2a2c38; display: block;
+  }
+  .recent-poster.placeholder {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.6rem; font-weight: 700; color: var(--muted);
+  }
+  .recent-caption {
+    margin-top: 8px; font-size: 0.85rem; line-height: 1.3;
+    color: var(--muted); text-align: center;
+  }
+  footer {
+    display: flex; align-items: center; justify-content: space-between;
+    color: var(--muted); font-size: 0.78rem; margin-top: 50px;
+  }
 
   .center-box {
     max-width: 480px; margin: 60px auto; background: var(--card); border-radius: 14px;
@@ -214,24 +264,67 @@
   .my-list-next {
     color: #67e8f9;
   }
+
+  /* Light theme overrides - toggled via body.light-theme */
+  body.light-theme {
+    --bg: #f2f3f6;
+    --card: #ffffff;
+    --card-hover: #eef0f4;
+    --text: #16171c;
+    --muted: #5c6070;
+    --accent2: #14958c;
+  }
+  body.light-theme { background: radial-gradient(circle at top, #ffffff 0%, var(--bg) 55%); }
+  body.light-theme .navbar { background: #0a0a0d; } /* nav bar stays dark in both themes, per the reference design */
+  body.light-theme .card { box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
+  body.light-theme .summary-bar,
+  body.light-theme .center-box { box-shadow: 0 10px 30px rgba(0,0,0,0.10); }
+  body.light-theme .imdb-rating,
+  body.light-theme .remaining-badge { background: rgba(0,0,0,0.75); }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>My List - Continue Watching<span class="version-tag">V25</span></h1>
-  <p id="subtitle">Loading&hellip;</p>
-  <div class="toolbar">
-    <button class="pill" id="refreshBtn">&#8635; Refresh</button>
-    <button class="pill" id="viewModeBtn">&#128197; Airing Next</button>
-    <button class="pill" id="imageModeBtn">&#127916; Switch to Banners</button>
-    <button class="pill" id="settingsBtn">&#9881; Settings</button>
+  <div class="navbar">
+    <div class="navbar-logo">
+      <span class="logo-icon">
+        <svg viewBox="0 0 24 24" width="34" height="34" xmlns="http://www.w3.org/2000/svg">
+          <rect x="3" y="3" width="18" height="15" rx="3.5" fill="none" stroke="#fff" stroke-width="1.8"/>
+          <polygon points="10,7.8 10,13.2 14.6,10.5" fill="#F5C518"/>
+          <line x1="9" y1="21" x2="15" y2="21" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="logo-text">TV <span class="logo-accent">SERIES</span></span>
+    </div>
+    <nav class="navbar-nav">
+      <button class="nav-item" id="refreshBtn">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg></span>Refresh
+      </button>
+      <button class="nav-item" id="myListNavBtn">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg></span>My List
+      </button>
+      <button class="nav-item" id="airingNavBtn">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"></rect><line x1="16" y1="2.5" x2="16" y2="6.5"></line><line x1="8" y1="2.5" x2="8" y2="6.5"></line><line x1="3" y1="10" x2="21" y2="10"></line><circle cx="8" cy="14.3" r="1" fill="currentColor" stroke="none"></circle><circle cx="12" cy="14.3" r="1" fill="currentColor" stroke="none"></circle><circle cx="16" cy="14.3" r="1" fill="currentColor" stroke="none"></circle><circle cx="8" cy="17.6" r="1" fill="currentColor" stroke="none"></circle><circle cx="12" cy="17.6" r="1" fill="currentColor" stroke="none"></circle></svg></span>Airing Next
+      </button>
+      <button class="nav-item" id="imageModeBtn">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect></svg></span>Switch to Banners
+      </button>
+      <button class="nav-item" id="settingsBtn">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></span>Settings
+      </button>
+    </nav>
+    <button class="theme-toggle" id="themeToggleBtn" title="Toggle light/dark">&#9789;</button>
   </div>
+  <p id="subtitle">Loading&hellip;</p>
 </header>
 
 <div id="app"></div>
 
-<footer>Data from SIMKL &amp; TMDB &mdash; runs entirely in your browser, no server involved.</footer>
+<footer>
+  <span>Data from SIMKL &amp; TMDB &mdash; runs entirely in your browser, no server involved.</span>
+  <span class="version-tag">V32</span>
+</footer>
 
 <script>
 "use strict";
@@ -247,18 +340,33 @@ const TMDB_BACKDROP_BASE = "https://image.tmdb.org/t/p/w780";
 const APP_NAME = "my-list-summary-web";
 const APP_VERSION = "1.0";
 
+// ---------------------------------------------------------------------
+// Nav bar icon - only this one needs to be rebuilt dynamically (its
+// label text changes); the others are embedded directly in the static
+// HTML above since they never change.
+// ---------------------------------------------------------------------
+// Poster (vertical) and banner (landscape) icons for the image-mode
+// toggle - the icon shown reflects what you'll switch TO, matching
+// the button's own label.
+const ICON_POSTER_SHAPE = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"></rect></svg>`;
+const ICON_BANNER_SHAPE = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect></svg>`;
+
 const LS_CLIENT_ID = "simkl_client_id";
 const LS_TMDB_KEY = "tmdb_api_key";
 const LS_TOKEN = "simkl_access_token";
-const LS_IMAGE_MODE = "simkl_image_mode"; // "poster" or "banner"
+const LS_IMAGE_MODE = "simkl_image_mode"; // "poster" | "banner"
+const LS_THEME = "simkl_theme"; // "light" | "dark"
 const LS_VIEW_MODE = "simkl_view_mode";   // "list" or "airing" (not restored on load - always starts on "list")
 
 const app = document.getElementById("app");
 const subtitle = document.getElementById("subtitle");
-const pageTitle = document.querySelector("header h1");
 
 function getImageMode() {
   return localStorage.getItem(LS_IMAGE_MODE) === "banner" ? "banner" : "poster";
+}
+
+function nextImageMode(mode) {
+  return mode === "poster" ? "banner" : "poster";
 }
 
 function getConfig() {
@@ -577,10 +685,11 @@ async function estimateRemainingMinutes(item, tmdbId, simklId, token, cache, epi
   // per-episode aired/watched data, then prices each one using TMDB's
   // exact per-episode runtime where available, falling back to the show's
   // average only for the specific episodes TMDB doesn't have.
+  // Returns { totalMinutes, nextEpisodeMinutes }.
   const showDetail = tmdbId ? await cache.getShow(tmdbId) : null; // never throws (see TmdbCache)
   const avgRuntime = averageEpisodeRuntime(showDetail, fallbackRuntime);
 
-  if (remainingCount <= 0) return 0;
+  if (remainingCount <= 0) return { totalMinutes: 0, nextEpisodeMinutes: 0 };
 
   // "season-episode" -> exact TMDB runtime, wherever TMDB has it.
   const tmdbRuntimeMap = new Map();
@@ -596,7 +705,8 @@ async function estimateRemainingMinutes(item, tmdbId, simklId, token, cache, epi
     }
   }
 
-  // Identify which specific episodes are remaining, via SIMKL's own data.
+  // Identify which specific episodes are remaining, via SIMKL's own data,
+  // oldest (i.e. the very next one to watch) first.
   let identifiedKeys = [];
   if (simklId) {
     const simklEpisodes = await episodeCache.get(simklId, token);
@@ -624,7 +734,9 @@ async function estimateRemainingMinutes(item, tmdbId, simklId, token, cache, epi
   }
   minutes += (remainingCount - useCount) * avgRuntime;
 
-  return minutes;
+  const nextEpisodeMinutes = useCount > 0 ? (tmdbRuntimeMap.get(identifiedKeys[0]) || avgRuntime) : avgRuntime;
+
+  return { totalMinutes: minutes, nextEpisodeMinutes };
 }
 
 function simklAiredMinusWatchedCount(item) {
@@ -705,6 +817,40 @@ function computeImages(showDetail) {
   return out;
 }
 
+async function getRecentlyWatchedEpisodes(items, cache) {
+  // Scans every currently-"watching" show (even ones you've fully caught
+  // up on, which wouldn't otherwise appear in My List) for watched
+  // episodes with a timestamp, and returns the 10 most recent.
+  const candidates = [];
+  for (const item of items) {
+    if (item.status !== "watching") continue;
+    const show = item.show || {};
+    for (const season of item.seasons || []) {
+      for (const ep of season.episodes || []) {
+        if (!ep.watched_at) continue;
+        candidates.push({
+          title: show.title || "Unknown",
+          season: season.number,
+          episode: ep.number,
+          watchedAt: ep.watched_at,
+          tmdbId: (show.ids || {}).tmdb,
+        });
+      }
+    }
+  }
+  candidates.sort((a, b) => new Date(b.watchedAt) - new Date(a.watchedAt));
+  const top = candidates.slice(0, 10);
+
+  for (const c of top) {
+    c.posterUrl = null;
+    if (c.tmdbId) {
+      const showDetail = await cache.getShow(c.tmdbId); // cached, no extra request if already fetched
+      c.posterUrl = computeImages(showDetail).posterUrl;
+    }
+  }
+  return top;
+}
+
 async function getMyListRows(token, cache, episodeCache, ratingsCache) {
   const items = await getWatchingShows(token);
   cache = cache || new TmdbCache();
@@ -753,7 +899,7 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
     // and needs no per-episode matching against TMDB at all. TMDB is used
     // only to estimate how long they'll take to watch.
     const remaining = Math.max(simklAiredMinusWatchedCount(item), 1);
-    const remainingMinutes = await estimateRemainingMinutes(
+    const { totalMinutes: remainingMinutes, nextEpisodeMinutes } = await estimateRemainingMinutes(
       item, tmdbId, simklId, token, cache, episodeCache, remaining, show.runtime
     );
 
@@ -792,11 +938,12 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
     }
 
     const [hours, mins] = formatTime(remainingMinutes);
+    const [nextHours, nextMins] = formatTime(nextEpisodeMinutes);
     const imdbRating = simklId ? extractImdbRating(await ratingsCache.get(simklId, token)) : null;
     rows.push({
       title, imdbId, imdbRating, ...images,
       totalEpisodes, available, watched, remaining,
-      hours, mins, nextLabel, episodeTitle, nextAirDate,
+      hours, mins, nextHours, nextMins, nextLabel, episodeTitle, nextAirDate,
     });
   }
 
@@ -815,7 +962,8 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
   });
 
   rows.forEach((r, i) => { r.index = i + 1; });
-  return [rows, totalRemainingEps, totalRemainingMinutes];
+  const recentlyWatched = await getRecentlyWatchedEpisodes(items, cache);
+  return [rows, totalRemainingEps, totalRemainingMinutes, recentlyWatched];
 }
 
 // ---------------------------------------------------------------------
@@ -1035,6 +1183,7 @@ async function getAiringNextRows(token, cache, episodeCache, ratingsCache) {
 let lastRows = null;
 let lastTotalEps = 0;
 let lastTotalMinutes = 0;
+let lastRecentlyWatched = [];
 let airingRows = null;       // lazily fetched, cached until next Refresh
 let sharedCache = null;      // TmdbCache reused across both views for one session
 let sharedEpisodeCache = null; // SimklEpisodeCache, same idea
@@ -1045,43 +1194,51 @@ let currentView = "list";    // "list" | "airing"
 function updateImageModeButton() {
   const btn = document.getElementById("imageModeBtn");
   const mode = getImageMode();
-  btn.textContent = mode === "banner" ? "\u{1F3AC} Switch to Posters" : "\u{1F3AC} Switch to Banners";
+  const nextLabel = mode === "poster" ? "Banners" : "Posters";
+  const icon = mode === "poster" ? ICON_BANNER_SHAPE : ICON_POSTER_SHAPE;
+  btn.innerHTML = `<span class="nav-icon">${icon}</span>Switch to ${nextLabel}`;
+}
+
+function applyStoredTheme() {
+  const isLight = localStorage.getItem(LS_THEME) === "light";
+  document.body.classList.toggle("light-theme", isLight);
+  updateThemeToggleButton();
+}
+
+function updateThemeToggleButton() {
+  const btn = document.getElementById("themeToggleBtn");
+  const isLight = document.body.classList.contains("light-theme");
+  btn.innerHTML = isLight ? "&#9788;" : "&#9789;"; // sun : moon
 }
 
 function updatePageTitle() {
   document.title = currentView === "airing"
     ? "Airing Next"
     : "My List - Continue Watching";
-  const heading = document.querySelector("header h1");
-  if (heading) {
-    const version = heading.querySelector(".version-tag");
-    heading.firstChild.textContent = currentView === "airing"
-      ? "Airing Next"
-      : "My List - Continue Watching";
-    if (version) heading.appendChild(version);
-  }
 }
 
 function updateViewModeButton() {
-  const btn = document.getElementById("viewModeBtn");
-  btn.textContent = currentView === "airing" ? "\u{1F4C5} My List" : "\u{1F4C5} Airing Next";
+  const myListBtn = document.getElementById("myListNavBtn");
+  const airingBtn = document.getElementById("airingNavBtn");
+  myListBtn.classList.toggle("active", currentView !== "airing");
+  airingBtn.classList.toggle("active", currentView === "airing");
   updatePageTitle();
 }
+
+const IMAGE_MODE_CONFIG = {
+  poster: { urlKey: "posterUrl", pathsKey: "posterPaths", indexKey: "posterIndex", base: TMDB_IMAGE_BASE, extraClass: "" },
+  banner: { urlKey: "bannerUrl", pathsKey: "backdropPaths", indexKey: "bannerIndex", base: TMDB_BACKDROP_BASE, extraClass: " banner-img" },
+};
 
 function cycleImage(arrIdx) {
   const rows = currentView === "airing" ? airingRows : lastRows;
   const row = rows && rows[arrIdx];
   if (!row) return;
-  const isBanner = getImageMode() === "banner";
-  const paths = isBanner ? row.backdropPaths : row.posterPaths;
+  const cfg = IMAGE_MODE_CONFIG[getImageMode()];
+  const paths = row[cfg.pathsKey];
   if (!paths || paths.length <= 1) return; // nothing else to switch to
-  if (isBanner) {
-    row.bannerIndex = (row.bannerIndex + 1) % paths.length;
-    row.bannerUrl = TMDB_BACKDROP_BASE + paths[row.bannerIndex];
-  } else {
-    row.posterIndex = (row.posterIndex + 1) % paths.length;
-    row.posterUrl = TMDB_IMAGE_BASE + paths[row.posterIndex];
-  }
+  row[cfg.indexKey] = (row[cfg.indexKey] + 1) % paths.length;
+  row[cfg.urlKey] = cfg.base + paths[row[cfg.indexKey]];
   if (currentView === "airing") {
     renderAiringRows(airingRows);
   } else {
@@ -1104,13 +1261,17 @@ function imdbButtonHtml(imdbId, rating) {
               onclick="event.stopPropagation(); window.open('${url}', '_blank')">${IMDB_LOGO_SVG}${ratingHtml}</button>`;
 }
 
-function cardImageBits(row, isBanner, arrIdx, extraOverlayHtml) {
-  const imageUrl = isBanner ? (row.bannerUrl || row.posterUrl) : row.posterUrl;
-  const posterClass = "poster" + (isBanner ? " banner-img" : "");
+function cardImageBits(row, mode, arrIdx, extraOverlayHtml) {
+  const cfg = IMAGE_MODE_CONFIG[mode];
+  // Banners fall back to the poster if a show has no backdrop; logos have
+  // no sensible fallback (different shape/purpose) - just show the
+  // placeholder letter if there's no logo.
+  const imageUrl = mode === "banner" ? (row.bannerUrl || row.posterUrl) : row[cfg.urlKey];
+  const posterClass = "poster" + cfg.extraClass;
   const posterHtml = imageUrl
     ? `<img class="${posterClass}" src="${imageUrl}" alt="${row.title}">`
     : `<div class="${posterClass} placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
-  const altCount = (isBanner ? row.backdropPaths : row.posterPaths || []).length;
+  const altCount = (row[cfg.pathsKey] || []).length;
   const cycleDisabled = altCount <= 1;
   const cycleTitle = cycleDisabled ? "No alternate image available" : "Try another image";
   const cycleBtn = `<button class="cycle-btn${cycleDisabled ? " disabled" : ""}" title="${cycleTitle}"
@@ -1121,10 +1282,32 @@ function cardImageBits(row, isBanner, arrIdx, extraOverlayHtml) {
   return { wrapHtml };
 }
 
-function renderRows(rows, totalRemainingEps, totalRemainingMinutes) {
+function renderRecentlyWatchedHtml(list) {
+  if (!list || !list.length) return "";
+  const cards = list.map(ep => {
+    const posterHtml = ep.posterUrl
+      ? `<img class="recent-poster" src="${ep.posterUrl}" alt="${ep.title}">`
+      : `<div class="recent-poster placeholder">${(ep.title[0] || "?").toUpperCase()}</div>`;
+    const label = `${ep.title} S${String(ep.season).padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`;
+    return `
+      <div class="recent-card">
+        <div class="recent-poster-wrap">${posterHtml}</div>
+        <div class="recent-caption">${label}</div>
+      </div>`;
+  }).join("\n");
+
+  return `
+    <div class="recent-section">
+      <h2 class="section-title">Recently Watched</h2>
+      <div class="recent-scroll" style="grid-template-columns: repeat(${list.length}, 1fr)">${cards}</div>
+    </div>`;
+}
+
+function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatched) {
   lastRows = rows;
   lastTotalEps = totalRemainingEps;
   lastTotalMinutes = totalRemainingMinutes;
+  if (recentlyWatched !== undefined) lastRecentlyWatched = recentlyWatched;
   currentView = "list";
   localStorage.setItem(LS_VIEW_MODE, "list");
   updateViewModeButton();
@@ -1133,18 +1316,23 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes) {
 
   if (!rows.length) {
     app.innerHTML = `<div class="center-box"><h2>My List is empty</h2>
-      <p style="color:var(--muted)">No shows with a new episode to watch right now.</p></div>`;
+      <p style="color:var(--muted)">No shows with a new episode to watch right now.</p></div>
+      ${renderRecentlyWatchedHtml(lastRecentlyWatched)}`;
     subtitle.textContent = "Nothing to watch right now";
     return;
   }
 
   const mode = getImageMode();
-  const isBanner = mode === "banner";
+  const isWide = mode === "banner";
 
   const cards = rows.map((row, arrIdx) => {
     const remainingText = row.remaining === 1 ? "1 episode left" : `${row.remaining} episodes left`;
     const episodeTitle = row.episodeTitle ? `<div class="episode-title">${row.episodeTitle}</div>` : "";
-    const { wrapHtml } = cardImageBits(row, isBanner, arrIdx, `<div class="remaining-badge">${remainingText}</div>`);
+    const { wrapHtml } = cardImageBits(row, mode, arrIdx, `<div class="remaining-badge">${remainingText}</div>`);
+
+    const timeText = row.remaining > 1
+      ? `${row.nextHours}h ${row.nextMins}m / ${row.hours}h ${row.mins}m left`
+      : `${row.hours}h ${row.mins}m left`;
 
     return `
       <div class="card">
@@ -1153,18 +1341,19 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes) {
           <h3>${row.title}</h3>
           <div class="next-up my-list-next">Next: ${row.nextLabel}</div>
           ${episodeTitle}
-          <div class="time-left"><span class="time-icon">🕘</span> ${row.hours}h ${row.mins}m left</div>
+          <div class="time-left"><span class="time-icon">🕘</span> ${timeText}</div>
         </div>
       </div>`;
   }).join("\n");
 
   app.innerHTML = `
-    <div class="grid${isBanner ? " banner-mode" : ""}">${cards}</div>
+    <div class="grid${isWide ? " banner-mode" : ""}">${cards}</div>
     <div class="summary-bar">
       <div class="stat"><div class="num">${rows.length}</div><div class="label">Shows</div></div>
       <div class="stat"><div class="num">${totalRemainingEps}</div><div class="label">Episodes left</div></div>
       <div class="stat"><div class="num">${totalHours}h ${totalMins}m</div><div class="label">Watch time left</div></div>
     </div>
+    ${renderRecentlyWatchedHtml(lastRecentlyWatched)}
   `;
   subtitle.textContent = "Updated " + new Date().toLocaleString();
   updateImageModeButton();
@@ -1183,10 +1372,10 @@ function renderAiringRows(rows) {
   }
 
   const mode = getImageMode();
-  const isBanner = mode === "banner";
+  const isWide = mode === "banner";
 
   const cards = rows.map((row, arrIdx) => {
-    const { wrapHtml } = cardImageBits(row, isBanner, arrIdx);
+    const { wrapHtml } = cardImageBits(row, mode, arrIdx);
     return `
       <div class="card">
         ${wrapHtml}
@@ -1201,7 +1390,7 @@ function renderAiringRows(rows) {
 
   app.innerHTML = `
     <p class="section-note" style="font-weight:700;">${rows.length} shows have new episodes or premieres coming up.</p>
-    <div class="grid${isBanner ? " banner-mode" : ""}">${cards}</div>
+    <div class="grid${isWide ? " banner-mode" : ""}">${cards}</div>
   `;
   subtitle.textContent = "Updated " + new Date().toLocaleString();
   updateImageModeButton();
@@ -1244,8 +1433,8 @@ async function main() {
     airingRows = null; // reset - re-fetch lazily next time Airing Next is opened
     app.innerHTML = `<div class="spinner" style="margin-top:80px"></div>`;
     subtitle.textContent = "Fetching your My List\u2026";
-    const [rows, totalEps, totalMinutes] = await getMyListRows(token, sharedCache, sharedEpisodeCache, sharedRatingsCache);
-    renderRows(rows, totalEps, totalMinutes);
+    const [rows, totalEps, totalMinutes, recentlyWatched] = await getMyListRows(token, sharedCache, sharedEpisodeCache, sharedRatingsCache);
+    renderRows(rows, totalEps, totalMinutes, recentlyWatched);
   } catch (err) {
     showError(err);
   }
@@ -1255,7 +1444,7 @@ document.getElementById("refreshBtn").onclick = main;
 document.getElementById("settingsBtn").onclick = () => showSettings(main);
 document.getElementById("imageModeBtn").onclick = () => {
   const current = getImageMode();
-  localStorage.setItem(LS_IMAGE_MODE, current === "banner" ? "poster" : "banner");
+  localStorage.setItem(LS_IMAGE_MODE, nextImageMode(current));
   if (currentView === "airing" && airingRows) {
     renderAiringRows(airingRows); // instant, no re-fetch
   } else if (lastRows) {
@@ -1264,11 +1453,12 @@ document.getElementById("imageModeBtn").onclick = () => {
     updateImageModeButton();
   }
 };
-document.getElementById("viewModeBtn").onclick = async () => {
-  if (currentView === "airing") {
-    renderRows(lastRows || [], lastTotalEps, lastTotalMinutes);
-    return;
-  }
+document.getElementById("myListNavBtn").onclick = () => {
+  if (currentView !== "airing") return; // already there
+  renderRows(lastRows || [], lastTotalEps, lastTotalMinutes);
+};
+document.getElementById("airingNavBtn").onclick = async () => {
+  if (currentView === "airing") return; // already there
   if (!simklToken) return; // not authenticated/loaded yet
   if (airingRows) {
     renderAiringRows(airingRows);
@@ -1283,9 +1473,15 @@ document.getElementById("viewModeBtn").onclick = async () => {
     showError(err);
   }
 };
+document.getElementById("themeToggleBtn").onclick = () => {
+  const isLight = document.body.classList.toggle("light-theme");
+  localStorage.setItem(LS_THEME, isLight ? "light" : "dark");
+  updateThemeToggleButton();
+};
 updateImageModeButton();
 updateViewModeButton();
 updatePageTitle();
+applyStoredTheme();
 
 main();
 </script>
