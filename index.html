@@ -47,7 +47,7 @@
     font-size: 1.02rem; font-weight: 700; letter-spacing: 0.02em;
     padding: 12px 16px; border-radius: 12px; cursor: pointer;
   }
-  .nav-icon { line-height: 1; display: inline-flex; }
+  .nav-icon { line-height: 1; display: inline-flex; color: var(--accent); }
   .nav-item:hover { color: #fff; background: rgba(255,255,255,0.06); }
   .nav-item.active { color: var(--accent); }
   .nav-item.active::after {
@@ -265,6 +265,98 @@
     color: #67e8f9;
   }
 
+  .toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
+    background: var(--card); color: var(--text); padding: 12px 20px; border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4); font-size: 0.9rem; font-weight: 600;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 200; max-width: 90vw;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.error { color: var(--danger); }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 20px; z-index: 150; overflow-y: auto;
+  }
+  .modal-box {
+    width: 100%; max-width: 560px; background: var(--card); border-radius: 14px;
+    padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .modal-box h2 { margin: 0 0 14px; display: flex; align-items: center; justify-content: space-between; font-size: 1.3rem; }
+  .modal-close-btn {
+    background: transparent; border: none; color: var(--muted); font-size: 1.4rem;
+    cursor: pointer; line-height: 1; padding: 0 4px;
+  }
+  .modal-close-btn:hover { color: var(--text); }
+  .search-input-row input {
+    width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #383a4a;
+    background: #14151a; color: var(--text); font-size: 0.95rem; box-sizing: border-box;
+  }
+  .search-results { margin-top: 16px; max-height: 55vh; overflow-y: auto; }
+  .search-result-row {
+    display: flex; align-items: center; gap: 12px; padding: 8px 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    cursor: pointer; border-radius: 8px;
+  }
+  .search-result-row:hover { background: rgba(255,255,255,0.06); }
+  .search-result-poster {
+    width: 42px; height: 63px; border-radius: 5px; object-fit: cover;
+    background: #2a2c38; flex: 0 0 auto;
+  }
+  .search-result-poster.placeholder {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; font-weight: 700; color: var(--muted);
+  }
+  .search-result-info { flex: 1 1 auto; min-width: 0; }
+  .search-result-title { font-weight: 700; font-size: 0.95rem; }
+  .search-result-year { color: var(--muted); font-size: 0.8rem; }
+  .modal-back-btn {
+    background: transparent; border: none; color: var(--accent2); font-size: 0.85rem;
+    font-weight: 700; cursor: pointer; padding: 0 0 14px; display: block;
+  }
+  .modal-back-btn:hover { text-decoration: underline; }
+  .detail-header { display: flex; gap: 16px; }
+  .detail-poster {
+    width: 90px; height: 135px; border-radius: 8px; object-fit: cover;
+    background: #2a2c38; flex: 0 0 auto;
+  }
+  .detail-poster.placeholder {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem; font-weight: 700; color: var(--muted);
+  }
+  .detail-info { flex: 1 1 auto; min-width: 0; }
+  .detail-title { font-size: 1.15rem; font-weight: 800; }
+  .detail-year { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+  .detail-status { margin-top: 10px; font-size: 0.88rem; font-weight: 700; }
+  .detail-status.not-in-list { color: var(--muted); }
+  .detail-status.in-list { color: var(--accent); }
+  .detail-status-picker { margin-top: 20px; }
+  .detail-picker-label { color: var(--muted); font-size: 0.8rem; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+  .card-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
+  .card-title-row h3 { flex: 1 1 auto; min-width: 0; }
+  .card-menu-btn {
+    flex: 0 0 auto; background: transparent; border: none; color: var(--muted);
+    font-size: 1.2rem; line-height: 1; padding: 0 2px; cursor: pointer;
+  }
+  .card-menu-btn:hover { color: var(--text); }
+  .card-menu-dropdown {
+    position: fixed; background: var(--card); border-radius: 10px; min-width: 170px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45); z-index: 160; overflow: hidden; padding: 6px;
+  }
+  .card-menu-item {
+    display: block; width: 100%; text-align: left; background: transparent; border: none;
+    color: var(--text); font-size: 0.86rem; padding: 8px 10px; border-radius: 6px; cursor: pointer;
+  }
+  .card-menu-item:hover { background: rgba(255,255,255,0.08); }
+  .card-menu-item.active { color: var(--accent); font-weight: 700; }
+  .card-menu-item.danger { color: var(--danger); }
+  .card-menu-item:disabled { opacity: 0.5; cursor: default; }
+  .card-menu-item:disabled:hover { background: transparent; }
+  .card-menu-sep { height: 1px; background: rgba(255,255,255,0.1); margin: 6px 4px; }
+
   /* Light theme overrides - toggled via body.light-theme */
   body.light-theme {
     --bg: #f2f3f6;
@@ -310,6 +402,9 @@
       <button class="nav-item" id="imageModeBtn">
         <span class="nav-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect></svg></span>Switch to Banners
       </button>
+      <button class="nav-item" id="addShowBtn">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></span>Search Show
+      </button>
       <button class="nav-item" id="settingsBtn">
         <span class="nav-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></span>Settings
       </button>
@@ -320,6 +415,7 @@
 </header>
 
 <div id="app"></div>
+<div id="toast" class="toast"></div>
 
 <footer>
   <span>Data from SIMKL &amp; TMDB &mdash; runs entirely in your browser, no server involved.</span>
@@ -379,10 +475,27 @@ function getConfig() {
 // ---------------------------------------------------------------------
 // Settings screen (first run, or via the Settings button)
 // ---------------------------------------------------------------------
+function returnToPreviousView() {
+  if (currentView === "airing" && airingRows) {
+    renderAiringRows(airingRows);
+  } else {
+    renderRows(lastRows || [], lastTotalEps, lastTotalMinutes, lastRecentlyWatched);
+  }
+}
+
 function showSettings(afterSaveCallback) {
+  document.getElementById("settingsBtn").classList.add("active");
   const cfg = getConfig();
+  // Only offer a way back if there's actually a previously-loaded view to
+  // return to - on first run (no config yet) there's nothing to cancel back
+  // to, and both fields are required anyway.
+  const canCancel = lastRows !== null || airingRows !== null;
+  const closeBtnHtml = canCancel
+    ? `<button class="modal-close-btn" id="settingsCloseBtn" style="position:absolute;top:14px;right:14px" title="Back">&times;</button>`
+    : "";
   app.innerHTML = `
-    <div class="center-box">
+    <div class="center-box" style="position:relative">
+      ${closeBtnHtml}
       <h2>Setup</h2>
       <p style="color:var(--muted);font-size:0.85rem">
         These are stored only in this browser's local storage - never written
@@ -412,6 +525,9 @@ function showSettings(afterSaveCallback) {
     localStorage.setItem(LS_TMDB_KEY, tmdbKey);
     if (afterSaveCallback) afterSaveCallback();
   };
+  if (canCancel) {
+    document.getElementById("settingsCloseBtn").onclick = returnToPreviousView;
+  }
 }
 
 // ---------------------------------------------------------------------
@@ -504,6 +620,33 @@ async function simklGet(path, token, extraParams) {
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error(`SIMKL request failed (${res.status}): ${body.slice(0, 300)}`);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+async function simklPost(path, token, body) {
+  const { clientId } = getConfig();
+  const params = new URLSearchParams({
+    client_id: clientId, "app-name": APP_NAME, "app-version": APP_VERSION,
+  });
+  let res;
+  try {
+    res = await fetch(`${SIMKL_BASE}${path}?${params}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    throw new Error("Network/CORS error reaching SIMKL: " + e.message);
+  }
+  if (res.status === 401) {
+    localStorage.removeItem(LS_TOKEN);
+    throw new Error("SIMKL access token expired or revoked. Refresh the page to re-authenticate.");
+  }
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => "");
+    throw new Error(`SIMKL request failed (${res.status}): ${errBody.slice(0, 300)}`);
   }
   const text = await res.text();
   return text ? JSON.parse(text) : null;
@@ -941,9 +1084,9 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
     const [nextHours, nextMins] = formatTime(nextEpisodeMinutes);
     const imdbRating = simklId ? extractImdbRating(await ratingsCache.get(simklId, token)) : null;
     rows.push({
-      title, imdbId, imdbRating, ...images,
+      title, imdbId, imdbRating, simklId, tmdbId, year: show.year, ...images,
       totalEpisodes, available, watched, remaining,
-      hours, mins, nextHours, nextMins, nextLabel, episodeTitle, nextAirDate,
+      hours, mins, nextHours, nextMins, nextLabel, nextSeason, nextEpisode, episodeTitle, nextAirDate,
     });
   }
 
@@ -1178,6 +1321,343 @@ async function getAiringNextRows(token, cache, episodeCache, ratingsCache) {
 }
 
 // ---------------------------------------------------------------------
+// SIMKL write operations - search, add-to-list, status change, remove
+// ---------------------------------------------------------------------
+async function simklAddToList(ids, toStatus, token, extra) {
+  const show = { to: toStatus, ids, ...(extra || {}) };
+  return simklPost("/sync/add-to-list", token, { shows: [show] });
+}
+
+async function removeShowFromList(simklId, token) {
+  // POST /sync/history/remove with just an ids object (no seasons/episodes)
+  // removes the show from the user's library entirely - equivalent to
+  // clicking "Remove from list" on simkl.com.
+  return simklPost("/sync/history/remove", token, { shows: [{ ids: { simkl: simklId } }] });
+}
+
+async function searchTvShows(query, token) {
+  const data = await simklGet("/search/tv", token, { q: query });
+  return Array.isArray(data) ? data : [];
+}
+
+const LIBRARY_STATUSES = ["watching", "plantowatch", "hold", "completed", "dropped"];
+const STATUS_LABELS = {
+  watching: "Watching", plantowatch: "Plan to Watch", hold: "On Hold",
+  completed: "Completed", dropped: "Dropped",
+};
+const ALL_STATUS_OPTIONS = [
+  { value: "plantowatch", label: "Plan to Watch" },
+  { value: "watching", label: "Watching" },
+  { value: "hold", label: "On Hold" },
+  { value: "completed", label: "Completed" },
+  { value: "dropped", label: "Dropped" },
+];
+
+function idsMatch(a, b) {
+  if (!a || !b) return false;
+  return (a.simkl && b.simkl && a.simkl === b.simkl) ||
+    (a.tmdb && b.tmdb && String(a.tmdb) === String(b.tmdb)) ||
+    (a.imdb && b.imdb && a.imdb === b.imdb);
+}
+
+async function findShowLibraryStatus(ids, token) {
+  // No single SIMKL endpoint reports "what's the status of this one show",
+  // so this checks each of the 5 possible lists (same endpoint shape as
+  // getWatchingShows/getPlanToWatchShows) and returns the first match.
+  const lists = await Promise.all(
+    LIBRARY_STATUSES.map(status =>
+      simklGet(`/sync/all-items/shows/${status}`, token, { extended: "full" }).catch(() => null)
+    )
+  );
+  for (let i = 0; i < LIBRARY_STATUSES.length; i++) {
+    const data = lists[i];
+    const items = Array.isArray(data) ? data : (data && data.shows) || [];
+    const match = items.find(item => idsMatch((item.show || {}).ids, ids));
+    if (match) return { status: LIBRARY_STATUSES[i], item: match };
+  }
+  return null;
+}
+
+function renderSearchResults(results) {
+  const container = document.getElementById("searchResults");
+  if (!container) return;
+  if (!results.length) {
+    container.innerHTML = `<p style="color:var(--muted);font-size:0.85rem;padding:10px 4px">No results.</p>`;
+    return;
+  }
+  container.innerHTML = results.map((r, i) => {
+    const poster = r.poster ? `https://simkl.in/posters/${r.poster}_m.jpg` : null;
+    const posterHtml = poster
+      ? `<img class="search-result-poster" src="${poster}" alt="${r.title || ""}">`
+      : `<div class="search-result-poster placeholder">${((r.title || "?")[0] || "?").toUpperCase()}</div>`;
+    return `
+      <div class="search-result-row" data-idx="${i}">
+        ${posterHtml}
+        <div class="search-result-info">
+          <div class="search-result-title">${r.title || "Unknown"}</div>
+          <div class="search-result-year">${r.year || ""}</div>
+        </div>
+      </div>`;
+  }).join("\n");
+
+  container.querySelectorAll(".search-result-row").forEach(row => {
+    row.onclick = () => openShowDetail(results[Number(row.dataset.idx)]);
+  });
+}
+
+let searchDebounceTimer = null;
+let lastSearchQuery = "";
+let lastSearchResults = [];
+
+function wireSearchInput() {
+  const input = document.getElementById("searchQueryInput");
+  if (!input) return;
+  input.focus();
+  input.value = lastSearchQuery;
+  input.oninput = () => {
+    clearTimeout(searchDebounceTimer);
+    lastSearchQuery = input.value.trim();
+    if (!lastSearchQuery) {
+      lastSearchResults = [];
+      renderSearchResults([]);
+      return;
+    }
+    searchDebounceTimer = setTimeout(async () => {
+      try {
+        lastSearchResults = await searchTvShows(lastSearchQuery, simklToken);
+        renderSearchResults(lastSearchResults);
+      } catch (err) {
+        document.getElementById("searchResults").innerHTML = `<div class="error-box">${err.message}</div>`;
+      }
+    }, 400);
+  };
+}
+
+function renderSearchStep() {
+  const title = document.getElementById("modalTitle");
+  const body = document.getElementById("modalBody");
+  if (!title || !body) return;
+  title.textContent = "Add a show";
+  body.innerHTML = `
+    <div class="search-input-row">
+      <input type="text" id="searchQueryInput" placeholder="Search TV shows…" autocomplete="off">
+    </div>
+    <div class="search-results" id="searchResults"></div>`;
+  wireSearchInput();
+  renderSearchResults(lastSearchResults);
+}
+
+async function openShowDetail(show) {
+  const title = document.getElementById("modalTitle");
+  const body = document.getElementById("modalBody");
+  if (!title || !body) return;
+  title.textContent = show.title || "Show";
+  body.innerHTML = `
+    <button class="modal-back-btn" id="detailBackBtn">&larr; Back to search</button>
+    <div class="spinner" style="margin:30px auto"></div>`;
+  document.getElementById("detailBackBtn").onclick = renderSearchStep;
+
+  const ids = show.ids || {};
+  let libraryMatch = null;
+  try {
+    libraryMatch = await findShowLibraryStatus(ids, simklToken);
+  } catch (err) {
+    body.innerHTML = `
+      <button class="modal-back-btn" id="detailBackBtn">&larr; Back to search</button>
+      <div class="error-box">${err.message}</div>`;
+    document.getElementById("detailBackBtn").onclick = renderSearchStep;
+    return;
+  }
+  renderShowDetail(show, libraryMatch);
+}
+
+function renderShowDetail(show, libraryMatch) {
+  const body = document.getElementById("modalBody");
+  if (!body) return;
+  const poster = show.poster ? `https://simkl.in/posters/${show.poster}_m.jpg` : null;
+  const posterHtml = poster
+    ? `<img class="detail-poster" src="${poster}" alt="${show.title || ""}">`
+    : `<div class="detail-poster placeholder">${((show.title || "?")[0] || "?").toUpperCase()}</div>`;
+
+  let statusHtml;
+  if (!libraryMatch) {
+    statusHtml = `<div class="detail-status not-in-list">Not in your list yet</div>`;
+  } else {
+    const item = libraryMatch.item;
+    const watched = item.watched_episodes_count || 0;
+    const total = item.total_episodes_count || 0;
+    const progress = total ? ` — ${watched}/${total} episodes watched` : "";
+    statusHtml = `<div class="detail-status in-list">${STATUS_LABELS[libraryMatch.status]}${progress}</div>`;
+  }
+
+  const statusButtons = ALL_STATUS_OPTIONS.map(opt => {
+    const isActive = libraryMatch && libraryMatch.status === opt.value;
+    return `<button class="card-menu-item${isActive ? " active" : ""}" data-status="${opt.value}">
+      ${opt.label}${isActive ? " ✓" : ""}
+    </button>`;
+  }).join("");
+
+  body.innerHTML = `
+    <button class="modal-back-btn" id="detailBackBtn">&larr; Back to search</button>
+    <div class="detail-header">
+      ${posterHtml}
+      <div class="detail-info">
+        <div class="detail-title">${show.title || "Unknown"}</div>
+        <div class="detail-year">${show.year || ""}</div>
+        ${statusHtml}
+      </div>
+    </div>
+    <div class="detail-status-picker">
+      <p class="detail-picker-label">Set status:</p>
+      ${statusButtons}
+    </div>`;
+
+  document.getElementById("detailBackBtn").onclick = renderSearchStep;
+  body.querySelectorAll("[data-status]").forEach(btn => {
+    btn.onclick = () => setShowStatusFromDetail(show, btn.dataset.status, btn);
+  });
+}
+
+async function setShowStatusFromDetail(show, status, btnEl) {
+  const ids = show.ids || {};
+  if (!ids.simkl && !ids.tmdb && !ids.imdb) {
+    showToast("This result has no usable ID.", true);
+    return;
+  }
+  const buttons = btnEl.parentElement.querySelectorAll("button");
+  buttons.forEach(b => { b.disabled = true; });
+  try {
+    await simklAddToList(ids, status, simklToken, { title: show.title, year: show.year });
+    showToast(`"${show.title}" set to ${STATUS_LABELS[status]}`);
+    closeSearchModal();
+    main();
+  } catch (err) {
+    buttons.forEach(b => { b.disabled = false; });
+    showToast(err.message, true);
+  }
+}
+
+function openSearchModal() {
+  if (!simklToken) return;
+  document.getElementById("addShowBtn").classList.add("active");
+  lastSearchQuery = "";
+  lastSearchResults = [];
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.id = "searchModalOverlay";
+  const headerEl = document.querySelector("header");
+  overlay.style.paddingTop = `${(headerEl ? headerEl.offsetHeight : 0) + 24}px`;
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <h2><span id="modalTitle">Add a show</span> <button class="modal-close-btn" id="searchModalCloseBtn">&times;</button></h2>
+      <div id="modalBody"></div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  renderSearchStep();
+
+  document.getElementById("searchModalCloseBtn").onclick = closeSearchModal;
+  overlay.addEventListener("click", e => { if (e.target === overlay) closeSearchModal(); });
+  document.addEventListener("keydown", searchModalEscHandler);
+}
+
+function searchModalEscHandler(e) {
+  if (e.key === "Escape") closeSearchModal();
+}
+
+function closeSearchModal() {
+  document.getElementById("addShowBtn").classList.remove("active");
+  const overlay = document.getElementById("searchModalOverlay");
+  if (overlay) overlay.remove();
+  document.removeEventListener("keydown", searchModalEscHandler);
+}
+
+// ---------------------------------------------------------------------
+// Per-card status/remove menu
+// ---------------------------------------------------------------------
+const STATUS_OPTIONS = [
+  { value: "watching", label: "Watching" },
+  { value: "hold", label: "On Hold" },
+  { value: "completed", label: "Completed" },
+  { value: "dropped", label: "Dropped" },
+];
+
+function closeCardMenu() {
+  const el = document.getElementById("cardMenuDropdown");
+  if (el) el.remove();
+  document.removeEventListener("keydown", cardMenuEscHandler);
+  document.removeEventListener("click", cardMenuOutsideClickHandler);
+}
+
+function cardMenuEscHandler(e) {
+  if (e.key === "Escape") closeCardMenu();
+}
+
+function cardMenuOutsideClickHandler(e) {
+  const menu = document.getElementById("cardMenuDropdown");
+  if (menu && !menu.contains(e.target)) closeCardMenu();
+}
+
+function openCardMenu(arrIdx, btnEl) {
+  closeCardMenu();
+  const row = lastRows && lastRows[arrIdx];
+  if (!row || !row.simklId) return;
+
+  const rect = btnEl.getBoundingClientRect();
+  const menu = document.createElement("div");
+  menu.className = "card-menu-dropdown";
+  menu.id = "cardMenuDropdown";
+  menu.style.top = `${rect.bottom + 6}px`;
+  menu.style.left = `${Math.min(rect.left, window.innerWidth - 190)}px`;
+
+  const statusButtons = STATUS_OPTIONS.map(opt => `
+    <button class="card-menu-item${opt.value === "watching" ? " active" : ""}" data-status="${opt.value}">
+      ${opt.label}${opt.value === "watching" ? " ✓" : ""}
+    </button>`).join("");
+
+  menu.innerHTML = `
+    ${statusButtons}
+    <div class="card-menu-sep"></div>
+    <button class="card-menu-item danger" id="cardMenuRemoveBtn">Remove from list</button>
+  `;
+  document.body.appendChild(menu);
+
+  menu.querySelectorAll("[data-status]").forEach(b => {
+    b.onclick = () => changeShowStatus(row, b.dataset.status);
+  });
+  document.getElementById("cardMenuRemoveBtn").onclick = () => removeShowFromMyList(row);
+
+  setTimeout(() => document.addEventListener("click", cardMenuOutsideClickHandler), 0);
+  document.addEventListener("keydown", cardMenuEscHandler);
+}
+
+async function changeShowStatus(row, status) {
+  closeCardMenu();
+  try {
+    await simklAddToList(
+      { simkl: row.simklId, tmdb: row.tmdbId, imdb: row.imdbId },
+      status, simklToken, { title: row.title, year: row.year }
+    );
+    showToast(`Moved "${row.title}" to ${status}`);
+    main();
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
+async function removeShowFromMyList(row) {
+  closeCardMenu();
+  if (!confirm(`Remove "${row.title}" from your SIMKL list entirely?`)) return;
+  try {
+    await removeShowFromList(row.simklId, simklToken);
+    showToast(`Removed "${row.title}"`);
+    main();
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
+// ---------------------------------------------------------------------
 // Render
 // ---------------------------------------------------------------------
 let lastRows = null;
@@ -1222,6 +1702,7 @@ function updateViewModeButton() {
   const airingBtn = document.getElementById("airingNavBtn");
   myListBtn.classList.toggle("active", currentView !== "airing");
   airingBtn.classList.toggle("active", currentView === "airing");
+  document.getElementById("settingsBtn").classList.remove("active");
   updatePageTitle();
 }
 
@@ -1338,7 +1819,10 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
       <div class="card">
         ${wrapHtml}
         <div class="card-body">
-          <h3>${row.title}</h3>
+          <div class="card-title-row">
+            <h3>${row.title}</h3>
+            <button class="card-menu-btn" title="Manage" onclick="event.stopPropagation(); openCardMenu(${arrIdx}, this)">&#8942;</button>
+          </div>
           <div class="next-up my-list-next">Next: ${row.nextLabel}</div>
           ${episodeTitle}
           <div class="time-left"><span class="time-icon">🕘</span> ${timeText}</div>
@@ -1411,6 +1895,17 @@ function showError(err) {
   subtitle.textContent = "Error";
 }
 
+let toastTimer = null;
+function showToast(message, isError) {
+  const el = document.getElementById("toast");
+  if (!el) return;
+  clearTimeout(toastTimer);
+  el.textContent = message;
+  el.classList.toggle("error", !!isError);
+  el.classList.add("show");
+  toastTimer = setTimeout(() => el.classList.remove("show"), 3000);
+}
+
 // ---------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------
@@ -1442,6 +1937,7 @@ async function main() {
 
 document.getElementById("refreshBtn").onclick = main;
 document.getElementById("settingsBtn").onclick = () => showSettings(main);
+document.getElementById("addShowBtn").onclick = openSearchModal;
 document.getElementById("imageModeBtn").onclick = () => {
   const current = getImageMode();
   localStorage.setItem(LS_IMAGE_MODE, nextImageMode(current));
@@ -1453,12 +1949,15 @@ document.getElementById("imageModeBtn").onclick = () => {
     updateImageModeButton();
   }
 };
+function isShowingSettings() {
+  return document.getElementById("settingsBtn").classList.contains("active");
+}
 document.getElementById("myListNavBtn").onclick = () => {
-  if (currentView !== "airing") return; // already there
+  if (currentView !== "airing" && !isShowingSettings()) return; // already there
   renderRows(lastRows || [], lastTotalEps, lastTotalMinutes);
 };
 document.getElementById("airingNavBtn").onclick = async () => {
-  if (currentView === "airing") return; // already there
+  if (currentView === "airing" && !isShowingSettings()) return; // already there
   if (!simklToken) return; // not authenticated/loaded yet
   if (airingRows) {
     renderAiringRows(airingRows);
