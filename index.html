@@ -137,6 +137,7 @@
   }
   .carousel-arrow:hover { background: var(--card-hover); }
   .carousel-arrow.left { right: auto; left: -14px; }
+  .carousel-arrow.is-hidden { display: none; }
 
   .grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -2146,6 +2147,23 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   `;
   subtitle.textContent = "Updated " + new Date().toLocaleString();
   updateImageModeButton();
+  updateCarouselArrows();
+}
+
+function updateCarouselArrows() {
+  const track = document.getElementById("myListCarouselTrack");
+  const wrap = track && track.closest(".carousel-wrap");
+  if (!track || !wrap) return;
+  const leftArrow = wrap.querySelector(".carousel-arrow.left");
+  const rightArrow = wrap.querySelector(".carousel-arrow:not(.left)");
+  const refresh = () => {
+    const maxScroll = track.scrollWidth - track.clientWidth;
+    const noScrollNeeded = maxScroll <= 1;
+    if (leftArrow) leftArrow.classList.toggle("is-hidden", noScrollNeeded || track.scrollLeft <= 1);
+    if (rightArrow) rightArrow.classList.toggle("is-hidden", noScrollNeeded || track.scrollLeft >= maxScroll - 1);
+  };
+  refresh();
+  track.addEventListener("scroll", refresh);
 }
 
 function renderAiringRows(rows) {
