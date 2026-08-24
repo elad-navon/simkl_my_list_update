@@ -307,9 +307,10 @@
   .list-row-title {
     flex: 1 1 auto; min-width: 0; font-weight: 600; font-size: 0.92rem;
     color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    text-transform: uppercase; letter-spacing: 0.02em;
   }
-  .list-panel--watched .list-row-title { text-transform: uppercase; letter-spacing: 0.02em; }
   .list-row-sub { font-size: 0.74rem; color: var(--muted); font-weight: 500; margin-top: 2px; }
+  .list-row-airdate { color: var(--accent2); font-weight: 700; font-size: 0.8rem; margin-top: 4px; }
   .list-check {
     flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%;
     border: 1.5px solid var(--accent); color: var(--accent);
@@ -474,9 +475,6 @@
     </button>
     <button class="nav-item" id="myListNavBtn">
       <span class="nav-icon"><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></span>My List
-    </button>
-    <button class="nav-item" id="airingNavBtn">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"></rect><line x1="16" y1="2.5" x2="16" y2="6.5"></line><line x1="8" y1="2.5" x2="8" y2="6.5"></line><line x1="3" y1="10" x2="21" y2="10"></line><circle cx="8" cy="14.3" r="1" fill="currentColor" stroke="none"></circle><circle cx="12" cy="14.3" r="1" fill="currentColor" stroke="none"></circle><circle cx="16" cy="14.3" r="1" fill="currentColor" stroke="none"></circle><circle cx="8" cy="17.6" r="1" fill="currentColor" stroke="none"></circle><circle cx="12" cy="17.6" r="1" fill="currentColor" stroke="none"></circle></svg></span>Airing Next
     </button>
     <button class="nav-item" id="imageModeBtn">
       <span class="nav-icon"><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg></span>Switch to Banners
@@ -1856,9 +1854,7 @@ function updatePageTitle() {
 
 function updateViewModeButton() {
   const myListBtn = document.getElementById("myListNavBtn");
-  const airingBtn = document.getElementById("airingNavBtn");
   myListBtn.classList.toggle("active", currentView !== "airing");
-  airingBtn.classList.toggle("active", currentView === "airing");
   document.getElementById("settingsBtn").classList.remove("active");
   updatePageTitle();
 }
@@ -1987,12 +1983,15 @@ function renderAiringNextPreviewHtml(list) {
     const thumbHtml = row.posterUrl
       ? `<img class="list-thumb" src="${row.posterUrl}" alt="${row.title}">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
+    const episodeTitle = row.nextEpisodeTitle ? `<div class="episode-title">${row.nextEpisodeTitle}</div>` : "";
     return `
       <div class="list-row">
         ${thumbHtml}
         <div class="list-row-title-wrap">
           <div class="list-row-title">${row.title}</div>
-          <div class="list-row-sub">${row.nextLabel} &middot; ${row.airDateLabel}</div>
+          <div class="next-up">Next: ${row.nextLabel}</div>
+          ${episodeTitle}
+          <div class="list-row-airdate">&#128197; ${row.airDateLabel}</div>
         </div>
       </div>`;
   }).join("\n");
@@ -2199,22 +2198,6 @@ function isShowingSettings() {
 document.getElementById("myListNavBtn").onclick = () => {
   if (currentView !== "airing" && !isShowingSettings()) return; // already there
   renderRows(lastRows || [], lastTotalEps, lastTotalMinutes);
-};
-document.getElementById("airingNavBtn").onclick = async () => {
-  if (currentView === "airing" && !isShowingSettings()) return; // already there
-  if (!simklToken) return; // not authenticated/loaded yet
-  if (airingRows) {
-    renderAiringRows(airingRows);
-    return;
-  }
-  app.innerHTML = `<div class="spinner" style="margin-top:80px"></div>`;
-  subtitle.textContent = "Fetching Airing Next\u2026";
-  try {
-    airingRows = await getAiringNextRows(simklToken, sharedCache, sharedEpisodeCache, sharedRatingsCache);
-    renderAiringRows(airingRows);
-  } catch (err) {
-    showError(err);
-  }
 };
 document.getElementById("themeToggleBtn").onclick = () => {
   const isLight = document.body.classList.toggle("light-theme");
