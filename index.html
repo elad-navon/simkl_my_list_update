@@ -106,6 +106,17 @@
     display: flex; align-items: center; gap: 9px; color: var(--accent);
     font-weight: 700; font-size: 0.95rem; letter-spacing: 0.04em; margin-bottom: 16px;
   }
+  .series-panel-header-left { display: flex; align-items: center; gap: 9px; }
+  .series-panel-stats { margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap; }
+  .series-panel-stat {
+    display: flex; align-items: baseline; gap: 6px; background: var(--card-hover);
+    border: 1px solid var(--border); border-radius: 8px; padding: 7px 14px;
+  }
+  .series-panel-stat .num { color: var(--gold); font-weight: 800; font-size: 1.05rem; }
+  .series-panel-stat .label {
+    color: var(--muted); font-size: 0.72rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
   .carousel-wrap { position: relative; }
   .carousel-track {
     display: flex; gap: 18px; overflow-x: auto; scroll-behavior: smooth;
@@ -1996,6 +2007,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
 
   const mode = getImageMode();
   const isWide = mode === "banner";
+  const [totalHours, totalMins] = formatTime(totalRemainingMinutes);
 
   const cards = rows.map((row, arrIdx) => {
     const timeText = row.remaining > 1
@@ -2023,7 +2035,13 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
 
   app.innerHTML = `
     <div class="series-panel">
-      <div class="series-panel-header">${GRID_ICON_SVG}<span>${rows.length} SERIES</span></div>
+      <div class="series-panel-header">
+        <div class="series-panel-header-left">${GRID_ICON_SVG}<span>${rows.length} SERIES</span></div>
+        <div class="series-panel-stats">
+          <div class="series-panel-stat"><span class="num">${totalRemainingEps}</span><span class="label">Episodes Left</span></div>
+          <div class="series-panel-stat"><span class="num">${totalHours}h ${totalMins}m</span><span class="label">Watch Time Left</span></div>
+        </div>
+      </div>
       <div class="carousel-wrap">
         <button class="carousel-arrow left" title="Scroll left"
           onclick="document.getElementById('myListCarouselTrack').scrollBy({left:-420,behavior:'smooth'})">${CAROUSEL_ARROW_LEFT_ICON_SVG}</button>
