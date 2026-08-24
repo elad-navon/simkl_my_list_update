@@ -119,6 +119,7 @@
     display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(0,0,0,0.5);
   }
   .carousel-arrow:hover { background: var(--card-hover); }
+  .carousel-arrow.left { right: auto; left: -14px; }
 
   .grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -181,29 +182,12 @@
     font-size: 2.6rem; font-weight: 700; color: var(--muted);
   }
 
-  /* Bottom gradient scrim overlay used on My List's carousel cards - title,
-     IMDb rating and time-left sit directly on the poster, integrated into
-     the artwork rather than in a separate card-body panel below it. */
-  .card-scrim {
-    position: absolute; left: 0; right: 0; bottom: 0; z-index: 5;
-    padding: 28px 10px 10px;
-    background: linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.65) 45%, transparent 100%);
-  }
-  .card-scrim-title {
-    color: var(--text); font-weight: 700; font-size: 0.95rem; line-height: 1.2;
-    margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .card-scrim-row { display: flex; align-items: center; gap: 6px; }
+  /* Plain (non-link) IMDb pill - used in the Plan to Watch list rows. */
   .imdb-pill {
     background: var(--gold); color: #000; font-weight: 800; font-size: 10px;
     padding: 2px 6px; border-radius: 4px; letter-spacing: 0.02em;
   }
   .imdb-pill-rating { color: var(--gold); font-weight: 800; font-size: 0.85rem; }
-  .card-scrim-time {
-    margin-top: 6px; color: var(--gold); font-weight: 700; font-size: 0.82rem;
-    display: flex; align-items: center; gap: 5px;
-  }
-  .card-scrim-time svg { flex: 0 0 auto; }
 
   .card-body {
     padding: 10px 12px 11px;
@@ -239,7 +223,6 @@
     white-space: nowrap;
     text-overflow: ellipsis;
   }
-  .remaining-badge:empty { display: none; }
   .next-up {
     margin: 2px 0 0;
     padding: 0;
@@ -249,7 +232,19 @@
     min-height: 0;
     font-weight: 600;
     overflow: hidden;
+    color: var(--accent2);
   }
+  .time-left {
+    font-size: 0.95rem;
+    color: var(--gold);
+    font-weight: 700;
+    line-height: 1.2;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; gap: 5px;
+  }
+  .time-left svg { flex: 0 0 auto; }
   .air-date { margin-top: 8px; font-size: 1.05rem; color: var(--accent2); font-weight: 700;
     margin-top: auto;
     padding-top: 10px;
@@ -1867,6 +1862,7 @@ const GRID_ICON_SVG = `<svg viewBox="0 0 24 24" width="15" height="15" fill="non
 const CHECK_ICON_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
 const BOOKMARK_ICON_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>`;
 const CAROUSEL_ARROW_ICON_SVG = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
+const CAROUSEL_ARROW_LEFT_ICON_SVG = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>`;
 
 function cardImageBits(row, mode, arrIdx, extraOverlayHtml, showManageBtn) {
   const cfg = IMAGE_MODE_CONFIG[mode];
@@ -1966,23 +1962,29 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
     const timeText = row.remaining > 1
       ? `${row.nextHours}h ${row.nextMins}m / ${row.hours}h ${row.mins}m left`
       : `${row.hours}h ${row.mins}m left`;
-    const scrimHtml = `
-      <div class="card-scrim">
-        <div class="card-scrim-title">${row.title}</div>
-        <div class="card-scrim-row">${imdbPillHtml(row.imdbRating)}</div>
-        <div class="card-scrim-time">${CLOCK_ICON_SVG}${timeText}</div>
-      </div>`;
-    const { wrapHtml } = cardImageBits(row, mode, arrIdx, scrimHtml, true);
+    const episodeTitle = row.episodeTitle ? `<div class="episode-title">${row.episodeTitle}</div>` : "";
+    const { wrapHtml } = cardImageBits(row, mode, arrIdx, imdbButtonHtml(row.imdbId, row.imdbRating), true);
 
-    return `<div class="card carousel-card${isWide ? " banner-mode" : ""}">${wrapHtml}</div>`;
+    return `
+      <div class="card carousel-card${isWide ? " banner-mode" : ""}">
+        ${wrapHtml}
+        <div class="card-body">
+          <h3>${row.title}</h3>
+          <div class="next-up">Next: ${row.nextLabel}</div>
+          ${episodeTitle}
+          <div class="time-left">${CLOCK_ICON_SVG}${timeText}</div>
+        </div>
+      </div>`;
   }).join("\n");
 
   app.innerHTML = `
     <div class="series-panel">
       <div class="series-panel-header">${GRID_ICON_SVG}<span>${rows.length} SERIES</span></div>
       <div class="carousel-wrap">
+        <button class="carousel-arrow left" title="Scroll left"
+          onclick="document.getElementById('myListCarouselTrack').scrollBy({left:-420,behavior:'smooth'})">${CAROUSEL_ARROW_LEFT_ICON_SVG}</button>
         <div class="carousel-track" id="myListCarouselTrack">${cards}</div>
-        <button class="carousel-arrow" title="Scroll"
+        <button class="carousel-arrow" title="Scroll right"
           onclick="document.getElementById('myListCarouselTrack').scrollBy({left:420,behavior:'smooth'})">${CAROUSEL_ARROW_ICON_SVG}</button>
       </div>
     </div>
