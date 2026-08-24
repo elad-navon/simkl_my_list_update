@@ -134,8 +134,13 @@
     display: flex; flex-direction: column; position: relative; overflow: hidden;
   }
   .card:hover { background: var(--card-hover); }
-  .card.carousel-card { width: 188px; flex: 0 0 auto; }
-  .card.carousel-card.banner-mode { width: 280px; }
+  .card.carousel-card { width: 225px; flex: 0 0 auto; }
+  .card.carousel-card.banner-mode { width: 320px; }
+  .remaining-badge {
+    position: absolute; right: 8px; bottom: 8px; background: rgba(0,0,0,0.72);
+    color: var(--gold); font-size: 0.68rem; font-weight: 800; line-height: 1;
+    padding: 5px 7px; border-radius: 5px; backdrop-filter: blur(3px); z-index: 10;
+  }
   .badge {
     position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.55);
     color: var(--text); font-weight: 700; font-size: 0.85rem; padding: 4px 10px;
@@ -288,11 +293,13 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 1.4rem; font-weight: 700; color: var(--muted);
   }
+  .list-row-title-wrap { flex: 1 1 auto; min-width: 0; }
   .list-row-title {
     flex: 1 1 auto; min-width: 0; font-weight: 600; font-size: 0.92rem;
     color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .list-panel--watched .list-row-title { text-transform: uppercase; letter-spacing: 0.02em; }
+  .list-row-sub { font-size: 0.74rem; color: var(--muted); font-weight: 500; margin-top: 2px; }
   .list-check {
     flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%;
     border: 1.5px solid var(--accent); color: var(--accent);
@@ -1900,10 +1907,14 @@ function renderRecentlyWatchedHtml(list) {
     const thumbHtml = ep.posterUrl
       ? `<img class="list-thumb" src="${ep.posterUrl}" alt="${ep.title}">`
       : `<div class="list-thumb placeholder">${(ep.title[0] || "?").toUpperCase()}</div>`;
+    const episodeCode = `S${String(ep.season).padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`;
     return `
       <div class="list-row">
         ${thumbHtml}
-        <div class="list-row-title">${ep.title}</div>
+        <div class="list-row-title-wrap">
+          <div class="list-row-title">${ep.title}</div>
+          <div class="list-row-sub">${episodeCode}</div>
+        </div>
         <span class="list-check">${CHECK_ICON_SVG}</span>
       </div>`;
   }).join("\n");
@@ -1970,7 +1981,9 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
       ? `${row.nextHours}h ${row.nextMins}m / ${row.hours}h ${row.mins}m left`
       : `${row.hours}h ${row.mins}m left`;
     const episodeTitle = row.episodeTitle ? `<div class="episode-title">${row.episodeTitle}</div>` : "";
-    const { wrapHtml } = cardImageBits(row, mode, arrIdx, imdbButtonHtml(row.imdbId, row.imdbRating), true);
+    const remainingText = row.remaining === 1 ? "1 episode left" : `${row.remaining} episodes left`;
+    const overlayHtml = imdbButtonHtml(row.imdbId, row.imdbRating) + `<div class="remaining-badge">${remainingText}</div>`;
+    const { wrapHtml } = cardImageBits(row, mode, arrIdx, overlayHtml, true);
 
     return `
       <div class="card carousel-card${isWide ? " banner-mode" : ""}">
