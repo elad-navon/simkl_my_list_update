@@ -1,18 +1,20 @@
 # TV Series — SIMKL My List Summary
 
-A single self-contained HTML page that answers one question: **for the
-shows in my SIMKL "My List" (status *Watching*, with a new episode
-waiting), how many episodes are left, and how much time will it take
-to catch up?**
+A single self-contained HTML page for your SIMKL "My List": **for the
+shows you're watching, how many episodes are left and how much time
+will it take to catch up** — plus a built-in search so you can add
+shows, change their status, or remove them from your list without
+leaving the page or opening simkl.com.
 
 Everything runs as JavaScript **in your browser** — no server, no
 backend, nothing to keep running in the background. Episode/watch
-status comes from [SIMKL](https://simkl.com); poster/backdrop artwork
-and episode runtimes come from [TMDB](https://www.themoviedb.org).
+status and list management go through [SIMKL](https://simkl.com)'s
+API; poster/backdrop artwork and episode runtimes come from
+[TMDB](https://www.themoviedb.org).
 
 ## Setup
 
-1. Open `simkl_live.html` in your browser (double-click it, or host it
+1. Open `index.html` in your browser (double-click it, or host it
    anywhere — see [Publishing it](#publishing-it-eg-for-a-shortcut)
    below).
 2. First run shows a **Setup** screen — paste in:
@@ -61,7 +63,26 @@ and episode runtimes come from [TMDB](https://www.themoviedb.org).
   shows you've fully caught up on and no longer appear above.
 - **Light/dark theme toggle** (moon/sun icon in the nav bar),
   persisted across visits.
-- **Settings** (gear icon) — edit your SIMKL/TMDB keys any time.
+- **Settings** (gear icon) — edit your SIMKL/TMDB keys any time; once
+  you've loaded a view, a **×** lets you back out without saving,
+  returning to whichever tab (My List / Airing Next) you were on.
+
+## Managing your list (search, add, status, remove)
+
+Click **Search Show** in the nav bar to open a search box (TV shows
+only). Click a result to open its detail view, which:
+
+- Checks whether the show is already anywhere in your SIMKL list
+  (Watching / Plan to Watch / Hold / Completed / Dropped) and shows
+  its current status, including watched/total episode progress if
+  it's already there.
+- Lets you set (or change) its status with one click — the change is
+  written straight to SIMKL and the page refreshes to reflect it.
+
+Every card already in **My List** also has a **⋮** menu (top-right of
+the title) for the same status change, plus **Remove from list**
+(with a confirmation, since it deletes the show's SIMKL history along
+with it). Both flows show a toast on success or failure.
 
 ## How the numbers are kept accurate
 
@@ -89,17 +110,19 @@ unaffected either way, since those come from SIMKL directly.
 ## A note on CORS
 
 This relies on your browser being allowed to call `api.simkl.com` and
-`api.themoviedb.org` directly. TMDB is known to support this. SIMKL's
-support is unconfirmed — if you see a "Network/CORS error reaching
-SIMKL" message, your browser is blocking it.
+`api.themoviedb.org` directly — for both reading your list and, now,
+writing to it (search, add, status change, remove). Both are
+documented as CORS-enabled for browser apps; if you still see a
+"Network/CORS error reaching SIMKL" message, your browser is blocking
+it.
 
 ## Publishing it (e.g. for a shortcut)
 
 Since your API keys are never stored *in* the file, you can safely put
-`simkl_live.html` in a git repo:
+`index.html` in a git repo:
 
 ```
-git add simkl_live.html
+git add index.html
 git commit -m "update"
 git push
 ```
@@ -107,10 +130,10 @@ git push
 To view it as a rendered page (not raw code) from a link:
 - **GitHub Pages** (free for public repos): enable it under
   *Settings → Pages*, then link to
-  `https://<username>.github.io/<repo>/simkl_live.html`.
+  `https://<username>.github.io/<repo>/index.html`.
 - **htmlpreview.github.io** (no setup, works for private repos too if
   you're logged in):
-  `https://htmlpreview.github.io/?https://github.com/<username>/<repo>/blob/main/simkl_live.html`
+  `https://htmlpreview.github.io/?https://github.com/<username>/<repo>/blob/main/index.html`
 
 Either way, since the page computes everything live on load, the link
 always shows current data — no need to regenerate or re-push anything
