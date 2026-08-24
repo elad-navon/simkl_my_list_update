@@ -124,7 +124,7 @@
   }
   .carousel-track::-webkit-scrollbar { display: none; }
   .carousel-arrow {
-    position: absolute; top: 50%; right: -14px; transform: translateY(-50%);
+    position: absolute; right: -14px; transform: translateY(-50%);
     width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border);
     background: #060f18; color: var(--text); cursor: pointer; z-index: 20;
     display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(0,0,0,0.5);
@@ -2054,6 +2054,13 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   const mode = getImageMode();
   const isWide = mode === "banner";
   const [totalHours, totalMins] = formatTime(totalRemainingMinutes);
+  // Carousel arrows sit centered on the poster/banner image itself, not the
+  // whole card (which also has the info panel below it) - compute that
+  // image's height from the known card width + aspect ratio for the
+  // current mode, matching .card.carousel-card / .poster's CSS exactly.
+  const carouselCardWidth = isWide ? 320 : 225;
+  const carouselImageHeight = isWide ? (carouselCardWidth * 9 / 16) : (carouselCardWidth * 3 / 2);
+  const carouselArrowTop = Math.round(carouselImageHeight / 2);
 
   const cards = rows.map((row, arrIdx) => {
     const timeText = row.remaining > 1
@@ -2089,10 +2096,10 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
         </div>
       </div>
       <div class="carousel-wrap">
-        <button class="carousel-arrow left" title="Scroll left"
+        <button class="carousel-arrow left" title="Scroll left" style="top:${carouselArrowTop}px"
           onclick="document.getElementById('myListCarouselTrack').scrollBy({left:-420,behavior:'smooth'})">${CAROUSEL_ARROW_LEFT_ICON_SVG}</button>
         <div class="carousel-track" id="myListCarouselTrack">${cards}</div>
-        <button class="carousel-arrow" title="Scroll right"
+        <button class="carousel-arrow" title="Scroll right" style="top:${carouselArrowTop}px"
           onclick="document.getElementById('myListCarouselTrack').scrollBy({left:420,behavior:'smooth'})">${CAROUSEL_ARROW_ICON_SVG}</button>
       </div>
     </div>
