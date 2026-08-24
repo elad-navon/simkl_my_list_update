@@ -62,15 +62,16 @@
   .theme-toggle:hover { background: rgba(255,255,255,0.16); }
   header p { color: var(--muted); margin: 14px 0 0; font-size: 0.95rem; font-weight: 700; }
   .summary-bar {
-    display: flex; justify-content: center; gap: 48px; flex-wrap: wrap;
-    margin: 30px auto 0; max-width: 780px; background: var(--card);
+    display: flex; justify-content: center; gap: 48px; flex-wrap: nowrap;
+    margin: 30px auto 0; width: fit-content; max-width: 95vw; background: var(--card);
     border-radius: 18px; padding: 28px 36px; box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    overflow-x: auto;
   }
-  .summary-bar .stat { text-align: center; min-width: 120px; }
+  .summary-bar .stat { display: flex; align-items: baseline; gap: 10px; min-width: 120px; justify-content: center; }
   .summary-bar .stat .num { font-size: 2.8rem; font-weight: 800; color: var(--accent); line-height: 1.1; }
   .summary-bar .stat .label {
     font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em;
-    margin-top: 4px;
+    font-weight: 700;
   }
   .grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -138,7 +139,6 @@
   .card-body h3 {
     margin: 0;
     padding: 0;
-    font-family: Arial, Helvetica, sans-serif;
     font-size: 1.08rem;
     line-height: 1.2;
     font-weight: 700;
@@ -151,7 +151,6 @@
   .episode-title {
     margin: 2px 0 0;
     padding: 0;
-    font-family: Arial, Helvetica, sans-serif;
     font-size: 0.79rem;
     line-height: 1.2;
     height: auto;
@@ -184,7 +183,6 @@
   .next-up {
     margin: 2px 0 0;
     padding: 0;
-    font-family: Arial, Helvetica, sans-serif;
     font-size: 0.82rem;
     line-height: 1.2;
     height: auto;
