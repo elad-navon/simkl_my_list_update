@@ -34,42 +34,48 @@ API; poster/backdrop artwork and episode runtimes come from
 
 ## Features
 
-- **My List / Airing Next** nav tabs — My List shows what you have
-  left to watch; Airing Next shows upcoming (not-yet-aired) episodes
-  for the shows you're actively watching, plus true future premieres
-  (series you haven't started at all) from your Plan to Watch list —
-  soonest first. Uses SIMKL's own exact date+time per episode, so day
-  labels ("Today"/"Tomorrow") match what simkl.com itself shows.
-  Plan to Watch shows that already aired but you just haven't started
-  ("backlog") are excluded.
-- One card per show: poster or banner, progress bar, total /
-  available / watched / remaining episode counts, time left (shown as
-  *next episode time / total remaining time* when more than one
-  episode is left, e.g. `0h 45m / 3h 23m left`), and the next episode
-  to watch (e.g. `S03E01`) with its title when known.
-- **Poster ↔ Banner** toggle (nav bar) — the icon shown reflects what
+- **Single-page dashboard** with a dark sidebar (Refresh, My List,
+  Poster/Banner toggle, Search Show, Settings) — everything lives on
+  one screen now, including what used to be a separate Airing Next
+  tab.
+- **My List carousel** at the top: one card per show with poster or
+  banner, progress bar, total / available / watched / remaining
+  episode counts, time left (shown as *next episode time / total
+  remaining time* when more than one episode is left, e.g.
+  `0h 45m / 3h 23m left`), and the next episode to watch (e.g.
+  `S03E01`) with its title when known. Left/right arrows scroll the
+  carousel.
+- Three panels below the carousel, each with its own vertical
+  scrolling list of up to 5 shows: **Recently Watched** (last 10
+  watched episodes), **Airing Next** (upcoming episodes for shows
+  you're watching, plus true future premieres from Plan to Watch —
+  soonest first, using SIMKL's exact date+time so day labels like
+  "Today"/"Tomorrow" match simkl.com), and **Plan to Watch** (every
+  show in that status). Season/series premiere and season finale
+  badges are shown where relevant.
+- Every card's **⋮** menu lets you mark the next episode watched
+  (synced straight to SIMKL), change status (Watching / Hold /
+  Completed / Dropped), or remove the show from your list — with a
+  toast on success or failure.
+- **Poster ↔ Banner** toggle (sidebar) — the icon shown reflects what
   you'll switch to. Per-card **⟳** cycles to another available image
   of the current type, if TMDB has more than one.
-- **IMDb button** (bottom-left of each poster) — opens the show's
-  IMDb page, with its SIMKL rating shown alongside when available.
+- **IMDb pill** on each card/row — opens the show's IMDb page, with
+  its SIMKL rating shown alongside when available.
 - Remaining-episode count badge (bottom-right of each poster) is
   colored to match the IMDb rating style.
 - Only **English or no-language** artwork is used (no foreign-text
   posters), except shows that have **no English/no-language image at
   all** (some Israeli shows only have Hebrew-text artwork on TMDB) —
   those fall back to Hebrew rather than showing no image.
-- **Recently Watched** row at the bottom of My List — your last 10
-  watched episodes (small posters, title + season/episode), including
-  shows you've fully caught up on and no longer appear above.
-- **Light/dark theme toggle** (moon/sun icon in the nav bar),
-  persisted across visits.
-- **Settings** (gear icon) — edit your SIMKL/TMDB keys any time; once
-  you've loaded a view, a **×** lets you back out without saving,
-  returning to whichever tab (My List / Airing Next) you were on.
+- **Light/dark theme toggle** (moon icon + switch at the bottom of the
+  sidebar), persisted across visits.
+- **Settings** (gear icon) — edit your SIMKL/TMDB keys any time; a
+  **×** lets you back out without saving, returning to My List.
 
 ## Managing your list (search, add, status, remove)
 
-Click **Search Show** in the nav bar to open a search box (TV shows
+Click **Search Show** in the sidebar to open a search box (TV shows
 only). Click a result to open its detail view, which:
 
 - Checks whether the show is already anywhere in your SIMKL list
@@ -79,10 +85,11 @@ only). Click a result to open its detail view, which:
 - Lets you set (or change) its status with one click — the change is
   written straight to SIMKL and the page refreshes to reflect it.
 
-Every card already in **My List** also has a **⋮** menu (top-right of
-the title) for the same status change, plus **Remove from list**
-(with a confirmation, since it deletes the show's SIMKL history along
-with it). Both flows show a toast on success or failure.
+Every card already in **My List** also has a **⋮** menu for the same
+status change, plus **mark the next episode watched** and **Remove
+from list** (with a confirmation, since it deletes the show's SIMKL
+history along with it). All of these show a toast on success or
+failure.
 
 ## How the numbers are kept accurate
 
@@ -138,6 +145,13 @@ To view it as a rendered page (not raw code) from a link:
 Either way, since the page computes everything live on load, the link
 always shows current data — no need to regenerate or re-push anything
 after you watch more episodes.
+
+This repo is published via GitHub Pages at
+[elad-navon.github.io/simkl_my_list_update](https://elad-navon.github.io/simkl_my_list_update/).
+A snapshot of the previous UI (before the sidebar-dashboard redesign)
+stays permanently available at
+[/legacy/](https://elad-navon.github.io/simkl_my_list_update/legacy/),
+independent of ongoing changes to the root page.
 
 ## Version
 
