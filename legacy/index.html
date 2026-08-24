@@ -1,0 +1,2066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" type="image/png" sizes="128x128" href="data:image/png;base64,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">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My List - Continue Watching</title>
+<style>
+  :root {
+    --bg: #14151a;
+    --card: #1e2029;
+    --card-hover: #262837;
+    --text: #f2f2f5;
+    --muted: #9a9cae;
+    --accent: #f5c518;
+    --accent2: #4fd1c5;
+    --danger: #ff6b6b;
+    --divider: rgba(255,255,255,0.24);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 5vw 80px;
+    background: radial-gradient(circle at top, #1b1d27 0%, var(--bg) 55%);
+    color: var(--text);
+    font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+  }
+  header { text-align: center; margin-bottom: 26px; position: relative; }
+  .navbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 22px; max-width: 1400px; margin: 0 auto; padding: 18px 32px;
+    background: #0a0a0d; border-radius: 0; box-shadow: 0 10px 32px rgba(0,0,0,0.45);
+    box-sizing: border-box;
+  }
+  .navbar-logo { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
+  .logo-icon { display: flex; align-items: center; }
+  .logo-text { font-size: 1.9rem; font-weight: 800; color: #fff; letter-spacing: 0.5px; }
+  .logo-accent { color: var(--accent); }
+  .version-tag {
+    font-size: 0.7rem; font-weight: 600; color: var(--muted); background: var(--card);
+    border: 1px solid #383a4a; border-radius: 20px; padding: 3px 9px;
+    margin-left: 6px; letter-spacing: 0.04em;
+  }
+  .navbar-nav { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; }
+  .nav-item {
+    display: flex; align-items: center; gap: 9px; position: relative;
+    background: transparent; border: none; color: #d8d9de;
+    font-size: 1.02rem; font-weight: 700; letter-spacing: 0.02em;
+    padding: 12px 16px; border-radius: 12px; cursor: pointer;
+  }
+  .nav-icon { line-height: 1; display: inline-flex; color: var(--accent); }
+  .nav-item:hover { color: #fff; background: rgba(255,255,255,0.06); }
+  .nav-item.active { color: var(--accent); }
+  .nav-item.active::after {
+    content: ""; position: absolute; left: 14px; right: 14px; bottom: 4px;
+    height: 2px; background: var(--accent); border-radius: 0;
+  }
+  .theme-toggle {
+    flex: 0 0 auto; width: 44px; height: 44px; border-radius: 12px;
+    background: rgba(255,255,255,0.08); border: none; color: #fff;
+    font-size: 1.3rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .theme-toggle:hover { background: rgba(255,255,255,0.16); }
+  header p { color: var(--muted); margin: 14px 0 0; font-size: 0.95rem; font-weight: 700; }
+  .summary-bar {
+    display: flex; justify-content: center; gap: 48px; flex-wrap: nowrap;
+    margin: 30px auto 0; width: fit-content; max-width: 95vw; background: var(--card);
+    border-radius: 18px; padding: 28px 36px; box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    overflow-x: auto;
+  }
+  .summary-bar .stat { display: flex; align-items: baseline; gap: 10px; min-width: 120px; justify-content: center; }
+  .summary-bar .stat .num { font-size: 2.8rem; font-weight: 800; color: var(--accent); line-height: 1.1; }
+  .summary-bar .stat .label {
+    font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em;
+    font-weight: 700;
+  }
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 24px; max-width: 1400px; margin: 40px auto 0;
+  }
+  .grid.banner-mode {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+  .card {
+    background: var(--card); border-radius: 14px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35); transition: background 0.15s ease;
+    display: flex; flex-direction: column; position: relative;
+  }
+  .card:hover { background: var(--card-hover); }
+  .badge {
+    position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.65);
+    color: var(--accent); font-weight: 700; font-size: 0.85rem; padding: 4px 10px;
+    border-radius: 20px; backdrop-filter: blur(3px); z-index: 10;
+  }
+  .cycle-btn {
+    position: absolute; top: 8px; right: 8px; width: 28px; height: 28px;
+    border-radius: 50%; border: none; background: rgba(0,0,0,0.65);
+    color: var(--text); font-size: 1rem; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 10; backdrop-filter: blur(3px);
+  }
+  .cycle-btn:hover { background: rgba(0,0,0,0.85); }
+  .cycle-btn.disabled { opacity: 0.35; cursor: default; }
+  .imdb-btn {
+    position: absolute; bottom: 8px; left: 8px; z-index: 10;
+    border: none; background: transparent; padding: 0; margin: 0;
+    cursor: pointer; line-height: 0;
+    display: flex; align-items: center; gap: 4px;
+    filter: drop-shadow(0 2px 5px rgba(0,0,0,0.55));
+    transition: transform 0.12s ease;
+  }
+  .imdb-btn:hover { transform: scale(1.06); }
+  .imdb-btn svg { display: block; }
+  .imdb-rating {
+    background: rgba(0,0,0,0.7); color: #F5C518; font-weight: 800;
+    font-size: 11px; padding: 2px 6px; border-radius: 4px;
+    line-height: 1.3;
+  }
+  .poster-wrap {
+    position: relative; border-radius: 10px; overflow: hidden;
+    margin: 10px 10px 0; transition: box-shadow 0.18s ease;
+  }
+  .card:hover .poster-wrap {
+    box-shadow: 0 0 0 3px var(--accent2), 0 0 18px 3px rgba(79, 209, 197, 0.6);
+  }
+  .poster { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; background: #2a2c38; display: block; }
+  .poster.banner-img { aspect-ratio: 16 / 9; }
+  .poster.placeholder {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.6rem; font-weight: 700; color: var(--muted);
+  }
+    .card-body {
+    padding: 10px 12px 11px;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    height: 126px;
+    min-height: 126px;
+  }
+  .card-body h3 {
+    margin: 0;
+    padding: 0;
+    font-size: 1.08rem;
+    line-height: 1.2;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    height: auto;
+    min-height: 0;
+    max-height: 2.4em;
+    overflow: hidden;
+  }
+  .episode-title {
+    margin: 2px 0 0;
+    padding: 0;
+    font-size: 0.79rem;
+    line-height: 1.2;
+    height: auto;
+    min-height: 0;
+    max-height: 1.2em;
+    color: var(--muted);
+    font-weight: 500;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .time-left {
+    margin-top: 8px;
+    font-size: 1.05rem;
+    color: var(--accent);
+    font-weight: 700;
+    line-height: 1.2;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.16);
+    
+  }
+  .time-left .time-icon {
+    color: #ffffff;
+    font-size: 0.95em;
+    margin-right: 3px;
+  }
+  .remaining-badge { position: absolute; right: 8px; bottom: 8px; background: rgba(0,0,0,0.72); color: #F5C518; font-size: 0.68rem; font-weight: 800; line-height: 1; padding: 5px 7px; border-radius: 5px; backdrop-filter: blur(3px); }
+  .remaining-badge:empty { display: none; }
+  .next-up {
+    margin: 2px 0 0;
+    padding: 0;
+    font-size: 0.82rem;
+    line-height: 1.2;
+    height: auto;
+    min-height: 0;
+    font-weight: 600;
+    overflow: hidden;
+  }
+  .air-date { margin-top: 8px; font-size: 1.05rem; color: var(--accent2); font-weight: 700;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.16);
+    
+  }
+  .section-note {
+    text-align: center; color: var(--muted); font-size: 0.85rem;
+    max-width: 700px; margin: 22px auto 0;
+  }
+  .section-divider {
+    max-width: 1400px; margin: 40px auto 0; height: 3px; border: none;
+    border-radius: 2px;
+    background: linear-gradient(to right, transparent, var(--divider) 15%, var(--divider) 85%, transparent);
+  }
+  .recent-section {
+    max-width: 1400px; margin: 24px auto 0;
+  }
+  .section-title {
+    color: var(--text); font-size: 2.5rem; font-weight: 800;
+    margin: 0 0 20px; padding: 0 4px;
+  }
+  .recent-scroll {
+    display: grid; gap: 16px;
+    /* grid-template-columns set inline per-render to exactly match the
+       item count, so N posters always fill the row width exactly with
+       no wrapping - see renderRecentlyWatchedHtml. */
+  }
+  .recent-poster-wrap {
+    position: relative; border-radius: 10px; overflow: hidden;
+    transition: box-shadow 0.18s ease;
+  }
+  .recent-card:hover .recent-poster-wrap {
+    box-shadow: 0 0 0 3px var(--accent2), 0 0 18px 3px rgba(79, 209, 197, 0.6);
+  }
+  .recent-poster {
+    width: 100%; aspect-ratio: 2 / 3; object-fit: cover;
+    background: #2a2c38; display: block;
+  }
+  .recent-poster.placeholder {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.6rem; font-weight: 700; color: var(--muted);
+  }
+  .recent-caption {
+    margin-top: 8px; font-size: 0.85rem; line-height: 1.3;
+    color: var(--muted); text-align: center;
+  }
+  footer {
+    display: flex; align-items: center; justify-content: space-between;
+    color: var(--muted); font-size: 0.78rem; margin-top: 50px;
+  }
+
+  .center-box {
+    max-width: 480px; margin: 60px auto; background: var(--card); border-radius: 14px;
+    padding: 30px; text-align: center; box-shadow: 0 6px 22px rgba(0,0,0,0.35);
+  }
+  .center-box input {
+    width: 100%; padding: 10px 12px; margin: 8px 0; border-radius: 8px;
+    border: 1px solid #383a4a; background: #14151a; color: var(--text); font-size: 0.9rem;
+  }
+  .center-box label { display: block; text-align: left; font-size: 0.8rem; color: var(--muted); margin-top: 10px; }
+  .center-box code { background: #14151a; padding: 2px 6px; border-radius: 4px; }
+  .pin-code {
+    font-size: 2rem; letter-spacing: 6px; font-weight: 700; color: var(--accent);
+    margin: 16px 0; font-family: monospace;
+  }
+  .spinner {
+    width: 28px; height: 28px; border: 3px solid #383a4a; border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.9s linear infinite; margin: 18px auto;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-box { color: var(--danger); font-size: 0.85rem; margin-top: 10px; white-space: pre-wrap; }
+  a { color: var(--accent2); }
+
+  .my-list-next {
+    color: #67e8f9;
+  }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
+    background: var(--card); color: var(--text); padding: 12px 20px; border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4); font-size: 0.9rem; font-weight: 600;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 200; max-width: 90vw;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.error { color: var(--danger); }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 20px; z-index: 150; overflow-y: auto;
+  }
+  .modal-box {
+    width: 100%; max-width: 560px; background: var(--card); border-radius: 14px;
+    padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .modal-box h2 { margin: 0 0 14px; display: flex; align-items: center; justify-content: space-between; font-size: 1.3rem; }
+  .modal-close-btn {
+    background: transparent; border: none; color: var(--muted); font-size: 1.4rem;
+    cursor: pointer; line-height: 1; padding: 0 4px;
+  }
+  .modal-close-btn:hover { color: var(--text); }
+  .search-input-row input {
+    width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #383a4a;
+    background: #14151a; color: var(--text); font-size: 0.95rem; box-sizing: border-box;
+  }
+  .search-results { margin-top: 16px; max-height: 55vh; overflow-y: auto; }
+  .search-result-row {
+    display: flex; align-items: center; gap: 12px; padding: 8px 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    cursor: pointer; border-radius: 8px;
+  }
+  .search-result-row:hover { background: rgba(255,255,255,0.06); }
+  .search-result-poster {
+    width: 42px; height: 63px; border-radius: 5px; object-fit: cover;
+    background: #2a2c38; flex: 0 0 auto;
+  }
+  .search-result-poster.placeholder {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; font-weight: 700; color: var(--muted);
+  }
+  .search-result-info { flex: 1 1 auto; min-width: 0; }
+  .search-result-title { font-weight: 700; font-size: 0.95rem; }
+  .search-result-year { color: var(--muted); font-size: 0.8rem; }
+  .modal-back-btn {
+    background: transparent; border: none; color: var(--accent2); font-size: 0.85rem;
+    font-weight: 700; cursor: pointer; padding: 0 0 14px; display: block;
+  }
+  .modal-back-btn:hover { text-decoration: underline; }
+  .detail-header { display: flex; gap: 16px; }
+  .detail-poster {
+    width: 90px; height: 135px; border-radius: 8px; object-fit: cover;
+    background: #2a2c38; flex: 0 0 auto;
+  }
+  .detail-poster.placeholder {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem; font-weight: 700; color: var(--muted);
+  }
+  .detail-info { flex: 1 1 auto; min-width: 0; }
+  .detail-title { font-size: 1.15rem; font-weight: 800; }
+  .detail-year { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+  .detail-status { margin-top: 10px; font-size: 0.88rem; font-weight: 700; }
+  .detail-status.not-in-list { color: var(--muted); }
+  .detail-status.in-list { color: var(--accent); }
+  .detail-status-picker { margin-top: 20px; }
+  .detail-picker-label { color: var(--muted); font-size: 0.8rem; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+  .card-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
+  .card-title-row h3 { flex: 1 1 auto; min-width: 0; }
+  .card-menu-btn {
+    flex: 0 0 auto; background: transparent; border: none; color: var(--muted);
+    font-size: 1.2rem; line-height: 1; padding: 0 2px; cursor: pointer;
+  }
+  .card-menu-btn:hover { color: var(--text); }
+  .card-menu-dropdown {
+    position: fixed; background: var(--card); border-radius: 10px; min-width: 170px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45); z-index: 160; overflow: hidden; padding: 6px;
+  }
+  .card-menu-item {
+    display: block; width: 100%; text-align: left; background: transparent; border: none;
+    color: var(--text); font-size: 0.86rem; padding: 8px 10px; border-radius: 6px; cursor: pointer;
+  }
+  .card-menu-item:hover { background: rgba(255,255,255,0.08); }
+  .card-menu-item.active { color: var(--accent); font-weight: 700; }
+  .card-menu-item.danger { color: var(--danger); }
+  .card-menu-item:disabled { opacity: 0.5; cursor: default; }
+  .card-menu-item:disabled:hover { background: transparent; }
+  .card-menu-sep { height: 1px; background: rgba(255,255,255,0.1); margin: 6px 4px; }
+
+  /* Light theme overrides - toggled via body.light-theme */
+  body.light-theme {
+    --bg: #f2f3f6;
+    --card: #ffffff;
+    --card-hover: #eef0f4;
+    --text: #16171c;
+    --muted: #5c6070;
+    --accent2: #14958c;
+    --divider: rgba(0,0,0,0.2);
+  }
+  body.light-theme { background: radial-gradient(circle at top, #ffffff 0%, var(--bg) 55%); }
+  body.light-theme .navbar { background: #0a0a0d; } /* nav bar stays dark in both themes, per the reference design */
+  body.light-theme .card { box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
+  body.light-theme .summary-bar,
+  body.light-theme .center-box { box-shadow: 0 10px 30px rgba(0,0,0,0.10); }
+  body.light-theme .imdb-rating,
+  body.light-theme .remaining-badge { background: rgba(0,0,0,0.75); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="navbar">
+    <div class="navbar-logo">
+      <span class="logo-icon">
+        <svg viewBox="0 0 24 24" width="34" height="34" xmlns="http://www.w3.org/2000/svg">
+          <rect x="3" y="3" width="18" height="15" rx="3.5" fill="none" stroke="#fff" stroke-width="1.8"/>
+          <polygon points="10,7.8 10,13.2 14.6,10.5" fill="#F5C518"/>
+          <line x1="9" y1="21" x2="15" y2="21" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="logo-text">TV <span class="logo-accent">SERIES</span></span>
+    </div>
+    <nav class="navbar-nav">
+      <button class="nav-item" id="refreshBtn">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg></span>Refresh
+      </button>
+      <button class="nav-item" id="myListNavBtn">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg></span>My List
+      </button>
+      <button class="nav-item" id="airingNavBtn">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"></rect><line x1="16" y1="2.5" x2="16" y2="6.5"></line><line x1="8" y1="2.5" x2="8" y2="6.5"></line><line x1="3" y1="10" x2="21" y2="10"></line><circle cx="8" cy="14.3" r="1" fill="currentColor" stroke="none"></circle><circle cx="12" cy="14.3" r="1" fill="currentColor" stroke="none"></circle><circle cx="16" cy="14.3" r="1" fill="currentColor" stroke="none"></circle><circle cx="8" cy="17.6" r="1" fill="currentColor" stroke="none"></circle><circle cx="12" cy="17.6" r="1" fill="currentColor" stroke="none"></circle></svg></span>Airing Next
+      </button>
+      <button class="nav-item" id="imageModeBtn">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect></svg></span>Switch to Banners
+      </button>
+      <button class="nav-item" id="addShowBtn">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></span>Search Show
+      </button>
+      <button class="nav-item" id="settingsBtn">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></span>Settings
+      </button>
+    </nav>
+    <button class="theme-toggle" id="themeToggleBtn" title="Toggle light/dark">&#9789;</button>
+  </div>
+  <p id="subtitle">Loading&hellip;</p>
+</header>
+
+<div id="app"></div>
+<div id="toast" class="toast"></div>
+
+<footer>
+  <span>Data from SIMKL &amp; TMDB &mdash; runs entirely in your browser, no server involved.</span>
+  <span class="version-tag">V32</span>
+</footer>
+
+<script>
+"use strict";
+
+// ---------------------------------------------------------------------
+// Config - not hardcoded. Stored only in this browser's localStorage,
+// so this HTML file itself never contains your keys (safe to commit).
+// ---------------------------------------------------------------------
+const SIMKL_BASE = "https://api.simkl.com";
+const TMDB_BASE = "https://api.themoviedb.org/3";
+const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w342";
+const TMDB_BACKDROP_BASE = "https://image.tmdb.org/t/p/w780";
+const APP_NAME = "my-list-summary-web";
+const APP_VERSION = "1.0";
+
+// ---------------------------------------------------------------------
+// Nav bar icon - only this one needs to be rebuilt dynamically (its
+// label text changes); the others are embedded directly in the static
+// HTML above since they never change.
+// ---------------------------------------------------------------------
+// Poster (vertical) and banner (landscape) icons for the image-mode
+// toggle - the icon shown reflects what you'll switch TO, matching
+// the button's own label.
+const ICON_POSTER_SHAPE = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"></rect></svg>`;
+const ICON_BANNER_SHAPE = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect></svg>`;
+
+const LS_CLIENT_ID = "simkl_client_id";
+const LS_TMDB_KEY = "tmdb_api_key";
+const LS_TOKEN = "simkl_access_token";
+const LS_IMAGE_MODE = "simkl_image_mode"; // "poster" | "banner"
+const LS_THEME = "simkl_theme"; // "light" | "dark"
+const LS_VIEW_MODE = "simkl_view_mode";   // "list" or "airing" (not restored on load - always starts on "list")
+
+const app = document.getElementById("app");
+const subtitle = document.getElementById("subtitle");
+
+function getImageMode() {
+  return localStorage.getItem(LS_IMAGE_MODE) === "banner" ? "banner" : "poster";
+}
+
+function nextImageMode(mode) {
+  return mode === "poster" ? "banner" : "poster";
+}
+
+function getConfig() {
+  return {
+    clientId: localStorage.getItem(LS_CLIENT_ID) || "",
+    tmdbKey: localStorage.getItem(LS_TMDB_KEY) || "",
+  };
+}
+
+// ---------------------------------------------------------------------
+// Settings screen (first run, or via the Settings button)
+// ---------------------------------------------------------------------
+function returnToPreviousView() {
+  if (currentView === "airing" && airingRows) {
+    renderAiringRows(airingRows);
+  } else {
+    renderRows(lastRows || [], lastTotalEps, lastTotalMinutes, lastRecentlyWatched);
+  }
+}
+
+function showSettings(afterSaveCallback) {
+  document.getElementById("settingsBtn").classList.add("active");
+  const cfg = getConfig();
+  // Only offer a way back if there's actually a previously-loaded view to
+  // return to - on first run (no config yet) there's nothing to cancel back
+  // to, and both fields are required anyway.
+  const canCancel = lastRows !== null || airingRows !== null;
+  const closeBtnHtml = canCancel
+    ? `<button class="modal-close-btn" id="settingsCloseBtn" style="position:absolute;top:14px;right:14px" title="Back">&times;</button>`
+    : "";
+  app.innerHTML = `
+    <div class="center-box" style="position:relative">
+      ${closeBtnHtml}
+      <h2>Setup</h2>
+      <p style="color:var(--muted);font-size:0.85rem">
+        These are stored only in this browser's local storage - never written
+        into this HTML file, so it's safe to keep this file in a public repo.
+      </p>
+      <label>SIMKL Client ID
+        (<a href="https://simkl.com/settings/developer/" target="_blank">create an app</a>)</label>
+      <input type="text" id="clientIdInput" value="${cfg.clientId}">
+      <label>TMDB API Key
+        (<a href="https://www.themoviedb.org/settings/api" target="_blank">get a free key</a>)</label>
+      <input type="text" id="tmdbKeyInput" value="${cfg.tmdbKey}">
+      <div style="margin-top:18px">
+        <button class="pill" id="saveSettingsBtn">Save</button>
+      </div>
+      <div class="error-box" id="settingsError"></div>
+    </div>
+  `;
+  subtitle.textContent = "Setup required";
+  document.getElementById("saveSettingsBtn").onclick = () => {
+    const clientId = document.getElementById("clientIdInput").value.trim();
+    const tmdbKey = document.getElementById("tmdbKeyInput").value.trim();
+    if (!clientId || !tmdbKey) {
+      document.getElementById("settingsError").textContent = "Both fields are required.";
+      return;
+    }
+    localStorage.setItem(LS_CLIENT_ID, clientId);
+    localStorage.setItem(LS_TMDB_KEY, tmdbKey);
+    if (afterSaveCallback) afterSaveCallback();
+  };
+  if (canCancel) {
+    document.getElementById("settingsCloseBtn").onclick = returnToPreviousView;
+  }
+}
+
+// ---------------------------------------------------------------------
+// SIMKL auth (PIN flow) + fetching
+// ---------------------------------------------------------------------
+async function simklRequest(url) {
+  let res;
+  try {
+    res = await fetch(url);
+  } catch (e) {
+    throw new Error(
+      "Network/CORS error reaching SIMKL. Your browser may be blocking " +
+      "cross-origin requests to api.simkl.com. Original error: " + e.message
+    );
+  }
+  if (!res.ok && res.status !== 404) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`SIMKL request failed (${res.status}): ${body.slice(0, 300)}`);
+  }
+  if (res.status === 404) return null;
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+async function getAccessToken() {
+  const cached = localStorage.getItem(LS_TOKEN);
+  if (cached) return cached;
+
+  const { clientId } = getConfig();
+  const pinParams = new URLSearchParams({
+    client_id: clientId, "app-name": APP_NAME, "app-version": APP_VERSION,
+  });
+  const pinData = await simklRequest(`${SIMKL_BASE}/oauth/pin?${pinParams}`);
+  const userCode = pinData.user_code;
+  const verificationUrl = pinData.verification_url || "https://simkl.com/pin";
+  const intervalSec = pinData.interval || 5;
+  const expiresIn = pinData.expires_in || 900;
+
+  app.innerHTML = `
+    <div class="center-box">
+      <h2>One-time authorization</h2>
+      <p>1. Go to <a href="${verificationUrl}" target="_blank">${verificationUrl}</a></p>
+      <p>2. Enter this code:</p>
+      <div class="pin-code">${userCode}</div>
+      <div class="spinner"></div>
+      <p style="color:var(--muted);font-size:0.85rem">Waiting for approval&hellip;</p>
+    </div>
+  `;
+  subtitle.textContent = "Waiting for authorization";
+
+  const deadline = Date.now() + expiresIn * 1000;
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, intervalSec * 1000));
+    const pollParams = new URLSearchParams({
+      client_id: clientId, "app-name": APP_NAME, "app-version": APP_VERSION,
+    });
+    let poll;
+    try {
+      poll = await simklRequest(`${SIMKL_BASE}/oauth/pin/${userCode}?${pollParams}`);
+    } catch (e) {
+      continue; // keep polling through transient errors
+    }
+    if (poll && poll.result === "OK" && poll.access_token) {
+      localStorage.setItem(LS_TOKEN, poll.access_token);
+      return poll.access_token;
+    }
+  }
+  throw new Error("Timed out waiting for PIN approval. Refresh the page to try again.");
+}
+
+async function simklGet(path, token, extraParams) {
+  const { clientId } = getConfig();
+  const params = new URLSearchParams({
+    client_id: clientId, "app-name": APP_NAME, "app-version": APP_VERSION,
+    ...(extraParams || {}),
+  });
+  let res;
+  try {
+    res = await fetch(`${SIMKL_BASE}${path}?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch (e) {
+    throw new Error("Network/CORS error reaching SIMKL: " + e.message);
+  }
+  if (res.status === 401) {
+    localStorage.removeItem(LS_TOKEN);
+    throw new Error("SIMKL access token expired or revoked. Refresh the page to re-authenticate.");
+  }
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`SIMKL request failed (${res.status}): ${body.slice(0, 300)}`);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+async function simklPost(path, token, body) {
+  const { clientId } = getConfig();
+  const params = new URLSearchParams({
+    client_id: clientId, "app-name": APP_NAME, "app-version": APP_VERSION,
+  });
+  let res;
+  try {
+    res = await fetch(`${SIMKL_BASE}${path}?${params}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    throw new Error("Network/CORS error reaching SIMKL: " + e.message);
+  }
+  if (res.status === 401) {
+    localStorage.removeItem(LS_TOKEN);
+    throw new Error("SIMKL access token expired or revoked. Refresh the page to re-authenticate.");
+  }
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => "");
+    throw new Error(`SIMKL request failed (${res.status}): ${errBody.slice(0, 300)}`);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+async function getWatchingShows(token) {
+  const data = await simklGet("/sync/all-items/shows/watching", token, {
+    extended: "full", episode_watched_at: "yes",
+  });
+  if (!data) return [];
+  return Array.isArray(data) ? data : (data.shows || []);
+}
+
+async function getPlanToWatchShows(token) {
+  const data = await simklGet("/sync/all-items/shows/plantowatch", token, {
+    extended: "full",
+  });
+  if (!data) return [];
+  return Array.isArray(data) ? data : (data.shows || []);
+}
+
+// ---------------------------------------------------------------------
+// TMDB - per-episode runtimes
+// ---------------------------------------------------------------------
+async function tmdbGet(path, params) {
+  const { tmdbKey } = getConfig();
+  const p = new URLSearchParams({ api_key: tmdbKey, ...(params || {}) });
+  let res;
+  try {
+    res = await fetch(`${TMDB_BASE}${path}?${p}`);
+  } catch (e) {
+    throw new Error("Network/CORS error reaching TMDB: " + e.message);
+  }
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`TMDB request failed (${res.status}): ${body.slice(0, 300)}`);
+  }
+  return res.json();
+}
+
+class TmdbCache {
+  constructor() { this.show = new Map(); this.season = new Map(); }
+  async getShow(tmdbId) {
+    if (!this.show.has(tmdbId)) {
+      // append_to_response=images pulls ALL available posters/backdrops for
+      // this show in the same request, so we can offer alternates later.
+      // include_image_language asks for English + untagged (no-language) +
+      // Hebrew images - English/no-language is preferred (see computeImages),
+      // Hebrew is used only as a fallback for shows that only have
+      // Hebrew-text artwork (some Israeli shows).
+      // TMDB is purely supplementary now (images/runtime estimate only,
+      // never episode counts) - a failure here degrades gracefully to
+      // null rather than crashing whichever show triggered it.
+      let result = null;
+      try {
+        result = await tmdbGet(`/tv/${tmdbId}`, {
+          append_to_response: "images",
+          language: "en-US",
+          include_image_language: "en,null,he",
+        });
+      } catch (e) {
+        result = null;
+      }
+      this.show.set(tmdbId, result);
+    }
+    return this.show.get(tmdbId);
+  }
+  async getSeason(tmdbId, seasonNum) {
+    const key = `${tmdbId}:${seasonNum}`;
+    if (!this.season.has(key)) {
+      let result = null;
+      try {
+        result = await tmdbGet(`/tv/${tmdbId}/season/${seasonNum}`);
+      } catch (e) {
+        result = null;
+      }
+      this.season.set(key, result);
+    }
+    return this.season.get(key);
+  }
+}
+
+class SimklEpisodeCache {
+  // Caches GET /tv/episodes/{simkl_id} per show. This is SIMKL's OWN
+  // episode data (via TheTVDB), including a full date+time WITH timezone
+  // offset for each episode - unlike TMDB, which only gives a bare date
+  // (no time), anchored to the show's origin country. Using SIMKL's own
+  // data here is what keeps this page in sync with what simkl.com itself
+  // shows for "airing next" / next-episode dates.
+  constructor() { this.map = new Map(); }
+  async get(simklId, token) {
+    if (!this.map.has(simklId)) {
+      let episodes = null;
+      try {
+        const data = await simklGet(`/tv/episodes/${simklId}`, token, { extended: "full" });
+        episodes = Array.isArray(data) ? data : null;
+      } catch (e) {
+        episodes = null; // fall back to TMDB dates for this show
+      }
+      this.map.set(simklId, episodes);
+    }
+    return this.map.get(simklId);
+  }
+}
+
+class SimklShowCache {
+  // Caches GET /tv/{simkl_id} (SIMKL's own public catalog/summary
+  // endpoint - client_id only, no user token strictly required, but we
+  // pass the token anyway since it's harmless). Used to read the show's
+  // IMDb rating as shown on its simkl.com page, per user request.
+  constructor() { this.map = new Map(); }
+  async get(simklId, token) {
+    if (!this.map.has(simklId)) {
+      let data = null;
+      try {
+        data = await simklGet(`/tv/${simklId}`, token, {});
+      } catch (e) {
+        data = null;
+      }
+      this.map.set(simklId, data);
+    }
+    return this.map.get(simklId);
+  }
+}
+
+function extractImdbRating(showData) {
+  // Defensive parsing: the exact shape of SIMKL's "ratings" field isn't
+  // fully documented, so this tries a few plausible layouts and returns
+  // null (meaning: just show the plain IMDb logo, no number) rather than
+  // guessing wrong.
+  if (!showData) return null;
+  const r = showData.ratings;
+  if (!r) return null;
+  const candidates = [
+    r.imdb && r.imdb.rating,
+    r.IMDB && r.IMDB.rating,
+    typeof r.imdb === "number" ? r.imdb : null,
+    typeof r.imdb === "string" ? r.imdb : null,
+  ];
+  for (const c of candidates) {
+    if (typeof c === "number" && !isNaN(c)) return c;
+    if (typeof c === "string" && c.trim() && !isNaN(parseFloat(c))) return parseFloat(c);
+  }
+  return null;
+}
+
+function showAverageRuntime(showDetail) {
+  if (!showDetail) return 0;
+  const ert = showDetail.episode_run_time || [];
+  if (ert.length) return ert.reduce((a, b) => a + b, 0) / ert.length;
+  return (showDetail.last_episode_to_air || {}).runtime || 0;
+}
+
+function averageEpisodeRuntime(showDetail, fallbackRuntime) {
+  // Used only as a last-resort per-episode fallback when TMDB has no exact
+  // runtime for a specific remaining episode (see estimateRemainingMinutes)
+  // - never as a flat multiplier for the whole remaining count, since
+  // TMDB's overall-series average can be way off for shows whose episode
+  // length changed a lot across seasons (e.g. Stranger Things' later
+  // seasons run much longer than its early ones).
+  return (showDetail && showAverageRuntime(showDetail)) || fallbackRuntime || 0;
+}
+
+function watchedEpisodeNumbersBySeason(item) {
+  const result = {};
+  for (const season of item.seasons || []) {
+    const num = season.number;
+    result[num] = new Set((season.episodes || []).map(e => e.number).filter(n => n != null));
+  }
+  return result;
+}
+
+async function estimateRemainingMinutes(item, tmdbId, simklId, token, cache, episodeCache, remainingCount, fallbackRuntime) {
+  // SIMKL's aggregate count (remainingCount, passed in) is always the
+  // authoritative number of remaining episodes - this function only
+  // estimates how long they'll take to watch, as accurately as possible:
+  // it identifies the SPECIFIC remaining episodes via SIMKL's own
+  // per-episode aired/watched data, then prices each one using TMDB's
+  // exact per-episode runtime where available, falling back to the show's
+  // average only for the specific episodes TMDB doesn't have.
+  // Returns { totalMinutes, nextEpisodeMinutes }.
+  const showDetail = tmdbId ? await cache.getShow(tmdbId) : null; // never throws (see TmdbCache)
+  const avgRuntime = averageEpisodeRuntime(showDetail, fallbackRuntime);
+
+  if (remainingCount <= 0) return { totalMinutes: 0, nextEpisodeMinutes: 0 };
+
+  // "season-episode" -> exact TMDB runtime, wherever TMDB has it.
+  const tmdbRuntimeMap = new Map();
+  if (showDetail) {
+    for (const seasonInfo of showDetail.seasons || []) {
+      const seasonNum = seasonInfo.season_number;
+      if (seasonNum == null || seasonNum === 0) continue;
+      const seasonDetail = await cache.getSeason(tmdbId, seasonNum);
+      if (!seasonDetail) continue;
+      for (const ep of seasonDetail.episodes || []) {
+        if (ep.runtime) tmdbRuntimeMap.set(`${seasonNum}-${ep.episode_number}`, ep.runtime);
+      }
+    }
+  }
+
+  // Identify which specific episodes are remaining, via SIMKL's own data,
+  // oldest (i.e. the very next one to watch) first.
+  let identifiedKeys = [];
+  if (simklId) {
+    const simklEpisodes = await episodeCache.get(simklId, token);
+    if (simklEpisodes) {
+      const watchedBySeason = watchedEpisodeNumbersBySeason(item);
+      const now = Date.now();
+      identifiedKeys = simklEpisodes
+        .filter(ep => ep.season != null && ep.season !== 0 && ep.episode != null && ep.date)
+        .map(ep => ({ season: ep.season, episode: ep.episode, ts: new Date(ep.date).getTime() }))
+        .filter(ep => !isNaN(ep.ts) && ep.ts <= now)
+        .filter(ep => !(watchedBySeason[ep.season] || new Set()).has(ep.episode))
+        .sort((a, b) => a.ts - b.ts)
+        .map(ep => `${ep.season}-${ep.episode}`);
+    }
+  }
+
+  // Price up to remainingCount identified episodes with their exact (or
+  // per-episode-fallback) runtime; if we couldn't identify enough specific
+  // episodes to match SIMKL's aggregate count, pad the remainder with the
+  // average so the count itself is still fully accounted for.
+  let minutes = 0;
+  const useCount = Math.min(identifiedKeys.length, remainingCount);
+  for (let i = 0; i < useCount; i++) {
+    minutes += tmdbRuntimeMap.get(identifiedKeys[i]) || avgRuntime;
+  }
+  minutes += (remainingCount - useCount) * avgRuntime;
+
+  const nextEpisodeMinutes = useCount > 0 ? (tmdbRuntimeMap.get(identifiedKeys[0]) || avgRuntime) : avgRuntime;
+
+  return { totalMinutes: minutes, nextEpisodeMinutes };
+}
+
+function simklAiredMinusWatchedCount(item) {
+  const total = item.total_episodes_count || 0;
+  const notAired = item.not_aired_episodes_count || 0;
+  const watched = item.watched_episodes_count || 0;
+  return Math.max(Math.max(total - notAired, 0) - watched, 0);
+}
+
+function formatTime(minutes) {
+  minutes = Math.round(minutes);
+  return [Math.floor(minutes / 60), minutes % 60];
+}
+
+function todayLocalDateStr() {
+  // Returns today's date as YYYY-MM-DD using the browser's LOCAL calendar
+  // day - NOT new Date().toISOString(), which returns the UTC date and
+  // can be a day behind/ahead of the user's actual local day (e.g. for
+  // timezones east of UTC like Israel, during the first few hours after
+  // local midnight the UTC date is still "yesterday").
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function parseNextEpisode(nextToWatch) {
+  if (!nextToWatch) return [null, null];
+  const m = /S(\d+)E(\d+)/i.exec(nextToWatch);
+  if (!m) return [null, null];
+  return [parseInt(m[1], 10), parseInt(m[2], 10)];
+}
+
+// ---------------------------------------------------------------------
+// Build rows (mirrors the Python core logic)
+// ---------------------------------------------------------------------
+function computeImages(showDetail) {
+  // Shared by getMyListRows and getAiringNextRows - returns the initial
+  // poster/banner URLs plus the full filtered candidate lists (for the
+  // per-card cycle button). Prefers English or no-language artwork; if a
+  // show has NEITHER for posters or backdrops, falls back to Hebrew
+  // (some Israeli shows only have Hebrew-text artwork on TMDB) - decided
+  // independently for posters vs. backdrops, since a show might have an
+  // English poster but only a Hebrew backdrop, or vice versa.
+  const out = {
+    posterUrl: null, bannerUrl: null,
+    posterPaths: [], backdropPaths: [],
+    posterIndex: 0, bannerIndex: 0,
+  };
+  if (!showDetail) return out;
+
+  const imgs = showDetail.images || {};
+  const isEnglishOrNoLang = p => p.iso_639_1 === "en" || p.iso_639_1 == null;
+  const isHebrew = p => p.iso_639_1 === "he";
+
+  const enPosters = (imgs.posters || []).filter(isEnglishOrNoLang);
+  const enBackdrops = (imgs.backdrops || []).filter(isEnglishOrNoLang);
+
+  out.posterPaths = (enPosters.length ? enPosters : (imgs.posters || []).filter(isHebrew))
+    .map(p => p.file_path).filter(Boolean);
+  out.backdropPaths = (enBackdrops.length ? enBackdrops : (imgs.backdrops || []).filter(isHebrew))
+    .map(p => p.file_path).filter(Boolean);
+
+  // Prefer TMDB's own primary pick as the starting image, but only if it
+  // actually made it into the (English/no-language, or Hebrew-fallback)
+  // list above - otherwise start from the first result in that list.
+  if (showDetail.poster_path && out.posterPaths.includes(showDetail.poster_path)) {
+    out.posterIndex = out.posterPaths.indexOf(showDetail.poster_path);
+  }
+  if (out.posterPaths.length) out.posterUrl = TMDB_IMAGE_BASE + out.posterPaths[out.posterIndex];
+
+  if (showDetail.backdrop_path && out.backdropPaths.includes(showDetail.backdrop_path)) {
+    out.bannerIndex = out.backdropPaths.indexOf(showDetail.backdrop_path);
+  }
+  if (out.backdropPaths.length) out.bannerUrl = TMDB_BACKDROP_BASE + out.backdropPaths[out.bannerIndex];
+
+  return out;
+}
+
+async function getRecentlyWatchedEpisodes(items, cache) {
+  // Scans every currently-"watching" show (even ones you've fully caught
+  // up on, which wouldn't otherwise appear in My List) for watched
+  // episodes with a timestamp, and returns the 10 most recent.
+  const candidates = [];
+  for (const item of items) {
+    if (item.status !== "watching") continue;
+    const show = item.show || {};
+    for (const season of item.seasons || []) {
+      for (const ep of season.episodes || []) {
+        if (!ep.watched_at) continue;
+        candidates.push({
+          title: show.title || "Unknown",
+          season: season.number,
+          episode: ep.number,
+          watchedAt: ep.watched_at,
+          tmdbId: (show.ids || {}).tmdb,
+        });
+      }
+    }
+  }
+  candidates.sort((a, b) => new Date(b.watchedAt) - new Date(a.watchedAt));
+  const top = candidates.slice(0, 10);
+
+  for (const c of top) {
+    c.posterUrl = null;
+    if (c.tmdbId) {
+      const showDetail = await cache.getShow(c.tmdbId); // cached, no extra request if already fetched
+      c.posterUrl = computeImages(showDetail).posterUrl;
+    }
+  }
+  return top;
+}
+
+async function getPlanToWatchRows(token, cache, ratingsCache) {
+  const items = await getPlanToWatchShows(token);
+  cache = cache || new TmdbCache();
+  ratingsCache = ratingsCache || new SimklShowCache();
+  const rows = [];
+
+  for (const item of items) {
+    if (item.status !== "plantowatch") continue;
+    const show = item.show || {};
+    const title = show.title || "Unknown";
+    const tmdbId = (show.ids || {}).tmdb;
+    const simklId = (show.ids || {}).simkl;
+    const imdbId = (show.ids || {}).imdb;
+
+    let posterUrl = null;
+    if (tmdbId) {
+      try {
+        const showDetail = await cache.getShow(tmdbId);
+        posterUrl = computeImages(showDetail).posterUrl;
+      } catch (e) {
+        posterUrl = null;
+      }
+    }
+    const imdbRating = simklId ? extractImdbRating(await ratingsCache.get(simklId, token)) : null;
+
+    rows.push({ title, imdbId, imdbRating, posterUrl, simklId, tmdbId });
+  }
+
+  // Highest IMDb rating first; shows with no known rating sink to the end.
+  rows.sort((a, b) => {
+    if (a.imdbRating == null && b.imdbRating == null) return 0;
+    if (a.imdbRating == null) return 1;
+    if (b.imdbRating == null) return -1;
+    return b.imdbRating - a.imdbRating;
+  });
+  return rows;
+}
+
+async function getMyListRows(token, cache, episodeCache, ratingsCache) {
+  const items = await getWatchingShows(token);
+  cache = cache || new TmdbCache();
+  episodeCache = episodeCache || new SimklEpisodeCache();
+  ratingsCache = ratingsCache || new SimklShowCache();
+  const rows = [];
+  let totalRemainingEps = 0;
+  let totalRemainingMinutes = 0;
+
+  for (const item of items) {
+    if (item.status !== "watching") continue;
+
+    const nextToWatch = item.next_to_watch;
+    if (!nextToWatch) continue;
+
+    const show = item.show || {};
+    const title = show.title || "Unknown";
+    const tmdbId = (show.ids || {}).tmdb;
+    const simklId = (show.ids || {}).simkl;
+    const imdbId = (show.ids || {}).imdb;
+    const watched = item.watched_episodes_count || 0;
+    const totalEpisodes = item.total_episodes_count || 0;
+    const notAired = item.not_aired_episodes_count || 0;
+    const available = Math.max(totalEpisodes - notAired, 0);
+
+    const [nextSeason, nextEpisode] = parseNextEpisode(nextToWatch);
+    const nextLabel = nextSeason != null
+      ? `S${String(nextSeason).padStart(2, "0")}E${String(nextEpisode).padStart(2, "0")}`
+      : "";
+
+    let images = computeImages(null);
+    let showDetail = null;
+    if (tmdbId) {
+      // TMDB is now purely supplementary (images/runtime estimate) - if it
+      // fails for this one show, that shouldn't take down the whole list.
+      try {
+        showDetail = await cache.getShow(tmdbId);
+        images = computeImages(showDetail);
+      } catch (e) {
+        showDetail = null;
+      }
+    }
+
+    // SIMKL's own aggregate counts are the sole source of truth for how
+    // many episodes remain - this is exactly what simkl.com itself shows,
+    // and needs no per-episode matching against TMDB at all. TMDB is used
+    // only to estimate how long they'll take to watch.
+    const remaining = Math.max(simklAiredMinusWatchedCount(item), 1);
+    const { totalMinutes: remainingMinutes, nextEpisodeMinutes } = await estimateRemainingMinutes(
+      item, tmdbId, simklId, token, cache, episodeCache, remaining, show.runtime
+    );
+
+    totalRemainingEps += remaining;
+    totalRemainingMinutes += remainingMinutes;
+
+    // Air date/time of the specific "next episode to watch" (not the
+    // show's next upcoming one) - used to sort: shows you're only a
+    // little behind on (aired recently) float to the top; old backlog
+    // sinks to the bottom. Prefer SIMKL's own episode data (has an exact
+    // time + timezone offset, so it matches simkl.com); fall back to TMDB
+    // (date only) if SIMKL doesn't have it for some reason.
+    let nextAirDate = null;
+    let episodeTitle = null;
+
+    if (simklId && nextSeason != null) {
+      const simklEpisodes = await episodeCache.get(simklId, token);
+      const simklEp = simklEpisodes && simklEpisodes.find(
+        e => e.season === nextSeason && e.episode === nextEpisode
+      );
+      if (simklEp && simklEp.date) nextAirDate = simklEp.date;
+      if (simklEp && simklEp.title && !/^Episode\s+\d+$/i.test(String(simklEp.title).trim())) {
+        episodeTitle = String(simklEp.title).trim();
+      }
+    }
+
+    if (nextAirDate == null && tmdbId && nextSeason != null) {
+      const seasonDetail = await cache.getSeason(tmdbId, nextSeason);
+      const ep = seasonDetail && (seasonDetail.episodes || []).find(e => e.episode_number === nextEpisode);
+      if (ep) {
+        if (ep.air_date) nextAirDate = ep.air_date;
+        if (!episodeTitle && ep.name && !/^Episode\s+\d+$/i.test(ep.name.trim())) {
+          episodeTitle = ep.name.trim();
+        }
+      }
+    }
+
+    const [hours, mins] = formatTime(remainingMinutes);
+    const [nextHours, nextMins] = formatTime(nextEpisodeMinutes);
+    const imdbRating = simklId ? extractImdbRating(await ratingsCache.get(simklId, token)) : null;
+    rows.push({
+      title, imdbId, imdbRating, simklId, tmdbId, year: show.year, ...images,
+      totalEpisodes, available, watched, remaining,
+      hours, mins, nextHours, nextMins, nextLabel, nextSeason, nextEpisode, episodeTitle, nextAirDate,
+    });
+  }
+
+  // Sort by the air date/time of the next episode to watch, most recent
+  // first; shows with no known date (or a very old backlog) sink toward
+  // the end. Compares actual timestamps (not raw strings), since SIMKL
+  // dates carry a timezone offset that lexical string comparison can get
+  // wrong across different offsets.
+  rows.sort((a, b) => {
+    if (a.nextAirDate == null && b.nextAirDate == null) return 0;
+    if (a.nextAirDate == null) return 1;
+    if (b.nextAirDate == null) return -1;
+    const tsA = airDateToTimestamp(a.nextAirDate);
+    const tsB = airDateToTimestamp(b.nextAirDate);
+    return tsB - tsA;
+  });
+
+  rows.forEach((r, i) => { r.index = i + 1; });
+  const recentlyWatched = await getRecentlyWatchedEpisodes(items, cache);
+  return [rows, totalRemainingEps, totalRemainingMinutes, recentlyWatched];
+}
+
+// ---------------------------------------------------------------------
+// Airing Next - next upcoming (not-yet-aired) episode for shows you're
+// actively watching, sorted soonest-first.
+// ---------------------------------------------------------------------
+async function nextAiringEpisode(tmdbId, showDetail, cache) {
+  // Fallback path only (used when SIMKL has no episode data for a show).
+  // TMDB has no time-of-day, only a date - so "today" is ambiguous (may
+  // have already aired earlier today, or not yet). To avoid this showing
+  // up in Airing Next AND simultaneously counting as "available" in My
+  // List (a confusing overlap), we conservatively require STRICTLY a
+  // future day here.
+  if (!showDetail) return null;
+  const today = todayLocalDateStr();
+  let best = null;
+
+  for (const seasonInfo of showDetail.seasons || []) {
+    const seasonNum = seasonInfo.season_number;
+    if (seasonNum == null || seasonNum === 0) continue; // skip specials
+
+    const seasonDetail = await cache.getSeason(tmdbId, seasonNum);
+    if (!seasonDetail) continue;
+
+    for (const ep of seasonDetail.episodes || []) {
+      const airDate = ep.air_date;
+      if (!airDate || airDate <= today) continue; // strictly future days only
+      if (!best || airDate < best.airDate) {
+        best = { airDate, season: seasonNum, episode: ep.episode_number };
+      }
+    }
+  }
+  return best;
+}
+
+async function nextAiringEpisodeSimkl(simklId, token, episodeCache) {
+  // Preferred path: SIMKL's own /tv/episodes data, which includes a full
+  // date+time WITH timezone offset per episode. Uses the exact CURRENT
+  // moment as the cutoff (not "start of today") - once an episode's real
+  // air time has passed, it's excluded here, since My List's remaining
+  // count (driven by SIMKL's own aired/not-aired judgment) will already
+  // treat it as available. Without this, an episode that aired earlier
+  // today would confusingly show up in both places at once.
+  const episodes = await episodeCache.get(simklId, token);
+  if (!episodes) return null;
+
+  const now = Date.now();
+
+  let best = null;
+  for (const ep of episodes) {
+    if (ep.season == null || ep.season === 0) continue; // skip specials
+    if (ep.episode == null || !ep.date) continue;
+    const ts = new Date(ep.date).getTime();
+    if (isNaN(ts) || ts <= now) continue; // strictly in the future
+    if (!best || ts < best.ts) {
+      best = { ts, airDate: ep.date, season: ep.season, episode: ep.episode };
+    }
+  }
+  return best;
+}
+
+function hasTimeComponent(dateStr) {
+  // "YYYY-MM-DD" is exactly 10 chars (TMDB, date-only); a full ISO
+  // datetime with time+offset (SIMKL) is longer.
+  return typeof dateStr === "string" && dateStr.length > 10;
+}
+
+function airDateToTimestamp(dateStr) {
+  const d = hasTimeComponent(dateStr) ? new Date(dateStr) : new Date(dateStr + "T00:00:00");
+  return d.getTime();
+}
+
+function formatAirDate(dateStr) {
+  const withTime = hasTimeComponent(dateStr);
+  const today = new Date();
+  const target = withTime ? new Date(dateStr) : new Date(dateStr + "T00:00:00");
+  const sameYear = target.getFullYear() === today.getFullYear();
+
+  if (withTime) {
+    // We have SIMKL's real date+time (with timezone offset), so "Today"/
+    // "Tomorrow" are trustworthy here - they're computed from the actual
+    // moment, not guessed from a bare date. This is what keeps day labels
+    // in sync with what simkl.com itself shows.
+    const startOfDay = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+    const diffDays = Math.round((startOfDay(target) - startOfDay(today)) / 86400000);
+    const timeStr = target.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+
+    let dayLabel;
+    if (diffDays === 0) dayLabel = "Today";
+    else if (diffDays === 1) dayLabel = "Tomorrow";
+    else if (diffDays > 1 && diffDays < 7) dayLabel = target.toLocaleDateString(undefined, { weekday: "long" });
+    else {
+      dayLabel = target.toLocaleDateString(undefined, sameYear
+        ? { weekday: "short", month: "short", day: "numeric" }
+        : { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+    }
+    return `${dayLabel}, ${timeStr}`;
+  }
+
+  // Fallback path (SIMKL episode data unavailable for this show): only a
+  // bare date, no reliable time-of-day - deliberately NOT using "Today"/
+  // "Tomorrow" here, since that guess is what caused the mismatch with
+  // SIMKL's own calendar in the first place.
+  return target.toLocaleDateString(undefined, sameYear
+    ? { weekday: "short", month: "short", day: "numeric" }
+    : { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+}
+
+async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, requirePremiere) {
+  // Fast-path guard, trusting SIMKL's own aggregate field directly: if
+  // SIMKL itself says there are zero not-yet-aired episodes for this show,
+  // there is definitively nothing upcoming - skip immediately rather than
+  // going episode-by-episode (which is also where the earlier mismatch
+  // came from, if TMDB's per-episode dates disagree with SIMKL's own
+  // judgment).
+  if (item.not_aired_episodes_count === 0) return null;
+
+  const show = item.show || {};
+  const tmdbId = (show.ids || {}).tmdb;
+  const simklId = (show.ids || {}).simkl;
+  const imdbId = (show.ids || {}).imdb;
+
+  // Prefer SIMKL's own episode data (exact date+time, matches simkl.com);
+  // fall back to TMDB (date only) if SIMKL has nothing for this show.
+  let next = simklId ? await nextAiringEpisodeSimkl(simklId, token, episodeCache) : null;
+
+  const showDetail = tmdbId ? await cache.getShow(tmdbId) : null;
+  if (!next && tmdbId) {
+    next = await nextAiringEpisode(tmdbId, showDetail, cache);
+  }
+  if (!next) return null; // nothing upcoming known for this show, from either source
+
+  // For Plan to Watch shows, only include ones that haven't premiered at
+  // all yet (next episode is the literal series premiere, S01E01) - a
+  // Plan to Watch show that's already been airing for years but the user
+  // just hasn't started isn't a "premiere", it's backlog, so it's excluded.
+  if (requirePremiere && !(next.season === 1 && next.episode === 1)) return null;
+
+  const images = computeImages(showDetail);
+  const nextLabel = (next.season != null && next.episode != null)
+    ? `S${String(next.season).padStart(2, "0")}E${String(next.episode).padStart(2, "0")}`
+    : "";
+
+  // Episode title: prefer SIMKL's own title if we have it, else TMDB's.
+  let nextEpisodeTitle = null;
+  if (simklId) {
+    const simklEpisodes = await episodeCache.get(simklId, token);
+    const match = simklEpisodes && simklEpisodes.find(e => e.season === next.season && e.episode === next.episode);
+    if (match && match.title && !/^Episode\s+\d+$/i.test(String(match.title).trim())) {
+      nextEpisodeTitle = String(match.title).trim();
+    }
+  }
+  if (!nextEpisodeTitle && tmdbId && showDetail) {
+    const seasonDetail = await cache.getSeason(tmdbId, next.season);
+    const episodeDetail = seasonDetail && (seasonDetail.episodes || [])
+      .find(e => e.episode_number === next.episode);
+    if (episodeDetail && episodeDetail.name && !/^Episode\s+\d+$/i.test(episodeDetail.name.trim())) {
+      nextEpisodeTitle = episodeDetail.name.trim();
+    }
+  }
+
+  const imdbRating = simklId ? extractImdbRating(await ratingsCache.get(simklId, token)) : null;
+
+  return {
+    title: show.title || "Unknown",
+    imdbId,
+    imdbRating,
+    ...images,
+    nextLabel,
+    nextEpisodeTitle,
+    airDate: next.airDate,
+    airDateLabel: formatAirDate(next.airDate),
+  };
+}
+
+async function getAiringNextRows(token, cache, episodeCache, ratingsCache) {
+  cache = cache || new TmdbCache();
+  episodeCache = episodeCache || new SimklEpisodeCache();
+  ratingsCache = ratingsCache || new SimklShowCache();
+
+  const [watchingItems, planToWatchItems] = await Promise.all([
+    getWatchingShows(token),
+    getPlanToWatchShows(token),
+  ]);
+
+  const rows = [];
+  const seenTmdbIds = new Set();
+
+  for (const item of watchingItems) {
+    if (item.status !== "watching") continue;
+    const row = await buildAiringRow(item, cache, episodeCache, ratingsCache, token, /* requirePremiere */ false);
+    if (!row) continue;
+    const tmdbId = (item.show || {}).ids && item.show.ids.tmdb;
+    if (tmdbId) seenTmdbIds.add(tmdbId);
+    rows.push(row);
+  }
+
+  for (const item of planToWatchItems) {
+    if (item.status !== "plantowatch") continue;
+    const tmdbId = (item.show || {}).ids && item.show.ids.tmdb;
+    if (tmdbId && seenTmdbIds.has(tmdbId)) continue; // already added from Watching
+    const row = await buildAiringRow(item, cache, episodeCache, ratingsCache, token, /* requirePremiere */ true);
+    if (!row) continue;
+    rows.push(row);
+  }
+
+  // Compare actual timestamps, not raw strings - SIMKL dates carry a
+  // timezone offset that lexical string comparison can get wrong.
+  rows.sort((a, b) => airDateToTimestamp(a.airDate) - airDateToTimestamp(b.airDate));
+  rows.forEach((r, i) => { r.index = i + 1; });
+  return rows;
+}
+
+// ---------------------------------------------------------------------
+// SIMKL write operations - search, add-to-list, status change, remove
+// ---------------------------------------------------------------------
+async function simklAddToList(ids, toStatus, token, extra) {
+  const show = { to: toStatus, ids, ...(extra || {}) };
+  return simklPost("/sync/add-to-list", token, { shows: [show] });
+}
+
+async function removeShowFromList(simklId, token) {
+  // POST /sync/history/remove with just an ids object (no seasons/episodes)
+  // removes the show from the user's library entirely - equivalent to
+  // clicking "Remove from list" on simkl.com.
+  return simklPost("/sync/history/remove", token, { shows: [{ ids: { simkl: simklId } }] });
+}
+
+async function searchTvShows(query, token) {
+  const data = await simklGet("/search/tv", token, { q: query });
+  return Array.isArray(data) ? data : [];
+}
+
+const LIBRARY_STATUSES = ["watching", "plantowatch", "hold", "completed", "dropped"];
+const STATUS_LABELS = {
+  watching: "Watching", plantowatch: "Plan to Watch", hold: "On Hold",
+  completed: "Completed", dropped: "Dropped",
+};
+const ALL_STATUS_OPTIONS = [
+  { value: "plantowatch", label: "Plan to Watch" },
+  { value: "watching", label: "Watching" },
+  { value: "hold", label: "On Hold" },
+  { value: "completed", label: "Completed" },
+  { value: "dropped", label: "Dropped" },
+];
+
+function idsMatch(a, b) {
+  if (!a || !b) return false;
+  return (a.simkl && b.simkl && a.simkl === b.simkl) ||
+    (a.tmdb && b.tmdb && String(a.tmdb) === String(b.tmdb)) ||
+    (a.imdb && b.imdb && a.imdb === b.imdb);
+}
+
+async function findShowLibraryStatus(ids, token) {
+  // No single SIMKL endpoint reports "what's the status of this one show",
+  // so this checks each of the 5 possible lists (same endpoint shape as
+  // getWatchingShows/getPlanToWatchShows) and returns the first match.
+  const lists = await Promise.all(
+    LIBRARY_STATUSES.map(status =>
+      simklGet(`/sync/all-items/shows/${status}`, token, { extended: "full" }).catch(() => null)
+    )
+  );
+  for (let i = 0; i < LIBRARY_STATUSES.length; i++) {
+    const data = lists[i];
+    const items = Array.isArray(data) ? data : (data && data.shows) || [];
+    const match = items.find(item => idsMatch((item.show || {}).ids, ids));
+    if (match) return { status: LIBRARY_STATUSES[i], item: match };
+  }
+  return null;
+}
+
+function renderSearchResults(results) {
+  const container = document.getElementById("searchResults");
+  if (!container) return;
+  if (!results.length) {
+    container.innerHTML = `<p style="color:var(--muted);font-size:0.85rem;padding:10px 4px">No results.</p>`;
+    return;
+  }
+  container.innerHTML = results.map((r, i) => {
+    const poster = r.poster ? `https://simkl.in/posters/${r.poster}_m.jpg` : null;
+    const posterHtml = poster
+      ? `<img class="search-result-poster" src="${poster}" alt="${r.title || ""}">`
+      : `<div class="search-result-poster placeholder">${((r.title || "?")[0] || "?").toUpperCase()}</div>`;
+    return `
+      <div class="search-result-row" data-idx="${i}">
+        ${posterHtml}
+        <div class="search-result-info">
+          <div class="search-result-title">${r.title || "Unknown"}</div>
+          <div class="search-result-year">${r.year || ""}</div>
+        </div>
+      </div>`;
+  }).join("\n");
+
+  container.querySelectorAll(".search-result-row").forEach(row => {
+    row.onclick = () => openShowDetail(results[Number(row.dataset.idx)]);
+  });
+}
+
+let searchDebounceTimer = null;
+let lastSearchQuery = "";
+let lastSearchResults = [];
+
+function wireSearchInput() {
+  const input = document.getElementById("searchQueryInput");
+  if (!input) return;
+  input.focus();
+  input.value = lastSearchQuery;
+  input.oninput = () => {
+    clearTimeout(searchDebounceTimer);
+    lastSearchQuery = input.value.trim();
+    if (!lastSearchQuery) {
+      lastSearchResults = [];
+      renderSearchResults([]);
+      return;
+    }
+    searchDebounceTimer = setTimeout(async () => {
+      try {
+        lastSearchResults = await searchTvShows(lastSearchQuery, simklToken);
+        renderSearchResults(lastSearchResults);
+      } catch (err) {
+        document.getElementById("searchResults").innerHTML = `<div class="error-box">${err.message}</div>`;
+      }
+    }, 400);
+  };
+}
+
+function renderSearchStep() {
+  const title = document.getElementById("modalTitle");
+  const body = document.getElementById("modalBody");
+  if (!title || !body) return;
+  title.textContent = "Add a show";
+  body.innerHTML = `
+    <div class="search-input-row">
+      <input type="text" id="searchQueryInput" placeholder="Search TV shows…" autocomplete="off">
+    </div>
+    <div class="search-results" id="searchResults"></div>`;
+  wireSearchInput();
+  renderSearchResults(lastSearchResults);
+}
+
+async function openShowDetail(show) {
+  const title = document.getElementById("modalTitle");
+  const body = document.getElementById("modalBody");
+  if (!title || !body) return;
+  title.textContent = show.title || "Show";
+  body.innerHTML = `
+    <button class="modal-back-btn" id="detailBackBtn">&larr; Back to search</button>
+    <div class="spinner" style="margin:30px auto"></div>`;
+  document.getElementById("detailBackBtn").onclick = renderSearchStep;
+
+  const ids = show.ids || {};
+  let libraryMatch = null;
+  try {
+    libraryMatch = await findShowLibraryStatus(ids, simklToken);
+  } catch (err) {
+    body.innerHTML = `
+      <button class="modal-back-btn" id="detailBackBtn">&larr; Back to search</button>
+      <div class="error-box">${err.message}</div>`;
+    document.getElementById("detailBackBtn").onclick = renderSearchStep;
+    return;
+  }
+  renderShowDetail(show, libraryMatch);
+}
+
+function renderShowDetail(show, libraryMatch) {
+  const body = document.getElementById("modalBody");
+  if (!body) return;
+  const poster = show.poster ? `https://simkl.in/posters/${show.poster}_m.jpg` : null;
+  const posterHtml = poster
+    ? `<img class="detail-poster" src="${poster}" alt="${show.title || ""}">`
+    : `<div class="detail-poster placeholder">${((show.title || "?")[0] || "?").toUpperCase()}</div>`;
+
+  let statusHtml;
+  if (!libraryMatch) {
+    statusHtml = `<div class="detail-status not-in-list">Not in your list yet</div>`;
+  } else {
+    const item = libraryMatch.item;
+    const watched = item.watched_episodes_count || 0;
+    const total = item.total_episodes_count || 0;
+    const progress = total ? ` — ${watched}/${total} episodes watched` : "";
+    statusHtml = `<div class="detail-status in-list">${STATUS_LABELS[libraryMatch.status]}${progress}</div>`;
+  }
+
+  const statusButtons = ALL_STATUS_OPTIONS.map(opt => {
+    const isActive = libraryMatch && libraryMatch.status === opt.value;
+    return `<button class="card-menu-item${isActive ? " active" : ""}" data-status="${opt.value}">
+      ${opt.label}${isActive ? " ✓" : ""}
+    </button>`;
+  }).join("");
+
+  body.innerHTML = `
+    <button class="modal-back-btn" id="detailBackBtn">&larr; Back to search</button>
+    <div class="detail-header">
+      ${posterHtml}
+      <div class="detail-info">
+        <div class="detail-title">${show.title || "Unknown"}</div>
+        <div class="detail-year">${show.year || ""}</div>
+        ${statusHtml}
+      </div>
+    </div>
+    <div class="detail-status-picker">
+      <p class="detail-picker-label">Set status:</p>
+      ${statusButtons}
+    </div>`;
+
+  document.getElementById("detailBackBtn").onclick = renderSearchStep;
+  body.querySelectorAll("[data-status]").forEach(btn => {
+    btn.onclick = () => setShowStatusFromDetail(show, btn.dataset.status, btn);
+  });
+}
+
+async function setShowStatusFromDetail(show, status, btnEl) {
+  const ids = show.ids || {};
+  if (!ids.simkl && !ids.tmdb && !ids.imdb) {
+    showToast("This result has no usable ID.", true);
+    return;
+  }
+  const buttons = btnEl.parentElement.querySelectorAll("button");
+  buttons.forEach(b => { b.disabled = true; });
+  try {
+    await simklAddToList(ids, status, simklToken, { title: show.title, year: show.year });
+    showToast(`"${show.title}" set to ${STATUS_LABELS[status]}`);
+    closeSearchModal();
+    main();
+  } catch (err) {
+    buttons.forEach(b => { b.disabled = false; });
+    showToast(err.message, true);
+  }
+}
+
+function openSearchModal() {
+  if (!simklToken) return;
+  document.getElementById("addShowBtn").classList.add("active");
+  lastSearchQuery = "";
+  lastSearchResults = [];
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.id = "searchModalOverlay";
+  const headerEl = document.querySelector("header");
+  overlay.style.paddingTop = `${(headerEl ? headerEl.offsetHeight : 0) + 24}px`;
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <h2><span id="modalTitle">Add a show</span> <button class="modal-close-btn" id="searchModalCloseBtn">&times;</button></h2>
+      <div id="modalBody"></div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  renderSearchStep();
+
+  document.getElementById("searchModalCloseBtn").onclick = closeSearchModal;
+  overlay.addEventListener("click", e => { if (e.target === overlay) closeSearchModal(); });
+  document.addEventListener("keydown", searchModalEscHandler);
+}
+
+function searchModalEscHandler(e) {
+  if (e.key === "Escape") closeSearchModal();
+}
+
+function closeSearchModal() {
+  document.getElementById("addShowBtn").classList.remove("active");
+  const overlay = document.getElementById("searchModalOverlay");
+  if (overlay) overlay.remove();
+  document.removeEventListener("keydown", searchModalEscHandler);
+}
+
+// ---------------------------------------------------------------------
+// Per-card status/remove menu
+// ---------------------------------------------------------------------
+const STATUS_OPTIONS = [
+  { value: "watching", label: "Watching" },
+  { value: "hold", label: "On Hold" },
+  { value: "completed", label: "Completed" },
+  { value: "dropped", label: "Dropped" },
+];
+
+function closeCardMenu() {
+  const el = document.getElementById("cardMenuDropdown");
+  if (el) el.remove();
+  document.removeEventListener("keydown", cardMenuEscHandler);
+  document.removeEventListener("click", cardMenuOutsideClickHandler);
+}
+
+function cardMenuEscHandler(e) {
+  if (e.key === "Escape") closeCardMenu();
+}
+
+function cardMenuOutsideClickHandler(e) {
+  const menu = document.getElementById("cardMenuDropdown");
+  if (menu && !menu.contains(e.target)) closeCardMenu();
+}
+
+function openCardMenu(arrIdx, btnEl) {
+  closeCardMenu();
+  const row = lastRows && lastRows[arrIdx];
+  if (!row || !row.simklId) return;
+
+  const rect = btnEl.getBoundingClientRect();
+  const menu = document.createElement("div");
+  menu.className = "card-menu-dropdown";
+  menu.id = "cardMenuDropdown";
+  menu.style.top = `${rect.bottom + 6}px`;
+  menu.style.left = `${Math.min(rect.left, window.innerWidth - 190)}px`;
+
+  const statusButtons = STATUS_OPTIONS.map(opt => `
+    <button class="card-menu-item${opt.value === "watching" ? " active" : ""}" data-status="${opt.value}">
+      ${opt.label}${opt.value === "watching" ? " ✓" : ""}
+    </button>`).join("");
+
+  menu.innerHTML = `
+    ${statusButtons}
+    <div class="card-menu-sep"></div>
+    <button class="card-menu-item danger" id="cardMenuRemoveBtn">Remove from list</button>
+  `;
+  document.body.appendChild(menu);
+
+  menu.querySelectorAll("[data-status]").forEach(b => {
+    b.onclick = () => changeShowStatus(row, b.dataset.status);
+  });
+  document.getElementById("cardMenuRemoveBtn").onclick = () => removeShowFromMyList(row);
+
+  setTimeout(() => document.addEventListener("click", cardMenuOutsideClickHandler), 0);
+  document.addEventListener("keydown", cardMenuEscHandler);
+}
+
+async function changeShowStatus(row, status) {
+  closeCardMenu();
+  try {
+    await simklAddToList(
+      { simkl: row.simklId, tmdb: row.tmdbId, imdb: row.imdbId },
+      status, simklToken, { title: row.title, year: row.year }
+    );
+    showToast(`Moved "${row.title}" to ${status}`);
+    main();
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
+async function removeShowFromMyList(row) {
+  closeCardMenu();
+  if (!confirm(`Remove "${row.title}" from your SIMKL list entirely?`)) return;
+  try {
+    await removeShowFromList(row.simklId, simklToken);
+    showToast(`Removed "${row.title}"`);
+    main();
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
+// ---------------------------------------------------------------------
+// Render
+// ---------------------------------------------------------------------
+let lastRows = null;
+let lastTotalEps = 0;
+let lastTotalMinutes = 0;
+let lastRecentlyWatched = [];
+let lastPlanToWatch = [];
+let airingRows = null;       // lazily fetched, cached until next Refresh
+let sharedCache = null;      // TmdbCache reused across both views for one session
+let sharedEpisodeCache = null; // SimklEpisodeCache, same idea
+let sharedRatingsCache = null; // SimklShowCache, same idea
+let simklToken = null;
+let currentView = "list";    // "list" | "airing"
+
+function updateImageModeButton() {
+  const btn = document.getElementById("imageModeBtn");
+  const mode = getImageMode();
+  const nextLabel = mode === "poster" ? "Banners" : "Posters";
+  const icon = mode === "poster" ? ICON_BANNER_SHAPE : ICON_POSTER_SHAPE;
+  btn.innerHTML = `<span class="nav-icon">${icon}</span>Switch to ${nextLabel}`;
+}
+
+function applyStoredTheme() {
+  const isLight = localStorage.getItem(LS_THEME) === "light";
+  document.body.classList.toggle("light-theme", isLight);
+  updateThemeToggleButton();
+}
+
+function updateThemeToggleButton() {
+  const btn = document.getElementById("themeToggleBtn");
+  const isLight = document.body.classList.contains("light-theme");
+  btn.innerHTML = isLight ? "&#9788;" : "&#9789;"; // sun : moon
+}
+
+function updatePageTitle() {
+  document.title = currentView === "airing"
+    ? "Airing Next"
+    : "My List - Continue Watching";
+}
+
+function updateViewModeButton() {
+  const myListBtn = document.getElementById("myListNavBtn");
+  const airingBtn = document.getElementById("airingNavBtn");
+  myListBtn.classList.toggle("active", currentView !== "airing");
+  airingBtn.classList.toggle("active", currentView === "airing");
+  document.getElementById("settingsBtn").classList.remove("active");
+  updatePageTitle();
+}
+
+const IMAGE_MODE_CONFIG = {
+  poster: { urlKey: "posterUrl", pathsKey: "posterPaths", indexKey: "posterIndex", base: TMDB_IMAGE_BASE, extraClass: "" },
+  banner: { urlKey: "bannerUrl", pathsKey: "backdropPaths", indexKey: "bannerIndex", base: TMDB_BACKDROP_BASE, extraClass: " banner-img" },
+};
+
+function cycleImage(arrIdx) {
+  const rows = currentView === "airing" ? airingRows : lastRows;
+  const row = rows && rows[arrIdx];
+  if (!row) return;
+  const cfg = IMAGE_MODE_CONFIG[getImageMode()];
+  const paths = row[cfg.pathsKey];
+  if (!paths || paths.length <= 1) return; // nothing else to switch to
+  row[cfg.indexKey] = (row[cfg.indexKey] + 1) % paths.length;
+  row[cfg.urlKey] = cfg.base + paths[row[cfg.indexKey]];
+  if (currentView === "airing") {
+    renderAiringRows(airingRows);
+  } else {
+    renderRows(lastRows, lastTotalEps, lastTotalMinutes);
+  }
+}
+
+const IMDB_LOGO_SVG = `<svg viewBox="0 0 64 32" width="34" height="17" xmlns="http://www.w3.org/2000/svg" aria-label="IMDb">
+  <rect width="64" height="32" rx="4" fill="#F5C518"/>
+  <text x="32" y="23" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="18" fill="#000000">IMDb</text>
+</svg>`;
+
+function imdbButtonHtml(imdbId, rating) {
+  if (!imdbId) return "";
+  const url = `https://www.imdb.com/title/${imdbId}/`;
+  const ratingHtml = (typeof rating === "number" && !isNaN(rating))
+    ? `<span class="imdb-rating">${rating.toFixed(1)}</span>`
+    : "";
+  return `<button class="imdb-btn" title="Open on IMDb"
+              onclick="event.stopPropagation(); window.open('${url}', '_blank')">${IMDB_LOGO_SVG}${ratingHtml}</button>`;
+}
+
+function cardImageBits(row, mode, arrIdx, extraOverlayHtml) {
+  const cfg = IMAGE_MODE_CONFIG[mode];
+  // Banners fall back to the poster if a show has no backdrop; logos have
+  // no sensible fallback (different shape/purpose) - just show the
+  // placeholder letter if there's no logo.
+  const imageUrl = mode === "banner" ? (row.bannerUrl || row.posterUrl) : row[cfg.urlKey];
+  const posterClass = "poster" + cfg.extraClass;
+  const posterHtml = imageUrl
+    ? `<img class="${posterClass}" src="${imageUrl}" alt="${row.title}">`
+    : `<div class="${posterClass} placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
+  const altCount = (row[cfg.pathsKey] || []).length;
+  const cycleDisabled = altCount <= 1;
+  const cycleTitle = cycleDisabled ? "No alternate image available" : "Try another image";
+  const cycleBtn = `<button class="cycle-btn${cycleDisabled ? " disabled" : ""}" title="${cycleTitle}"
+                onclick="event.stopPropagation(); cycleImage(${arrIdx})">&#8635;</button>`;
+  const imdbBtn = imdbButtonHtml(row.imdbId, row.imdbRating);
+  const badgeHtml = `<div class="badge">#${row.index}</div>`;
+  const wrapHtml = `<div class="poster-wrap">${badgeHtml}${posterHtml}${cycleBtn}${imdbBtn}${extraOverlayHtml || ""}</div>`;
+  return { wrapHtml };
+}
+
+function renderRecentlyWatchedHtml(list) {
+  if (!list || !list.length) return "";
+  const cards = list.map(ep => {
+    const posterHtml = ep.posterUrl
+      ? `<img class="recent-poster" src="${ep.posterUrl}" alt="${ep.title}">`
+      : `<div class="recent-poster placeholder">${(ep.title[0] || "?").toUpperCase()}</div>`;
+    const label = `<strong>${ep.title}</strong> S${String(ep.season).padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`;
+    return `
+      <div class="recent-card">
+        <div class="recent-poster-wrap">${posterHtml}</div>
+        <div class="recent-caption">${label}</div>
+      </div>`;
+  }).join("\n");
+
+  return `
+    <div class="recent-section">
+      <h2 class="section-title">Recently Watched</h2>
+      <div class="recent-scroll" style="grid-template-columns: repeat(${list.length}, 1fr)">${cards}</div>
+    </div>`;
+}
+
+function renderPlanToWatchHtml(list) {
+  if (!list || !list.length) return "";
+  const cards = list.map(row => {
+    const posterHtml = row.posterUrl
+      ? `<img class="recent-poster" src="${row.posterUrl}" alt="${row.title}">`
+      : `<div class="recent-poster placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
+    return `
+      <div class="recent-card">
+        <div class="recent-poster-wrap">${posterHtml}${imdbButtonHtml(row.imdbId, row.imdbRating)}</div>
+        <div class="recent-caption"><strong>${row.title}</strong></div>
+      </div>`;
+  }).join("\n");
+
+  const cols = Math.min(10, list.length);
+  // Fixed column width (matching Recently Watched's typical per-item size
+  // when it's full with 10 items) rather than 1fr columns - with fewer
+  // than 10 Plan to Watch shows, 1fr columns would stretch each poster to
+  // fill the row width, blowing up the card (and section) height.
+  return `
+    <div class="recent-section">
+      <h2 class="section-title">Plan to Watch</h2>
+      <div class="recent-scroll" style="grid-template-columns: repeat(${cols}, 126px); justify-content: center">${cards}</div>
+    </div>`;
+}
+
+function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatched, planToWatch) {
+  lastRows = rows;
+  lastTotalEps = totalRemainingEps;
+  lastTotalMinutes = totalRemainingMinutes;
+  if (recentlyWatched !== undefined) lastRecentlyWatched = recentlyWatched;
+  if (planToWatch !== undefined) lastPlanToWatch = planToWatch;
+  currentView = "list";
+  localStorage.setItem(LS_VIEW_MODE, "list");
+  updateViewModeButton();
+
+  const [totalHours, totalMins] = formatTime(totalRemainingMinutes);
+
+  const extraSectionsHtml = [
+    renderRecentlyWatchedHtml(lastRecentlyWatched),
+    renderPlanToWatchHtml(lastPlanToWatch),
+  ].filter(Boolean).map(html => `<div class="section-divider"></div>${html}`).join("");
+
+  if (!rows.length) {
+    app.innerHTML = `<div class="center-box"><h2>My List is empty</h2>
+      <p style="color:var(--muted)">No shows with a new episode to watch right now.</p></div>
+      ${extraSectionsHtml}`;
+    subtitle.textContent = "Nothing to watch right now";
+    return;
+  }
+
+  const mode = getImageMode();
+  const isWide = mode === "banner";
+
+  const cards = rows.map((row, arrIdx) => {
+    const remainingText = row.remaining === 1 ? "1 episode left" : `${row.remaining} episodes left`;
+    const episodeTitle = row.episodeTitle ? `<div class="episode-title">${row.episodeTitle}</div>` : "";
+    const { wrapHtml } = cardImageBits(row, mode, arrIdx, `<div class="remaining-badge">${remainingText}</div>`);
+
+    const timeText = row.remaining > 1
+      ? `${row.nextHours}h ${row.nextMins}m / ${row.hours}h ${row.mins}m left`
+      : `${row.hours}h ${row.mins}m left`;
+
+    return `
+      <div class="card">
+        ${wrapHtml}
+        <div class="card-body">
+          <div class="card-title-row">
+            <h3>${row.title}</h3>
+            <button class="card-menu-btn" title="Manage" onclick="event.stopPropagation(); openCardMenu(${arrIdx}, this)">&#8942;</button>
+          </div>
+          <div class="next-up my-list-next">Next: ${row.nextLabel}</div>
+          ${episodeTitle}
+          <div class="time-left"><span class="time-icon">🕘</span> ${timeText}</div>
+        </div>
+      </div>`;
+  }).join("\n");
+
+  app.innerHTML = `
+    <div class="grid${isWide ? " banner-mode" : ""}">${cards}</div>
+    <div class="summary-bar">
+      <div class="stat"><div class="num">${rows.length}</div><div class="label">Shows</div></div>
+      <div class="stat"><div class="num">${totalRemainingEps}</div><div class="label">Episodes left</div></div>
+      <div class="stat"><div class="num">${totalHours}h ${totalMins}m</div><div class="label">Watch time left</div></div>
+    </div>
+    ${extraSectionsHtml}
+  `;
+  subtitle.textContent = "Updated " + new Date().toLocaleString();
+  updateImageModeButton();
+}
+
+function renderAiringRows(rows) {
+  currentView = "airing";
+  localStorage.setItem(LS_VIEW_MODE, "airing");
+  updateViewModeButton();
+
+  if (!rows.length) {
+    app.innerHTML = `<div class="center-box"><h2>Nothing airing soon</h2>
+      <p style="color:var(--muted)">No upcoming episodes found across your SIMKL lists.</p></div>`;
+    subtitle.textContent = "Nothing airing soon";
+    return;
+  }
+
+  const mode = getImageMode();
+  const isWide = mode === "banner";
+
+  const cards = rows.map((row, arrIdx) => {
+    const { wrapHtml } = cardImageBits(row, mode, arrIdx);
+    return `
+      <div class="card">
+        ${wrapHtml}
+        <div class="card-body">
+          <h3>${row.title}</h3>
+          <div class="next-up">Next: ${row.nextLabel}</div>
+          ${row.nextEpisodeTitle ? `<div class="episode-title">${row.nextEpisodeTitle}</div>` : ""}
+          <div class="air-date">&#128197; ${row.airDateLabel}</div>
+        </div>
+      </div>`;
+  }).join("\n");
+
+  app.innerHTML = `
+    <p class="section-note" style="font-weight:700;">${rows.length} shows have new episodes or premieres coming up.</p>
+    <div class="grid${isWide ? " banner-mode" : ""}">${cards}</div>
+  `;
+  subtitle.textContent = "Updated " + new Date().toLocaleString();
+  updateImageModeButton();
+}
+
+function showError(err) {
+  app.innerHTML = `
+    <div class="center-box">
+      <h2>Something went wrong</h2>
+      <div class="error-box">${(err && err.message) || err}</div>
+      <p style="color:var(--muted);font-size:0.8rem;margin-top:14px">
+        If this mentions CORS/network errors reaching api.simkl.com, your
+        browser may be blocking direct requests to SIMKL from this page -
+        in that case you'll need the local-server version instead.
+      </p>
+    </div>
+  `;
+  subtitle.textContent = "Error";
+}
+
+let toastTimer = null;
+function showToast(message, isError) {
+  const el = document.getElementById("toast");
+  if (!el) return;
+  clearTimeout(toastTimer);
+  el.textContent = message;
+  el.classList.toggle("error", !!isError);
+  el.classList.add("show");
+  toastTimer = setTimeout(() => el.classList.remove("show"), 3000);
+}
+
+// ---------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------
+async function main() {
+  const { clientId, tmdbKey } = getConfig();
+  if (!clientId || !tmdbKey) {
+    showSettings(main);
+    return;
+  }
+
+  app.innerHTML = `<div class="spinner" style="margin-top:80px"></div>`;
+  subtitle.textContent = "Fetching your My List\u2026";
+
+  try {
+    const token = await getAccessToken();
+    simklToken = token;
+    sharedCache = new TmdbCache();
+    sharedEpisodeCache = new SimklEpisodeCache();
+    sharedRatingsCache = new SimklShowCache();
+    airingRows = null; // reset - re-fetch lazily next time Airing Next is opened
+    app.innerHTML = `<div class="spinner" style="margin-top:80px"></div>`;
+    subtitle.textContent = "Fetching your My List\u2026";
+    const [[rows, totalEps, totalMinutes, recentlyWatched], planToWatchRows] = await Promise.all([
+      getMyListRows(token, sharedCache, sharedEpisodeCache, sharedRatingsCache),
+      getPlanToWatchRows(token, sharedCache, sharedRatingsCache),
+    ]);
+    renderRows(rows, totalEps, totalMinutes, recentlyWatched, planToWatchRows);
+  } catch (err) {
+    showError(err);
+  }
+}
+
+document.getElementById("refreshBtn").onclick = main;
+document.getElementById("settingsBtn").onclick = () => showSettings(main);
+document.getElementById("addShowBtn").onclick = openSearchModal;
+document.getElementById("imageModeBtn").onclick = () => {
+  const current = getImageMode();
+  localStorage.setItem(LS_IMAGE_MODE, nextImageMode(current));
+  if (currentView === "airing" && airingRows) {
+    renderAiringRows(airingRows); // instant, no re-fetch
+  } else if (lastRows) {
+    renderRows(lastRows, lastTotalEps, lastTotalMinutes); // instant, no re-fetch
+  } else {
+    updateImageModeButton();
+  }
+};
+function isShowingSettings() {
+  return document.getElementById("settingsBtn").classList.contains("active");
+}
+document.getElementById("myListNavBtn").onclick = () => {
+  if (currentView !== "airing" && !isShowingSettings()) return; // already there
+  renderRows(lastRows || [], lastTotalEps, lastTotalMinutes);
+};
+document.getElementById("airingNavBtn").onclick = async () => {
+  if (currentView === "airing" && !isShowingSettings()) return; // already there
+  if (!simklToken) return; // not authenticated/loaded yet
+  if (airingRows) {
+    renderAiringRows(airingRows);
+    return;
+  }
+  app.innerHTML = `<div class="spinner" style="margin-top:80px"></div>`;
+  subtitle.textContent = "Fetching Airing Next\u2026";
+  try {
+    airingRows = await getAiringNextRows(simklToken, sharedCache, sharedEpisodeCache, sharedRatingsCache);
+    renderAiringRows(airingRows);
+  } catch (err) {
+    showError(err);
+  }
+};
+document.getElementById("themeToggleBtn").onclick = () => {
+  const isLight = document.body.classList.toggle("light-theme");
+  localStorage.setItem(LS_THEME, isLight ? "light" : "dark");
+  updateThemeToggleButton();
+};
+updateImageModeButton();
+updateViewModeButton();
+updatePageTitle();
+applyStoredTheme();
+
+main();
+</script>
+</body>
+</html>
