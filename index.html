@@ -72,14 +72,13 @@
   .nav-item.active .nav-icon { color: var(--accent); }
   .profile-greeting { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 18px 6px; }
   .profile-greeting-hi { font-size: 1.15rem; font-weight: 700; color: var(--text); }
-  .profile-pic { width: 100%; max-width: 190px; border-radius: 14px; object-fit: cover; border: 1px solid var(--border); }
+  .profile-pic { width: 100%; max-width: 190px; border-radius: 14px; object-fit: cover; }
   .sidebar-bottom { padding: 10px 6px 0; border-top: 1px solid var(--border); }
   .dark-mode-row {
-    display: flex; align-items: center; gap: 9px; padding: 14px 6px 4px;
+    display: flex; align-items: center; justify-content: space-between; gap: 9px; padding: 14px 6px 4px;
     font-size: 0.85rem; font-weight: 600; color: var(--text);
   }
   .dark-mode-row .nav-icon { color: var(--muted); }
-  .dark-mode-row span.dm-label { flex: 1 1 auto; }
   .theme-toggle {
     flex: 0 0 auto; width: 38px; height: 21px; border-radius: 20px;
     background: #223141; border: none; cursor: pointer; position: relative;
@@ -511,7 +510,6 @@
   <div class="sidebar-bottom">
     <div class="dark-mode-row">
       <span class="nav-icon"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></span>
-      <span class="dm-label">Dark Mode</span>
       <button class="theme-toggle" id="themeToggleBtn" title="Toggle light/dark"></button>
     </div>
   </div>
