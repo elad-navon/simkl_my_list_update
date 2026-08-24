@@ -269,11 +269,11 @@
     text-align: center; color: var(--muted); font-size: 0.85rem;
     max-width: 700px; margin: 22px auto 0;
   }
-  /* ===================== Recently Watched / Plan to Watch panels ===================== */
-  .two-col-panels {
+  /* ===================== Recently Watched / Airing Next / Plan to Watch panels ===================== */
+  .bottom-panels-row {
     display: flex; gap: 22px; margin: 26px auto 0; align-items: flex-start;
   }
-  .two-col-panels .list-panel { flex: 1 1 0; min-width: 0; }
+  .bottom-panels-row .list-panel { flex: 1 1 0; min-width: 0; }
   .list-panel {
     background: var(--card); border: 1px solid var(--border); border-radius: 12px;
     padding: 18px 20px;
@@ -1818,6 +1818,7 @@ let lastTotalEps = 0;
 let lastTotalMinutes = 0;
 let lastRecentlyWatched = [];
 let lastPlanToWatch = [];
+let lastAiringPreview = [];
 let airingRows = null;       // lazily fetched, cached until next Refresh
 let sharedCache = null;      // TmdbCache reused across both views for one session
 let sharedEpisodeCache = null; // SimklEpisodeCache, same idea
@@ -1910,6 +1911,7 @@ const CLOCK_ICON_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="no
 const GRID_ICON_SVG = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>`;
 const CHECK_ICON_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
 const BOOKMARK_ICON_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>`;
+const CALENDAR_ICON_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"></rect><line x1="16" y1="2.5" x2="16" y2="6.5"></line><line x1="8" y1="2.5" x2="8" y2="6.5"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>`;
 const CAROUSEL_ARROW_ICON_SVG = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
 const CAROUSEL_ARROW_LEFT_ICON_SVG = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>`;
 
@@ -1979,28 +1981,53 @@ function renderPlanToWatchHtml(list) {
     </div>`;
 }
 
-function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatched, planToWatch) {
+function renderAiringNextPreviewHtml(list) {
+  if (!list || !list.length) return "";
+  const rowsHtml = list.map(row => {
+    const thumbHtml = row.posterUrl
+      ? `<img class="list-thumb" src="${row.posterUrl}" alt="${row.title}">`
+      : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
+    return `
+      <div class="list-row">
+        ${thumbHtml}
+        <div class="list-row-title-wrap">
+          <div class="list-row-title">${row.title}</div>
+          <div class="list-row-sub">${row.nextLabel} &middot; ${row.airDateLabel}</div>
+        </div>
+      </div>`;
+  }).join("\n");
+
+  return `
+    <div class="list-panel">
+      <div class="list-panel-header">${CALENDAR_ICON_SVG}<span>AIRING NEXT</span></div>
+      <div class="list-rows-scroll">${rowsHtml}</div>
+    </div>`;
+}
+
+function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatched, planToWatch, airingPreview) {
   lastRows = rows;
   lastTotalEps = totalRemainingEps;
   lastTotalMinutes = totalRemainingMinutes;
   if (recentlyWatched !== undefined) lastRecentlyWatched = recentlyWatched;
   if (planToWatch !== undefined) lastPlanToWatch = planToWatch;
+  if (airingPreview !== undefined) lastAiringPreview = airingPreview;
   currentView = "list";
   localStorage.setItem(LS_VIEW_MODE, "list");
   updateViewModeButton();
 
-  const twoColPanelsHtml = [
+  const bottomPanelsHtml = [
     renderRecentlyWatchedHtml(lastRecentlyWatched),
+    renderAiringNextPreviewHtml(lastAiringPreview),
     renderPlanToWatchHtml(lastPlanToWatch),
   ].filter(Boolean).join("");
-  const twoColWrapped = twoColPanelsHtml
-    ? `<div class="two-col-panels">${twoColPanelsHtml}</div>`
+  const bottomPanelsWrapped = bottomPanelsHtml
+    ? `<div class="bottom-panels-row">${bottomPanelsHtml}</div>`
     : "";
 
   if (!rows.length) {
     app.innerHTML = `<div class="center-box"><h2>My List is empty</h2>
       <p style="color:var(--muted)">No shows with a new episode to watch right now.</p></div>
-      ${twoColWrapped}`;
+      ${bottomPanelsWrapped}`;
     subtitle.textContent = "Nothing to watch right now";
     return;
   }
@@ -2050,7 +2077,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
           onclick="document.getElementById('myListCarouselTrack').scrollBy({left:420,behavior:'smooth'})">${CAROUSEL_ARROW_ICON_SVG}</button>
       </div>
     </div>
-    ${twoColWrapped}
+    ${bottomPanelsWrapped}
   `;
   subtitle.textContent = "Updated " + new Date().toLocaleString();
   updateImageModeButton();
@@ -2138,14 +2165,15 @@ async function main() {
     sharedCache = new TmdbCache();
     sharedEpisodeCache = new SimklEpisodeCache();
     sharedRatingsCache = new SimklShowCache();
-    airingRows = null; // reset - re-fetch lazily next time Airing Next is opened
     app.innerHTML = `<div class="spinner" style="margin-top:80px"></div>`;
     subtitle.textContent = "Fetching your My List\u2026";
-    const [[rows, totalEps, totalMinutes, recentlyWatched], planToWatchRows] = await Promise.all([
+    const [[rows, totalEps, totalMinutes, recentlyWatched], planToWatchRows, airingNextRows] = await Promise.all([
       getMyListRows(token, sharedCache, sharedEpisodeCache, sharedRatingsCache),
       getPlanToWatchRows(token, sharedCache, sharedRatingsCache),
+      getAiringNextRows(token, sharedCache, sharedEpisodeCache, sharedRatingsCache),
     ]);
-    renderRows(rows, totalEps, totalMinutes, recentlyWatched, planToWatchRows);
+    airingRows = airingNextRows; // also primes the separate Airing Next tab's cache, so opening it doesn't re-fetch
+    renderRows(rows, totalEps, totalMinutes, recentlyWatched, planToWatchRows, airingNextRows);
   } catch (err) {
     showError(err);
   }
