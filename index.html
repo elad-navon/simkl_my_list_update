@@ -268,13 +268,20 @@
     display: flex; align-items: center; gap: 9px; color: var(--accent);
     font-weight: 700; font-size: 0.9rem; letter-spacing: 0.06em; margin-bottom: 6px;
   }
+  /* Vertical carousel - both panels show exactly 5 rows before scrolling
+     (5 * (90px poster + 24px row padding + 1px border) = 575px). */
+  .list-rows-scroll {
+    max-height: 575px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+  }
+  .list-rows-scroll::-webkit-scrollbar { width: 6px; }
+  .list-rows-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
   .list-row {
     display: flex; align-items: center; gap: 14px; padding: 12px 0;
     border-bottom: 1px solid var(--border);
   }
   .list-row:last-child { border-bottom: none; }
   .list-thumb {
-    width: 100px; height: 70px; border-radius: 8px; object-fit: cover;
+    width: 60px; height: 90px; border-radius: 6px; object-fit: cover;
     background: #0a1c28; flex: 0 0 auto; display: block;
   }
   .list-thumb.placeholder {
@@ -1904,7 +1911,7 @@ function renderRecentlyWatchedHtml(list) {
   return `
     <div class="list-panel list-panel--watched">
       <div class="list-panel-header">${CLOCK_ICON_SVG}<span>RECENTLY WATCHED</span></div>
-      ${rowsHtml}
+      <div class="list-rows-scroll">${rowsHtml}</div>
     </div>`;
 }
 
@@ -1925,7 +1932,7 @@ function renderPlanToWatchHtml(list) {
   return `
     <div class="list-panel">
       <div class="list-panel-header">${BOOKMARK_ICON_SVG}<span>PLAN TO WATCH</span></div>
-      ${rowsHtml}
+      <div class="list-rows-scroll">${rowsHtml}</div>
     </div>`;
 }
 
