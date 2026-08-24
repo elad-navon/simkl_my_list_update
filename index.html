@@ -1452,6 +1452,12 @@ async function removeShowFromList(simklId, token) {
   return simklPost("/sync/history/remove", token, { shows: [{ ids: { simkl: simklId } }] });
 }
 
+async function markEpisodeWatched(simklId, season, episode, token) {
+  return simklPost("/sync/history", token, {
+    shows: [{ ids: { simkl: simklId }, seasons: [{ number: season, episodes: [{ number: episode }] }] }],
+  });
+}
+
 async function searchTvShows(query, token) {
   const data = await simklGet("/search/tv", token, { q: query });
   return Array.isArray(data) ? data : [];
@@ -1732,7 +1738,13 @@ function openCardMenu(arrIdx, btnEl) {
       ${opt.label}${opt.value === "watching" ? " ✓" : ""}
     </button>`).join("");
 
+  const markWatchedHtml = (row.nextSeason != null && row.nextEpisode != null)
+    ? `<button class="card-menu-item" id="cardMenuMarkWatchedBtn">Mark ${row.nextLabel} watched</button>
+       <div class="card-menu-sep"></div>`
+    : "";
+
   menu.innerHTML = `
+    ${markWatchedHtml}
     ${statusButtons}
     <div class="card-menu-sep"></div>
     <button class="card-menu-item danger" id="cardMenuRemoveBtn">Remove from list</button>
@@ -1743,6 +1755,8 @@ function openCardMenu(arrIdx, btnEl) {
     b.onclick = () => changeShowStatus(row, b.dataset.status);
   });
   document.getElementById("cardMenuRemoveBtn").onclick = () => removeShowFromMyList(row);
+  const markWatchedBtn = document.getElementById("cardMenuMarkWatchedBtn");
+  if (markWatchedBtn) markWatchedBtn.onclick = () => markNextEpisodeWatched(row);
 
   setTimeout(() => document.addEventListener("click", cardMenuOutsideClickHandler), 0);
   document.addEventListener("keydown", cardMenuEscHandler);
@@ -1756,6 +1770,17 @@ async function changeShowStatus(row, status) {
       status, simklToken, { title: row.title, year: row.year }
     );
     showToast(`Moved "${row.title}" to ${status}`);
+    main();
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
+async function markNextEpisodeWatched(row) {
+  closeCardMenu();
+  try {
+    await markEpisodeWatched(row.simklId, row.nextSeason, row.nextEpisode, simklToken);
+    showToast(`Marked "${row.title}" ${row.nextLabel} as watched`);
     main();
   } catch (err) {
     showToast(err.message, true);
