@@ -528,11 +528,23 @@
     .carousel-track { scroll-snap-type: x mandatory; }
     .card.carousel-card { scroll-snap-align: center; }
 
-    /* The three panels stack full-width instead of sitting side by side. */
+    /* The three panels stack full-width instead of sitting side by side,
+       but each keeps its own row list scrolling horizontally (touch swipe)
+       rather than vertically, so rows become fixed-width cards. */
     .bottom-panels-row { flex-direction: column; gap: 16px; }
     .bottom-panels-row .list-panel,
     .bottom-panels-row .list-panel--airing { width: 100%; }
     .list-panel { padding: 14px 16px; }
+    .list-rows-scroll {
+      display: flex; flex-direction: row; gap: 12px;
+      max-height: none; overflow-x: auto; overflow-y: hidden;
+      padding-right: 0; margin-right: 0; padding-bottom: 6px;
+    }
+    .list-row {
+      flex: 0 0 auto; width: 200px; flex-direction: column; align-items: stretch;
+      gap: 8px; padding: 0; border-bottom: none;
+    }
+    .list-thumb { width: 100%; height: auto; aspect-ratio: 16 / 9; }
 
     .modal-overlay { padding: 12px; }
   }
