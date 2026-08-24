@@ -320,6 +320,12 @@
   }
   .list-row-sub { font-size: 0.74rem; color: var(--muted); font-weight: 500; margin-top: 2px; }
   .list-row-airdate { color: var(--accent2); font-weight: 700; font-size: 0.8rem; margin-top: 4px; }
+  .premiere-badge {
+    display: inline-block; background: #2fa84f; color: #fff; font-weight: 800;
+    font-size: 0.64rem; letter-spacing: 0.04em; padding: 3px 8px; border-radius: 4px;
+    text-transform: uppercase; margin-top: 5px;
+  }
+  .premiere-badge.finale { background: #c1502e; }
   .list-check {
     flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%;
     border: 1.5px solid var(--accent); color: var(--accent);
@@ -1411,6 +1417,24 @@ async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, re
 
   const imdbRating = simklId ? extractImdbRating(await ratingsCache.get(simklId, token)) : null;
 
+  // Premiere/finale badge, matching SIMKL's own "SEASON PREMIERE" labeling:
+  // episode 1 of a season is a premiere (season 1 specifically is a series
+  // premiere); otherwise, if this is the highest episode number SIMKL has
+  // listed for that season, treat it as the season finale. The finale check
+  // is a best-effort signal only - it reflects what SIMKL has published for
+  // the season so far, not confirmed final-episode metadata.
+  let badge = null;
+  if (next.episode === 1) {
+    badge = next.season === 1 ? "SERIES PREMIERE" : "SEASON PREMIERE";
+  } else if (simklId) {
+    const simklEpisodes = await episodeCache.get(simklId, token);
+    const sameSeason = (simklEpisodes || []).filter(e => e.season === next.season && e.episode != null);
+    if (sameSeason.length) {
+      const maxEpisode = Math.max(...sameSeason.map(e => e.episode));
+      if (next.episode === maxEpisode) badge = "SEASON FINALE";
+    }
+  }
+
   return {
     title: show.title || "Unknown",
     imdbId,
@@ -1418,6 +1442,7 @@ async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, re
     ...images,
     nextLabel,
     nextEpisodeTitle,
+    badge,
     airDate: next.airDate,
     airDateLabel: formatAirDate(next.airDate),
   };
@@ -2007,6 +2032,9 @@ function renderAiringNextPreviewHtml(list) {
       ? `<img class="list-thumb" src="${bannerSrc}" alt="${row.title}">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
     const episodeTitle = row.nextEpisodeTitle ? `<div class="episode-title">${row.nextEpisodeTitle}</div>` : "";
+    const badgeHtml = row.badge
+      ? `<div class="premiere-badge${row.badge === "SEASON FINALE" ? " finale" : ""}">${row.badge}</div>`
+      : "";
     return `
       <div class="list-row">
         ${thumbHtml}
@@ -2014,6 +2042,7 @@ function renderAiringNextPreviewHtml(list) {
           <div class="list-row-title">${row.title}</div>
           <div class="next-up">Next: ${row.nextLabel}</div>
           ${episodeTitle}
+          ${badgeHtml}
           <div class="list-row-airdate">&#128197; ${row.airDateLabel}</div>
         </div>
       </div>`;
