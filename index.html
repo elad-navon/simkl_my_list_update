@@ -15,7 +15,7 @@
     --accent: #f5c518;
     --accent2: #4fd1c5;
     --danger: #ff6b6b;
-    --divider: rgba(255,255,255,0.14);
+    --divider: rgba(255,255,255,0.24);
   }
   * { box-sizing: border-box; }
   body {
@@ -202,7 +202,8 @@
     max-width: 700px; margin: 22px auto 0;
   }
   .section-divider {
-    max-width: 1400px; margin: 40px auto 0; height: 1px; border: none;
+    max-width: 1400px; margin: 40px auto 0; height: 3px; border: none;
+    border-radius: 2px;
     background: linear-gradient(to right, transparent, var(--divider) 15%, var(--divider) 85%, transparent);
   }
   .recent-section {
@@ -368,7 +369,7 @@
     --text: #16171c;
     --muted: #5c6070;
     --accent2: #14958c;
-    --divider: rgba(0,0,0,0.12);
+    --divider: rgba(0,0,0,0.2);
   }
   body.light-theme { background: radial-gradient(circle at top, #ffffff 0%, var(--bg) 55%); }
   body.light-theme .navbar { background: #0a0a0d; } /* nav bar stays dark in both themes, per the reference design */
@@ -1812,7 +1813,7 @@ function renderRecentlyWatchedHtml(list) {
     const posterHtml = ep.posterUrl
       ? `<img class="recent-poster" src="${ep.posterUrl}" alt="${ep.title}">`
       : `<div class="recent-poster placeholder">${(ep.title[0] || "?").toUpperCase()}</div>`;
-    const label = `${ep.title} S${String(ep.season).padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`;
+    const label = `<strong>${ep.title}</strong> S${String(ep.season).padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`;
     return `
       <div class="recent-card">
         <div class="recent-poster-wrap">${posterHtml}</div>
@@ -1836,7 +1837,7 @@ function renderPlanToWatchHtml(list) {
     return `
       <div class="recent-card">
         <div class="recent-poster-wrap">${posterHtml}${imdbButtonHtml(row.imdbId, row.imdbRating)}</div>
-        <div class="recent-caption">${row.title}</div>
+        <div class="recent-caption"><strong>${row.title}</strong></div>
       </div>`;
   }).join("\n");
 
