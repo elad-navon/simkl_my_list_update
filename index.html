@@ -282,10 +282,10 @@
     display: flex; align-items: center; gap: 9px; color: var(--accent);
     font-weight: 700; font-size: 0.9rem; letter-spacing: 0.06em; margin-bottom: 6px;
   }
-  /* Vertical carousel - both panels show exactly 5 rows before scrolling
-     (5 * (90px poster + 24px row padding + 1px border) = 575px). */
+  /* Vertical carousel - all three panels show ~5 rows before scrolling
+     (5 * (63px banner thumb + 24px row padding + 1px border) = 440px). */
   .list-rows-scroll {
-    max-height: 575px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+    max-height: 440px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent;
     padding-right: 14px; margin-right: -14px;
   }
   .list-rows-scroll::-webkit-scrollbar { width: 6px; }
@@ -296,12 +296,12 @@
   }
   .list-row:last-child { border-bottom: none; }
   .list-thumb {
-    width: 60px; height: 90px; border-radius: 6px; object-fit: cover;
+    width: 112px; height: 63px; border-radius: 6px; object-fit: cover;
     background: #0a1c28; flex: 0 0 auto; display: block;
   }
   .list-thumb.placeholder {
     display: flex; align-items: center; justify-content: center;
-    font-size: 1.4rem; font-weight: 700; color: var(--muted);
+    font-size: 1.6rem; font-weight: 700; color: var(--muted);
   }
   .list-row-title-wrap { flex: 1 1 auto; min-width: 0; }
   .list-row-title {
@@ -1074,9 +1074,12 @@ async function getRecentlyWatchedEpisodes(items, cache) {
 
   for (const c of top) {
     c.posterUrl = null;
+    c.bannerUrl = null;
     if (c.tmdbId) {
       const showDetail = await cache.getShow(c.tmdbId); // cached, no extra request if already fetched
-      c.posterUrl = computeImages(showDetail).posterUrl;
+      const images = computeImages(showDetail);
+      c.posterUrl = images.posterUrl;
+      c.bannerUrl = images.bannerUrl;
     }
   }
   return top;
@@ -1097,17 +1100,20 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
     const imdbId = (show.ids || {}).imdb;
 
     let posterUrl = null;
+    let bannerUrl = null;
     if (tmdbId) {
       try {
         const showDetail = await cache.getShow(tmdbId);
-        posterUrl = computeImages(showDetail).posterUrl;
+        const images = computeImages(showDetail);
+        posterUrl = images.posterUrl;
+        bannerUrl = images.bannerUrl;
       } catch (e) {
         posterUrl = null;
       }
     }
     const imdbRating = simklId ? extractImdbRating(await ratingsCache.get(simklId, token)) : null;
 
-    rows.push({ title, imdbId, imdbRating, posterUrl, simklId, tmdbId });
+    rows.push({ title, imdbId, imdbRating, posterUrl, bannerUrl, simklId, tmdbId });
   }
 
   // Highest IMDb rating first; shows with no known rating sink to the end.
@@ -1934,8 +1940,9 @@ function cardImageBits(row, mode, arrIdx, extraOverlayHtml) {
 function renderRecentlyWatchedHtml(list) {
   if (!list || !list.length) return "";
   const rowsHtml = list.map(ep => {
-    const thumbHtml = ep.posterUrl
-      ? `<img class="list-thumb" src="${ep.posterUrl}" alt="${ep.title}">`
+    const bannerSrc = ep.bannerUrl || ep.posterUrl;
+    const thumbHtml = bannerSrc
+      ? `<img class="list-thumb" src="${bannerSrc}" alt="${ep.title}">`
       : `<div class="list-thumb placeholder">${(ep.title[0] || "?").toUpperCase()}</div>`;
     const episodeCode = `S${String(ep.season).padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`;
     return `
@@ -1959,8 +1966,9 @@ function renderRecentlyWatchedHtml(list) {
 function renderPlanToWatchHtml(list) {
   if (!list || !list.length) return "";
   const rowsHtml = list.map(row => {
-    const thumbHtml = row.posterUrl
-      ? `<img class="list-thumb" src="${row.posterUrl}" alt="${row.title}">`
+    const bannerSrc = row.bannerUrl || row.posterUrl;
+    const thumbHtml = bannerSrc
+      ? `<img class="list-thumb" src="${bannerSrc}" alt="${row.title}">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
     return `
       <div class="list-row">
@@ -1980,8 +1988,9 @@ function renderPlanToWatchHtml(list) {
 function renderAiringNextPreviewHtml(list) {
   if (!list || !list.length) return "";
   const rowsHtml = list.map(row => {
-    const thumbHtml = row.posterUrl
-      ? `<img class="list-thumb" src="${row.posterUrl}" alt="${row.title}">`
+    const bannerSrc = row.bannerUrl || row.posterUrl;
+    const thumbHtml = bannerSrc
+      ? `<img class="list-thumb" src="${bannerSrc}" alt="${row.title}">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
     const episodeTitle = row.nextEpisodeTitle ? `<div class="episode-title">${row.nextEpisodeTitle}</div>` : "";
     return `
