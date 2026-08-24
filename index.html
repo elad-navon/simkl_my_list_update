@@ -2064,6 +2064,8 @@ function renderAiringNextPreviewHtml(list) {
 }
 
 function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatched, planToWatch, airingPreview) {
+  const prevTrack = document.getElementById("myListCarouselTrack");
+  const prevCarouselScrollLeft = prevTrack ? prevTrack.scrollLeft : 0;
   lastRows = rows;
   lastTotalEps = totalRemainingEps;
   lastTotalMinutes = totalRemainingMinutes;
@@ -2147,6 +2149,13 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   `;
   subtitle.textContent = "Updated " + new Date().toLocaleString();
   updateImageModeButton();
+  if (prevCarouselScrollLeft > 0) {
+    const newTrack = document.getElementById("myListCarouselTrack");
+    if (newTrack) {
+      newTrack.style.scrollBehavior = "auto";
+      newTrack.scrollLeft = prevCarouselScrollLeft;
+    }
+  }
   updateCarouselArrows();
 }
 
