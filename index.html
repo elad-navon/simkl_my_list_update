@@ -15,6 +15,7 @@
     --accent: #f5c518;
     --accent2: #4fd1c5;
     --danger: #ff6b6b;
+    --divider: rgba(255,255,255,0.14);
   }
   * { box-sizing: border-box; }
   body {
@@ -200,8 +201,12 @@
     text-align: center; color: var(--muted); font-size: 0.85rem;
     max-width: 700px; margin: 22px auto 0;
   }
+  .section-divider {
+    max-width: 1400px; margin: 40px auto 0; height: 1px; border: none;
+    background: linear-gradient(to right, transparent, var(--divider) 15%, var(--divider) 85%, transparent);
+  }
   .recent-section {
-    max-width: 1400px; margin: 40px auto 0;
+    max-width: 1400px; margin: 24px auto 0;
   }
   .section-title {
     color: var(--text); font-size: 2.5rem; font-weight: 800;
@@ -363,6 +368,7 @@
     --text: #16171c;
     --muted: #5c6070;
     --accent2: #14958c;
+    --divider: rgba(0,0,0,0.12);
   }
   body.light-theme { background: radial-gradient(circle at top, #ffffff 0%, var(--bg) 55%); }
   body.light-theme .navbar { background: #0a0a0d; } /* nav bar stays dark in both themes, per the reference design */
@@ -990,6 +996,44 @@ async function getRecentlyWatchedEpisodes(items, cache) {
     }
   }
   return top;
+}
+
+async function getPlanToWatchRows(token, cache, ratingsCache) {
+  const items = await getPlanToWatchShows(token);
+  cache = cache || new TmdbCache();
+  ratingsCache = ratingsCache || new SimklShowCache();
+  const rows = [];
+
+  for (const item of items) {
+    if (item.status !== "plantowatch") continue;
+    const show = item.show || {};
+    const title = show.title || "Unknown";
+    const tmdbId = (show.ids || {}).tmdb;
+    const simklId = (show.ids || {}).simkl;
+    const imdbId = (show.ids || {}).imdb;
+
+    let posterUrl = null;
+    if (tmdbId) {
+      try {
+        const showDetail = await cache.getShow(tmdbId);
+        posterUrl = computeImages(showDetail).posterUrl;
+      } catch (e) {
+        posterUrl = null;
+      }
+    }
+    const imdbRating = simklId ? extractImdbRating(await ratingsCache.get(simklId, token)) : null;
+
+    rows.push({ title, imdbId, imdbRating, posterUrl, simklId, tmdbId });
+  }
+
+  // Highest IMDb rating first; shows with no known rating sink to the end.
+  rows.sort((a, b) => {
+    if (a.imdbRating == null && b.imdbRating == null) return 0;
+    if (a.imdbRating == null) return 1;
+    if (b.imdbRating == null) return -1;
+    return b.imdbRating - a.imdbRating;
+  });
+  return rows;
 }
 
 async function getMyListRows(token, cache, episodeCache, ratingsCache) {
@@ -1662,6 +1706,7 @@ let lastRows = null;
 let lastTotalEps = 0;
 let lastTotalMinutes = 0;
 let lastRecentlyWatched = [];
+let lastPlanToWatch = [];
 let airingRows = null;       // lazily fetched, cached until next Refresh
 let sharedCache = null;      // TmdbCache reused across both views for one session
 let sharedEpisodeCache = null; // SimklEpisodeCache, same idea
@@ -1782,21 +1827,52 @@ function renderRecentlyWatchedHtml(list) {
     </div>`;
 }
 
-function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatched) {
+function renderPlanToWatchHtml(list) {
+  if (!list || !list.length) return "";
+  const cards = list.map(row => {
+    const posterHtml = row.posterUrl
+      ? `<img class="recent-poster" src="${row.posterUrl}" alt="${row.title}">`
+      : `<div class="recent-poster placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
+    return `
+      <div class="recent-card">
+        <div class="recent-poster-wrap">${posterHtml}${imdbButtonHtml(row.imdbId, row.imdbRating)}</div>
+        <div class="recent-caption">${row.title}</div>
+      </div>`;
+  }).join("\n");
+
+  const cols = Math.min(10, list.length);
+  // Fixed column width (matching Recently Watched's typical per-item size
+  // when it's full with 10 items) rather than 1fr columns - with fewer
+  // than 10 Plan to Watch shows, 1fr columns would stretch each poster to
+  // fill the row width, blowing up the card (and section) height.
+  return `
+    <div class="recent-section">
+      <h2 class="section-title">Plan to Watch</h2>
+      <div class="recent-scroll" style="grid-template-columns: repeat(${cols}, 126px); justify-content: center">${cards}</div>
+    </div>`;
+}
+
+function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatched, planToWatch) {
   lastRows = rows;
   lastTotalEps = totalRemainingEps;
   lastTotalMinutes = totalRemainingMinutes;
   if (recentlyWatched !== undefined) lastRecentlyWatched = recentlyWatched;
+  if (planToWatch !== undefined) lastPlanToWatch = planToWatch;
   currentView = "list";
   localStorage.setItem(LS_VIEW_MODE, "list");
   updateViewModeButton();
 
   const [totalHours, totalMins] = formatTime(totalRemainingMinutes);
 
+  const extraSectionsHtml = [
+    renderRecentlyWatchedHtml(lastRecentlyWatched),
+    renderPlanToWatchHtml(lastPlanToWatch),
+  ].filter(Boolean).map(html => `<div class="section-divider"></div>${html}`).join("");
+
   if (!rows.length) {
     app.innerHTML = `<div class="center-box"><h2>My List is empty</h2>
       <p style="color:var(--muted)">No shows with a new episode to watch right now.</p></div>
-      ${renderRecentlyWatchedHtml(lastRecentlyWatched)}`;
+      ${extraSectionsHtml}`;
     subtitle.textContent = "Nothing to watch right now";
     return;
   }
@@ -1835,7 +1911,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
       <div class="stat"><div class="num">${totalRemainingEps}</div><div class="label">Episodes left</div></div>
       <div class="stat"><div class="num">${totalHours}h ${totalMins}m</div><div class="label">Watch time left</div></div>
     </div>
-    ${renderRecentlyWatchedHtml(lastRecentlyWatched)}
+    ${extraSectionsHtml}
   `;
   subtitle.textContent = "Updated " + new Date().toLocaleString();
   updateImageModeButton();
@@ -1926,8 +2002,11 @@ async function main() {
     airingRows = null; // reset - re-fetch lazily next time Airing Next is opened
     app.innerHTML = `<div class="spinner" style="margin-top:80px"></div>`;
     subtitle.textContent = "Fetching your My List\u2026";
-    const [rows, totalEps, totalMinutes, recentlyWatched] = await getMyListRows(token, sharedCache, sharedEpisodeCache, sharedRatingsCache);
-    renderRows(rows, totalEps, totalMinutes, recentlyWatched);
+    const [[rows, totalEps, totalMinutes, recentlyWatched], planToWatchRows] = await Promise.all([
+      getMyListRows(token, sharedCache, sharedEpisodeCache, sharedRatingsCache),
+      getPlanToWatchRows(token, sharedCache, sharedRatingsCache),
+    ]);
+    renderRows(rows, totalEps, totalMinutes, recentlyWatched, planToWatchRows);
   } catch (err) {
     showError(err);
   }
