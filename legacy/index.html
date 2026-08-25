@@ -695,7 +695,12 @@ async function tmdbGet(path, params) {
 
 class TmdbCache {
   constructor() { this.show = new Map(); this.season = new Map(); }
-  async getShow(tmdbId) {
+  // Both methods store the in-flight PROMISE in the map (not just the
+  // resolved value), and do so synchronously before any await - so if the
+  // same id is requested again while the first fetch is still in flight
+  // (common now that callers run per-show work concurrently), the second
+  // call reuses the same promise instead of firing a duplicate request.
+  getShow(tmdbId) {
     if (!this.show.has(tmdbId)) {
       // append_to_response=images pulls ALL available posters/backdrops for
       // this show in the same request, so we can offer alternates later.
@@ -706,30 +711,20 @@ class TmdbCache {
       // TMDB is purely supplementary now (images/runtime estimate only,
       // never episode counts) - a failure here degrades gracefully to
       // null rather than crashing whichever show triggered it.
-      let result = null;
-      try {
-        result = await tmdbGet(`/tv/${tmdbId}`, {
-          append_to_response: "images",
-          language: "en-US",
-          include_image_language: "en,null,he",
-        });
-      } catch (e) {
-        result = null;
-      }
-      this.show.set(tmdbId, result);
+      const promise = tmdbGet(`/tv/${tmdbId}`, {
+        append_to_response: "images",
+        language: "en-US",
+        include_image_language: "en,null,he",
+      }).catch(() => null);
+      this.show.set(tmdbId, promise);
     }
     return this.show.get(tmdbId);
   }
-  async getSeason(tmdbId, seasonNum) {
+  getSeason(tmdbId, seasonNum) {
     const key = `${tmdbId}:${seasonNum}`;
     if (!this.season.has(key)) {
-      let result = null;
-      try {
-        result = await tmdbGet(`/tv/${tmdbId}/season/${seasonNum}`);
-      } catch (e) {
-        result = null;
-      }
-      this.season.set(key, result);
+      const promise = tmdbGet(`/tv/${tmdbId}/season/${seasonNum}`).catch(() => null);
+      this.season.set(key, promise);
     }
     return this.season.get(key);
   }
@@ -743,16 +738,14 @@ class SimklEpisodeCache {
   // data here is what keeps this page in sync with what simkl.com itself
   // shows for "airing next" / next-episode dates.
   constructor() { this.map = new Map(); }
-  async get(simklId, token) {
+  get(simklId, token) {
     if (!this.map.has(simklId)) {
-      let episodes = null;
-      try {
-        const data = await simklGet(`/tv/episodes/${simklId}`, token, { extended: "full" });
-        episodes = Array.isArray(data) ? data : null;
-      } catch (e) {
-        episodes = null; // fall back to TMDB dates for this show
-      }
-      this.map.set(simklId, episodes);
+      // Stores the in-flight promise itself (see TmdbCache) so concurrent
+      // requests for the same show reuse one fetch instead of duplicating it.
+      const promise = simklGet(`/tv/episodes/${simklId}`, token, { extended: "full" })
+        .then(data => Array.isArray(data) ? data : null)
+        .catch(() => null); // fall back to TMDB dates for this show
+      this.map.set(simklId, promise);
     }
     return this.map.get(simklId);
   }
@@ -764,15 +757,10 @@ class SimklShowCache {
   // pass the token anyway since it's harmless). Used to read the show's
   // IMDb rating as shown on its simkl.com page, per user request.
   constructor() { this.map = new Map(); }
-  async get(simklId, token) {
+  get(simklId, token) {
     if (!this.map.has(simklId)) {
-      let data = null;
-      try {
-        data = await simklGet(`/tv/${simklId}`, token, {});
-      } catch (e) {
-        data = null;
-      }
-      this.map.set(simklId, data);
+      const promise = simklGet(`/tv/${simklId}`, token, {}).catch(() => null);
+      this.map.set(simklId, promise);
     }
     return this.map.get(simklId);
   }
@@ -989,13 +977,13 @@ async function getRecentlyWatchedEpisodes(items, cache) {
   candidates.sort((a, b) => new Date(b.watchedAt) - new Date(a.watchedAt));
   const top = candidates.slice(0, 10);
 
-  for (const c of top) {
+  await Promise.all(top.map(async c => {
     c.posterUrl = null;
     if (c.tmdbId) {
       const showDetail = await cache.getShow(c.tmdbId); // cached, no extra request if already fetched
       c.posterUrl = computeImages(showDetail).posterUrl;
     }
-  }
+  }));
   return top;
 }
 
@@ -1003,10 +991,9 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
   const items = await getPlanToWatchShows(token);
   cache = cache || new TmdbCache();
   ratingsCache = ratingsCache || new SimklShowCache();
-  const rows = [];
-
-  for (const item of items) {
-    if (item.status !== "plantowatch") continue;
+  // Per-show TMDB/SIMKL lookups run concurrently instead of one-at-a-time -
+  // order doesn't matter here since the list gets sorted afterward anyway.
+  const rows = await Promise.all(items.filter(item => item.status === "plantowatch").map(async item => {
     const show = item.show || {};
     const title = show.title || "Unknown";
     const tmdbId = (show.ids || {}).tmdb;
@@ -1024,8 +1011,8 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
     }
     const imdbRating = simklId ? extractImdbRating(await ratingsCache.get(simklId, token)) : null;
 
-    rows.push({ title, imdbId, imdbRating, posterUrl, simklId, tmdbId });
-  }
+    return { title, imdbId, imdbRating, posterUrl, simklId, tmdbId };
+  }));
 
   // Highest IMDb rating first; shows with no known rating sink to the end.
   rows.sort((a, b) => {
@@ -1042,16 +1029,13 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
   cache = cache || new TmdbCache();
   episodeCache = episodeCache || new SimklEpisodeCache();
   ratingsCache = ratingsCache || new SimklShowCache();
-  const rows = [];
-  let totalRemainingEps = 0;
-  let totalRemainingMinutes = 0;
-
-  for (const item of items) {
-    if (item.status !== "watching") continue;
-
+  // Per-show TMDB/SIMKL lookups run concurrently instead of one-at-a-time;
+  // each task returns its own remaining/minutes contribution so the totals
+  // below can be summed after everything resolves, rather than mutating a
+  // shared counter from multiple in-flight tasks.
+  const eligible = items.filter(item => item.status === "watching" && item.next_to_watch);
+  const results = await Promise.all(eligible.map(async item => {
     const nextToWatch = item.next_to_watch;
-    if (!nextToWatch) continue;
-
     const show = item.show || {};
     const title = show.title || "Unknown";
     const tmdbId = (show.ids || {}).tmdb;
@@ -1089,9 +1073,6 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
       item, tmdbId, simklId, token, cache, episodeCache, remaining, show.runtime
     );
 
-    totalRemainingEps += remaining;
-    totalRemainingMinutes += remainingMinutes;
-
     // Air date/time of the specific "next episode to watch" (not the
     // show's next upcoming one) - used to sort: shows you're only a
     // little behind on (aired recently) float to the top; old backlog
@@ -1126,12 +1107,17 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
     const [hours, mins] = formatTime(remainingMinutes);
     const [nextHours, nextMins] = formatTime(nextEpisodeMinutes);
     const imdbRating = simklId ? extractImdbRating(await ratingsCache.get(simklId, token)) : null;
-    rows.push({
+    const row = {
       title, imdbId, imdbRating, simklId, tmdbId, year: show.year, ...images,
       totalEpisodes, available, watched, remaining,
       hours, mins, nextHours, nextMins, nextLabel, nextSeason, nextEpisode, episodeTitle, nextAirDate,
-    });
-  }
+    };
+    return { row, remaining, remainingMinutes };
+  }));
+
+  const rows = results.map(r => r.row);
+  const totalRemainingEps = results.reduce((sum, r) => sum + r.remaining, 0);
+  const totalRemainingMinutes = results.reduce((sum, r) => sum + r.remainingMinutes, 0);
 
   // Sort by the air date/time of the next episode to watch, most recent
   // first; shows with no known date (or a very old backlog) sink toward
@@ -1335,25 +1321,35 @@ async function getAiringNextRows(token, cache, episodeCache, ratingsCache) {
     getPlanToWatchShows(token),
   ]);
 
+  // Both passes run their per-show work concurrently. The second pass still
+  // has to wait for the first to finish (it needs the full seenTmdbIds set
+  // to skip shows already added from Watching), but within each pass every
+  // show is fetched in parallel instead of one-at-a-time.
+  const watchingEligible = watchingItems.filter(item => item.status === "watching");
+  const watchingRows = await Promise.all(watchingEligible.map(item =>
+    buildAiringRow(item, cache, episodeCache, ratingsCache, token, /* requirePremiere */ false)
+  ));
+
   const rows = [];
   const seenTmdbIds = new Set();
-
-  for (const item of watchingItems) {
-    if (item.status !== "watching") continue;
-    const row = await buildAiringRow(item, cache, episodeCache, ratingsCache, token, /* requirePremiere */ false);
-    if (!row) continue;
+  watchingEligible.forEach((item, i) => {
+    const row = watchingRows[i];
+    if (!row) return;
     const tmdbId = (item.show || {}).ids && item.show.ids.tmdb;
     if (tmdbId) seenTmdbIds.add(tmdbId);
     rows.push(row);
-  }
+  });
 
-  for (const item of planToWatchItems) {
-    if (item.status !== "plantowatch") continue;
+  const planEligible = planToWatchItems.filter(item => {
+    if (item.status !== "plantowatch") return false;
     const tmdbId = (item.show || {}).ids && item.show.ids.tmdb;
-    if (tmdbId && seenTmdbIds.has(tmdbId)) continue; // already added from Watching
-    const row = await buildAiringRow(item, cache, episodeCache, ratingsCache, token, /* requirePremiere */ true);
-    if (!row) continue;
-    rows.push(row);
+    return !(tmdbId && seenTmdbIds.has(tmdbId)); // already added from Watching
+  });
+  const planRows = await Promise.all(planEligible.map(item =>
+    buildAiringRow(item, cache, episodeCache, ratingsCache, token, /* requirePremiere */ true)
+  ));
+  for (const row of planRows) {
+    if (row) rows.push(row);
   }
 
   // Compare actual timestamps, not raw strings - SIMKL dates carry a
