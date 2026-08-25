@@ -7,16 +7,16 @@
 <title>My List - Continue Watching</title>
 <style>
   :root {
-    --bg: #171614;
-    --sidebar-bg: #131211;
-    --card: #221f1c;
-    --card-hover: #2c2925;
-    --border: #3d3934;
-    --text: #f5f1ea;
-    --muted: #ada395;
-    --accent: #ffa94d;
-    --accent2: #ffcb77;
-    --gold: #ffd93d;
+    --bg: #111820;
+    --sidebar-bg: #0d131a;
+    --card: #1a2430;
+    --card-hover: #22303e;
+    --border: #334255;
+    --text: #eef3f8;
+    --muted: #93a4b8;
+    --accent: #38bdf8;
+    --accent2: #7dd3fc;
+    --gold: #fbbf24;
     --danger: #ff6b6b;
     --divider: rgba(255,255,255,0.14);
   }
@@ -39,8 +39,8 @@
        light/dark theme toggle, so pin its text colors locally too - this
        overrides --text/--muted for every var() lookup inside the sidebar,
        without needing a body.light-theme override per rule. */
-    --text: #f5f1ea;
-    --muted: #ada395;
+    --text: #eef3f8;
+    --muted: #93a4b8;
   }
   .navbar-logo { display: flex; align-items: flex-start; gap: 13px; padding: 0 6px 32px; }
   .logo-icon { display: flex; align-items: center; padding-top: 2px; }
@@ -77,7 +77,7 @@
   .dark-mode-row span.dm-label { flex: 1 1 auto; }
   .theme-toggle {
     flex: 0 0 auto; width: 38px; height: 21px; border-radius: 20px;
-    background: #3d3934; border: none; cursor: pointer; position: relative;
+    background: #334255; border: none; cursor: pointer; position: relative;
     padding: 0; transition: background 0.15s ease;
   }
   .theme-toggle::after {
@@ -127,7 +127,7 @@
   .carousel-arrow {
     position: absolute; right: -14px; transform: translateY(-50%);
     width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border);
-    background: #171512; color: var(--text); cursor: pointer; z-index: 20;
+    background: #0d131a; color: var(--text); cursor: pointer; z-index: 20;
     display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(0,0,0,0.5);
   }
   .carousel-arrow:hover { background: var(--card-hover); }
@@ -191,7 +191,7 @@
   .card:hover .poster-wrap {
     box-shadow: inset 0 0 0 2px var(--accent);
   }
-  .poster { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; background: #2c2925; display: block; }
+  .poster { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; background: #22303e; display: block; }
   .poster.banner-img { aspect-ratio: 16 / 9; }
   .poster.placeholder {
     display: flex; align-items: center; justify-content: center;
@@ -305,7 +305,7 @@
   .list-row:last-child { border-bottom: none; }
   .list-thumb {
     width: 134px; height: 76px; border-radius: 6px; object-fit: cover;
-    background: #2c2925; flex: 0 0 auto; display: block;
+    background: #22303e; flex: 0 0 auto; display: block;
   }
   .list-thumb.placeholder {
     display: flex; align-items: center; justify-content: center;
