@@ -98,11 +98,10 @@
     margin-bottom: 22px; display: flex; align-items: baseline;
     justify-content: space-between; gap: 16px; flex-wrap: wrap;
   }
-  .page-title {
-    font-size: 2.1rem; font-weight: 800; color: var(--text); margin: 0;
-    letter-spacing: 0.01em;
-  }
   .page-header p { color: var(--muted); margin: 0; font-size: 0.9rem; font-weight: 600; }
+  #subtitle:empty { display: none; }
+  .page-header:has(#subtitle:empty) { display: none; }
+  .series-panel-updated { color: var(--muted); font-size: 0.8rem; font-weight: 600; }
   /* ===================== "MY LIST" series panel + carousel ===================== */
   .series-panel {
     background: var(--card); border: 1px solid var(--border); border-radius: 12px;
@@ -515,7 +514,6 @@
     .main-content {
       padding: 18px 14px calc(78px + env(safe-area-inset-bottom, 0px));
     }
-    .page-title { font-size: 1.6rem; }
 
     .series-panel { padding: 14px; }
     .series-panel-header { flex-wrap: wrap; row-gap: 10px; }
@@ -593,7 +591,6 @@
 
 <main class="main-content">
   <div class="page-header">
-    <h1 class="page-title" id="pageTitle">MY LIST</h1>
     <p id="subtitle">Loading&hellip;</p>
   </div>
 
@@ -1977,10 +1974,7 @@ function updateThemeToggleButton() {
 }
 
 function updatePageTitle() {
-  const isAiring = currentView === "airing";
-  document.title = isAiring ? "Airing Next" : "My List - Continue Watching";
-  const pageTitleEl = document.getElementById("pageTitle");
-  if (pageTitleEl) pageTitleEl.textContent = isAiring ? "AIRING NEXT" : "MY LIST";
+  document.title = currentView === "airing" ? "Airing Next" : "My List - Continue Watching";
 }
 
 function updateViewModeButton() {
@@ -2212,7 +2206,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   app.innerHTML = `
     <div class="series-panel">
       <div class="series-panel-header">
-        <div class="series-panel-header-left">${GRID_ICON_SVG}<span>${rows.length} SERIES</span></div>
+        <div class="series-panel-header-left">${GRID_ICON_SVG}<span>${rows.length} SERIES</span><span class="series-panel-updated">Updated ${new Date().toLocaleString()}</span></div>
         <div class="series-panel-stats">
           <div class="series-panel-stat"><span class="num">${totalRemainingEps}</span><span class="label">Episodes Left</span></div>
           <div class="series-panel-stat"><span class="num">${totalHours}h ${totalMins}m</span><span class="label">Watch Time Left</span></div>
@@ -2228,7 +2222,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
     </div>
     ${bottomPanelsWrapped}
   `;
-  subtitle.textContent = "Updated " + new Date().toLocaleString();
+  subtitle.textContent = "";
   updateImageModeButton();
   if (prevCarouselScrollLeft > 0) {
     const newTrack = document.getElementById("myListCarouselTrack");
