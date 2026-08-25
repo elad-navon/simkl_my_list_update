@@ -106,7 +106,10 @@
     display: flex; align-items: center; gap: 9px; color: var(--gold);
     font-weight: 700; font-size: 0.95rem; letter-spacing: 0.04em; margin-bottom: 16px;
   }
-  .series-panel-header-left { display: flex; align-items: center; gap: 9px; }
+  .series-panel-header-left {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--card-hover); border: 1px solid var(--border); border-radius: 8px; padding: 7px 16px;
+  }
   .series-panel-stats {
     margin-left: auto; display: flex; align-items: center; gap: 14px;
     background: var(--card-hover); border: 1px solid var(--border); border-radius: 8px; padding: 7px 16px;
@@ -287,8 +290,9 @@
     padding: 18px 20px;
   }
   .list-panel-header {
-    display: flex; align-items: center; gap: 9px; color: var(--gold);
-    font-weight: 700; font-size: 0.9rem; letter-spacing: 0.06em; margin-bottom: 6px;
+    display: inline-flex; align-items: center; gap: 9px; color: var(--gold);
+    font-weight: 700; font-size: 0.9rem; letter-spacing: 0.06em; margin-bottom: 10px;
+    background: var(--card-hover); border: 1px solid var(--border); border-radius: 8px; padding: 7px 14px;
   }
   /* Vertical carousel - all three panels show ~5 rows before scrolling
      (5 * (76px banner thumb + 24px row padding + 1px border) = 505px). */
@@ -2208,7 +2212,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   app.innerHTML = `
     <div class="series-panel">
       <div class="series-panel-header">
-        <div class="series-panel-header-left">${GRID_ICON_SVG}<span>${rows.length} SERIES</span><span class="series-panel-updated">Updated ${new Date().toLocaleString()}</span></div>
+        <div class="series-panel-header-left">${GRID_ICON_SVG}<span>${rows.length} SERIES</span><div class="stats-divider"></div><span class="series-panel-updated">Updated ${new Date().toLocaleString()}</span></div>
         <div class="series-panel-stats">
           <div class="series-panel-stat"><span class="num">${totalRemainingEps}</span><span class="label">Episodes Left</span></div>
           <div class="stats-divider"></div>
