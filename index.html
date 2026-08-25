@@ -337,9 +337,10 @@
   }
   .list-imdb { margin-top: 4px; display: flex; align-items: center; gap: 8px; }
   .aired-status {
-    background: var(--danger); color: #fff; font-weight: 800; font-size: 0.68rem;
+    background: #2fa84f; color: #fff; font-weight: 800; font-size: 0.68rem;
     padding: 2px 8px; border-radius: 20px; letter-spacing: 0.02em; white-space: nowrap;
   }
+  .aired-status.ended { background: #c1502e; }
   footer {
     display: flex; align-items: center; justify-content: space-between;
     color: var(--muted); font-size: 0.78rem; margin-top: 50px;
@@ -2105,7 +2106,7 @@ function renderPlanToWatchHtml(list) {
         ${thumbHtml}
         <div class="list-row-title-wrap">
           <div class="list-row-title">${row.title}</div>
-          <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId)}${row.airedLabel ? `<span class="aired-status">${row.airedLabel}</span>` : ""}</div>
+          <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId)}${row.airedLabel ? `<span class="aired-status${row.ended ? " ended" : ""}">${row.airedLabel}</span>` : ""}</div>
         </div>
       </div>`;
   }).join("\n");
