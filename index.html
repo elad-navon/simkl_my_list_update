@@ -1208,6 +1208,7 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
     let posterUrl = null;
     let bannerUrl = null;
     let showStatus = null;
+    let network = null;
     if (tmdbId) {
       try {
         const showDetail = await cache.getShow(tmdbId);
@@ -1215,6 +1216,9 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
         posterUrl = images.posterUrl;
         bannerUrl = images.bannerUrl;
         showStatus = showDetail ? showDetail.status : null;
+        network = showDetail && showDetail.networks && showDetail.networks.length
+          ? showDetail.networks[0].name
+          : null;
       } catch (e) {
         posterUrl = null;
       }
@@ -1229,7 +1233,7 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
       ? (ended ? `Ended - ${totalEpisodes} eps` : `${airedCount} aired`)
       : null;
 
-    return { title, imdbId, imdbRating, posterUrl, bannerUrl, simklId, tmdbId, airedLabel, ended };
+    return { title, imdbId, imdbRating, posterUrl, bannerUrl, simklId, tmdbId, airedLabel, ended, network };
   }));
 
   // Highest IMDb rating first; shows with no known rating sink to the end.
@@ -2117,6 +2121,7 @@ function renderPlanToWatchHtml(list) {
         ${thumbHtml}
         <div class="list-row-title-wrap">
           <div class="list-row-title">${row.title}</div>
+          ${row.network ? `<div class="list-row-sub">${row.network}</div>` : ""}
           <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId)}${row.airedLabel ? `<span class="aired-status${row.ended ? " ended" : ""}">${row.airedLabel}</span>` : ""}</div>
         </div>
       </div>`;
