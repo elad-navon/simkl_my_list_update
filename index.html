@@ -478,6 +478,12 @@
   .card-menu-item:hover { background: rgba(255,255,255,0.08); }
   .card-menu-item.active { color: var(--accent); font-weight: 700; }
   .card-menu-item.danger { color: var(--danger); }
+  .card-menu-item.watched-action {
+    color: #2fa84f; font-weight: 700;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-menu-item.watched-action svg { flex: 0 0 auto; }
+  .card-menu-item.watched-action:hover { background: rgba(47,168,79,0.14); }
   .card-menu-item:disabled { opacity: 0.5; cursor: default; }
   .card-menu-item:disabled:hover { background: transparent; }
   .card-menu-sep { height: 1px; background: rgba(255,255,255,0.1); margin: 6px 4px; }
@@ -1953,7 +1959,7 @@ function openCardMenu(arrIdx, btnEl) {
     </button>`).join("");
 
   const markWatchedHtml = (row.nextSeason != null && row.nextEpisode != null)
-    ? `<button class="card-menu-item" id="cardMenuMarkWatchedBtn">Mark ${row.nextLabel} watched</button>
+    ? `<button class="card-menu-item watched-action" id="cardMenuMarkWatchedBtn">${CHECK_ICON_SVG}Mark ${row.nextLabel} watched</button>
        <div class="card-menu-sep"></div>`
     : "";
 
