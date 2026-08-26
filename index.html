@@ -175,15 +175,15 @@
     color: var(--text); font-weight: 700; font-size: 0.85rem; padding: 4px 10px;
     border-radius: 20px; backdrop-filter: blur(3px); z-index: 10;
   }
-  .cycle-btn {
-    position: absolute; top: 8px; right: 8px; width: 26px; height: 26px;
-    border-radius: 50%; border: none; background: rgba(0,0,0,0.55);
-    color: var(--text); font-size: 0.95rem; line-height: 1;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; z-index: 10; backdrop-filter: blur(3px);
+  .poster-wrap.cycleable { cursor: pointer; }
+  .poster.flip-out {
+    transition: transform 0.16s ease-in; transform: rotateY(90deg);
   }
-  .cycle-btn:hover { background: rgba(0,0,0,0.8); }
-  .cycle-btn.disabled { opacity: 0.35; cursor: default; }
+  @keyframes poster-flip-in {
+    from { transform: rotateY(-90deg); }
+    to { transform: rotateY(0deg); }
+  }
+  .poster.flip-in { animation: poster-flip-in 0.16s ease-out; }
   .imdb-btn {
     position: absolute; bottom: 8px; left: 8px; z-index: 10;
     border: none; background: transparent; padding: 0; margin: 0;
@@ -200,7 +200,7 @@
     line-height: 1.3;
   }
   .poster-wrap {
-    position: relative; overflow: hidden;
+    position: relative; overflow: hidden; perspective: 900px;
     transition: box-shadow 0.18s ease;
   }
   .card .poster-wrap { border-radius: 0; }
@@ -2093,13 +2093,39 @@ function cardImageBits(row, mode, arrIdx, extraOverlayHtml) {
     ? `<img class="${posterClass}" src="${imageUrl}" alt="${row.title}">`
     : `<div class="${posterClass} placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
   const altCount = (row[cfg.pathsKey] || []).length;
-  const cycleDisabled = altCount <= 1;
-  const cycleTitle = cycleDisabled ? "No alternate image available" : "Try another image";
-  const cycleBtn = `<button class="cycle-btn${cycleDisabled ? " disabled" : ""}" title="${cycleTitle}"
-                onclick="event.stopPropagation(); cycleImage(${arrIdx})">&#8635;</button>`;
+  const cycleable = altCount > 1;
+  const cycleAttrs = cycleable
+    ? ` data-arr-idx="${arrIdx}" title="Click to try another image" onclick="cycleImageWithFlip(${arrIdx}, this)"`
+    : "";
   const badgeHtml = `<div class="badge">#${row.index}</div>`;
-  const wrapHtml = `<div class="poster-wrap">${badgeHtml}${posterHtml}${cycleBtn}${extraOverlayHtml || ""}</div>`;
+  const wrapHtml = `<div class="poster-wrap${cycleable ? " cycleable" : ""}"${cycleAttrs}>${badgeHtml}${posterHtml}${extraOverlayHtml || ""}</div>`;
   return { wrapHtml };
+}
+
+function cycleImageWithFlip(arrIdx, wrapEl) {
+  const rows = currentView === "airing" ? airingRows : lastRows;
+  const row = rows && rows[arrIdx];
+  if (!row) return;
+  const cfg = IMAGE_MODE_CONFIG[getImageMode()];
+  const paths = row[cfg.pathsKey];
+  if (!paths || paths.length <= 1) return; // nothing else to switch to
+
+  const finishCycle = () => {
+    cycleImage(arrIdx);
+    requestAnimationFrame(() => {
+      const newWrap = document.querySelector(`.poster-wrap[data-arr-idx="${arrIdx}"]`);
+      const newImg = newWrap && newWrap.querySelector(".poster");
+      if (newImg) newImg.classList.add("flip-in");
+    });
+  };
+
+  const img = wrapEl.querySelector(".poster");
+  if (img) {
+    img.classList.add("flip-out");
+    setTimeout(finishCycle, 160);
+  } else {
+    finishCycle();
+  }
 }
 
 function renderRecentlyWatchedHtml(list) {
