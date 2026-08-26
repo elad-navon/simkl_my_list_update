@@ -61,12 +61,13 @@
   .nav-item {
     display: flex; align-items: center; gap: 10px; position: relative;
     background: linear-gradient(160deg, var(--card-hover), var(--card));
-    border: 1px solid var(--border); color: var(--text);
+    border: 1px solid var(--border); color: var(--gold);
     font-size: 0.9rem; font-weight: 600; letter-spacing: 0.01em; text-align: left;
     padding: 10px 16px; border-radius: 10px; cursor: pointer; white-space: nowrap;
     box-shadow: 0 3px 0 rgba(0,0,0,0.35), 0 5px 8px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.07);
     transform: translateY(0); transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
   }
+  .nav-item .nav-icon { color: var(--gold); }
   .nav-icon { line-height: 1; display: inline-flex; flex: 0 0 auto; color: var(--muted); }
   .nav-item:hover:not(.active) {
     background: linear-gradient(160deg, var(--card-hover), var(--card-hover));
