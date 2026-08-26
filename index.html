@@ -315,7 +315,6 @@
     display: flex; gap: 22px; margin: 26px auto 0; align-items: flex-start;
   }
   .bottom-panels-row .list-panel { flex: 1 1 0; min-width: 0; }
-  .bottom-panels-row .list-panel--airing { flex: 1.3 1 0; }
   .list-panel {
     background: var(--card); border: 1px solid var(--border); border-radius: 12px;
     padding: 18px 20px;
@@ -585,8 +584,7 @@
        but each keeps its own row list scrolling horizontally (touch swipe)
        rather than vertically, so rows become fixed-width cards. */
     .bottom-panels-row { flex-direction: column; gap: 16px; }
-    .bottom-panels-row .list-panel,
-    .bottom-panels-row .list-panel--airing { width: 100%; }
+    .bottom-panels-row .list-panel { width: 100%; }
     .list-panel { padding: 14px 16px; }
     .list-rows-scroll {
       display: flex; flex-direction: row; gap: 12px;
