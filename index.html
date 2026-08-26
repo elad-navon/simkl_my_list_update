@@ -342,6 +342,8 @@
     text-transform: uppercase; letter-spacing: 0.02em;
   }
   .list-row-sub { font-size: 0.74rem; color: var(--muted); font-weight: 500; margin-top: 2px; }
+  .list-row-sub.network-sub { display: flex; align-items: center; min-height: 16px; }
+  .network-logo { height: 16px; width: auto; max-width: 90px; object-fit: contain; display: block; }
   .list-row-airdate { color: var(--accent2); font-weight: 700; font-size: 0.8rem; margin-top: 4px; }
   .premiere-badge {
     display: inline-block; background: #2fa84f; color: #fff; font-weight: 800;
@@ -651,6 +653,7 @@ const SIMKL_BASE = "https://api.simkl.com";
 const TMDB_BASE = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w342";
 const TMDB_BACKDROP_BASE = "https://image.tmdb.org/t/p/w780";
+const TMDB_LOGO_BASE = "https://image.tmdb.org/t/p/w92";
 const APP_NAME = "my-list-summary-web";
 const APP_VERSION = "1.0";
 
@@ -1232,12 +1235,15 @@ async function getRecentlyWatchedEpisodes(items, cache) {
   await Promise.all(top.map(async c => {
     Object.assign(c, computeImages(null));
     c.network = null;
+    c.networkLogoPath = null;
     if (c.tmdbId) {
       const showDetail = await cache.getShow(c.tmdbId); // cached, no extra request if already fetched
       Object.assign(c, computeImages(showDetail, c.tmdbId));
-      c.network = showDetail && showDetail.networks && showDetail.networks.length
-        ? showDetail.networks[0].name
+      const network = showDetail && showDetail.networks && showDetail.networks.length
+        ? showDetail.networks[0]
         : null;
+      c.network = network ? network.name : null;
+      c.networkLogoPath = network ? network.logo_path : null;
     }
   }));
   return top;
@@ -1355,15 +1361,34 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
     // (date only) if SIMKL doesn't have it for some reason.
     let nextAirDate = null;
     let episodeTitle = null;
+    let simklEpisodesForNext = null;
 
     if (simklId && nextSeason != null) {
-      const simklEpisodes = await episodeCache.get(simklId, token);
-      const simklEp = simklEpisodes && simklEpisodes.find(
+      simklEpisodesForNext = await episodeCache.get(simklId, token);
+      const simklEp = simklEpisodesForNext && simklEpisodesForNext.find(
         e => e.season === nextSeason && e.episode === nextEpisode
       );
       if (simklEp && simklEp.date) nextAirDate = simklEp.date;
       if (simklEp && simklEp.title && !/^Episode\s+\d+$/i.test(String(simklEp.title).trim())) {
         episodeTitle = String(simklEp.title).trim();
+      }
+    }
+
+    // Same premiere/finale badge logic as Airing Next (buildAiringRow) -
+    // episode 1 of a season is a premiere; otherwise, if it's the highest
+    // episode number SIMKL has listed for that season, treat it as the
+    // season finale.
+    let badge = null;
+    if (nextSeason != null && nextEpisode != null) {
+      if (nextEpisode === 1) {
+        badge = nextSeason === 1 ? "SERIES PREMIERE" : "SEASON PREMIERE";
+      } else if (simklId) {
+        const simklEpisodes = simklEpisodesForNext || await episodeCache.get(simklId, token);
+        const sameSeason = (simklEpisodes || []).filter(e => e.season === nextSeason && e.episode != null);
+        if (sameSeason.length) {
+          const maxEpisode = Math.max(...sameSeason.map(e => e.episode));
+          if (nextEpisode === maxEpisode) badge = "SEASON FINALE";
+        }
       }
     }
 
@@ -1384,7 +1409,7 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
     const row = {
       title, imdbId, imdbRating, simklId, tmdbId, year: show.year, ...images, network,
       totalEpisodes, available, watched, remaining,
-      hours, mins, nextHours, nextMins, nextLabel, nextSeason, nextEpisode, episodeTitle, nextAirDate,
+      hours, mins, nextHours, nextMins, nextLabel, nextSeason, nextEpisode, episodeTitle, nextAirDate, badge,
     };
     return { row, remaining, remainingMinutes };
   }));
@@ -2221,12 +2246,19 @@ function renderRecentlyWatchedHtml(list) {
       : `<div class="list-thumb placeholder">${(ep.title[0] || "?").toUpperCase()}</div>`;
     const { cycleableClass, attrs } = thumbCycleAttrs(ep, "watched", idx);
     const episodeCode = `S${String(ep.season).padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`;
+    const networkHtml = ep.networkLogoPath
+      ? `<div class="list-row-sub network-sub">
+          <img class="network-logo" src="${TMDB_LOGO_BASE}${ep.networkLogoPath}" alt="${ep.network || ""}"
+            onerror="this.style.display='none'; this.nextElementSibling.style.display='inline'">
+          <span class="network-name-fallback" style="display:none">${ep.network || ""}</span>
+        </div>`
+      : (ep.network ? `<div class="list-row-sub">${ep.network}</div>` : "");
     return `
       <div class="list-row">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
         <div class="list-row-title-wrap">
           <div class="list-row-title">${ep.title}</div>
-          ${ep.network ? `<div class="list-row-sub">${ep.network}</div>` : ""}
+          ${networkHtml}
           <div class="list-row-sub">${episodeCode}</div>
         </div>
         <span class="list-check">${CHECK_ICON_SVG}</span>
@@ -2394,7 +2426,10 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
             <button class="card-menu-btn" title="Manage" onclick="event.stopPropagation(); openCardMenu(${arrIdx}, this)">&#8942;</button>
           </div>
           ${row.network ? `<div class="list-row-sub">${row.network}</div>` : ""}
-          <div class="next-up">Next: ${row.nextLabel}</div>
+          <div class="next-up-row">
+            <span class="next-up">Next: ${row.nextLabel}</span>
+            ${row.badge ? `<div class="premiere-badge${row.badge === "SEASON FINALE" ? " finale" : ""}">${row.badge}</div>` : ""}
+          </div>
           ${episodeTitle}
           <div class="time-left"><span class="time-icon">${CLOCK_ICON_SVG}</span>${timeText}</div>
         </div>
