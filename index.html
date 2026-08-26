@@ -2476,7 +2476,6 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
             <h3>${row.title}</h3>
             <button class="card-menu-btn" title="Manage" onclick="event.stopPropagation(); openCardMenu(${arrIdx}, this)">&#8942;</button>
           </div>
-          ${row.network ? `<div class="list-row-sub">${row.network}</div>` : ""}
           <div class="next-up-row">
             <span class="next-up">Next: ${row.nextLabel}</span>
             ${row.badge ? `<div class="premiere-badge${row.badge === "SEASON FINALE" ? " finale" : ""}">${row.badge}</div>` : ""}
