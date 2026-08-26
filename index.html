@@ -175,15 +175,15 @@
     color: var(--text); font-weight: 700; font-size: 0.85rem; padding: 4px 10px;
     border-radius: 20px; backdrop-filter: blur(3px); z-index: 10;
   }
-  .poster-wrap.cycleable { cursor: pointer; }
-  .poster.flip-out {
+  .poster-wrap.cycleable, .list-thumb-wrap.cycleable { cursor: pointer; }
+  .poster.flip-out, .list-thumb.flip-out {
     transition: transform 0.16s ease-in; transform: rotateY(90deg);
   }
   @keyframes poster-flip-in {
     from { transform: rotateY(-90deg); }
     to { transform: rotateY(0deg); }
   }
-  .poster.flip-in { animation: poster-flip-in 0.16s ease-out; }
+  .poster.flip-in, .list-thumb.flip-in { animation: poster-flip-in 0.16s ease-out; }
   .imdb-btn {
     position: absolute; bottom: 8px; left: 8px; z-index: 10;
     border: none; background: transparent; padding: 0; margin: 0;
@@ -205,7 +205,10 @@
   }
   .card .poster-wrap { border-radius: 0; }
   .card:hover .poster-wrap {
-    box-shadow: inset 0 0 0 2px var(--accent);
+    /* outline (not box-shadow) - box-shadow inset paints behind the box's
+       own content, so a full-bleed <img> completely covers it; outline
+       always paints on top regardless of what's inside. */
+    outline: 2px solid var(--accent); outline-offset: -2px;
   }
   .poster { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; background: #22303e; display: block; }
   .poster.banner-img { aspect-ratio: 16 / 9; }
@@ -344,7 +347,7 @@
     text-transform: uppercase; margin-top: 5px;
   }
   .premiere-badge.finale { background: #c1502e; }
-  .list-thumb-wrap { position: relative; flex: 0 0 auto; }
+  .list-thumb-wrap { position: relative; flex: 0 0 auto; perspective: 900px; }
   .list-thumb-wrap .premiere-badge {
     position: absolute; left: 0; right: 0; bottom: 0; margin-top: 0;
     text-align: center; border-radius: 0 0 6px 6px;
@@ -1186,14 +1189,11 @@ async function getRecentlyWatchedEpisodes(items, cache) {
   const top = candidates.slice(0, 10);
 
   await Promise.all(top.map(async c => {
-    c.posterUrl = null;
-    c.bannerUrl = null;
+    Object.assign(c, computeImages(null));
     c.network = null;
     if (c.tmdbId) {
       const showDetail = await cache.getShow(c.tmdbId); // cached, no extra request if already fetched
-      const images = computeImages(showDetail);
-      c.posterUrl = images.posterUrl;
-      c.bannerUrl = images.bannerUrl;
+      Object.assign(c, computeImages(showDetail));
       c.network = showDetail && showDetail.networks && showDetail.networks.length
         ? showDetail.networks[0].name
         : null;
@@ -1215,22 +1215,19 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
     const simklId = (show.ids || {}).simkl;
     const imdbId = (show.ids || {}).imdb;
 
-    let posterUrl = null;
-    let bannerUrl = null;
+    let images = computeImages(null);
     let showStatus = null;
     let network = null;
     if (tmdbId) {
       try {
         const showDetail = await cache.getShow(tmdbId);
-        const images = computeImages(showDetail);
-        posterUrl = images.posterUrl;
-        bannerUrl = images.bannerUrl;
+        images = computeImages(showDetail);
         showStatus = showDetail ? showDetail.status : null;
         network = showDetail && showDetail.networks && showDetail.networks.length
           ? showDetail.networks[0].name
           : null;
       } catch (e) {
-        posterUrl = null;
+        images = computeImages(null);
       }
     }
     const imdbRating = simklId ? extractImdbRating(await ratingsCache.get(simklId, token)) : null;
@@ -1243,7 +1240,7 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
       ? (ended ? `Ended - ${totalEpisodes} eps` : `${airedCount} aired`)
       : null;
 
-    return { title, imdbId, imdbRating, posterUrl, bannerUrl, simklId, tmdbId, airedLabel, ended, network };
+    return { title, imdbId, imdbRating, ...images, simklId, tmdbId, airedLabel, ended, network };
   }));
 
   // Highest IMDb rating first; shows with no known rating sink to the end.
@@ -2032,20 +2029,40 @@ const IMAGE_MODE_CONFIG = {
   banner: { urlKey: "bannerUrl", pathsKey: "backdropPaths", indexKey: "bannerIndex", base: TMDB_BACKDROP_BASE, extraClass: " banner-img" },
 };
 
-function cycleImage(arrIdx) {
-  const rows = currentView === "airing" ? airingRows : lastRows;
-  const row = rows && rows[arrIdx];
+// The four places a show's poster/banner can appear, each backed by its
+// own cached row array - "main" is the top carousel (plus the dead Airing
+// Next tab, kept for parity), the rest are the three bottom panels.
+function getCycleRows(source) {
+  switch (source) {
+    case "main": return currentView === "airing" ? airingRows : lastRows;
+    case "watched": return lastRecentlyWatched;
+    case "plan": return lastPlanToWatch;
+    case "airing": return lastAiringPreview;
+    default: return null;
+  }
+}
+
+function rerenderAfterCycle(source) {
+  if (source === "main" && currentView === "airing") {
+    renderAiringRows(airingRows);
+  } else {
+    // Bottom-panel rows were mutated in place (same array/row references
+    // renderRows already has cached), so a 3-arg call re-renders them from
+    // that cache instead of needing their own dedicated render calls.
+    renderRows(lastRows, lastTotalEps, lastTotalMinutes);
+  }
+}
+
+function cycleImage(source, idx) {
+  const rows = getCycleRows(source);
+  const row = rows && rows[idx];
   if (!row) return;
   const cfg = IMAGE_MODE_CONFIG[getImageMode()];
   const paths = row[cfg.pathsKey];
   if (!paths || paths.length <= 1) return; // nothing else to switch to
   row[cfg.indexKey] = (row[cfg.indexKey] + 1) % paths.length;
   row[cfg.urlKey] = cfg.base + paths[row[cfg.indexKey]];
-  if (currentView === "airing") {
-    renderAiringRows(airingRows);
-  } else {
-    renderRows(lastRows, lastTotalEps, lastTotalMinutes);
-  }
+  rerenderAfterCycle(source);
 }
 
 const IMDB_LOGO_SVG = `<svg viewBox="0 0 64 32" width="34" height="17" xmlns="http://www.w3.org/2000/svg" aria-label="IMDb">
@@ -2095,31 +2112,34 @@ function cardImageBits(row, mode, arrIdx, extraOverlayHtml) {
   const altCount = (row[cfg.pathsKey] || []).length;
   const cycleable = altCount > 1;
   const cycleAttrs = cycleable
-    ? ` data-arr-idx="${arrIdx}" title="Click to try another image" onclick="cycleImageWithFlip(${arrIdx}, this)"`
+    ? ` data-cycle-key="main-${arrIdx}" title="Click to try another image" onclick="cycleImageWithFlip('main', ${arrIdx}, this)"`
     : "";
   const badgeHtml = `<div class="badge">#${row.index}</div>`;
   const wrapHtml = `<div class="poster-wrap${cycleable ? " cycleable" : ""}"${cycleAttrs}>${badgeHtml}${posterHtml}${extraOverlayHtml || ""}</div>`;
   return { wrapHtml };
 }
 
-function cycleImageWithFlip(arrIdx, wrapEl) {
-  const rows = currentView === "airing" ? airingRows : lastRows;
-  const row = rows && rows[arrIdx];
+// Shared by the top carousel card and the three bottom-panel thumbnails -
+// source identifies which cached row array to cycle (see getCycleRows),
+// idx is that show's position within it.
+function cycleImageWithFlip(source, idx, wrapEl) {
+  const rows = getCycleRows(source);
+  const row = rows && rows[idx];
   if (!row) return;
   const cfg = IMAGE_MODE_CONFIG[getImageMode()];
   const paths = row[cfg.pathsKey];
   if (!paths || paths.length <= 1) return; // nothing else to switch to
 
   const finishCycle = () => {
-    cycleImage(arrIdx);
+    cycleImage(source, idx);
     requestAnimationFrame(() => {
-      const newWrap = document.querySelector(`.poster-wrap[data-arr-idx="${arrIdx}"]`);
-      const newImg = newWrap && newWrap.querySelector(".poster");
+      const newWrap = document.querySelector(`[data-cycle-key="${source}-${idx}"]`);
+      const newImg = newWrap && newWrap.querySelector(".poster, .list-thumb");
       if (newImg) newImg.classList.add("flip-in");
     });
   };
 
-  const img = wrapEl.querySelector(".poster");
+  const img = wrapEl.querySelector(".poster, .list-thumb");
   if (img) {
     img.classList.add("flip-out");
     setTimeout(finishCycle, 160);
@@ -2128,17 +2148,31 @@ function cycleImageWithFlip(arrIdx, wrapEl) {
   }
 }
 
+// Computes the click-to-cycle wrapper attributes for a bottom-panel
+// thumbnail (Recently Watched / Plan to Watch / Airing Next), matching the
+// same convention cardImageBits uses for the top carousel card.
+function thumbCycleAttrs(row, source, idx) {
+  const cfg = IMAGE_MODE_CONFIG[getImageMode()];
+  const altCount = (row[cfg.pathsKey] || []).length;
+  if (altCount <= 1) return { cycleableClass: "", attrs: "" };
+  return {
+    cycleableClass: " cycleable",
+    attrs: ` data-cycle-key="${source}-${idx}" title="Click to try another image" onclick="cycleImageWithFlip('${source}', ${idx}, this)"`,
+  };
+}
+
 function renderRecentlyWatchedHtml(list) {
   if (!list || !list.length) return "";
-  const rowsHtml = list.map(ep => {
+  const rowsHtml = list.map((ep, idx) => {
     const bannerSrc = ep.bannerUrl || ep.posterUrl;
     const thumbHtml = bannerSrc
       ? `<img class="list-thumb" src="${bannerSrc}" alt="${ep.title}">`
       : `<div class="list-thumb placeholder">${(ep.title[0] || "?").toUpperCase()}</div>`;
+    const { cycleableClass, attrs } = thumbCycleAttrs(ep, "watched", idx);
     const episodeCode = `S${String(ep.season).padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`;
     return `
       <div class="list-row">
-        ${thumbHtml}
+        <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
         <div class="list-row-title-wrap">
           <div class="list-row-title">${ep.title}</div>
           ${ep.network ? `<div class="list-row-sub">${ep.network}</div>` : ""}
@@ -2157,14 +2191,15 @@ function renderRecentlyWatchedHtml(list) {
 
 function renderPlanToWatchHtml(list) {
   if (!list || !list.length) return "";
-  const rowsHtml = list.map(row => {
+  const rowsHtml = list.map((row, idx) => {
     const bannerSrc = row.bannerUrl || row.posterUrl;
     const thumbHtml = bannerSrc
       ? `<img class="list-thumb" src="${bannerSrc}" alt="${row.title}">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
+    const { cycleableClass, attrs } = thumbCycleAttrs(row, "plan", idx);
     return `
       <div class="list-row">
-        ${thumbHtml}
+        <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
         <div class="list-row-title-wrap">
           <div class="list-row-title">${row.title}</div>
           ${row.network ? `<div class="list-row-sub">${row.network}</div>` : ""}
@@ -2182,18 +2217,19 @@ function renderPlanToWatchHtml(list) {
 
 function renderAiringNextPreviewHtml(list) {
   if (!list || !list.length) return "";
-  const rowsHtml = list.map(row => {
+  const rowsHtml = list.map((row, idx) => {
     const bannerSrc = row.bannerUrl || row.posterUrl;
     const thumbHtml = bannerSrc
       ? `<img class="list-thumb" src="${bannerSrc}" alt="${row.title}">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
+    const { cycleableClass, attrs } = thumbCycleAttrs(row, "airing", idx);
     const episodeTitle = row.nextEpisodeTitle ? `<div class="episode-title">${row.nextEpisodeTitle}</div>` : "";
     const badgeHtml = row.badge
       ? `<div class="premiere-badge${row.badge === "SEASON FINALE" ? " finale" : ""}">${row.badge}</div>`
       : "";
     return `
       <div class="list-row">
-        <div class="list-thumb-wrap">
+        <div class="list-thumb-wrap${cycleableClass}"${attrs}>
           ${thumbHtml}
           ${badgeHtml}
         </div>
