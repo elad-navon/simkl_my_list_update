@@ -1269,9 +1269,11 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
     const imdbRating = simklId ? extractImdbRating(await ratingsCache.get(simklId, token)) : null;
 
     const totalEpisodes = item.total_episodes_count || 0;
+    const notAired = item.not_aired_episodes_count || 0;
+    const airedCount = Math.max(totalEpisodes - notAired, 0);
     const ended = showStatus === "Ended" || showStatus === "Canceled";
     const airedLabel = totalEpisodes > 0
-      ? (ended ? "Series Ended" : "Episodes Aired")
+      ? (ended ? `Series Ended - ${totalEpisodes} Episodes` : `${airedCount} Episodes Aired`)
       : null;
 
     return { title, imdbId, imdbRating, ...images, simklId, tmdbId, airedLabel, ended, network };
