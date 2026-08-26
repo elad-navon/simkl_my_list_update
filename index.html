@@ -232,7 +232,6 @@
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
-    height: 126px;
     min-height: 126px;
   }
   .card-body h3 {
@@ -2214,7 +2213,7 @@ function renderPlanToWatchHtml(list) {
   }).join("\n");
 
   return `
-    <div class="list-panel">
+    <div class="list-panel list-panel--plan">
       <div class="list-panel-header">${BOOKMARK_ICON_SVG}<span>PLAN TO WATCH</span></div>
       <div class="list-rows-scroll">${rowsHtml}</div>
     </div>`;
@@ -2255,9 +2254,39 @@ function renderAiringNextPreviewHtml(list) {
     </div>`;
 }
 
+// Every panel whose scroll position needs to survive a full re-render -
+// the carousel track plus the three bottom-panel row lists (each scrolls
+// vertically on desktop, horizontally on mobile, so both axes are saved).
+const SCROLLABLE_PANEL_SELECTORS = {
+  watched: ".list-panel--watched .list-rows-scroll",
+  plan: ".list-panel--plan .list-rows-scroll",
+  airing: ".list-panel--airing .list-rows-scroll",
+};
+
+function capturePanelScrollPositions() {
+  const positions = {};
+  for (const [key, selector] of Object.entries(SCROLLABLE_PANEL_SELECTORS)) {
+    const el = document.querySelector(selector);
+    positions[key] = el ? { top: el.scrollTop, left: el.scrollLeft } : null;
+  }
+  return positions;
+}
+
+function restorePanelScrollPositions(positions) {
+  for (const [key, selector] of Object.entries(SCROLLABLE_PANEL_SELECTORS)) {
+    const pos = positions[key];
+    if (!pos || (pos.top === 0 && pos.left === 0)) continue;
+    const el = document.querySelector(selector);
+    if (!el) continue;
+    el.scrollTop = pos.top;
+    el.scrollLeft = pos.left;
+  }
+}
+
 function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatched, planToWatch, airingPreview) {
   const prevTrack = document.getElementById("myListCarouselTrack");
   const prevCarouselScrollLeft = prevTrack ? prevTrack.scrollLeft : 0;
+  const prevPanelScrollPositions = capturePanelScrollPositions();
   lastRows = rows;
   lastTotalEps = totalRemainingEps;
   lastTotalMinutes = totalRemainingMinutes;
@@ -2350,6 +2379,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
       newTrack.scrollLeft = prevCarouselScrollLeft;
     }
   }
+  restorePanelScrollPositions(prevPanelScrollPositions);
   updateCarouselArrows();
 }
 
