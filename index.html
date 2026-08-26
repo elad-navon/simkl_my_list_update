@@ -175,6 +175,13 @@
     color: var(--text); font-weight: 700; font-size: 0.85rem; padding: 4px 10px;
     border-radius: 20px; backdrop-filter: blur(3px); z-index: 10;
   }
+  .badge.network-badge {
+    display: flex; align-items: center; justify-content: center;
+    padding: 5px 10px; max-width: 70%;
+  }
+  .badge.network-badge .network-badge-logo { height: 15px; width: auto; max-width: 100%; object-fit: contain; display: block; }
+  .badge.network-badge.logo-failed .network-badge-logo { display: none; }
+  .badge.network-badge.logo-failed::before { content: "#" attr(data-idx); font-weight: 700; font-size: 0.85rem; }
   /* No hover lift on the image itself (removed - see commit history for
      why native :hover here was flicker-prone). .card's background hover
      still keys off the same JS-managed .hover-stable class, kept for that. */
@@ -1333,15 +1340,18 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
     let images = computeImages(null);
     let showDetail = null;
     let network = null;
+    let networkLogoPath = null;
     if (tmdbId) {
       // TMDB is now purely supplementary (images/runtime estimate) - if it
       // fails for this one show, that shouldn't take down the whole list.
       try {
         showDetail = await cache.getShow(tmdbId);
         images = computeImages(showDetail, tmdbId);
-        network = showDetail && showDetail.networks && showDetail.networks.length
-          ? showDetail.networks[0].name
+        const showNetwork = showDetail && showDetail.networks && showDetail.networks.length
+          ? showDetail.networks[0]
           : null;
+        network = showNetwork ? showNetwork.name : null;
+        networkLogoPath = showNetwork ? showNetwork.logo_path : null;
       } catch (e) {
         showDetail = null;
       }
@@ -1410,7 +1420,7 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
     const [nextHours, nextMins] = formatTime(nextEpisodeMinutes);
     const imdbRating = simklId ? extractImdbRating(await ratingsCache.get(simklId, token)) : null;
     const row = {
-      title, imdbId, imdbRating, simklId, tmdbId, year: show.year, ...images, network,
+      title, imdbId, imdbRating, simklId, tmdbId, year: show.year, ...images, network, networkLogoPath,
       totalEpisodes, available, watched, remaining,
       hours, mins, nextHours, nextMins, nextLabel, nextSeason, nextEpisode, episodeTitle, nextAirDate, badge,
     };
@@ -2194,7 +2204,16 @@ function cardImageBits(row, mode, arrIdx, extraOverlayHtml) {
   const cycleAttrs = cycleable
     ? ` data-cycle-key="main-${arrIdx}" title="Click to try another image" onclick="cycleImageWithFlip('main', ${arrIdx}, this, '${mode}')"`
     : "";
-  const badgeHtml = `<div class="badge">#${row.index}</div>`;
+  // Network logo replaces the ranking number in the corner when known - the
+  // dark scrim (already used for the "#N" pill) keeps colorful logos from
+  // blending into bright poster art underneath. Falls back to "#N" both
+  // when there's no known logo, and live if the logo image itself 404s.
+  const badgeHtml = row.networkLogoPath
+    ? `<div class="badge network-badge" data-idx="${row.index}">
+        <img class="network-badge-logo" src="${TMDB_LOGO_BASE}${row.networkLogoPath}" alt="${row.network || ""}"
+          onerror="this.parentElement.classList.add('logo-failed')">
+      </div>`
+    : `<div class="badge">#${row.index}</div>`;
   const wrapHtml = `<div class="poster-wrap${cycleable ? " cycleable" : ""}"${cycleAttrs}>${badgeHtml}${posterHtml}${extraOverlayHtml || ""}</div>`;
   return { wrapHtml };
 }
