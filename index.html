@@ -176,12 +176,19 @@
     border-radius: 20px; backdrop-filter: blur(3px); z-index: 10;
   }
   .badge.network-badge {
+    /* Most TMDB network logos are dark marks meant for light backgrounds -
+       the dark scrim the plain "#N" badge uses would make those invisible,
+       so this one gets a light chip instead, regardless of the underlying
+       poster art. */
     display: flex; align-items: center; justify-content: center;
     padding: 5px 10px; max-width: 70%;
+    background: rgba(255,255,255,0.94); backdrop-filter: none;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.35);
   }
   .badge.network-badge .network-badge-logo { height: 15px; width: auto; max-width: 100%; object-fit: contain; display: block; }
+  .badge.network-badge.logo-failed { background: rgba(0,0,0,0.55); backdrop-filter: blur(3px); }
   .badge.network-badge.logo-failed .network-badge-logo { display: none; }
-  .badge.network-badge.logo-failed::before { content: "#" attr(data-idx); font-weight: 700; font-size: 0.85rem; }
+  .badge.network-badge.logo-failed::before { content: "#" attr(data-idx); font-weight: 700; font-size: 0.85rem; color: var(--text); }
   /* No hover lift on the image itself (removed - see commit history for
      why native :hover here was flicker-prone). .card's background hover
      still keys off the same JS-managed .hover-stable class, kept for that. */
@@ -349,8 +356,15 @@
     text-transform: uppercase; letter-spacing: 0.02em;
   }
   .list-row-sub { font-size: 0.74rem; color: var(--muted); font-weight: 500; margin-top: 2px; }
-  .list-row-sub.network-sub { display: flex; align-items: center; min-height: 16px; }
-  .network-logo { height: 16px; width: auto; max-width: 90px; object-fit: contain; display: block; }
+  .list-row-sub.network-sub { display: flex; align-items: center; min-height: 22px; }
+  /* Light chip behind the logo - most TMDB network logos are dark marks
+     meant for light backgrounds, and disappear directly on this panel's
+     dark background otherwise. */
+  .network-logo {
+    height: 16px; width: auto; max-width: 90px; object-fit: contain; display: block;
+    background: rgba(255,255,255,0.94); border-radius: 3px; padding: 3px 6px;
+    box-sizing: content-box;
+  }
   .list-row-airdate { color: var(--accent2); font-weight: 700; font-size: 0.8rem; margin-top: 4px; }
   .premiere-badge {
     display: inline-block; background: #2fa84f; color: #fff; font-weight: 800;
