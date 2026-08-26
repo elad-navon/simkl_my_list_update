@@ -175,17 +175,27 @@
     color: var(--text); font-weight: 700; font-size: 0.85rem; padding: 4px 10px;
     border-radius: 20px; backdrop-filter: blur(3px); z-index: 10;
   }
-  .poster-wrap.cycleable, .list-thumb-wrap.cycleable {
-    cursor: pointer; transition: transform 0.15s ease;
-  }
   /* Hover is triggered by the STABLE outer container (.card / .list-row),
      not by the wrap itself - if the wrap's own :hover drove its own lift,
      the shift could move the box out from under a cursor resting near its
      edge, causing hover to toggle on/off rapidly (visible as flickering).
      The outer container's box never moves, so its hover state can't be
-     disturbed by the inner transform. */
+     disturbed by the inner transform.
+     The carousel arrow is a sibling of .card (not a descendant), and it
+     visually overlaps part of the rightmost card - while the mouse is
+     over the arrow, .card:hover for that card briefly goes false even
+     though the cursor is still visually "inside" the card, so ordinary
+     mouse movement near that overlap toggles the lift on/off rapidly.
+     The fix is a delay on the transition back to rest (un-hover) only,
+     not on entering hover - a brief interruption (passing over the
+     arrow) resolves before the delay elapses and the lift never visibly
+     drops, while genuinely leaving the card still un-lifts smoothly. */
+  .poster-wrap.cycleable, .list-thumb-wrap.cycleable {
+    cursor: pointer; transition: transform 0.15s ease 120ms;
+  }
   .card:hover .poster-wrap.cycleable, .list-row:hover .list-thumb-wrap.cycleable {
     transform: translateY(-4px);
+    transition: transform 0.15s ease 0s;
   }
   .poster.flip-out, .list-thumb.flip-out {
     transition: transform 0.16s ease-in; transform: rotateY(90deg);
