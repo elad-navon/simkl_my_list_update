@@ -1182,11 +1182,15 @@ async function getRecentlyWatchedEpisodes(items, cache) {
   await Promise.all(top.map(async c => {
     c.posterUrl = null;
     c.bannerUrl = null;
+    c.network = null;
     if (c.tmdbId) {
       const showDetail = await cache.getShow(c.tmdbId); // cached, no extra request if already fetched
       const images = computeImages(showDetail);
       c.posterUrl = images.posterUrl;
       c.bannerUrl = images.bannerUrl;
+      c.network = showDetail && showDetail.networks && showDetail.networks.length
+        ? showDetail.networks[0].name
+        : null;
     }
   }));
   return top;
@@ -1539,6 +1543,10 @@ async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, re
     }
   }
 
+  const network = showDetail && showDetail.networks && showDetail.networks.length
+    ? showDetail.networks[0].name
+    : null;
+
   return {
     title: show.title || "Unknown",
     imdbId,
@@ -1549,6 +1557,7 @@ async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, re
     badge,
     airDate: next.airDate,
     airDateLabel: formatAirDate(next.airDate),
+    network,
   };
 }
 
@@ -2096,6 +2105,7 @@ function renderRecentlyWatchedHtml(list) {
         ${thumbHtml}
         <div class="list-row-title-wrap">
           <div class="list-row-title">${ep.title}</div>
+          ${ep.network ? `<div class="list-row-sub">${ep.network}</div>` : ""}
           <div class="list-row-sub">${episodeCode}</div>
         </div>
         <span class="list-check">${CHECK_ICON_SVG}</span>
@@ -2150,6 +2160,7 @@ function renderAiringNextPreviewHtml(list) {
         ${thumbHtml}
         <div class="list-row-title-wrap">
           <div class="list-row-title">${row.title}</div>
+          ${row.network ? `<div class="list-row-sub">${row.network}</div>` : ""}
           <div class="next-up">Next: ${row.nextLabel}</div>
           ${episodeTitle}
           ${badgeHtml}
