@@ -1953,11 +1953,14 @@ const STATUS_OPTIONS = [
   { value: "dropped", label: "Dropped" },
 ];
 
+let cardMenuOpenerBtn = null;
+
 function closeCardMenu() {
   const el = document.getElementById("cardMenuDropdown");
   if (el) el.remove();
   document.removeEventListener("keydown", cardMenuEscHandler);
   document.removeEventListener("click", cardMenuOutsideClickHandler);
+  cardMenuOpenerBtn = null;
 }
 
 function cardMenuEscHandler(e) {
@@ -1970,7 +1973,10 @@ function cardMenuOutsideClickHandler(e) {
 }
 
 function openCardMenu(arrIdx, btnEl) {
+  const alreadyOpenForThisBtn = cardMenuOpenerBtn === btnEl;
   closeCardMenu();
+  if (alreadyOpenForThisBtn) return; // second click on the same button toggles it closed
+
   const row = lastRows && lastRows[arrIdx];
   if (!row || !row.simklId) return;
 
@@ -1998,6 +2004,7 @@ function openCardMenu(arrIdx, btnEl) {
     <button class="card-menu-item danger" id="cardMenuRemoveBtn">Remove from list</button>
   `;
   document.body.appendChild(menu);
+  cardMenuOpenerBtn = btnEl;
 
   menu.querySelectorAll("[data-status]").forEach(b => {
     b.onclick = () => changeShowStatus(row, b.dataset.status);
