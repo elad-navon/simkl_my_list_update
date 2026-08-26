@@ -347,7 +347,7 @@
   .list-row-airdate { color: var(--accent2); font-weight: 700; font-size: 0.8rem; margin-top: 4px; }
   .premiere-badge {
     display: inline-block; background: #2fa84f; color: #fff; font-weight: 800;
-    font-size: 0.64rem; letter-spacing: 0.04em; padding: 3px 8px; border-radius: 4px;
+    font-size: 0.64rem; letter-spacing: 0.01em; padding: 3px 8px; border-radius: 4px;
     text-transform: uppercase; margin-top: 5px;
   }
   .premiere-badge.finale { background: #c1502e; }
@@ -1265,14 +1265,17 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
     let images = computeImages(null);
     let showStatus = null;
     let network = null;
+    let networkLogoPath = null;
     if (tmdbId) {
       try {
         const showDetail = await cache.getShow(tmdbId);
         images = computeImages(showDetail, tmdbId);
         showStatus = showDetail ? showDetail.status : null;
-        network = showDetail && showDetail.networks && showDetail.networks.length
-          ? showDetail.networks[0].name
+        const showNetwork = showDetail && showDetail.networks && showDetail.networks.length
+          ? showDetail.networks[0]
           : null;
+        network = showNetwork ? showNetwork.name : null;
+        networkLogoPath = showNetwork ? showNetwork.logo_path : null;
       } catch (e) {
         images = computeImages(null);
       }
@@ -1287,7 +1290,7 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
       ? (ended ? `Series Ended - ${totalEpisodes} Episodes` : `${airedCount} Episodes Aired`)
       : null;
 
-    return { title, imdbId, imdbRating, ...images, simklId, tmdbId, airedLabel, ended, network };
+    return { title, imdbId, imdbRating, ...images, simklId, tmdbId, airedLabel, ended, network, networkLogoPath };
   }));
 
   // Highest IMDb rating first; shows with no known rating sink to the end.
@@ -2237,6 +2240,20 @@ function thumbCycleAttrs(row, source, idx) {
   };
 }
 
+// Network sub-line: shows the TMDB network logo image when available,
+// falling back to the plain text name (both if the show has no logo_path,
+// and live if the logo image itself fails to load).
+function networkSubHtml(name, logoPath) {
+  if (logoPath) {
+    return `<div class="list-row-sub network-sub">
+        <img class="network-logo" src="${TMDB_LOGO_BASE}${logoPath}" alt="${name || ""}"
+          onerror="this.style.display='none'; this.nextElementSibling.style.display='inline'">
+        <span class="network-name-fallback" style="display:none">${name || ""}</span>
+      </div>`;
+  }
+  return name ? `<div class="list-row-sub">${name}</div>` : "";
+}
+
 function renderRecentlyWatchedHtml(list) {
   if (!list || !list.length) return "";
   const rowsHtml = list.map((ep, idx) => {
@@ -2246,19 +2263,12 @@ function renderRecentlyWatchedHtml(list) {
       : `<div class="list-thumb placeholder">${(ep.title[0] || "?").toUpperCase()}</div>`;
     const { cycleableClass, attrs } = thumbCycleAttrs(ep, "watched", idx);
     const episodeCode = `S${String(ep.season).padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`;
-    const networkHtml = ep.networkLogoPath
-      ? `<div class="list-row-sub network-sub">
-          <img class="network-logo" src="${TMDB_LOGO_BASE}${ep.networkLogoPath}" alt="${ep.network || ""}"
-            onerror="this.style.display='none'; this.nextElementSibling.style.display='inline'">
-          <span class="network-name-fallback" style="display:none">${ep.network || ""}</span>
-        </div>`
-      : (ep.network ? `<div class="list-row-sub">${ep.network}</div>` : "");
     return `
       <div class="list-row">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
         <div class="list-row-title-wrap">
           <div class="list-row-title">${ep.title}</div>
-          ${networkHtml}
+          ${networkSubHtml(ep.network, ep.networkLogoPath)}
           <div class="list-row-sub">${episodeCode}</div>
         </div>
         <span class="list-check">${CHECK_ICON_SVG}</span>
@@ -2288,7 +2298,7 @@ function renderPlanToWatchHtml(list) {
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
         <div class="list-row-title-wrap">
           <div class="list-row-title">${row.title}</div>
-          ${row.network ? `<div class="list-row-sub">${row.network}</div>` : ""}
+          ${networkSubHtml(row.network, row.networkLogoPath)}
           ${badgeHtml}
           <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId)}</div>
         </div>
