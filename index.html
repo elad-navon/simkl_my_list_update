@@ -312,7 +312,7 @@
   /* Vertical carousel - all three panels show ~5 rows before scrolling
      (5 * (76px banner thumb + 24px row padding + 1px border) = 505px). */
   .list-rows-scroll {
-    max-height: 505px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+    max-height: 580px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent;
     padding-right: 14px; margin-right: -14px;
   }
   .list-rows-scroll::-webkit-scrollbar { width: 6px; }
@@ -323,12 +323,12 @@
   }
   .list-row:last-child { border-bottom: none; }
   .list-thumb {
-    width: 134px; height: 76px; border-radius: 6px; object-fit: cover;
+    width: 161px; height: 91px; border-radius: 6px; object-fit: cover;
     background: #22303e; flex: 0 0 auto; display: block;
   }
   .list-thumb.placeholder {
     display: flex; align-items: center; justify-content: center;
-    font-size: 1.6rem; font-weight: 700; color: var(--muted);
+    font-size: 1.9rem; font-weight: 700; color: var(--muted);
   }
   .list-row-title-wrap { flex: 1 1 auto; min-width: 0; }
   .list-row-title {
@@ -344,6 +344,10 @@
     text-transform: uppercase; margin-top: 5px;
   }
   .premiere-badge.finale { background: #c1502e; }
+  .list-thumb-wrap { position: relative; flex: 0 0 auto; }
+  .list-thumb-wrap .premiere-badge {
+    position: absolute; left: 6px; bottom: 6px; margin-top: 0;
+  }
   .list-check {
     flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%;
     border: 1.5px solid var(--accent); color: var(--accent);
@@ -571,6 +575,7 @@
       gap: 8px; padding: 0; border-bottom: none;
     }
     .list-thumb { width: 100%; height: auto; aspect-ratio: 16 / 9; }
+    .list-thumb-wrap { width: 100%; }
 
     .modal-overlay { padding: 12px; }
   }
@@ -1279,12 +1284,16 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
 
     let images = computeImages(null);
     let showDetail = null;
+    let network = null;
     if (tmdbId) {
       // TMDB is now purely supplementary (images/runtime estimate) - if it
       // fails for this one show, that shouldn't take down the whole list.
       try {
         showDetail = await cache.getShow(tmdbId);
         images = computeImages(showDetail);
+        network = showDetail && showDetail.networks && showDetail.networks.length
+          ? showDetail.networks[0].name
+          : null;
       } catch (e) {
         showDetail = null;
       }
@@ -1334,7 +1343,7 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
     const [nextHours, nextMins] = formatTime(nextEpisodeMinutes);
     const imdbRating = simklId ? extractImdbRating(await ratingsCache.get(simklId, token)) : null;
     const row = {
-      title, imdbId, imdbRating, simklId, tmdbId, year: show.year, ...images,
+      title, imdbId, imdbRating, simklId, tmdbId, year: show.year, ...images, network,
       totalEpisodes, available, watched, remaining,
       hours, mins, nextHours, nextMins, nextLabel, nextSeason, nextEpisode, episodeTitle, nextAirDate,
     };
@@ -2157,13 +2166,15 @@ function renderAiringNextPreviewHtml(list) {
       : "";
     return `
       <div class="list-row">
-        ${thumbHtml}
+        <div class="list-thumb-wrap">
+          ${thumbHtml}
+          ${badgeHtml}
+        </div>
         <div class="list-row-title-wrap">
           <div class="list-row-title">${row.title}</div>
           ${row.network ? `<div class="list-row-sub">${row.network}</div>` : ""}
           <div class="next-up">Next: ${row.nextLabel}</div>
           ${episodeTitle}
-          ${badgeHtml}
           <div class="list-row-airdate">&#128197; ${row.airDateLabel}</div>
         </div>
       </div>`;
@@ -2234,6 +2245,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
             <h3>${row.title}</h3>
             <button class="card-menu-btn" title="Manage" onclick="event.stopPropagation(); openCardMenu(${arrIdx}, this)">&#8942;</button>
           </div>
+          ${row.network ? `<div class="list-row-sub">${row.network}</div>` : ""}
           <div class="next-up">Next: ${row.nextLabel}</div>
           ${episodeTitle}
           <div class="time-left"><span class="time-icon">${CLOCK_ICON_SVG}</span>${timeText}</div>
