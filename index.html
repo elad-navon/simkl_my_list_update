@@ -349,13 +349,10 @@
     text-transform: uppercase; margin-top: 5px;
   }
   .premiere-badge.finale { background: #c1502e; }
+  .next-up-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .next-up-row .next-up { margin: 2px 0 0; }
+  .next-up-row .premiere-badge { margin-top: 2px; }
   .list-thumb-wrap { position: relative; flex: 0 0 auto; perspective: 900px; }
-  .list-thumb-wrap .premiere-badge {
-    position: absolute; left: 0; right: 0; bottom: 0; margin-top: 0;
-    text-align: center; border-radius: 0 0 6px 6px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    font-size: 0.52rem; letter-spacing: 0.01em; padding: 3px 4px;
-  }
   .list-check {
     flex: 0 0 auto; width: 31px; height: 31px; border-radius: 50%;
     border: 1.5px solid var(--accent); color: var(--accent);
@@ -2250,13 +2247,11 @@ function renderPlanToWatchHtml(list) {
       : "";
     return `
       <div class="list-row">
-        <div class="list-thumb-wrap${cycleableClass}"${attrs}>
-          ${thumbHtml}
-          ${badgeHtml}
-        </div>
+        <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
         <div class="list-row-title-wrap">
           <div class="list-row-title">${row.title}</div>
           ${row.network ? `<div class="list-row-sub">${row.network}</div>` : ""}
+          ${badgeHtml}
           <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId)}</div>
         </div>
       </div>`;
@@ -2283,14 +2278,14 @@ function renderAiringNextPreviewHtml(list) {
       : "";
     return `
       <div class="list-row">
-        <div class="list-thumb-wrap${cycleableClass}"${attrs}>
-          ${thumbHtml}
-          ${badgeHtml}
-        </div>
+        <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
         <div class="list-row-title-wrap">
           <div class="list-row-title">${row.title}</div>
           ${row.network ? `<div class="list-row-sub">${row.network}</div>` : ""}
-          <div class="next-up">Next: ${row.nextLabel}</div>
+          <div class="next-up-row">
+            <span class="next-up">Next: ${row.nextLabel}</span>
+            ${badgeHtml}
+          </div>
           ${episodeTitle}
           <div class="list-row-airdate">&#128197; ${row.airDateLabel}</div>
         </div>
