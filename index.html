@@ -1619,8 +1619,8 @@ async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, re
     }
   }
 
-  const network = showDetail && showDetail.networks && showDetail.networks.length
-    ? showDetail.networks[0].name
+  const showNetwork = showDetail && showDetail.networks && showDetail.networks.length
+    ? showDetail.networks[0]
     : null;
 
   return {
@@ -1633,7 +1633,8 @@ async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, re
     badge,
     airDate: next.airDate,
     airDateLabel: formatAirDate(next.airDate),
-    network,
+    network: showNetwork ? showNetwork.name : null,
+    networkLogoPath: showNetwork ? showNetwork.logo_path : null,
   };
 }
 
@@ -2336,7 +2337,7 @@ function renderAiringNextPreviewHtml(list) {
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
         <div class="list-row-title-wrap">
           <div class="list-row-title">${row.title}</div>
-          ${row.network ? `<div class="list-row-sub">${row.network}</div>` : ""}
+          ${networkSubHtml(row.network, row.networkLogoPath)}
           <div class="next-up-row">
             <span class="next-up">Next: ${row.nextLabel}</span>
             ${badgeHtml}
