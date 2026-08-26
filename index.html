@@ -1123,7 +1123,29 @@ function parseNextEpisode(nextToWatch) {
 // ---------------------------------------------------------------------
 // Build rows (mirrors the Python core logic)
 // ---------------------------------------------------------------------
-function computeImages(showDetail) {
+const LS_IMAGE_OVERRIDES = "simkl_image_overrides"; // { [tmdbId]: { posterPath, bannerPath } }
+
+function getImageOverrides() {
+  try {
+    return JSON.parse(localStorage.getItem(LS_IMAGE_OVERRIDES) || "{}");
+  } catch (e) {
+    return {};
+  }
+}
+
+// Remembers a manually-picked poster/banner (from clicking to cycle) so it
+// survives a refresh instead of resetting to TMDB's default pick.
+function saveImageOverride(tmdbId, mode, path) {
+  if (!tmdbId) return;
+  const overrides = getImageOverrides();
+  const entry = overrides[tmdbId] || {};
+  if (mode === "banner") entry.bannerPath = path;
+  else entry.posterPath = path;
+  overrides[tmdbId] = entry;
+  localStorage.setItem(LS_IMAGE_OVERRIDES, JSON.stringify(overrides));
+}
+
+function computeImages(showDetail, tmdbId) {
   // Shared by getMyListRows and getAiringNextRows - returns the initial
   // poster/banner URLs plus the full filtered candidate lists (for the
   // per-card cycle button). Prefers English or no-language artwork; if a
@@ -1163,6 +1185,23 @@ function computeImages(showDetail) {
   }
   if (out.backdropPaths.length) out.bannerUrl = TMDB_BACKDROP_BASE + out.backdropPaths[out.bannerIndex];
 
+  // A manually-picked poster/banner from a previous session (clicking to
+  // cycle) takes over from TMDB's default pick, as long as that path is
+  // still among this show's current images.
+  if (tmdbId) {
+    const saved = getImageOverrides()[tmdbId];
+    if (saved) {
+      if (saved.posterPath && out.posterPaths.includes(saved.posterPath)) {
+        out.posterIndex = out.posterPaths.indexOf(saved.posterPath);
+        out.posterUrl = TMDB_IMAGE_BASE + saved.posterPath;
+      }
+      if (saved.bannerPath && out.backdropPaths.includes(saved.bannerPath)) {
+        out.bannerIndex = out.backdropPaths.indexOf(saved.bannerPath);
+        out.bannerUrl = TMDB_BACKDROP_BASE + saved.bannerPath;
+      }
+    }
+  }
+
   return out;
 }
 
@@ -1195,7 +1234,7 @@ async function getRecentlyWatchedEpisodes(items, cache) {
     c.network = null;
     if (c.tmdbId) {
       const showDetail = await cache.getShow(c.tmdbId); // cached, no extra request if already fetched
-      Object.assign(c, computeImages(showDetail));
+      Object.assign(c, computeImages(showDetail, c.tmdbId));
       c.network = showDetail && showDetail.networks && showDetail.networks.length
         ? showDetail.networks[0].name
         : null;
@@ -1223,7 +1262,7 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
     if (tmdbId) {
       try {
         const showDetail = await cache.getShow(tmdbId);
-        images = computeImages(showDetail);
+        images = computeImages(showDetail, tmdbId);
         showStatus = showDetail ? showDetail.status : null;
         network = showDetail && showDetail.networks && showDetail.networks.length
           ? showDetail.networks[0].name
@@ -1290,7 +1329,7 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
       // fails for this one show, that shouldn't take down the whole list.
       try {
         showDetail = await cache.getShow(tmdbId);
-        images = computeImages(showDetail);
+        images = computeImages(showDetail, tmdbId);
         network = showDetail && showDetail.networks && showDetail.networks.length
           ? showDetail.networks[0].name
           : null;
@@ -1509,7 +1548,7 @@ async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, re
   // just hasn't started isn't a "premiere", it's backlog, so it's excluded.
   if (requirePremiere && !(next.season === 1 && next.episode === 1)) return null;
 
-  const images = computeImages(showDetail);
+  const images = computeImages(showDetail, tmdbId);
   const nextLabel = (next.season != null && next.episode != null)
     ? `S${String(next.season).padStart(2, "0")}E${String(next.episode).padStart(2, "0")}`
     : "";
@@ -2059,11 +2098,14 @@ function cycleImage(source, idx, modeOverride) {
   const rows = getCycleRows(source);
   const row = rows && rows[idx];
   if (!row) return;
-  const cfg = IMAGE_MODE_CONFIG[modeOverride || getImageMode()];
+  const mode = modeOverride || getImageMode();
+  const cfg = IMAGE_MODE_CONFIG[mode];
   const paths = row[cfg.pathsKey];
   if (!paths || paths.length <= 1) return; // nothing else to switch to
   row[cfg.indexKey] = (row[cfg.indexKey] + 1) % paths.length;
-  row[cfg.urlKey] = cfg.base + paths[row[cfg.indexKey]];
+  const newPath = paths[row[cfg.indexKey]];
+  row[cfg.urlKey] = cfg.base + newPath;
+  saveImageOverride(row.tmdbId, mode, newPath); // survives the next refresh
   rerenderAfterCycle(source);
 }
 
