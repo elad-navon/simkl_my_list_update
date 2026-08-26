@@ -162,7 +162,7 @@
     box-shadow: 0 6px 18px rgba(0,0,0,0.35); transition: background 0.15s ease;
     display: flex; flex-direction: column; position: relative; overflow: hidden;
   }
-  .card:hover { background: var(--card-hover); }
+  .card.hover-stable { background: var(--card-hover); }
   .card.carousel-card { width: 225px; flex: 0 0 auto; }
   .card.carousel-card.banner-mode { width: 320px; }
   .remaining-badge {
@@ -175,27 +175,20 @@
     color: var(--text); font-weight: 700; font-size: 0.85rem; padding: 4px 10px;
     border-radius: 20px; backdrop-filter: blur(3px); z-index: 10;
   }
-  /* Hover is triggered by the STABLE outer container (.card / .list-row),
-     not by the wrap itself - if the wrap's own :hover drove its own lift,
-     the shift could move the box out from under a cursor resting near its
-     edge, causing hover to toggle on/off rapidly (visible as flickering).
-     The outer container's box never moves, so its hover state can't be
-     disturbed by the inner transform.
-     The carousel arrow is a sibling of .card (not a descendant), and it
-     visually overlaps part of the rightmost card - while the mouse is
-     over the arrow, .card:hover for that card briefly goes false even
-     though the cursor is still visually "inside" the card, so ordinary
-     mouse movement near that overlap toggles the lift on/off rapidly.
-     The fix is a delay on the transition back to rest (un-hover) only,
-     not on entering hover - a brief interruption (passing over the
-     arrow) resolves before the delay elapses and the lift never visibly
-     drops, while genuinely leaving the card still un-lifts smoothly. */
+  /* Hover-driven effects (this lift, .card's background) key off a JS-
+     managed .hover-stable class on the outer container (.card / .list-row)
+     instead of native :hover - see wireHoverStabilization(). Native :hover
+     flickered here: the wrap itself moving under a stationary cursor could
+     toggle its own :hover, and the carousel arrow (a sibling of .card, not
+     a descendant) overlaps the rightmost card, so :hover on that card
+     briefly went false whenever the cursor merely passed over the arrow.
+     A debounced class - added immediately, removed only after a short
+     delay with no further mouseenter - absorbs both. */
   .poster-wrap.cycleable, .list-thumb-wrap.cycleable {
-    cursor: pointer; transition: transform 0.15s ease 120ms;
+    cursor: pointer; transition: transform 0.15s ease;
   }
-  .card:hover .poster-wrap.cycleable, .list-row:hover .list-thumb-wrap.cycleable {
+  .card.hover-stable .poster-wrap.cycleable, .list-row.hover-stable .list-thumb-wrap.cycleable {
     transform: translateY(-4px);
-    transition: transform 0.15s ease 0s;
   }
   .poster.flip-out, .list-thumb.flip-out {
     transition: transform 0.16s ease-in; transform: rotateY(90deg);
@@ -2402,6 +2395,35 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   }
   restorePanelScrollPositions(prevPanelScrollPositions);
   updateCarouselArrows();
+  wireHoverStabilization();
+}
+
+// Debounces hover state for cards/rows whose visual hover effects (the
+// poster/thumb lift, .card's background) are driven by a JS-managed class
+// instead of native :hover - see the .hover-stable rules in CSS for why:
+// native :hover on these elements is prone to rapid on/off toggling from
+// things like the carousel arrow overlapping part of a card. The class is
+// added the instant the pointer enters, but only removed after a short
+// delay with no further mouseenter - any brief interruption (grazing an
+// overlapping element) resolves before the delay elapses and the removal
+// never fires, while genuinely leaving still un-hovers smoothly.
+function wireHoverStabilization() {
+  const HOVER_EXIT_DELAY_MS = 150;
+  document.querySelectorAll(".card, .list-row").forEach(el => {
+    el.addEventListener("mouseenter", () => {
+      if (el._hoverLeaveTimer) {
+        clearTimeout(el._hoverLeaveTimer);
+        el._hoverLeaveTimer = null;
+      }
+      el.classList.add("hover-stable");
+    });
+    el.addEventListener("mouseleave", () => {
+      el._hoverLeaveTimer = setTimeout(() => {
+        el.classList.remove("hover-stable");
+        el._hoverLeaveTimer = null;
+      }, HOVER_EXIT_DELAY_MS);
+    });
+  });
 }
 
 function updateCarouselArrows() {
@@ -2455,6 +2477,7 @@ function renderAiringRows(rows) {
   `;
   subtitle.textContent = "Updated " + new Date().toLocaleString();
   updateImageModeButton();
+  wireHoverStabilization();
 }
 
 function showError(err) {
