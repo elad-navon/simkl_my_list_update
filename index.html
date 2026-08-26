@@ -360,11 +360,6 @@
     display: flex; align-items: center; justify-content: center;
   }
   .list-imdb { margin-top: 4px; display: flex; align-items: center; gap: 8px; }
-  .aired-status {
-    background: #2fa84f; color: #fff; font-weight: 800; font-size: 0.68rem;
-    padding: 2px 8px; border-radius: 4px; letter-spacing: 0.02em; white-space: nowrap;
-  }
-  .aired-status.ended { background: #c1502e; }
   footer {
     display: flex; align-items: center; justify-content: space-between;
     color: var(--muted); font-size: 0.78rem; margin-top: 50px;
@@ -1274,11 +1269,9 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
     const imdbRating = simklId ? extractImdbRating(await ratingsCache.get(simklId, token)) : null;
 
     const totalEpisodes = item.total_episodes_count || 0;
-    const notAired = item.not_aired_episodes_count || 0;
-    const airedCount = Math.max(totalEpisodes - notAired, 0);
     const ended = showStatus === "Ended" || showStatus === "Canceled";
     const airedLabel = totalEpisodes > 0
-      ? (ended ? `Ended - ${totalEpisodes} eps` : `${airedCount} aired`)
+      ? (ended ? "Series Ended" : "Episodes Aired")
       : null;
 
     return { title, imdbId, imdbRating, ...images, simklId, tmdbId, airedLabel, ended, network };
@@ -2248,13 +2241,19 @@ function renderPlanToWatchHtml(list) {
       ? `<img class="list-thumb" src="${bannerSrc}" alt="${row.title}">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
     const { cycleableClass, attrs } = thumbCycleAttrs(row, "plan", idx);
+    const badgeHtml = row.airedLabel
+      ? `<div class="premiere-badge${row.ended ? " finale" : ""}">${row.airedLabel}</div>`
+      : "";
     return `
       <div class="list-row">
-        <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
+        <div class="list-thumb-wrap${cycleableClass}"${attrs}>
+          ${thumbHtml}
+          ${badgeHtml}
+        </div>
         <div class="list-row-title-wrap">
           <div class="list-row-title">${row.title}</div>
           ${row.network ? `<div class="list-row-sub">${row.network}</div>` : ""}
-          <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId)}${row.airedLabel ? `<span class="aired-status${row.ended ? " ended" : ""}">${row.airedLabel}</span>` : ""}</div>
+          <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId)}</div>
         </div>
       </div>`;
   }).join("\n");
