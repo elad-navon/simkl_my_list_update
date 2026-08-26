@@ -1221,7 +1221,7 @@ function computeImages(showDetail, tmdbId) {
   return out;
 }
 
-async function getRecentlyWatchedEpisodes(items, cache) {
+async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token) {
   // Scans every currently-"watching" show (even ones you've fully caught
   // up on, which wouldn't otherwise appear in My List) for watched
   // episodes with a timestamp, and returns the 10 most recent.
@@ -1238,6 +1238,7 @@ async function getRecentlyWatchedEpisodes(items, cache) {
           episode: ep.number,
           watchedAt: ep.watched_at,
           tmdbId: (show.ids || {}).tmdb,
+          simklId: (show.ids || {}).simkl,
         });
       }
     }
@@ -1249,6 +1250,7 @@ async function getRecentlyWatchedEpisodes(items, cache) {
     Object.assign(c, computeImages(null));
     c.network = null;
     c.networkLogoPath = null;
+    c.episodeTitle = null;
     if (c.tmdbId) {
       const showDetail = await cache.getShow(c.tmdbId); // cached, no extra request if already fetched
       Object.assign(c, computeImages(showDetail, c.tmdbId));
@@ -1257,6 +1259,24 @@ async function getRecentlyWatchedEpisodes(items, cache) {
         : null;
       c.network = network ? network.name : null;
       c.networkLogoPath = network ? network.logo_path : null;
+    }
+
+    // Episode title: prefer SIMKL's own title if we have it, else TMDB's -
+    // same fallback order used for My List / Airing Next.
+    if (c.simklId) {
+      const simklEpisodes = await episodeCache.get(c.simklId, token);
+      const match = simklEpisodes && simklEpisodes.find(e => e.season === c.season && e.episode === c.episode);
+      if (match && match.title && !/^Episode\s+\d+$/i.test(String(match.title).trim())) {
+        c.episodeTitle = String(match.title).trim();
+      }
+    }
+    if (!c.episodeTitle && c.tmdbId) {
+      const seasonDetail = await cache.getSeason(c.tmdbId, c.season);
+      const episodeDetail = seasonDetail && (seasonDetail.episodes || [])
+        .find(e => e.episode_number === c.episode);
+      if (episodeDetail && episodeDetail.name && !/^Episode\s+\d+$/i.test(episodeDetail.name.trim())) {
+        c.episodeTitle = episodeDetail.name.trim();
+      }
     }
   }));
   return top;
@@ -1452,7 +1472,7 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
   });
 
   rows.forEach((r, i) => { r.index = i + 1; });
-  const recentlyWatched = await getRecentlyWatchedEpisodes(items, cache);
+  const recentlyWatched = await getRecentlyWatchedEpisodes(items, cache, episodeCache, token);
   return [rows, totalRemainingEps, totalRemainingMinutes, recentlyWatched];
 }
 
@@ -2296,6 +2316,7 @@ function renderRecentlyWatchedHtml(list) {
       : `<div class="list-thumb placeholder">${(ep.title[0] || "?").toUpperCase()}</div>`;
     const { cycleableClass, attrs } = thumbCycleAttrs(ep, "watched", idx);
     const episodeCode = `S${String(ep.season).padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`;
+    const episodeTitleHtml = ep.episodeTitle ? `<div class="episode-title">${ep.episodeTitle}</div>` : "";
     return `
       <div class="list-row">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
@@ -2303,6 +2324,7 @@ function renderRecentlyWatchedHtml(list) {
           <div class="list-row-title">${ep.title}</div>
           ${networkSubHtml(ep.network, ep.networkLogoPath)}
           <div class="list-row-sub">${episodeCode}</div>
+          ${episodeTitleHtml}
         </div>
         <span class="list-check">${CHECK_ICON_SVG}</span>
       </div>`;
