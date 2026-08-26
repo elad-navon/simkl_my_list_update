@@ -368,6 +368,8 @@
     text-transform: uppercase; margin-top: 5px;
   }
   .premiere-badge.finale { background: #c1502e; }
+  .premiere-badge.year-badge { background: #3d6bb3; }
+  .badge-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .next-up-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .next-up-row .next-up { margin: 2px 0 0; }
   .next-up-row .premiere-badge { margin-top: 2px; }
@@ -1299,6 +1301,8 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
     let showStatus = null;
     let network = null;
     let networkLogoPath = null;
+    let startYear = null;
+    let endYear = null;
     if (tmdbId) {
       try {
         const showDetail = await cache.getShow(tmdbId);
@@ -1309,6 +1313,8 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
           : null;
         network = showNetwork ? showNetwork.name : null;
         networkLogoPath = showNetwork ? showNetwork.logo_path : null;
+        if (showDetail && showDetail.first_air_date) startYear = showDetail.first_air_date.slice(0, 4);
+        if (showDetail && showDetail.last_air_date) endYear = showDetail.last_air_date.slice(0, 4);
       } catch (e) {
         images = computeImages(null);
       }
@@ -1322,8 +1328,10 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
     const airedLabel = totalEpisodes > 0
       ? (ended ? `Series Ended - ${totalEpisodes} Episodes` : `${airedCount} Episodes Aired`)
       : null;
+    // "2016-2019" once ended, "2016-" (open-ended) while still airing.
+    const yearRangeLabel = startYear ? `${startYear}-${ended ? (endYear || "") : ""}` : null;
 
-    return { title, imdbId, imdbRating, ...images, simklId, tmdbId, airedLabel, ended, network, networkLogoPath };
+    return { title, imdbId, imdbRating, ...images, simklId, tmdbId, airedLabel, ended, network, networkLogoPath, yearRangeLabel };
   }));
 
   // Highest IMDb rating first; shows with no known rating sink to the end.
@@ -2348,13 +2356,19 @@ function renderPlanToWatchHtml(list) {
     const badgeHtml = row.airedLabel
       ? `<div class="premiere-badge${row.ended ? " finale" : ""}">${row.airedLabel}</div>`
       : "";
+    const yearBadgeHtml = row.yearRangeLabel
+      ? `<div class="premiere-badge year-badge">${row.yearRangeLabel}</div>`
+      : "";
+    const badgeRowHtml = (badgeHtml || yearBadgeHtml)
+      ? `<div class="badge-row">${badgeHtml}${yearBadgeHtml}</div>`
+      : "";
     return `
       <div class="list-row">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
         <div class="list-row-title-wrap">
           <div class="list-row-title">${row.title}</div>
           ${networkSubHtml(row.network, row.networkLogoPath)}
-          ${badgeHtml}
+          ${badgeRowHtml}
           <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId)}</div>
         </div>
       </div>`;
