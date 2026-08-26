@@ -120,11 +120,7 @@
     font-weight: 700; font-size: 0.95rem; letter-spacing: 0.04em; margin-bottom: 16px;
   }
   .series-panel-header-left {
-    display: flex; align-items: center; gap: 12px;
-    background: var(--card-hover); border: 1px solid var(--border); border-radius: 8px; padding: 7px 16px;
-  }
-  .series-panel-stats {
-    margin-left: auto; display: flex; align-items: center; gap: 14px;
+    display: flex; align-items: center; gap: 14px;
     background: var(--card-hover); border: 1px solid var(--border); border-radius: 8px; padding: 7px 16px;
   }
   .series-panel-stat { display: flex; align-items: baseline; gap: 6px; }
@@ -586,11 +582,11 @@
 
     .series-panel { padding: 14px; }
     .series-panel-header { flex-wrap: wrap; row-gap: 10px; }
-    .series-panel-stats {
-      margin-left: 0; max-width: 100%; overflow-x: auto; scrollbar-width: none;
+    .series-panel-header-left {
+      max-width: 100%; overflow-x: auto; scrollbar-width: none;
       padding: 6px 12px; gap: 10px;
     }
-    .series-panel-stats::-webkit-scrollbar { display: none; }
+    .series-panel-header-left::-webkit-scrollbar { display: none; }
     .series-panel-stat { flex: 0 0 auto; }
     .series-panel-stat .num { font-size: 0.95rem; }
     .series-panel-stat .label { font-size: 0.62rem; }
@@ -2502,11 +2498,15 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   app.innerHTML = `
     <div class="series-panel">
       <div class="series-panel-header">
-        <div class="series-panel-header-left">${GRID_ICON_SVG}<span>${rows.length} SERIES</span><div class="stats-divider"></div><span class="series-panel-updated">Updated ${new Date().toLocaleString()}</span></div>
-        <div class="series-panel-stats">
+        <div class="series-panel-header-left">
+          ${GRID_ICON_SVG}
+          <div class="series-panel-stat"><span class="num">${rows.length}</span><span class="label">Series</span></div>
+          <div class="stats-divider"></div>
           <div class="series-panel-stat"><span class="num">${totalRemainingEps}</span><span class="label">Episodes Left</span></div>
           <div class="stats-divider"></div>
           <div class="series-panel-stat"><span class="num">${totalHours}h ${totalMins}m</span><span class="label">Watch Time Left</span></div>
+          <div class="stats-divider"></div>
+          <span class="series-panel-updated">Updated ${new Date().toLocaleString()}</span>
         </div>
       </div>
       <div class="carousel-wrap">
