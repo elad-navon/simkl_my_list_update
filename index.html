@@ -511,20 +511,36 @@
   .card-menu-item:disabled:hover { background: transparent; }
   .card-menu-sep { height: 1px; background: rgba(255,255,255,0.1); margin: 6px 4px; }
 
-  /* Light theme overrides - toggled via body.light-theme */
+  /* Light theme overrides - toggled via body.light-theme.
+     "Warm Ivory": a dimmed cream (~90% lightness), not stark white - and the
+     accent/gold/danger get their OWN light-tuned values instead of inheriting
+     the dark-theme ones (which were tuned to glow on navy, not read on cream). */
   body.light-theme {
-    --bg: #f2f3f6;
-    --card: #ffffff;
-    --card-hover: #eef0f4;
-    --border: #dde1e8;
-    --text: #16171c;
-    --muted: #5c6070;
-    --divider: rgba(0,0,0,0.2);
+    --bg: #e8e2d3;
+    --card: #f2ede0;
+    --card-hover: #ebe4d3;
+    --border: #d8cfb8;
+    --text: #2c2416;
+    --muted: #71674f;
+    --divider: rgba(0,0,0,0.15);
+    --accent: #9a5b1f;
+    --accent2: #b97a3d;
+    --gold: #7c5a12;
+    --danger: #a83a2c;
   }
   body.light-theme { background: var(--bg); }
   body.light-theme .sidebar { background: #0a0a0d; border-right-color: #0a0a0d; } /* sidebar stays dark in both themes, per the reference design */
   body.light-theme .card { box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
   body.light-theme .center-box { box-shadow: 0 10px 30px rgba(0,0,0,0.10); }
+  /* The IMDb tag and the remaining-badge overlay both need to stay bright
+     regardless of theme - the former is black text ON TOP of this color, the
+     latter sits on its own fixed dark scrim over the poster, not the page bg. */
+  body.light-theme .imdb-pill { background: #f0b429; }
+  body.light-theme .remaining-badge { color: #f0b429; }
+  /* Network logo chips: an off-tone + border instead of literal white, so a
+     logo doesn't sit as a glaring white square on this already-light card. */
+  body.light-theme .network-logo { background: #e4dcc6; border: 1px solid #cabd9c; }
+  body.light-theme .badge.network-badge { background: rgba(228,220,198,0.96); border: 1px solid rgba(202,189,156,0.9); box-shadow: 0 1px 4px rgba(0,0,0,0.25); }
 
   /* ===================== Mobile layout ===================== */
   @media (max-width: 720px) {
