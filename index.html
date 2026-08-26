@@ -175,20 +175,11 @@
     color: var(--text); font-weight: 700; font-size: 0.85rem; padding: 4px 10px;
     border-radius: 20px; backdrop-filter: blur(3px); z-index: 10;
   }
-  /* Hover-driven effects (this lift, .card's background) key off a JS-
-     managed .hover-stable class on the outer container (.card / .list-row)
-     instead of native :hover - see wireHoverStabilization(). Native :hover
-     flickered here: the wrap itself moving under a stationary cursor could
-     toggle its own :hover, and the carousel arrow (a sibling of .card, not
-     a descendant) overlaps the rightmost card, so :hover on that card
-     briefly went false whenever the cursor merely passed over the arrow.
-     A debounced class - added immediately, removed only after a short
-     delay with no further mouseenter - absorbs both. */
+  /* No hover lift on the image itself (removed - see commit history for
+     why native :hover here was flicker-prone). .card's background hover
+     still keys off the same JS-managed .hover-stable class, kept for that. */
   .poster-wrap.cycleable, .list-thumb-wrap.cycleable {
-    cursor: pointer; transition: transform 0.15s ease;
-  }
-  .card.hover-stable .poster-wrap.cycleable, .list-row.hover-stable .list-thumb-wrap.cycleable {
-    transform: translateY(-4px);
+    cursor: pointer;
   }
   .poster.flip-out, .list-thumb.flip-out {
     transition: transform 0.16s ease-in; transform: rotateY(90deg);
