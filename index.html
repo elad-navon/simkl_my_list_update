@@ -64,6 +64,7 @@
   #topbarClockText {
     flex: 0 0 auto; color: var(--gold); font-variant-numeric: tabular-nums;
   }
+  .topbar-clock-sep { flex: 0 0 auto; color: #ffffff; }
   .topbar-controls { display: flex; align-items: center; gap: 20px; }
   .theme-toggle-wrap { display: flex; align-items: center; gap: 8px; }
   .theme-toggle-wrap .nav-icon { color: var(--muted); }
@@ -642,6 +643,7 @@
   </div>
   <div class="topbar-clock" id="topbarClock">
     <span id="topbarDateText">--</span>
+    <span class="topbar-clock-sep">&bull;</span>
     <span id="topbarClockText">--:--:--</span>
   </div>
   <div class="topbar-controls">
