@@ -378,8 +378,9 @@
     text-transform: uppercase; margin-top: 5px;
   }
   .premiere-badge.finale { background: #c1502e; }
-  .premiere-badge.year-badge { background: #3d6bb3; }
-  .badge-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .premiere-badge.year-badge { background: #3d6bb3; margin-top: 0; }
+  .title-with-year { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .title-with-year .list-row-title { flex: 1 1 auto; min-width: 0; }
   .next-up-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .next-up-row .next-up { margin: 2px 0 0; }
   .next-up-row .premiere-badge { margin-top: 2px; }
@@ -2394,16 +2395,16 @@ function renderPlanToWatchHtml(list) {
     const yearBadgeHtml = row.yearRangeLabel
       ? `<div class="premiere-badge year-badge">${row.yearRangeLabel}</div>`
       : "";
-    const badgeRowHtml = (badgeHtml || yearBadgeHtml)
-      ? `<div class="badge-row">${badgeHtml}${yearBadgeHtml}</div>`
-      : "";
     return `
       <div class="list-row">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
         <div class="list-row-title-wrap">
-          <div class="list-row-title">${row.title}</div>
+          <div class="title-with-year">
+            <div class="list-row-title">${row.title}</div>
+            ${yearBadgeHtml}
+          </div>
           ${networkSubHtml(row.network, row.networkLogoPath)}
-          ${badgeRowHtml}
+          ${badgeHtml}
           <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId)}</div>
         </div>
       </div>`;
