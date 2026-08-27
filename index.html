@@ -2274,16 +2274,17 @@ function cardImageBits(row, mode, arrIdx, extraOverlayHtml) {
   const cycleAttrs = cycleable
     ? ` data-cycle-key="main-${arrIdx}" title="Click to try another image" onclick="cycleImageWithFlip('main', ${arrIdx}, this, '${mode}')"`
     : "";
-  // Network logo replaces the ranking number in the corner when known - the
-  // dark scrim (already used for the "#N" pill) keeps colorful logos from
-  // blending into bright poster art underneath. Falls back to "#N" both
-  // when there's no known logo, and live if the logo image itself 404s.
+  // Network logo sits in the corner when known - the dark scrim keeps
+  // colorful logos from blending into bright poster art underneath. Falls
+  // back to "#N" live if the logo image itself 404s (data exists, just
+  // failed to load); leaves the corner empty when there's no known network
+  // at all, rather than showing a ranking number as a stand-in.
   const badgeHtml = row.networkLogoPath
     ? `<div class="badge network-badge" data-idx="${row.index}">
         <img class="network-badge-logo" src="${TMDB_LOGO_BASE}${row.networkLogoPath}" alt="${row.network || ""}"
           onerror="this.parentElement.classList.add('logo-failed')">
       </div>`
-    : `<div class="badge">#${row.index}</div>`;
+    : "";
   const wrapHtml = `<div class="poster-wrap${cycleable ? " cycleable" : ""}"${cycleAttrs}>${badgeHtml}${posterHtml}${extraOverlayHtml || ""}</div>`;
   return { wrapHtml };
 }
