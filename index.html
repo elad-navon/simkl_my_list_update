@@ -54,7 +54,7 @@
   /* Date shrinks/ellipsizes first on narrow screens - the time (icon +
      topbarClockText) stays a fixed size and is never the one clipped. */
   #topbarDateText { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .topbar-clock .nav-icon, #topbarClockText { flex: 0 0 auto; }
+  #topbarClockText { flex: 0 0 auto; }
   .topbar-clock-sep { color: #3a4657; font-size: 0.9rem; }
   .topbar-controls { display: flex; align-items: center; gap: 20px; }
   .theme-toggle-wrap { display: flex; align-items: center; gap: 8px; }
@@ -634,7 +634,6 @@
   <div class="topbar-clock" id="topbarClock">
     <span id="topbarDateText">--</span>
     <span class="topbar-clock-sep">&bull;</span>
-    <span class="nav-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></span>
     <span id="topbarClockText">--:--:--</span>
   </div>
   <div class="topbar-controls">
