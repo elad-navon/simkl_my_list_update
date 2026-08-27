@@ -120,7 +120,7 @@
   .page-header p { color: var(--muted); margin: 0; font-size: 0.9rem; font-weight: 600; }
   #subtitle:empty { display: none; }
   .page-header:has(#subtitle:empty) { display: none; }
-  .series-panel-updated { color: var(--muted); font-size: 0.8rem; font-weight: 600; }
+  .series-panel-updated { color: var(--muted); font-size: 0.8rem; font-weight: 600; margin-left: auto; }
   /* ===================== "MY LIST" series panel + carousel ===================== */
   .series-panel {
     background: var(--card); border: 1px solid var(--border); border-radius: 12px;
@@ -2559,9 +2559,8 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
           <div class="series-panel-stat"><span class="num">${totalRemainingEps}</span><span class="label">Episodes Left</span></div>
           <div class="stats-divider"></div>
           <div class="series-panel-stat"><span class="num">${totalHours}h ${totalMins}m</span><span class="label">Watch Time Left</span></div>
-          <div class="stats-divider"></div>
-          <span class="series-panel-updated">Updated ${new Date().toLocaleString()}</span>
         </div>
+        <span class="series-panel-updated">Updated ${new Date().toLocaleString()}</span>
       </div>
       <div class="carousel-wrap">
         <button class="carousel-arrow left" title="Scroll left" style="top:${carouselArrowTop}px"
