@@ -5,6 +5,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>My List - Continue Watching</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #111820;
@@ -48,17 +51,18 @@
   }
   .topbar-clock {
     justify-self: center; min-width: 0; max-width: 100%;
-    display: flex; flex-direction: column; align-items: center; gap: 1px;
+    display: flex; align-items: baseline; gap: 8px;
+    font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
+    font-weight: 700; font-size: 1.3rem; letter-spacing: 0.06em; text-transform: uppercase;
   }
   /* Date shrinks/ellipsizes first on narrow screens - the time stays a
      fixed size and is never the one clipped. */
   #topbarDateText {
-    min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    color: #ffffff; font-weight: 600; font-size: 0.85rem; letter-spacing: 0.02em;
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: #ffffff;
   }
   #topbarClockText {
-    flex: 0 0 auto; color: var(--gold); font-weight: 800; font-size: 1.5rem;
-    font-variant-numeric: tabular-nums; line-height: 1.2;
+    flex: 0 0 auto; color: var(--gold); font-variant-numeric: tabular-nums;
   }
   .topbar-controls { display: flex; align-items: center; gap: 20px; }
   .theme-toggle-wrap { display: flex; align-items: center; gap: 8px; }
