@@ -681,6 +681,12 @@ const TMDB_BASE = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w342";
 const TMDB_BACKDROP_BASE = "https://image.tmdb.org/t/p/w780";
 const TMDB_LOGO_BASE = "https://image.tmdb.org/t/p/w92";
+// Manual fallback for networks that have no logo in TMDB (or aren't in TMDB
+// at all) and none in SIMKL either - mainly small/regional broadcasters,
+// e.g. Israeli channels. Keyed by the exact network name string as it comes
+// back from TMDB or SIMKL. Each value is a ready-to-use image src (a data
+// URI), not a path - these aren't fetched from anywhere at runtime.
+const LOCAL_NETWORK_LOGOS = {};
 const APP_NAME = "my-list-summary-web";
 const APP_VERSION = "1.0";
 
@@ -1020,6 +1026,24 @@ class SimklShowCache {
   }
 }
 
+function extractSimklNetwork(showData) {
+  // Same defensive spirit as extractImdbRating - SIMKL's /tv/{id} shape for
+  // this isn't documented, so try the plausible field names and return the
+  // first usable string.
+  if (!showData) return null;
+  const candidates = [showData.network, showData.channel];
+  for (const c of candidates) {
+    if (typeof c === "string" && c.trim()) return c.trim();
+  }
+  return null;
+}
+
+function resolveNetworkLogoUrl(networkName, tmdbLogoPath) {
+  if (tmdbLogoPath) return TMDB_LOGO_BASE + tmdbLogoPath;
+  if (networkName && LOCAL_NETWORK_LOGOS[networkName]) return LOCAL_NETWORK_LOGOS[networkName];
+  return null;
+}
+
 function extractImdbRating(showData) {
   // Defensive parsing: the exact shape of SIMKL's "ratings" field isn't
   // fully documented, so this tries a few plausible layouts and returns
@@ -1246,7 +1270,7 @@ function computeImages(showDetail, tmdbId) {
   return out;
 }
 
-async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token) {
+async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token, ratingsCache) {
   // Scans every currently-"watching" show (even ones you've fully caught
   // up on, which wouldn't otherwise appear in My List) for watched
   // episodes with a timestamp, and returns the 10 most recent - at most
@@ -1288,6 +1312,7 @@ async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token) {
     c.network = null;
     c.networkLogoPath = null;
     c.episodeTitle = null;
+    let tmdbLogoPath = null;
     if (c.tmdbId) {
       const showDetail = await cache.getShow(c.tmdbId); // cached, no extra request if already fetched
       Object.assign(c, computeImages(showDetail, c.tmdbId));
@@ -1295,8 +1320,12 @@ async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token) {
         ? showDetail.networks[0]
         : null;
       c.network = network ? network.name : null;
-      c.networkLogoPath = network ? network.logo_path : null;
+      tmdbLogoPath = network ? network.logo_path : null;
     }
+    if (!c.network && c.simklId && ratingsCache) {
+      c.network = extractSimklNetwork(await ratingsCache.get(c.simklId, token));
+    }
+    c.networkLogoPath = resolveNetworkLogoUrl(c.network, tmdbLogoPath);
 
     // Episode title: prefer SIMKL's own title if we have it, else TMDB's -
     // same fallback order used for My List / Airing Next.
@@ -1335,7 +1364,7 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
     let images = computeImages(null);
     let showStatus = null;
     let network = null;
-    let networkLogoPath = null;
+    let tmdbLogoPath = null;
     let startYear = null;
     let endYear = null;
     if (tmdbId) {
@@ -1347,14 +1376,17 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
           ? showDetail.networks[0]
           : null;
         network = showNetwork ? showNetwork.name : null;
-        networkLogoPath = showNetwork ? showNetwork.logo_path : null;
+        tmdbLogoPath = showNetwork ? showNetwork.logo_path : null;
         if (showDetail && showDetail.first_air_date) startYear = showDetail.first_air_date.slice(0, 4);
         if (showDetail && showDetail.last_air_date) endYear = showDetail.last_air_date.slice(0, 4);
       } catch (e) {
         images = computeImages(null);
       }
     }
-    const imdbRating = simklId ? extractImdbRating(await ratingsCache.get(simklId, token)) : null;
+    const simklShowData = simklId ? await ratingsCache.get(simklId, token) : null;
+    const imdbRating = extractImdbRating(simklShowData);
+    if (!network) network = extractSimklNetwork(simklShowData);
+    const networkLogoPath = resolveNetworkLogoUrl(network, tmdbLogoPath);
 
     const totalEpisodes = item.total_episodes_count || 0;
     const notAired = item.not_aired_episodes_count || 0;
@@ -1409,7 +1441,7 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
     let images = computeImages(null);
     let showDetail = null;
     let network = null;
-    let networkLogoPath = null;
+    let tmdbLogoPath = null;
     if (tmdbId) {
       // TMDB is now purely supplementary (images/runtime estimate) - if it
       // fails for this one show, that shouldn't take down the whole list.
@@ -1420,7 +1452,7 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
           ? showDetail.networks[0]
           : null;
         network = showNetwork ? showNetwork.name : null;
-        networkLogoPath = showNetwork ? showNetwork.logo_path : null;
+        tmdbLogoPath = showNetwork ? showNetwork.logo_path : null;
       } catch (e) {
         showDetail = null;
       }
@@ -1487,7 +1519,10 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
 
     const [hours, mins] = formatTime(remainingMinutes);
     const [nextHours, nextMins] = formatTime(nextEpisodeMinutes);
-    const imdbRating = simklId ? extractImdbRating(await ratingsCache.get(simklId, token)) : null;
+    const simklShowData = simklId ? await ratingsCache.get(simklId, token) : null;
+    const imdbRating = extractImdbRating(simklShowData);
+    if (!network) network = extractSimklNetwork(simklShowData);
+    const networkLogoPath = resolveNetworkLogoUrl(network, tmdbLogoPath);
     const row = {
       title, imdbId, imdbRating, simklId, tmdbId, year: show.year, ...images, network, networkLogoPath,
       totalEpisodes, available, watched, remaining,
@@ -1515,7 +1550,7 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
   });
 
   rows.forEach((r, i) => { r.index = i + 1; });
-  const recentlyWatched = await getRecentlyWatchedEpisodes(items, cache, episodeCache, token);
+  const recentlyWatched = await getRecentlyWatchedEpisodes(items, cache, episodeCache, token, ratingsCache);
   return [rows, totalRemainingEps, totalRemainingMinutes, recentlyWatched];
 }
 
@@ -1678,7 +1713,8 @@ async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, re
     }
   }
 
-  const imdbRating = simklId ? extractImdbRating(await ratingsCache.get(simklId, token)) : null;
+  const simklShowData = simklId ? await ratingsCache.get(simklId, token) : null;
+  const imdbRating = extractImdbRating(simklShowData);
 
   // Premiere/finale badge, matching SIMKL's own "SEASON PREMIERE" labeling:
   // episode 1 of a season is a premiere (season 1 specifically is a series
@@ -1701,6 +1737,9 @@ async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, re
   const showNetwork = showDetail && showDetail.networks && showDetail.networks.length
     ? showDetail.networks[0]
     : null;
+  let network = showNetwork ? showNetwork.name : null;
+  const tmdbLogoPath = showNetwork ? showNetwork.logo_path : null;
+  if (!network) network = extractSimklNetwork(simklShowData);
 
   return {
     title: show.title || "Unknown",
@@ -1712,8 +1751,8 @@ async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, re
     badge,
     airDate: next.airDate,
     airDateLabel: formatAirDate(next.airDate),
-    network: showNetwork ? showNetwork.name : null,
-    networkLogoPath: showNetwork ? showNetwork.logo_path : null,
+    network,
+    networkLogoPath: resolveNetworkLogoUrl(network, tmdbLogoPath),
   };
 }
 
@@ -2281,7 +2320,7 @@ function cardImageBits(row, mode, arrIdx, extraOverlayHtml) {
   // at all, rather than showing a ranking number as a stand-in.
   const badgeHtml = row.networkLogoPath
     ? `<div class="badge network-badge" data-idx="${row.index}">
-        <img class="network-badge-logo" src="${TMDB_LOGO_BASE}${row.networkLogoPath}" alt="${row.network || ""}"
+        <img class="network-badge-logo" src="${row.networkLogoPath}" alt="${row.network || ""}"
           onerror="this.parentElement.classList.add('logo-failed')">
       </div>`
     : "";
@@ -2344,7 +2383,7 @@ function thumbCycleAttrs(row, source, idx) {
 function networkSubHtml(name, logoPath) {
   if (logoPath) {
     return `<div class="list-row-sub network-sub">
-        <img class="network-logo" src="${TMDB_LOGO_BASE}${logoPath}" alt="${name || ""}"
+        <img class="network-logo" src="${logoPath}" alt="${name || ""}"
           onerror="this.style.display='none'; this.nextElementSibling.style.display='inline'">
         <span class="network-name-fallback" style="display:none">${name || ""}</span>
       </div>`;
