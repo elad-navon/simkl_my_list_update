@@ -48,14 +48,18 @@
   }
   .topbar-clock {
     justify-self: center; min-width: 0; max-width: 100%;
-    display: flex; align-items: center; gap: 8px;
-    color: #ffffff; font-variant-numeric: tabular-nums; font-size: 1rem; font-weight: 600;
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
   }
-  /* Date shrinks/ellipsizes first on narrow screens - the time (icon +
-     topbarClockText) stays a fixed size and is never the one clipped. */
-  #topbarDateText { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #topbarClockText { flex: 0 0 auto; }
-  .topbar-clock-sep { color: #ffffff; font-size: 0.9rem; }
+  /* Date shrinks/ellipsizes first on narrow screens - the time stays a
+     fixed size and is never the one clipped. */
+  #topbarDateText {
+    min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: #ffffff; font-weight: 600; font-size: 0.85rem; letter-spacing: 0.02em;
+  }
+  #topbarClockText {
+    flex: 0 0 auto; color: var(--gold); font-weight: 800; font-size: 1.5rem;
+    font-variant-numeric: tabular-nums; line-height: 1.2;
+  }
   .topbar-controls { display: flex; align-items: center; gap: 20px; }
   .theme-toggle-wrap { display: flex; align-items: center; gap: 8px; }
   .theme-toggle-wrap .nav-icon { color: var(--muted); }
@@ -634,7 +638,6 @@
   </div>
   <div class="topbar-clock" id="topbarClock">
     <span id="topbarDateText">--</span>
-    <span class="topbar-clock-sep">&bull;</span>
     <span id="topbarClockText">--:--:--</span>
   </div>
   <div class="topbar-controls">
