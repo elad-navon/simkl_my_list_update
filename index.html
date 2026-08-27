@@ -631,10 +631,6 @@
     <span id="topbarClockText">--:--:--</span>
   </div>
   <div class="topbar-controls">
-    <div class="theme-toggle-wrap">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></span>
-      <button class="theme-toggle" id="themeToggleBtn" title="Toggle light/dark"></button>
-    </div>
     <nav class="navbar-nav">
       <button class="nav-item" id="imageModeBtn">
         <span class="nav-icon"><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg></span>Switch to Banners
@@ -752,6 +748,11 @@ function showSettings(afterSaveCallback) {
       <label>TMDB API Key
         (<a href="https://www.themoviedb.org/settings/api" target="_blank">get a free key</a>)</label>
       <input type="text" id="tmdbKeyInput" value="${cfg.tmdbKey}">
+      <div class="theme-toggle-wrap" style="margin-top:18px">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></span>
+        <span style="flex:1 1 auto;text-align:left">Dark Mode</span>
+        <button class="theme-toggle" id="themeToggleBtn" title="Toggle light/dark"></button>
+      </div>
       <div style="margin-top:18px">
         <button class="pill" id="saveSettingsBtn">Save</button>
       </div>
@@ -770,6 +771,12 @@ function showSettings(afterSaveCallback) {
     localStorage.setItem(LS_TMDB_KEY, tmdbKey);
     if (afterSaveCallback) afterSaveCallback();
   };
+  document.getElementById("themeToggleBtn").onclick = () => {
+    const isLight = document.body.classList.toggle("light-theme");
+    localStorage.setItem(LS_THEME, isLight ? "light" : "dark");
+    updateThemeToggleButton();
+  };
+  updateThemeToggleButton();
   if (canCancel) {
     document.getElementById("settingsCloseBtn").onclick = returnToPreviousView;
   }
@@ -2152,6 +2159,7 @@ function applyStoredTheme() {
 
 function updateThemeToggleButton() {
   const btn = document.getElementById("themeToggleBtn");
+  if (!btn) return; // only present while the Settings panel is open
   const isLight = document.body.classList.contains("light-theme");
   // "on" = dark mode active, matching the toggle's cyan/knob-right state.
   btn.classList.toggle("on", !isLight);
@@ -2733,11 +2741,6 @@ document.getElementById("imageModeBtn").onclick = () => {
   } else {
     updateImageModeButton();
   }
-};
-document.getElementById("themeToggleBtn").onclick = () => {
-  const isLight = document.body.classList.toggle("light-theme");
-  localStorage.setItem(LS_THEME, isLight ? "light" : "dark");
-  updateThemeToggleButton();
 };
 updateImageModeButton();
 updateViewModeButton();
