@@ -59,10 +59,11 @@
      fixed size and is never the one clipped. */
   #topbarDateText {
     min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    color: #ffffff;
+    color: #ffffff; border-bottom: 2px solid var(--gold); padding-bottom: 4px;
   }
   #topbarClockText {
     flex: 0 0 auto; color: var(--gold); font-variant-numeric: tabular-nums;
+    border-bottom: 2px solid #ffffff; padding-bottom: 4px;
   }
   .topbar-clock-sep { flex: 0 0 auto; color: #ffffff; }
   .topbar-controls { display: flex; align-items: center; gap: 20px; }
