@@ -30,7 +30,7 @@
 
   /* ===================== Top bar ===================== */
   .topbar {
-    display: flex; align-items: center; justify-content: space-between; gap: 20px;
+    display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 20px;
     background: var(--sidebar-bg); border-bottom: 1px solid var(--border);
     padding: 12px 32px; position: sticky; top: 0; z-index: 100;
     /* The top bar always keeps its own dark background regardless of the
@@ -47,10 +47,15 @@
     text-transform: uppercase; color: #ffffff; white-space: nowrap;
   }
   .topbar-clock {
-    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    justify-self: center; min-width: 0; max-width: 100%;
     display: flex; align-items: center; gap: 8px;
     color: var(--muted); font-variant-numeric: tabular-nums; font-size: 1rem; font-weight: 600;
   }
+  /* Date shrinks/ellipsizes first on narrow screens - the time (icon +
+     topbarClockText) stays a fixed size and is never the one clipped. */
+  #topbarDateText { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .topbar-clock .nav-icon, #topbarClockText { flex: 0 0 auto; }
+  .topbar-clock-sep { color: #3a4657; font-size: 0.9rem; }
   .topbar-controls { display: flex; align-items: center; gap: 20px; }
   .theme-toggle-wrap { display: flex; align-items: center; gap: 8px; }
   .theme-toggle-wrap .nav-icon { color: var(--muted); }
@@ -549,7 +554,7 @@
   @media (max-width: 720px) {
     /* Top bar wraps to two rows instead of becoming a bottom tab bar -
        logo stays on its own row, controls take the full width below it. */
-    .topbar { flex-wrap: wrap; padding: 10px 14px; gap: 8px; }
+    .topbar { display: flex; flex-wrap: wrap; padding: 10px 14px; gap: 8px; }
     .topbar-slogan-sep, .topbar-slogan, .topbar-clock { display: none; }
     .topbar-controls { width: 100%; justify-content: space-between; }
     .navbar-nav { flex: 1 1 auto; gap: 6px; }
@@ -627,6 +632,8 @@
     <span class="topbar-slogan">Never Lose Track</span>
   </div>
   <div class="topbar-clock" id="topbarClock">
+    <span id="topbarDateText">--</span>
+    <span class="topbar-clock-sep">&bull;</span>
     <span class="nav-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></span>
     <span id="topbarClockText">--:--:--</span>
   </div>
@@ -2723,8 +2730,11 @@ async function main() {
 }
 
 function updateTopbarClock() {
-  const el = document.getElementById("topbarClockText");
-  if (el) el.textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const now = new Date();
+  const timeEl = document.getElementById("topbarClockText");
+  if (timeEl) timeEl.textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const dateEl = document.getElementById("topbarDateText");
+  if (dateEl) dateEl.textContent = now.toLocaleDateString([], { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 }
 updateTopbarClock();
 setInterval(updateTopbarClock, 1000);
