@@ -543,24 +543,6 @@
   .card-menu-item:disabled { opacity: 0.5; cursor: default; }
   .card-menu-item:disabled:hover { background: transparent; }
   .card-menu-sep { height: 1px; background: rgba(255,255,255,0.1); margin: 6px 4px; }
-  .accent-swatch-btn {
-    width: 26px; height: 26px; border-radius: 50%; flex: 0 0 auto; padding: 0; cursor: pointer;
-    background: var(--accent); border: 2px solid var(--sidebar-bg);
-  }
-  .accent-popover {
-    position: fixed; background: var(--card); border-radius: 10px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.45); z-index: 160; padding: 10px;
-    display: flex; flex-wrap: wrap; gap: 10px; width: 148px;
-  }
-  .accent-dot {
-    width: 26px; height: 26px; border-radius: 50%; cursor: pointer; padding: 0;
-    border: 2px solid transparent; position: relative;
-  }
-  .accent-dot.active { border-color: var(--text); }
-  .accent-dot.active::after {
-    content: ""; position: absolute; inset: 0; margin: auto; width: 7px; height: 7px;
-    border-radius: 50%; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,0.4);
-  }
 
   /* Light theme overrides - toggled via body.light-theme.
      "Warm Ivory": a dimmed cream (~90% lightness), not stark white - and the
@@ -680,7 +662,6 @@
     <span id="topbarClockText">--:--:--</span>
   </div>
   <div class="topbar-controls">
-    <button class="accent-swatch-btn" id="accentSwatchBtn" title="Accent color" onclick="event.stopPropagation(); openAccentPopover(this)"></button>
     <nav class="navbar-nav">
       <button class="nav-item" id="imageModeBtn">
         <span class="nav-icon"><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg></span>Switch to Banners
@@ -755,34 +736,7 @@ const LS_TMDB_KEY = "tmdb_api_key";
 const LS_TOKEN = "simkl_access_token";
 const LS_IMAGE_MODE = "simkl_image_mode"; // "poster" | "banner"
 const LS_THEME = "simkl_theme"; // "light" | "dark"
-const LS_ACCENT = "simkl_accent"; // one of ACCENT_PRESETS[].name - dark theme only, see applyAccent()
 const LS_VIEW_MODE = "simkl_view_mode";   // "list" or "airing" (not restored on load - always starts on "list")
-
-// Dark-theme accent only - light theme keeps its own bespoke Warm Ivory
-// accent (tuned for contrast on a cream background) regardless of pick,
-// see applyAccent(). "cyan" matches the original Ocean Steel default
-// exactly, so picking it is a no-op visually.
-const ACCENT_PRESETS = [
-  { name: "cyan", label: "Cyan", accent: "#38bdf8", accent2: "#7dd3fc" },
-  { name: "teal", label: "Teal", accent: "#2dd4bf", accent2: "#5eead4" },
-  { name: "green", label: "Green", accent: "#4ade80", accent2: "#86efac" },
-  { name: "lime", label: "Lime", accent: "#a3e635", accent2: "#bef264" },
-  { name: "blue", label: "Blue", accent: "#60a5fa", accent2: "#93c5fd" },
-  { name: "orange", label: "Orange", accent: "#fb923c", accent2: "#fdba74" },
-];
-
-function applyAccent() {
-  const presetName = localStorage.getItem(LS_ACCENT) || ACCENT_PRESETS[0].name;
-  const preset = ACCENT_PRESETS.find(p => p.name === presetName) || ACCENT_PRESETS[0];
-  const isLight = document.body.classList.contains("light-theme");
-  if (isLight) {
-    document.body.style.removeProperty("--accent");
-    document.body.style.removeProperty("--accent2");
-  } else {
-    document.body.style.setProperty("--accent", preset.accent);
-    document.body.style.setProperty("--accent2", preset.accent2);
-  }
-}
 
 const app = document.getElementById("app");
 const subtitle = document.getElementById("subtitle");
@@ -864,7 +818,6 @@ function showSettings(afterSaveCallback) {
     const isLight = document.body.classList.toggle("light-theme");
     localStorage.setItem(LS_THEME, isLight ? "light" : "dark");
     updateThemeToggleButton();
-    applyAccent();
   };
   updateThemeToggleButton();
   if (canCancel) {
@@ -2163,56 +2116,6 @@ function closeSearchModal() {
 // ---------------------------------------------------------------------
 // Per-card status/remove menu
 // ---------------------------------------------------------------------
-let accentPopoverOpenerBtn = null;
-
-function closeAccentPopover() {
-  const el = document.getElementById("accentPopover");
-  if (el) el.remove();
-  document.removeEventListener("keydown", accentPopoverEscHandler);
-  document.removeEventListener("click", accentPopoverOutsideClickHandler);
-  accentPopoverOpenerBtn = null;
-}
-
-function accentPopoverEscHandler(e) {
-  if (e.key === "Escape") closeAccentPopover();
-}
-
-function accentPopoverOutsideClickHandler(e) {
-  const pop = document.getElementById("accentPopover");
-  if (pop && !pop.contains(e.target)) closeAccentPopover();
-}
-
-function openAccentPopover(btnEl) {
-  const alreadyOpenForThisBtn = accentPopoverOpenerBtn === btnEl;
-  closeAccentPopover();
-  if (alreadyOpenForThisBtn) return; // second click on the same button toggles it closed
-
-  const current = localStorage.getItem(LS_ACCENT) || ACCENT_PRESETS[0].name;
-  const rect = btnEl.getBoundingClientRect();
-  const pop = document.createElement("div");
-  pop.className = "accent-popover";
-  pop.id = "accentPopover";
-  pop.style.top = `${rect.bottom + 8}px`;
-  pop.style.left = `${Math.min(rect.left, window.innerWidth - 168)}px`;
-  pop.innerHTML = ACCENT_PRESETS.map(p => `
-    <button class="accent-dot${p.name === current ? " active" : ""}" data-accent="${p.name}"
-      style="background:${p.accent}" title="${p.label}"></button>
-  `).join("");
-  document.body.appendChild(pop);
-  accentPopoverOpenerBtn = btnEl;
-
-  pop.querySelectorAll("[data-accent]").forEach(b => {
-    b.onclick = () => {
-      localStorage.setItem(LS_ACCENT, b.dataset.accent);
-      applyAccent();
-      closeAccentPopover();
-    };
-  });
-
-  setTimeout(() => document.addEventListener("click", accentPopoverOutsideClickHandler), 0);
-  document.addEventListener("keydown", accentPopoverEscHandler);
-}
-
 const STATUS_OPTIONS = [
   { value: "watching", label: "Watching" },
   { value: "hold", label: "On Hold" },
@@ -2349,7 +2252,6 @@ function applyStoredTheme() {
   const isLight = localStorage.getItem(LS_THEME) === "light";
   document.body.classList.toggle("light-theme", isLight);
   updateThemeToggleButton();
-  applyAccent();
 }
 
 function updateThemeToggleButton() {
