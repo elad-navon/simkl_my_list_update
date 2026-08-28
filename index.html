@@ -306,6 +306,12 @@
     white-space: nowrap;
     text-overflow: ellipsis;
   }
+  .watch-progress { margin-top: 8px; }
+  .watch-progress-track { height: 5px; border-radius: 3px; background: var(--border); overflow: hidden; }
+  .watch-progress-fill { height: 100%; background: var(--accent); border-radius: 3px; }
+  .watch-progress-label {
+    display: block; margin-top: 4px; font-size: 0.7rem; font-weight: 600; color: var(--muted);
+  }
   .next-up {
     margin: 2px 0 0;
     padding: 0;
@@ -2711,6 +2717,13 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
       ? `${row.nextHours}h ${row.nextMins}m / ${row.hours}h ${row.mins}m left`
       : `${row.hours}h ${row.mins}m left`;
     const episodeTitle = row.episodeTitle ? `<div class="episode-title">${row.episodeTitle}</div>` : "";
+    const progressPct = row.available > 0 ? Math.min(100, Math.round((row.watched / row.available) * 100)) : 0;
+    const progressHtml = row.available > 0
+      ? `<div class="watch-progress">
+          <div class="watch-progress-track"><div class="watch-progress-fill" style="width:${progressPct}%"></div></div>
+          <span class="watch-progress-label">${row.watched}/${row.available} Episodes Watched</span>
+        </div>`
+      : "";
     const remainingText = row.remaining === 1 ? "1 episode left" : `${row.remaining} episodes left`;
     const overlayHtml = imdbButtonHtml(row.imdbId, row.imdbRating) + `<div class="remaining-badge">${remainingText}</div>`;
     const { wrapHtml } = cardImageBits(row, mode, arrIdx, overlayHtml);
@@ -2728,6 +2741,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
             ${row.badge ? `<div class="premiere-badge${row.badge === "SEASON FINALE" ? " finale" : ""}">${row.badge}</div>` : ""}
           </div>
           ${episodeTitle}
+          ${progressHtml}
           <div class="time-left"><span class="time-icon">${CLOCK_ICON_SVG}</span>${timeText}</div>
         </div>
       </div>`;
