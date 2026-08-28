@@ -983,6 +983,46 @@ async function tmdbGet(path, params) {
   return res.json();
 }
 
+// ---------------------------------------------------------------------
+// Persistent (localStorage-backed) layer for the per-show API caches
+// below. The in-memory Maps in each class already dedupe concurrent
+// requests within one page load; this adds a second layer so a page
+// RELOAD/reopen can skip the network entirely for anything fetched
+// recently, instead of re-fetching every show from scratch every time.
+// Each entry is timestamped and expires after its own TTL - short enough
+// that "next episode" dates/ratings/images don't go stale for long, but
+// long enough that a reload a few minutes (or hours) later is instant.
+// Only successful (non-null) results are persisted; a failed fetch
+// resolves to null in-memory as before but is never written to storage,
+// so a transient network error doesn't "poison" the cache.
+// ---------------------------------------------------------------------
+const API_CACHE_PREFIX = "simkl_apicache:";
+const CACHE_TTL_TMDB_SHOW_MS = 24 * 60 * 60 * 1000;
+const CACHE_TTL_TMDB_SEASON_MS = 6 * 60 * 60 * 1000;
+const CACHE_TTL_SIMKL_EPISODES_MS = 6 * 60 * 60 * 1000;
+const CACHE_TTL_SIMKL_SHOW_MS = 24 * 60 * 60 * 1000;
+
+function readPersistedCache(key, ttlMs) {
+  try {
+    const raw = localStorage.getItem(API_CACHE_PREFIX + key);
+    if (!raw) return undefined;
+    const entry = JSON.parse(raw);
+    if (!entry || typeof entry.t !== "number" || Date.now() - entry.t > ttlMs) return undefined;
+    return entry.v;
+  } catch (e) {
+    return undefined;
+  }
+}
+
+function writePersistedCache(key, value) {
+  try {
+    localStorage.setItem(API_CACHE_PREFIX + key, JSON.stringify({ t: Date.now(), v: value }));
+  } catch (e) {
+    // localStorage full or unavailable - the in-memory cache for this
+    // session still works fine, just nothing persists across reloads.
+  }
+}
+
 class TmdbCache {
   constructor() { this.show = new Map(); this.season = new Map(); }
   // Both methods store the in-flight PROMISE in the map (not just the
@@ -992,6 +1032,12 @@ class TmdbCache {
   // call reuses the same promise instead of firing a duplicate request.
   getShow(tmdbId) {
     if (!this.show.has(tmdbId)) {
+      const cacheKey = `tmdbshow:${tmdbId}`;
+      const cached = readPersistedCache(cacheKey, CACHE_TTL_TMDB_SHOW_MS);
+      if (cached !== undefined) {
+        this.show.set(tmdbId, Promise.resolve(cached));
+        return this.show.get(tmdbId);
+      }
       // append_to_response=images pulls ALL available posters/backdrops for
       // this show in the same request, so we can offer alternates later.
       // include_image_language asks for English + untagged (no-language) +
@@ -1005,6 +1051,9 @@ class TmdbCache {
         append_to_response: "images",
         language: "en-US",
         include_image_language: "en,null,he",
+      }).then(data => {
+        if (data) writePersistedCache(cacheKey, data);
+        return data;
       }).catch(() => null);
       this.show.set(tmdbId, promise);
     }
@@ -1013,7 +1062,16 @@ class TmdbCache {
   getSeason(tmdbId, seasonNum) {
     const key = `${tmdbId}:${seasonNum}`;
     if (!this.season.has(key)) {
-      const promise = tmdbGet(`/tv/${tmdbId}/season/${seasonNum}`).catch(() => null);
+      const cacheKey = `tmdbseason:${key}`;
+      const cached = readPersistedCache(cacheKey, CACHE_TTL_TMDB_SEASON_MS);
+      if (cached !== undefined) {
+        this.season.set(key, Promise.resolve(cached));
+        return this.season.get(key);
+      }
+      const promise = tmdbGet(`/tv/${tmdbId}/season/${seasonNum}`).then(data => {
+        if (data) writePersistedCache(cacheKey, data);
+        return data;
+      }).catch(() => null);
       this.season.set(key, promise);
     }
     return this.season.get(key);
@@ -1030,10 +1088,20 @@ class SimklEpisodeCache {
   constructor() { this.map = new Map(); }
   get(simklId, token) {
     if (!this.map.has(simklId)) {
+      const cacheKey = `simklepisodes:${simklId}`;
+      const cached = readPersistedCache(cacheKey, CACHE_TTL_SIMKL_EPISODES_MS);
+      if (cached !== undefined) {
+        this.map.set(simklId, Promise.resolve(cached));
+        return this.map.get(simklId);
+      }
       // Stores the in-flight promise itself (see TmdbCache) so concurrent
       // requests for the same show reuse one fetch instead of duplicating it.
       const promise = simklGet(`/tv/episodes/${simklId}`, token, { extended: "full" })
         .then(data => Array.isArray(data) ? data : null)
+        .then(data => {
+          if (data) writePersistedCache(cacheKey, data);
+          return data;
+        })
         .catch(() => null); // fall back to TMDB dates for this show
       this.map.set(simklId, promise);
     }
@@ -1049,7 +1117,16 @@ class SimklShowCache {
   constructor() { this.map = new Map(); }
   get(simklId, token) {
     if (!this.map.has(simklId)) {
-      const promise = simklGet(`/tv/${simklId}`, token, {}).catch(() => null);
+      const cacheKey = `simklshow:${simklId}`;
+      const cached = readPersistedCache(cacheKey, CACHE_TTL_SIMKL_SHOW_MS);
+      if (cached !== undefined) {
+        this.map.set(simklId, Promise.resolve(cached));
+        return this.map.get(simklId);
+      }
+      const promise = simklGet(`/tv/${simklId}`, token, {}).then(data => {
+        if (data) writePersistedCache(cacheKey, data);
+        return data;
+      }).catch(() => null);
       this.map.set(simklId, promise);
     }
     return this.map.get(simklId);
