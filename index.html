@@ -1429,7 +1429,7 @@ function computeImages(showDetail, tmdbId) {
 async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token, ratingsCache) {
   // Scans every currently-"watching" show (even ones you've fully caught
   // up on, which wouldn't otherwise appear in My List) for watched
-  // episodes with a timestamp, and returns the 10 most recent - at most
+  // episodes with a timestamp, and returns the 15 most recent - at most
   // one entry per show (its single most recently watched episode), so
   // binge-watching several episodes of the same show in a row doesn't
   // crowd out everything else.
@@ -1461,7 +1461,7 @@ async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token, rat
     seenShows.add(showKey);
     deduped.push(c);
   }
-  const top = deduped.slice(0, 10);
+  const top = deduped.slice(0, 15);
 
   await Promise.all(top.map(async c => {
     Object.assign(c, computeImages(null));

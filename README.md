@@ -47,7 +47,7 @@ API; poster/backdrop artwork and episode runtimes come from
   left/right arrows, or click-and-drag anywhere in the row (including
   on a poster) with the mouse.
 - Three panels below the carousel, each with its own vertical
-  scrolling list of up to 5 shows: **Recently Watched** (last 10
+  scrolling list of up to 5 shows: **Recently Watched** (last 15
   watched episodes, with episode titles), **Airing Next** (upcoming
   episodes for shows you're watching, plus true future premieres from
   Plan to Watch — soonest first, using SIMKL's exact date+time so day
