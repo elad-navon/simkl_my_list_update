@@ -606,10 +606,11 @@
     .series-panel-header { flex-wrap: wrap; row-gap: 10px; }
     .series-panel-header-left {
       max-width: 100%; overflow-x: auto; scrollbar-width: none;
-      padding-bottom: 8px; gap: 10px;
+      padding-bottom: 8px; gap: 4px;
     }
     .series-panel-header-left::-webkit-scrollbar { display: none; }
-    .series-panel-stat { flex: 0 0 auto; }
+    .series-panel-header-left svg { flex-shrink: 0; }
+    .series-panel-stat { flex: 0 0 auto; gap: 3px; }
     .series-panel-stat .num { font-size: 0.95rem; }
     .series-panel-stat .label { font-size: 0.62rem; }
 
