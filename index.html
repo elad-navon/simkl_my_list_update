@@ -161,6 +161,7 @@
   }
   .carousel-track::-webkit-scrollbar { display: none; }
   .carousel-track.dragging { cursor: grabbing; scroll-behavior: auto; user-select: none; }
+  .carousel-track img { -webkit-user-drag: none; user-select: none; }
   /* Faint brand watermark that fills whatever space is left after the real
      cards, when there aren't enough shows to fill the row - shrinks to
      nothing (rather than forcing extra scroll width) once there isn't. */
@@ -2962,6 +2963,7 @@ applyStoredTheme();
     startX = e.pageX;
     startScrollLeft = track.scrollLeft;
     track.classList.add("dragging");
+    e.preventDefault();
   });
 
   document.addEventListener("mousemove", (e) => {
