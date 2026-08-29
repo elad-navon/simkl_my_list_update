@@ -322,10 +322,11 @@
     text-overflow: ellipsis;
   }
   .watch-progress { margin-top: 8px; }
-  .watch-progress-track { height: 5px; border-radius: 3px; background: var(--border); overflow: hidden; }
-  .watch-progress-fill { height: 100%; background: var(--accent); border-radius: 3px; }
+  .watch-progress-segs { display: flex; gap: 3px; height: 6px; }
+  .watch-progress-seg { flex: 1 1 0; min-width: 1px; border-radius: 2px; background: var(--border); }
+  .watch-progress-seg.on { background: var(--accent); }
   .watch-progress-label {
-    display: block; margin-top: 4px; font-size: 0.7rem; font-weight: 600; color: var(--muted);
+    display: block; margin-top: 5px; font-size: 0.7rem; font-weight: 600; color: var(--muted);
   }
   .next-up {
     margin: 2px 0 0;
@@ -2834,10 +2835,11 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
       ? `${row.nextHours}h ${row.nextMins}m / ${row.hours}h ${row.mins}m left`
       : `${row.hours}h ${row.mins}m left`;
     const episodeTitle = row.episodeTitle ? `<div class="episode-title">${row.episodeTitle}</div>` : "";
-    const progressPct = row.available > 0 ? Math.min(100, Math.round((row.watched / row.available) * 100)) : 0;
+    const segsHtml = Array.from({ length: row.available },
+      (_, i) => `<div class="watch-progress-seg${i < row.watched ? " on" : ""}"></div>`).join("");
     const progressHtml = row.available > 0
       ? `<div class="watch-progress">
-          <div class="watch-progress-track"><div class="watch-progress-fill" style="width:${progressPct}%"></div></div>
+          <div class="watch-progress-segs">${segsHtml}</div>
           <span class="watch-progress-label">${row.watched}/${row.available} Episodes Watched</span>
         </div>`
       : "";
