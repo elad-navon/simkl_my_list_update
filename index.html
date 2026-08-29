@@ -322,11 +322,12 @@
     text-overflow: ellipsis;
   }
   .watch-progress { margin-top: 8px; }
-  .watch-progress-segs { display: flex; gap: 3px; height: 6px; }
-  .watch-progress-seg { flex: 1 1 0; min-width: 1px; border-radius: 2px; background: var(--border); }
-  .watch-progress-seg.on { background: var(--accent); }
-  .watch-progress-label {
-    display: block; margin-top: 5px; font-size: 0.7rem; font-weight: 600; color: var(--muted);
+  .watch-progress-track { height: 16px; border-radius: 8px; background: var(--border); overflow: hidden; position: relative; }
+  .watch-progress-fill { height: 100%; border-radius: 8px 0 0 8px; background: var(--accent); }
+  .watch-progress-text {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end;
+    padding: 0 8px; font-size: 0.66rem; font-weight: 800; color: var(--text);
+    font-variant-numeric: tabular-nums;
   }
   .next-up {
     margin: 2px 0 0;
@@ -2835,12 +2836,13 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
       ? `${row.nextHours}h ${row.nextMins}m / ${row.hours}h ${row.mins}m left`
       : `${row.hours}h ${row.mins}m left`;
     const episodeTitle = row.episodeTitle ? `<div class="episode-title">${row.episodeTitle}</div>` : "";
-    const segsHtml = Array.from({ length: row.available },
-      (_, i) => `<div class="watch-progress-seg${i < row.watched ? " on" : ""}"></div>`).join("");
+    const progressPct = row.available > 0 ? Math.min(100, Math.round((row.watched / row.available) * 100)) : 0;
     const progressHtml = row.available > 0
       ? `<div class="watch-progress">
-          <div class="watch-progress-segs">${segsHtml}</div>
-          <span class="watch-progress-label">${row.watched}/${row.available} Episodes Watched</span>
+          <div class="watch-progress-track">
+            <div class="watch-progress-fill" style="width:${progressPct}%"></div>
+            <div class="watch-progress-text">${row.watched}/${row.available}</div>
+          </div>
         </div>`
       : "";
     const remainingText = row.remaining === 1 ? "1 episode left" : `${row.remaining} episodes left`;
