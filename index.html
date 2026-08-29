@@ -315,7 +315,7 @@
     height: auto;
     min-height: 0;
     max-height: 1.2em;
-    color: var(--muted);
+    color: var(--accent2);
     font-weight: 500;
     overflow: hidden;
     white-space: nowrap;
@@ -407,6 +407,7 @@
   }
   .list-row-sub { font-size: 0.74rem; color: var(--muted); font-weight: 500; margin-top: 2px; }
   .list-row-sub.network-sub { display: flex; align-items: center; min-height: 22px; }
+  .list-row-sub.episode-code-sub { color: var(--accent2); }
   /* Light chip behind the logo - most TMDB network logos are dark marks
      meant for light backgrounds, and disappear directly on this panel's
      dark background otherwise. */
@@ -2675,7 +2676,7 @@ function renderRecentlyWatchedHtml(list) {
         <div class="list-row-title-wrap">
           <div class="list-row-title">${ep.title}</div>
           ${networkSubHtml(ep.network, ep.networkLogoPath)}
-          <div class="list-row-sub">${episodeCode}</div>
+          <div class="list-row-sub episode-code-sub">${episodeCode}</div>
           ${episodeTitleHtml}
         </div>
         <span class="list-check">${CHECK_ICON_SVG}</span>
