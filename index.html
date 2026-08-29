@@ -233,6 +233,16 @@
     to { transform: rotateY(0deg); }
   }
   .poster.flip-in, .list-thumb.flip-in { animation: poster-flip-in 0.16s ease-out; }
+  /* Mirrored pair used when cycling backwards (left-side click), so the
+     poster visibly turns left instead of right. */
+  .poster.flip-out-rev, .list-thumb.flip-out-rev {
+    transition: transform 0.16s ease-in; transform: rotateY(-90deg);
+  }
+  @keyframes poster-flip-in-rev {
+    from { transform: rotateY(90deg); }
+    to { transform: rotateY(0deg); }
+  }
+  .poster.flip-in-rev, .list-thumb.flip-in-rev { animation: poster-flip-in-rev 0.16s ease-out; }
   .imdb-btn {
     position: absolute; bottom: 8px; left: 8px; z-index: 10;
     border: none; background: transparent; padding: 0; margin: 0;
@@ -2488,19 +2498,21 @@ function cycleImageWithFlip(source, idx, wrapEl, modeOverride, evt) {
   const rect = wrapEl.getBoundingClientRect();
   const clickX = evt ? evt.clientX - rect.left : rect.width;
   const direction = clickX < rect.width / 2 ? -1 : 1;
+  const outClass = direction < 0 ? "flip-out-rev" : "flip-out";
+  const inClass = direction < 0 ? "flip-in-rev" : "flip-in";
 
   const finishCycle = () => {
     cycleImage(source, idx, modeOverride, direction);
     requestAnimationFrame(() => {
       const newWrap = document.querySelector(`[data-cycle-key="${source}-${idx}"]`);
       const newImg = newWrap && newWrap.querySelector(".poster, .list-thumb");
-      if (newImg) newImg.classList.add("flip-in");
+      if (newImg) newImg.classList.add(inClass);
     });
   };
 
   const img = wrapEl.querySelector(".poster, .list-thumb");
   if (img) {
-    img.classList.add("flip-out");
+    img.classList.add(outClass);
     setTimeout(finishCycle, 160);
   } else {
     finishCycle();
