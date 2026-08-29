@@ -39,7 +39,8 @@ API; poster/backdrop artwork and episode runtimes come from
   + avatar) — everything lives on one screen, including what used to
   be a separate Airing Next tab.
 - **My List carousel** at the top: one card per show with poster or
-  banner, a watched-episodes progress bar (one segment per episode), total / available /
+  banner, a watched-episodes progress bar (the fraction is printed
+  right on the bar), total / available /
   watched / remaining episode counts, time left (shown as *next
   episode time / total remaining time* when more than one episode is
   left, e.g. `0h 45m / 3h 23m left`), and the next episode to watch
