@@ -157,9 +157,10 @@
   .carousel-wrap { position: relative; }
   .carousel-track {
     display: flex; gap: 18px; overflow-x: auto; scroll-behavior: smooth;
-    scrollbar-width: none; padding-bottom: 2px;
+    scrollbar-width: none; padding-bottom: 2px; cursor: grab;
   }
   .carousel-track::-webkit-scrollbar { display: none; }
+  .carousel-track.dragging { cursor: grabbing; scroll-behavior: auto; user-select: none; }
   /* Faint brand watermark that fills whatever space is left after the real
      cards, when there aren't enough shows to fill the row - shrinks to
      nothing (rather than forcing extra scroll width) once there isn't. */
@@ -2945,6 +2946,45 @@ updateImageModeButton();
 updateViewModeButton();
 updatePageTitle();
 applyStoredTheme();
+
+(function enableCarouselDragScroll() {
+  let dragTrack = null;
+  let startX = 0;
+  let startScrollLeft = 0;
+  let dragged = false;
+
+  app.addEventListener("mousedown", (e) => {
+    if (e.button !== 0) return;
+    const track = e.target.closest("#myListCarouselTrack");
+    if (!track) return;
+    dragTrack = track;
+    dragged = false;
+    startX = e.pageX;
+    startScrollLeft = track.scrollLeft;
+    track.classList.add("dragging");
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (!dragTrack) return;
+    const dx = e.pageX - startX;
+    if (Math.abs(dx) > 4) dragged = true;
+    dragTrack.scrollLeft = startScrollLeft - dx;
+  });
+
+  document.addEventListener("mouseup", () => {
+    if (!dragTrack) return;
+    dragTrack.classList.remove("dragging");
+    dragTrack = null;
+  });
+
+  app.addEventListener("click", (e) => {
+    if (dragged && e.target.closest("#myListCarouselTrack")) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    dragged = false;
+  }, true);
+})();
 
 main();
 
