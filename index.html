@@ -1844,8 +1844,8 @@ function formatAirDate(dateStr) {
     else if (diffDays > 1 && diffDays < 7) dayLabel = target.toLocaleDateString(undefined, { weekday: "long" });
     else {
       dayLabel = target.toLocaleDateString(undefined, sameYear
-        ? { weekday: "short", month: "short", day: "numeric" }
-        : { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+        ? { weekday: "long", month: "short", day: "numeric" }
+        : { weekday: "long", month: "short", day: "numeric", year: "numeric" });
     }
     return `${dayLabel}, ${timeStr}`;
   }
@@ -1855,8 +1855,8 @@ function formatAirDate(dateStr) {
   // "Tomorrow" here, since that guess is what caused the mismatch with
   // SIMKL's own calendar in the first place.
   return target.toLocaleDateString(undefined, sameYear
-    ? { weekday: "short", month: "short", day: "numeric" }
-    : { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+    ? { weekday: "long", month: "short", day: "numeric" }
+    : { weekday: "long", month: "short", day: "numeric", year: "numeric" });
 }
 
 async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, requirePremiere) {
