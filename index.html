@@ -2387,7 +2387,7 @@ function rerenderAfterCycle(source) {
   }
 }
 
-function cycleImage(source, idx, modeOverride) {
+function cycleImage(source, idx, modeOverride, direction) {
   const rows = getCycleRows(source);
   const row = rows && rows[idx];
   if (!row) return;
@@ -2395,7 +2395,7 @@ function cycleImage(source, idx, modeOverride) {
   const cfg = IMAGE_MODE_CONFIG[mode];
   const paths = row[cfg.pathsKey];
   if (!paths || paths.length <= 1) return; // nothing else to switch to
-  row[cfg.indexKey] = (row[cfg.indexKey] + 1) % paths.length;
+  row[cfg.indexKey] = (row[cfg.indexKey] + (direction || 1) + paths.length) % paths.length;
   const newPath = paths[row[cfg.indexKey]];
   row[cfg.urlKey] = cfg.base + newPath;
   saveImageOverride(row.tmdbId, mode, newPath); // survives the next refresh
@@ -2455,7 +2455,7 @@ function cardImageBits(row, mode, arrIdx, extraOverlayHtml) {
   const altCount = (row[cfg.pathsKey] || []).length;
   const cycleable = altCount > 1;
   const cycleAttrs = cycleable
-    ? ` data-cycle-key="main-${arrIdx}" title="Click to try another image" onclick="cycleImageWithFlip('main', ${arrIdx}, this, '${mode}')"`
+    ? ` data-cycle-key="main-${arrIdx}" title="Click right half for next image, left half for previous" onclick="cycleImageWithFlip('main', ${arrIdx}, this, '${mode}', event)"`
     : "";
   // Network logo sits in the corner when known - the dark scrim keeps
   // colorful logos from blending into bright poster art underneath. Falls
@@ -2475,7 +2475,7 @@ function cardImageBits(row, mode, arrIdx, extraOverlayHtml) {
 // Shared by the top carousel card and the three bottom-panel thumbnails -
 // source identifies which cached row array to cycle (see getCycleRows),
 // idx is that show's position within it.
-function cycleImageWithFlip(source, idx, wrapEl, modeOverride) {
+function cycleImageWithFlip(source, idx, wrapEl, modeOverride, evt) {
   const rows = getCycleRows(source);
   const row = rows && rows[idx];
   if (!row) return;
@@ -2483,8 +2483,14 @@ function cycleImageWithFlip(source, idx, wrapEl, modeOverride) {
   const paths = row[cfg.pathsKey];
   if (!paths || paths.length <= 1) return; // nothing else to switch to
 
+  // Right half of the poster advances to the next image, left half goes
+  // back - falls back to "next" when there's no click position to read.
+  const rect = wrapEl.getBoundingClientRect();
+  const clickX = evt ? evt.clientX - rect.left : rect.width;
+  const direction = clickX < rect.width / 2 ? -1 : 1;
+
   const finishCycle = () => {
-    cycleImage(source, idx, modeOverride);
+    cycleImage(source, idx, modeOverride, direction);
     requestAnimationFrame(() => {
       const newWrap = document.querySelector(`[data-cycle-key="${source}-${idx}"]`);
       const newImg = newWrap && newWrap.querySelector(".poster, .list-thumb");
@@ -2517,7 +2523,7 @@ function thumbCycleAttrs(row, source, idx) {
   if (altCount <= 1) return { cycleableClass: "", attrs: "" };
   return {
     cycleableClass: " cycleable",
-    attrs: ` data-cycle-key="${source}-${idx}" title="Click to try another image" onclick="cycleImageWithFlip('${source}', ${idx}, this, '${mode}')"`,
+    attrs: ` data-cycle-key="${source}-${idx}" title="Click right half for next image, left half for previous" onclick="cycleImageWithFlip('${source}', ${idx}, this, '${mode}', event)"`,
   };
 }
 
