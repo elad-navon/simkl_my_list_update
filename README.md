@@ -45,7 +45,8 @@ API; poster/backdrop artwork and episode runtimes come from
   left, e.g. `0h 45m / 3h 23m left`), and the next episode to watch
   (e.g. `S03E01`) with its title when known. Scroll it with the
   left/right arrows, or click-and-drag anywhere in the row (including
-  on a poster) with the mouse.
+  on a poster) with the mouse. Click the **time left** line itself to
+  open a breakdown of every remaining episode with its own runtime.
 - Three panels below the carousel, each with its own vertical
   scrolling list of up to 5 shows: **Recently Watched** (last 15
   watched episodes, with episode titles), **Airing Next** (upcoming
