@@ -347,7 +347,9 @@
     padding-top: 10px;
     border-top: 1px solid var(--border);
     display: flex; align-items: center; gap: 5px;
+    cursor: pointer;
   }
+  .time-left:hover { color: #ffd873; }
   .time-left .time-icon { color: #ffffff; flex: 0 0 auto; display: inline-flex; }
   .air-date { margin-top: 8px; font-size: 1.05rem; color: var(--accent2); font-weight: 700;
     margin-top: auto;
@@ -487,6 +489,37 @@
     cursor: pointer; line-height: 1; padding: 0 4px;
   }
   .modal-close-btn:hover { color: var(--text); }
+  .episodes-modal { max-width: 480px; display: flex; flex-direction: column; max-height: 82vh; padding: 20px 0 0; }
+  .episodes-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin: 0 22px; }
+  .episodes-modal-head .list-panel-header { margin: 0; flex: 1 1 auto; }
+  .episodes-modal-subtitle { margin: 4px 22px 14px; font-size: 0.78rem; color: var(--muted); font-weight: 600; }
+  .episodes-list { overflow-y: auto; padding: 0 12px 8px; }
+  .episode-row { display: flex; align-items: baseline; gap: 12px; padding: 9px 10px; border-radius: 8px; }
+  .episode-row:hover { background: var(--card-hover); }
+  .episode-row.is-next { background: rgba(251,191,36,0.06); }
+  .episode-code {
+    font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif; font-weight: 700; font-size: 0.95rem;
+    color: var(--accent2); flex: 0 0 auto; width: 52px; font-variant-numeric: tabular-nums;
+  }
+  .episode-name { flex: 1 1 auto; min-width: 0; font-size: 0.85rem; color: var(--text); font-weight: 500;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .episode-row.is-next .episode-name { font-weight: 700; }
+  .episode-badge {
+    flex: 0 0 auto; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase;
+    color: var(--accent); background: rgba(56,189,248,0.14); padding: 2px 6px; border-radius: 4px;
+  }
+  .episode-runtime { flex: 0 0 auto; font-size: 0.82rem; color: var(--muted); font-weight: 600;
+    font-variant-numeric: tabular-nums; width: 40px; text-align: right; }
+  .episode-row.is-next .episode-runtime { color: var(--gold); }
+  .episodes-modal-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 22px; border-top: 1px solid var(--border); margin-top: 4px;
+  }
+  .episodes-modal-foot .label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  .episodes-modal-foot .total {
+    font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif; font-weight: 700; font-size: 1.3rem;
+    color: var(--gold); font-variant-numeric: tabular-nums;
+  }
   .search-input-row input {
     width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
     background: var(--bg); color: var(--text); font-size: 0.95rem; box-sizing: border-box;
@@ -1259,10 +1292,10 @@ async function estimateRemainingMinutes(item, tmdbId, simklId, token, cache, epi
   const showDetail = tmdbId ? await cache.getShow(tmdbId) : null; // never throws (see TmdbCache)
   const avgRuntime = averageEpisodeRuntime(showDetail, fallbackRuntime);
 
-  if (remainingCount <= 0) return { totalMinutes: 0, nextEpisodeMinutes: 0 };
+  if (remainingCount <= 0) return { totalMinutes: 0, nextEpisodeMinutes: 0, episodes: [] };
 
-  // "season-episode" -> exact TMDB runtime, wherever TMDB has it.
-  const tmdbRuntimeMap = new Map();
+  // "season-episode" -> exact TMDB runtime + title, wherever TMDB has them.
+  const tmdbEpisodeMap = new Map();
   if (showDetail) {
     for (const seasonInfo of showDetail.seasons || []) {
       const seasonNum = seasonInfo.season_number;
@@ -1270,43 +1303,54 @@ async function estimateRemainingMinutes(item, tmdbId, simklId, token, cache, epi
       const seasonDetail = await cache.getSeason(tmdbId, seasonNum);
       if (!seasonDetail) continue;
       for (const ep of seasonDetail.episodes || []) {
-        if (ep.runtime) tmdbRuntimeMap.set(`${seasonNum}-${ep.episode_number}`, ep.runtime);
+        const title = ep.name && !/^Episode\s+\d+$/i.test(ep.name.trim()) ? ep.name.trim() : null;
+        tmdbEpisodeMap.set(`${seasonNum}-${ep.episode_number}`, { runtime: ep.runtime || null, title });
       }
     }
   }
 
   // Identify which specific episodes are remaining, via SIMKL's own data,
   // oldest (i.e. the very next one to watch) first.
-  let identifiedKeys = [];
+  let identifiedEpisodes = [];
   if (simklId) {
     const simklEpisodes = await episodeCache.get(simklId, token);
     if (simklEpisodes) {
       const watchedBySeason = watchedEpisodeNumbersBySeason(item);
       const now = Date.now();
-      identifiedKeys = simklEpisodes
+      identifiedEpisodes = simklEpisodes
         .filter(ep => ep.season != null && ep.season !== 0 && ep.episode != null && ep.date)
         .map(ep => ({ season: ep.season, episode: ep.episode, ts: new Date(ep.date).getTime() }))
         .filter(ep => !isNaN(ep.ts) && ep.ts <= now)
         .filter(ep => !(watchedBySeason[ep.season] || new Set()).has(ep.episode))
-        .sort((a, b) => a.ts - b.ts)
-        .map(ep => `${ep.season}-${ep.episode}`);
+        .sort((a, b) => a.ts - b.ts);
     }
   }
 
   // Price up to remainingCount identified episodes with their exact (or
   // per-episode-fallback) runtime; if we couldn't identify enough specific
   // episodes to match SIMKL's aggregate count, pad the remainder with the
-  // average so the count itself is still fully accounted for.
+  // average so the count itself is still fully accounted for. The full
+  // per-episode breakdown (used by the "episodes left" modal) is built
+  // alongside the same totals so both always agree.
   let minutes = 0;
-  const useCount = Math.min(identifiedKeys.length, remainingCount);
+  const useCount = Math.min(identifiedEpisodes.length, remainingCount);
+  const episodes = [];
   for (let i = 0; i < useCount; i++) {
-    minutes += tmdbRuntimeMap.get(identifiedKeys[i]) || avgRuntime;
+    const { season, episode } = identifiedEpisodes[i];
+    const info = tmdbEpisodeMap.get(`${season}-${episode}`);
+    const runtime = (info && info.runtime) || avgRuntime;
+    minutes += runtime;
+    episodes.push({ season, episode, title: info ? info.title : null, runtime });
   }
-  minutes += (remainingCount - useCount) * avgRuntime;
+  const padCount = remainingCount - useCount;
+  minutes += padCount * avgRuntime;
+  for (let i = 0; i < padCount; i++) {
+    episodes.push({ season: null, episode: null, title: null, runtime: avgRuntime });
+  }
 
-  const nextEpisodeMinutes = useCount > 0 ? (tmdbRuntimeMap.get(identifiedKeys[0]) || avgRuntime) : avgRuntime;
+  const nextEpisodeMinutes = episodes.length ? episodes[0].runtime : avgRuntime;
 
-  return { totalMinutes: minutes, nextEpisodeMinutes };
+  return { totalMinutes: minutes, nextEpisodeMinutes, episodes };
 }
 
 function simklAiredMinusWatchedCount(item) {
@@ -1613,7 +1657,7 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
     // and needs no per-episode matching against TMDB at all. TMDB is used
     // only to estimate how long they'll take to watch.
     const remaining = Math.max(simklAiredMinusWatchedCount(item), 1);
-    const { totalMinutes: remainingMinutes, nextEpisodeMinutes } = await estimateRemainingMinutes(
+    const { totalMinutes: remainingMinutes, nextEpisodeMinutes, episodes: episodesLeft } = await estimateRemainingMinutes(
       item, tmdbId, simklId, token, cache, episodeCache, remaining, show.runtime
     );
 
@@ -1677,6 +1721,7 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
       title, imdbId, imdbRating, simklId, tmdbId, year: show.year, ...images, network, networkLogoPath,
       totalEpisodes, available, watched, remaining,
       hours, mins, nextHours, nextMins, nextLabel, nextSeason, nextEpisode, episodeTitle, nextAirDate, badge,
+      episodesLeft,
     };
     return { row, remaining, remainingMinutes };
   }));
@@ -2173,6 +2218,65 @@ async function setShowStatusFromDetail(show, status, btnEl) {
     buttons.forEach(b => { b.disabled = false; });
     showToast(err.message, true);
   }
+}
+
+// Per-episode breakdown of a top-card show's remaining watch time -
+// opened by clicking the "Xh Ym left" line. episodesLeft was already
+// computed alongside the total (see estimateRemainingMinutes), so this
+// is pure rendering, no extra fetch.
+function openEpisodesModal(arrIdx) {
+  const row = getCycleRows("main")[arrIdx];
+  if (!row || !row.episodesLeft || !row.episodesLeft.length) return;
+
+  const rowsHtml = row.episodesLeft.map((ep, i) => {
+    const isNext = i === 0;
+    const code = ep.season != null && ep.episode != null
+      ? `S${String(ep.season).padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`
+      : "";
+    const badgeHtml = isNext && row.badge ? `<span class="episode-badge">${row.badge}</span>` : "";
+    return `
+      <div class="episode-row${isNext ? " is-next" : ""}">
+        <span class="episode-code">${code}</span>
+        <span class="episode-name">${ep.title || (ep.episode != null ? `Episode ${ep.episode}` : "Episode")}</span>
+        ${badgeHtml}
+        <span class="episode-runtime">${Math.round(ep.runtime)}m</span>
+      </div>`;
+  }).join("\n");
+  const [totalH, totalM] = formatTime(row.episodesLeft.reduce((sum, ep) => sum + ep.runtime, 0));
+
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.id = "episodesModalOverlay";
+  const headerEl = document.querySelector("header");
+  overlay.style.paddingTop = `${(headerEl ? headerEl.offsetHeight : 0) + 24}px`;
+  overlay.innerHTML = `
+    <div class="modal-box episodes-modal">
+      <div class="episodes-modal-head">
+        <div class="list-panel-header">${CLOCK_ICON_SOLID_SVG}<span>EPISODES LEFT</span></div>
+        <button class="modal-close-btn" id="episodesModalCloseBtn">&times;</button>
+      </div>
+      <div class="episodes-modal-subtitle">${row.title}</div>
+      <div class="episodes-list">${rowsHtml}</div>
+      <div class="episodes-modal-foot">
+        <span class="label">Total remaining</span>
+        <span class="total">${totalH}h ${totalM}m</span>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  document.getElementById("episodesModalCloseBtn").onclick = closeEpisodesModal;
+  overlay.addEventListener("click", e => { if (e.target === overlay) closeEpisodesModal(); });
+  document.addEventListener("keydown", episodesModalEscHandler);
+}
+
+function episodesModalEscHandler(e) {
+  if (e.key === "Escape") closeEpisodesModal();
+}
+
+function closeEpisodesModal() {
+  const overlay = document.getElementById("episodesModalOverlay");
+  if (overlay) overlay.remove();
+  document.removeEventListener("keydown", episodesModalEscHandler);
 }
 
 function openSearchModal() {
@@ -2755,7 +2859,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
           </div>
           ${episodeTitle}
           ${progressHtml}
-          <div class="time-left"><span class="time-icon">${CLOCK_ICON_SVG}</span>${timeText}</div>
+          <div class="time-left" title="See every remaining episode" onclick="event.stopPropagation(); openEpisodesModal(${arrIdx})"><span class="time-icon">${CLOCK_ICON_SVG}</span>${timeText}</div>
         </div>
       </div>`;
   }).join("\n");
