@@ -34,32 +34,43 @@ API; poster/backdrop artwork and episode runtimes come from
 
 ## Features
 
-- **Single-page dashboard** with a dark sidebar (Refresh, My List,
-  Poster/Banner toggle, Search Show, Settings) — everything lives on
-  one screen now, including what used to be a separate Airing Next
-  tab.
+- **Single-page dashboard** with a top bar (logo, live clock/date,
+  Switch to Banners, Search Show, Settings, and your profile greeting
+  + avatar) — everything lives on one screen, including what used to
+  be a separate Airing Next tab.
 - **My List carousel** at the top: one card per show with poster or
-  banner, progress bar, total / available / watched / remaining
-  episode counts, time left (shown as *next episode time / total
-  remaining time* when more than one episode is left, e.g.
-  `0h 45m / 3h 23m left`), and the next episode to watch (e.g.
-  `S03E01`) with its title when known. Left/right arrows scroll the
-  carousel.
+  banner, a watched-episodes progress bar, total / available /
+  watched / remaining episode counts, time left (shown as *next
+  episode time / total remaining time* when more than one episode is
+  left, e.g. `0h 45m / 3h 23m left`), and the next episode to watch
+  (e.g. `S03E01`) with its title when known. Scroll it with the
+  left/right arrows, or click-and-drag anywhere in the row (including
+  on a poster) with the mouse.
 - Three panels below the carousel, each with its own vertical
   scrolling list of up to 5 shows: **Recently Watched** (last 10
-  watched episodes), **Airing Next** (upcoming episodes for shows
-  you're watching, plus true future premieres from Plan to Watch —
-  soonest first, using SIMKL's exact date+time so day labels like
-  "Today"/"Tomorrow" match simkl.com), and **Plan to Watch** (every
-  show in that status). Season/series premiere and season finale
-  badges are shown where relevant.
+  watched episodes, with episode titles), **Airing Next** (upcoming
+  episodes for shows you're watching, plus true future premieres from
+  Plan to Watch — soonest first, using SIMKL's exact date+time so day
+  labels like "Today"/"Tomorrow" match simkl.com), and **Plan to
+  Watch** (every show in that status, deduplicated to one entry per
+  show). Season/series premiere and season finale badges are shown
+  where relevant.
 - Every card's **⋮** menu lets you mark the next episode watched
   (synced straight to SIMKL), change status (Watching / Hold /
   Completed / Dropped), or remove the show from your list — with a
   toast on success or failure.
-- **Poster ↔ Banner** toggle (sidebar) — the icon shown reflects what
-  you'll switch to. Per-card **⟳** cycles to another available image
-  of the current type, if TMDB has more than one.
+- **Poster ↔ Banner** toggle (top bar) — the icon shown reflects what
+  you'll switch to. Click the **right half** of any poster/thumbnail
+  to cycle to the next available image of the current type, or the
+  **left half** to go back to the previous one, if TMDB has more than
+  one.
+- **Network logo** badge on the top-left corner of each poster/banner,
+  using TMDB's logo when available (a show's *most recent* network,
+  for shows that moved between networks over time), falling back to
+  SIMKL's network name, and finally to a small local override map with
+  real cropped logos for a few Israeli networks TMDB has no logo for
+  (Reshet, Kan 11, HOT) — matched by name regardless of a trailing
+  channel number (e.g. "Reshet 13").
 - **IMDb pill** on each card/row — opens the show's IMDb page, with
   its SIMKL rating shown alongside when available.
 - Remaining-episode count badge (bottom-right of each poster) is
@@ -68,14 +79,24 @@ API; poster/backdrop artwork and episode runtimes come from
   posters), except shows that have **no English/no-language image at
   all** (some Israeli shows only have Hebrew-text artwork on TMDB) —
   those fall back to Hebrew rather than showing no image.
-- **Light/dark theme toggle** (moon icon + switch at the bottom of the
-  sidebar), persisted across visits.
-- **Settings** (gear icon) — edit your SIMKL/TMDB keys any time; a
-  **×** lets you back out without saving, returning to My List.
+- **Light/dark theme toggle**, now inside **Settings**, persisted
+  across visits.
+- **Settings** (gear icon) — edit your SIMKL/TMDB keys any time,
+  toggle the theme; a **×** lets you back out without saving,
+  returning to My List.
+- **Responsive layout** — on a narrow/mobile screen the panels stack
+  full-width, the carousel becomes a one-card swipe, and the top
+  card's stat bar and badges shrink to fit without breaking the page
+  width.
+- **Installable as an app** — see [Install it on your
+  phone](#install-it-on-your-phone-pwa) below.
+- Loads fast on repeat visits: SIMKL/TMDB API responses are cached in
+  `localStorage` for a while (a few hours to a day depending on the
+  data), on top of the in-memory cache used during a single session.
 
 ## Managing your list (search, add, status, remove)
 
-Click **Search Show** in the sidebar to open a search box (TV shows
+Click **Search Show** in the top bar to open a search box (TV shows
 only). Click a result to open its detail view, which:
 
 - Checks whether the show is already anywhere in your SIMKL list
@@ -107,6 +128,28 @@ failure.
   data (exact date+time with timezone offset), not TMDB — falling
   back to TMDB (date only, no relative day label since it can't be
   verified precisely) only if SIMKL has nothing for a show.
+
+## Install it on your phone (PWA)
+
+The page is set up as a Progressive Web App, so Chrome (or Brave) on
+Android can install it like a regular app — no Play Store, no build
+step, just the same `index.html` served over HTTPS:
+
+1. Open the page's live URL (see [Publishing
+   it](#publishing-it-eg-for-a-shortcut) below) in Chrome or Brave.
+2. Open the browser's **⋮** menu and tap **Install app** (if it
+   instead only offers **Add to Home screen**, do a hard refresh
+   first — a cached copy of the page from before this feature was
+   added won't show the install option).
+3. It now launches from its own home-screen icon, full-screen, with
+   no address bar.
+
+This relies on three extra files sitting next to `index.html` and
+already committed to this repo: `manifest.json` (name, icons, theme
+color), `service-worker.js` (caches the app shell for fast/offline
+loads), and `icons/` (the app icon at a couple of sizes). None of them
+touch your SIMKL/TMDB keys or list data — those still live only in
+your browser's `localStorage`, same as before.
 
 ## A known limitation
 
@@ -147,12 +190,18 @@ always shows current data — no need to regenerate or re-push anything
 after you watch more episodes.
 
 This repo is published via GitHub Pages at
-[elad-navon.github.io/simkl_my_list_update](https://elad-navon.github.io/simkl_my_list_update/).
-A snapshot of the previous UI (before the sidebar-dashboard redesign)
-stays permanently available at
+[elad-navon.github.io/simkl_my_list_update](https://elad-navon.github.io/simkl_my_list_update/)
+— `manifest.json`, `service-worker.js`, and `icons/` deploy alongside
+`index.html` automatically, since they're just more files in the same
+repo. A snapshot of the previous UI (before the top-bar dashboard
+redesign) stays permanently available at
 [/legacy/](https://elad-navon.github.io/simkl_my_list_update/legacy/),
 independent of ongoing changes to the root page.
 
 ## Version
 
-Current: **v32**
+This page changes often — the commit history is the changelog. A few
+of the larger recent additions: the top-bar layout with a live
+clock, network logo badges (including local overrides for a few
+Israeli networks), a persistent local cache for faster reloads, a
+mobile-friendly responsive layout, and PWA installability.
