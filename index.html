@@ -1314,11 +1314,19 @@ async function estimateRemainingMinutes(item, tmdbId, simklId, token, cache, epi
   }
 
   // Identify which specific episodes are remaining, via SIMKL's own data,
-  // oldest (i.e. the very next one to watch) first.
+  // oldest (i.e. the very next one to watch) first. Also record each
+  // season's highest known episode number, so every remaining episode
+  // (not just the next one) can carry its own premiere/finale badge.
   let identifiedEpisodes = [];
+  const seasonMaxEpisode = new Map();
   if (simklId) {
     const simklEpisodes = await episodeCache.get(simklId, token);
     if (simklEpisodes) {
+      for (const ep of simklEpisodes) {
+        if (ep.season == null || ep.season === 0 || ep.episode == null) continue;
+        const prevMax = seasonMaxEpisode.get(ep.season);
+        if (prevMax == null || ep.episode > prevMax) seasonMaxEpisode.set(ep.season, ep.episode);
+      }
       const watchedBySeason = watchedEpisodeNumbersBySeason(item);
       const now = Date.now();
       identifiedEpisodes = simklEpisodes
@@ -1328,6 +1336,17 @@ async function estimateRemainingMinutes(item, tmdbId, simklId, token, cache, epi
         .filter(ep => !(watchedBySeason[ep.season] || new Set()).has(ep.episode))
         .sort((a, b) => a.ts - b.ts);
     }
+  }
+
+  // Season 1 episode 1 is a series premiere, any other season's episode 1
+  // is a season premiere, and an episode matching its season's known max
+  // is a season finale - same rule as the single "next episode" badge
+  // elsewhere, just applied to every remaining episode here.
+  function episodeBadge(season, episode) {
+    if (season == null || episode == null) return null;
+    if (episode === 1) return season === 1 ? "SERIES PREMIERE" : "SEASON PREMIERE";
+    const maxEp = seasonMaxEpisode.get(season);
+    return maxEp != null && episode === maxEp ? "SEASON FINALE" : null;
   }
 
   // Price up to remainingCount identified episodes with their exact (or
@@ -1344,12 +1363,12 @@ async function estimateRemainingMinutes(item, tmdbId, simklId, token, cache, epi
     const info = tmdbEpisodeMap.get(`${season}-${episode}`);
     const runtime = (info && info.runtime) || avgRuntime;
     minutes += runtime;
-    episodes.push({ season, episode, title: info ? info.title : null, runtime });
+    episodes.push({ season, episode, title: info ? info.title : null, runtime, badge: episodeBadge(season, episode) });
   }
   const padCount = remainingCount - useCount;
   minutes += padCount * avgRuntime;
   for (let i = 0; i < padCount; i++) {
-    episodes.push({ season: null, episode: null, title: null, runtime: avgRuntime });
+    episodes.push({ season: null, episode: null, title: null, runtime: avgRuntime, badge: null });
   }
 
   const nextEpisodeMinutes = episodes.length ? episodes[0].runtime : avgRuntime;
@@ -2246,7 +2265,7 @@ function openEpisodesModal(arrIdx) {
     const code = ep.season != null && ep.episode != null
       ? `S${String(ep.season).padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`
       : "";
-    const badgeHtml = isNext && row.badge ? `<span class="episode-badge">${row.badge}</span>` : "";
+    const badgeHtml = ep.badge ? `<span class="episode-badge">${ep.badge}</span>` : "";
     return `
       <div class="episode-row${isNext ? " is-next" : ""}">
         <span class="episode-code">${code}</span>
