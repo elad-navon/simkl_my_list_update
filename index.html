@@ -513,7 +513,7 @@
     color: var(--accent); background: rgba(56,189,248,0.14); padding: 2px 6px; border-radius: 4px;
   }
   .episode-runtime { flex: 0 0 auto; font-size: 0.82rem; color: var(--muted); font-weight: 600;
-    font-variant-numeric: tabular-nums; width: 40px; text-align: right; }
+    font-variant-numeric: tabular-nums; width: 54px; text-align: right; white-space: nowrap; }
   .episode-row.is-next .episode-runtime { color: var(--gold); }
   .episodes-modal-foot {
     display: flex; align-items: center; justify-content: space-between;
@@ -1367,6 +1367,15 @@ function simklAiredMinusWatchedCount(item) {
 function formatTime(minutes) {
   minutes = Math.round(minutes);
   return [Math.floor(minutes / 60), minutes % 60];
+}
+
+// Single-episode runtime for the episodes-left modal - stays as plain
+// minutes under an hour, switches to "1h 02m" (zero-padded) above it.
+function formatEpisodeRuntime(minutes) {
+  minutes = Math.round(minutes);
+  if (minutes < 60) return `${minutes}m`;
+  const [h, m] = formatTime(minutes);
+  return `${h}h ${String(m).padStart(2, "0")}m`;
 }
 
 function todayLocalDateStr() {
@@ -2243,7 +2252,7 @@ function openEpisodesModal(arrIdx) {
         <span class="episode-code">${code}</span>
         <span class="episode-name">${ep.title || (ep.episode != null ? `Episode ${ep.episode}` : "Episode")}</span>
         ${badgeHtml}
-        <span class="episode-runtime">${Math.round(ep.runtime)}m</span>
+        <span class="episode-runtime">${formatEpisodeRuntime(ep.runtime)}</span>
       </div>`;
   }).join("\n");
   const [totalH, totalM] = formatTime(row.episodesLeft.reduce((sum, ep) => sum + ep.runtime, 0));
