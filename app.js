@@ -305,6 +305,7 @@ const CACHE_TTL_TMDB_SHOW_MS = 24 * 60 * 60 * 1000;
 const CACHE_TTL_TMDB_SEASON_MS = 6 * 60 * 60 * 1000;
 const CACHE_TTL_SIMKL_EPISODES_MS = 6 * 60 * 60 * 1000;
 const CACHE_TTL_SIMKL_SHOW_MS = 24 * 60 * 60 * 1000;
+const CACHE_TTL_TMDB_EPISODE_IDS_MS = 7 * 24 * 60 * 60 * 1000; // an episode's IMDb id never changes
 
 function readPersistedCache(key, ttlMs) {
   try {
@@ -328,7 +329,7 @@ function writePersistedCache(key, value) {
 }
 
 class TmdbCache {
-  constructor() { this.show = new Map(); this.season = new Map(); }
+  constructor() { this.show = new Map(); this.season = new Map(); this.episodeIds = new Map(); }
   // Both methods store the in-flight PROMISE in the map (not just the
   // resolved value), and do so synchronously before any await - so if the
   // same id is requested again while the first fetch is still in flight
@@ -379,6 +380,27 @@ class TmdbCache {
       this.season.set(key, promise);
     }
     return this.season.get(key);
+  }
+  // TMDB has no bulk way to get every episode's IMDb id alongside the
+  // season data - it's a dedicated per-episode endpoint, so this is only
+  // called lazily (Episodes Left modal, desktop only) rather than as part
+  // of the normal per-show fetch every card already does.
+  getEpisodeExternalIds(tmdbId, season, episode) {
+    const key = `${tmdbId}:${season}:${episode}`;
+    if (!this.episodeIds.has(key)) {
+      const cacheKey = `tmdbepids:${key}`;
+      const cached = readPersistedCache(cacheKey, CACHE_TTL_TMDB_EPISODE_IDS_MS);
+      if (cached !== undefined) {
+        this.episodeIds.set(key, Promise.resolve(cached));
+        return this.episodeIds.get(key);
+      }
+      const promise = tmdbGet(`/tv/${tmdbId}/season/${season}/episode/${episode}/external_ids`).then(data => {
+        if (data) writePersistedCache(cacheKey, data);
+        return data;
+      }).catch(() => null);
+      this.episodeIds.set(key, promise);
+    }
+    return this.episodeIds.get(key);
   }
 }
 
@@ -1502,7 +1524,8 @@ async function setShowStatusFromDetail(show, status, btnEl) {
 // Per-episode breakdown of a top-card show's remaining watch time -
 // opened by clicking the "Xh Ym left" line. episodesLeft was already
 // computed alongside the total (see estimateRemainingMinutes), so this
-// is pure rendering, no extra fetch.
+// is pure rendering, no extra fetch - IMDb links (desktop only, see
+// enrichEpisodesWithImdbLinks) are fetched lazily afterward instead.
 function openEpisodesModal(arrIdx) {
   const row = getCycleRows("main")[arrIdx];
   if (!row || !row.episodesLeft || !row.episodesLeft.length) return;
@@ -1516,7 +1539,7 @@ function openEpisodesModal(arrIdx) {
     return `
       <div class="episode-row${isNext ? " is-next" : ""}">
         <span class="episode-code">${code}</span>
-        <span class="episode-name">${ep.title || (ep.episode != null ? `Episode ${ep.episode}` : "Episode")}</span>
+        <span class="episode-name" data-ep-key="${i}">${ep.title || (ep.episode != null ? `Episode ${ep.episode}` : "Episode")}</span>
         ${badgeHtml}
         <span class="episode-runtime">${formatEpisodeRuntime(ep.runtime)}</span>
       </div>`;
@@ -1546,6 +1569,37 @@ function openEpisodesModal(arrIdx) {
   document.getElementById("episodesModalCloseBtn").onclick = closeEpisodesModal;
   overlay.addEventListener("click", e => { if (e.target === overlay) closeEpisodesModal(); });
   document.addEventListener("keydown", episodesModalEscHandler);
+
+  if (!window.matchMedia("(max-width: 720px)").matches) {
+    enrichEpisodesWithImdbLinks(row);
+  }
+}
+
+// Turns each episode name into a link to its own IMDb page, once TMDB's
+// per-episode id lookup resolves - desktop only (see the matchMedia guard
+// at the call site), since it's an extra network request per episode and
+// this modal already lays out differently below the mobile breakpoint.
+// Cached persistently (see getEpisodeExternalIds), so this only costs a
+// real fetch the first time a given episode is looked up, ever.
+function enrichEpisodesWithImdbLinks(row) {
+  if (!row.tmdbId || !sharedCache) return;
+  row.episodesLeft.forEach((ep, i) => {
+    if (ep.season == null || ep.episode == null) return;
+    sharedCache.getEpisodeExternalIds(row.tmdbId, ep.season, ep.episode).then(ids => {
+      if (!ids || !ids.imdb_id) return;
+      const overlay = document.getElementById("episodesModalOverlay");
+      const nameEl = overlay && overlay.querySelector(`.episode-name[data-ep-key="${i}"]`);
+      if (!nameEl || nameEl.querySelector("a")) return;
+      const link = document.createElement("a");
+      link.href = `https://www.imdb.com/title/${ids.imdb_id}/`;
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.className = "episode-name-link";
+      link.textContent = nameEl.textContent;
+      nameEl.textContent = "";
+      nameEl.appendChild(link);
+    });
+  });
 }
 
 function episodesModalEscHandler(e) {
