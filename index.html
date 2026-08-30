@@ -2265,7 +2265,7 @@ function openEpisodesModal(arrIdx) {
   overlay.innerHTML = `
     <div class="modal-box episodes-modal">
       <div class="episodes-modal-head">
-        <div class="list-panel-header">${CLOCK_ICON_SOLID_SVG}<span>EPISODES LEFT</span></div>
+        <div class="list-panel-header">${LIST_ICON_SOLID_SVG}<span>EPISODES LEFT</span></div>
         <button class="modal-close-btn" id="episodesModalCloseBtn">&times;</button>
       </div>
       <div class="episodes-modal-subtitle">${row.title}</div>
@@ -2562,6 +2562,10 @@ const CLOCK_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="no
 // wasn't part of this redesign. The "hands" are cut out using the card
 // background color rather than a real transparent hole.
 const CLOCK_ICON_SOLID_SVG = `<svg viewBox="0 0 24 24" width="17" height="17"><circle cx="12" cy="12" r="9" fill="var(--gold)"></circle><rect x="11.2" y="6" width="1.6" height="6.5" rx="0.8" fill="var(--card)"></rect><rect x="11.6" y="11.3" width="4.2" height="1.6" rx="0.8" fill="var(--card)" transform="rotate(35 12 12)"></rect></svg>`;
+// Same gold-circle-with-cutout language as the clock above, used only for
+// the "Episodes Left" modal header - a list reads as "what's inside" more
+// directly than a clock does.
+const LIST_ICON_SOLID_SVG = `<svg viewBox="0 0 24 24" width="17" height="17"><circle cx="12" cy="12" r="9" fill="var(--gold)"></circle><rect x="6.5" y="8.2" width="1.8" height="1.8" rx="0.4" fill="var(--card)"></rect><rect x="9.5" y="8.2" width="8" height="1.8" rx="0.4" fill="var(--card)"></rect><rect x="6.5" y="11.1" width="1.8" height="1.8" rx="0.4" fill="var(--card)"></rect><rect x="9.5" y="11.1" width="8" height="1.8" rx="0.4" fill="var(--card)"></rect><rect x="6.5" y="14" width="1.8" height="1.8" rx="0.4" fill="var(--card)"></rect><rect x="9.5" y="14" width="8" height="1.8" rx="0.4" fill="var(--card)"></rect></svg>`;
 const GRID_ICON_SVG = `<svg viewBox="0 0 24 24" width="15" height="15" fill="var(--accent2)"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>`;
 const CHECK_ICON_SVG = `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
 const BOOKMARK_ICON_SVG = `<svg viewBox="0 0 24 24" width="17" height="17" fill="var(--gold)"><path d="M6 3.5h12a.5.5 0 0 1 .5.5v16.2a.5.5 0 0 1-.77.42L12 16.5l-5.73 4.12a.5.5 0 0 1-.77-.42V4a.5.5 0 0 1 .5-.5z"></path></svg>`;
