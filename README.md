@@ -1,13 +1,15 @@
 # TV Series — SIMKL My List Summary
 
-A single self-contained HTML page for your SIMKL "My List": **for the
-shows you're watching, how many episodes are left and how much time
-will it take to catch up** — plus a built-in search so you can add
-shows, change their status, or remove them from your list without
-leaving the page or opening simkl.com.
+A small static site for your SIMKL "My List": **for the shows you're
+watching, how many episodes are left and how much time will it take
+to catch up** — plus a built-in search so you can add shows, change
+their status, or remove them from your list without leaving the page
+or opening simkl.com.
 
 Everything runs as JavaScript **in your browser** — no server, no
-backend, nothing to keep running in the background. Episode/watch
+backend, nothing to keep running in the background, no build step.
+`index.html`, `style.css` and `app.js` sit side by side and load like
+any static page; there's nothing to compile or bundle. Episode/watch
 status and list management go through [SIMKL](https://simkl.com)'s
 API; poster/backdrop artwork and episode runtimes come from
 [TMDB](https://www.themoviedb.org).
@@ -170,11 +172,11 @@ it.
 
 ## Publishing it (e.g. for a shortcut)
 
-Since your API keys are never stored *in* the file, you can safely put
-`index.html` in a git repo:
+Since your API keys are never stored *in* the files, you can safely
+put this repo up as-is:
 
 ```
-git add index.html
+git add index.html style.css app.js
 git commit -m "update"
 git push
 ```
@@ -193,10 +195,10 @@ after you watch more episodes.
 
 This repo is published via GitHub Pages at
 [elad-navon.github.io/simkl_my_list_update](https://elad-navon.github.io/simkl_my_list_update/)
-— `manifest.json`, `service-worker.js`, and `icons/` deploy alongside
-`index.html` automatically, since they're just more files in the same
-repo. A snapshot of the previous UI (before the top-bar dashboard
-redesign) stays permanently available at
+— `style.css`, `app.js`, `manifest.json`, `service-worker.js`, and
+`icons/` deploy alongside `index.html` automatically, since they're
+just more files in the same repo. A snapshot of the previous UI
+(before the top-bar dashboard redesign) stays permanently available at
 [/legacy/](https://elad-navon.github.io/simkl_my_list_update/legacy/),
 independent of ongoing changes to the root page.
 

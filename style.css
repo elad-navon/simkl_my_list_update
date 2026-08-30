@@ -1,0 +1,682 @@
+  :root {
+    --bg: #111820;
+    --sidebar-bg: #0d131a;
+    --card: #1a2430;
+    --card-hover: #22303e;
+    --border: #334255;
+    --text: #eef3f8;
+    --muted: #93a4b8;
+    --accent: #38bdf8;
+    --accent2: #7dd3fc;
+    --gold: #fbbf24;
+    --danger: #ff6b6b;
+    --divider: rgba(255,255,255,0.14);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100vh; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+  }
+
+  /* ===================== Top bar ===================== */
+  .topbar {
+    display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 20px;
+    background: var(--sidebar-bg); border-bottom: 1px solid var(--border);
+    padding: 12px 32px; position: sticky; top: 0; z-index: 100;
+    /* The top bar always keeps its own dark background regardless of the
+       light/dark theme toggle, so pin its text colors locally too - this
+       overrides --text/--muted for every var() lookup inside it, without
+       needing a body.light-theme override per rule. */
+    --text: #eef3f8;
+    --muted: #93a4b8;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 14px; }
+  .topbar-slogan-sep { color: #ffffff; font-size: 0.9rem; }
+  .topbar-slogan {
+    font-weight: 800; font-size: 1.75rem; letter-spacing: 0.5px;
+    text-transform: uppercase; color: #ffffff; white-space: nowrap;
+  }
+  .topbar-clock {
+    justify-self: center; min-width: 0; max-width: 100%;
+    display: flex; align-items: baseline; gap: 8px;
+    font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
+    font-weight: 700; font-size: 1.3rem; letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  /* Date shrinks/ellipsizes first on narrow screens - the time stays a
+     fixed size and is never the one clipped. */
+  #topbarDateText {
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: #ffffff; border-bottom: 2px solid var(--gold); padding-bottom: 4px;
+  }
+  #topbarClockText {
+    flex: 0 0 auto; color: var(--gold); font-variant-numeric: tabular-nums;
+    border-bottom: 2px solid #ffffff; padding-bottom: 4px;
+  }
+  .topbar-clock-sep { flex: 0 0 auto; color: #ffffff; }
+  .topbar-controls { display: flex; align-items: center; gap: 20px; }
+  .theme-toggle-wrap { display: flex; align-items: center; gap: 8px; }
+  .theme-toggle-wrap .nav-icon { color: var(--muted); }
+  .navbar-logo { display: flex; align-items: center; gap: 12px; padding: 0; }
+  .logo-icon { display: flex; align-items: center; padding-top: 2px; }
+  .logo-text { display: flex; flex-direction: row; align-items: baseline; gap: 9px; line-height: 1.15; }
+  .logo-text .logo-tv { font-size: 1.75rem; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; }
+  .logo-accent {
+    font-size: 1.75rem; font-weight: 800; color: var(--accent2);
+    letter-spacing: 0.5px;
+  }
+  .navbar-nav { display: flex; flex-direction: row; gap: 12px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px; position: relative;
+    background: linear-gradient(160deg, var(--card-hover), var(--card));
+    border: 1px solid var(--border); color: var(--gold);
+    font-size: 0.9rem; font-weight: 600; letter-spacing: 0.01em; text-align: left;
+    padding: 10px 16px; border-radius: 10px; cursor: pointer; white-space: nowrap;
+    box-shadow: 0 3px 0 rgba(0,0,0,0.35), 0 5px 8px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.07);
+    transform: translateY(0); transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+  }
+  .nav-item .nav-icon { color: var(--gold); }
+  .nav-icon { line-height: 1; display: inline-flex; flex: 0 0 auto; color: var(--muted); }
+  .nav-item:hover:not(.active) {
+    background: linear-gradient(160deg, var(--card-hover), var(--card-hover));
+    transform: translateY(-1px);
+    box-shadow: 0 4px 0 rgba(0,0,0,0.35), 0 7px 10px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.09);
+  }
+  .nav-item:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 rgba(0,0,0,0.35), inset 0 2px 4px rgba(0,0,0,0.4);
+  }
+  .nav-item.active {
+    color: var(--accent); font-weight: 700;
+    background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 16%, var(--card)), var(--card));
+    border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+    box-shadow: inset 3px 0 0 0 var(--accent), inset 0 2px 5px rgba(0,0,0,0.35);
+    transform: translateY(1px);
+  }
+  .nav-item.active .nav-icon { color: var(--accent); }
+  .profile-greeting-inline { display: flex; align-items: center; gap: 8px; margin-left: 22px; }
+  .profile-greeting-hi { font-size: 0.85rem; font-weight: 700; color: var(--text); white-space: nowrap; }
+  .profile-pic-small { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; flex: 0 0 auto; }
+  .theme-toggle {
+    flex: 0 0 auto; width: 38px; height: 21px; border-radius: 20px;
+    background: #334255; border: none; cursor: pointer; position: relative;
+    padding: 0; transition: background 0.15s ease;
+  }
+  .theme-toggle::after {
+    content: ""; position: absolute; top: 2.5px; left: 3px; width: 16px; height: 16px;
+    border-radius: 50%; background: #fff; transition: left 0.15s ease;
+  }
+  .theme-toggle.on { background: var(--accent); }
+  .theme-toggle.on::after { left: 19px; }
+
+  /* ===================== Main content ===================== */
+  .main-content { padding: 28px 40px 60px; }
+  .page-header {
+    margin-bottom: 22px; display: flex; align-items: baseline;
+    justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  }
+  .page-header p { color: var(--muted); margin: 0; font-size: 0.9rem; font-weight: 600; }
+  #subtitle:empty { display: none; }
+  .page-header:has(#subtitle:empty) { display: none; }
+  .series-panel-updated { color: var(--muted); font-size: 0.8rem; font-weight: 600; margin-left: auto; }
+  /* ===================== "MY LIST" series panel + carousel ===================== */
+  .series-panel {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; max-width: 100%; margin: 0 auto;
+  }
+  .series-panel-header {
+    display: flex; align-items: center; gap: 9px; color: var(--gold);
+    font-weight: 700; font-size: 0.95rem; letter-spacing: 0.04em; margin-bottom: 16px;
+  }
+  .series-panel-header-left {
+    display: flex; align-items: center; gap: 24px;
+    border-bottom: 3px solid var(--gold); padding-bottom: 10px;
+  }
+  .series-panel-stat { display: flex; align-items: baseline; gap: 6px; }
+  .stats-divider { width: 2px; align-self: stretch; background: var(--muted); }
+  .series-panel-stat .num { color: var(--gold); font-weight: 800; font-size: 1.3rem; }
+  .series-panel-stat .label {
+    color: #ffffff; font-size: 1.3rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .carousel-wrap { position: relative; }
+  .carousel-track {
+    display: flex; gap: 18px; overflow-x: auto; scroll-behavior: smooth;
+    scrollbar-width: none; padding-bottom: 2px; cursor: grab;
+  }
+  .carousel-track::-webkit-scrollbar { display: none; }
+  .carousel-track.dragging { cursor: grabbing; scroll-behavior: auto; user-select: none; }
+  .carousel-track img { -webkit-user-drag: none; user-select: none; }
+  /* Faint brand watermark that fills whatever space is left after the real
+     cards, when there aren't enough shows to fill the row - shrinks to
+     nothing (rather than forcing extra scroll width) once there isn't. */
+  .carousel-watermark {
+    flex: 1 1 0; min-width: 0; display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
+  }
+  .carousel-watermark svg { width: 135px; height: 135px; opacity: 0.06; }
+  .carousel-arrow {
+    position: absolute; right: -14px; transform: translateY(-50%);
+    width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border);
+    background: #0d131a; color: var(--text); cursor: pointer; z-index: 20;
+    display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+  }
+  .carousel-arrow:hover { background: var(--card-hover); }
+  .carousel-arrow.left { right: auto; left: -14px; }
+  .carousel-arrow.is-hidden { display: none; }
+
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 24px; max-width: 1400px; margin: 40px auto 0;
+  }
+  .grid.banner-mode {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35); transition: background 0.15s ease;
+    display: flex; flex-direction: column; position: relative; overflow: hidden;
+  }
+  .card.hover-stable { background: var(--card-hover); }
+  .card.carousel-card { width: 225px; flex: 0 0 auto; }
+  .card.carousel-card.banner-mode { width: 320px; }
+  .remaining-badge {
+    position: absolute; right: 8px; bottom: 8px; background: rgba(0,0,0,0.72);
+    color: var(--gold); font-size: 0.68rem; font-weight: 800; line-height: 1;
+    padding: 5px 7px; border-radius: 5px; backdrop-filter: blur(3px); z-index: 10;
+  }
+  .badge {
+    position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.55);
+    color: var(--text); font-weight: 700; font-size: 0.85rem; padding: 4px 10px;
+    border-radius: 20px; backdrop-filter: blur(3px); z-index: 10;
+  }
+  .badge.network-badge {
+    /* Most TMDB network logos are dark marks meant for light backgrounds -
+       the dark scrim the plain "#N" badge uses would make those invisible,
+       so this one gets a light chip instead, regardless of the underlying
+       poster art. */
+    display: flex; align-items: center; justify-content: center;
+    padding: 5px 10px; max-width: 70%;
+    background: rgba(255,255,255,0.94); backdrop-filter: none;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+  }
+  .badge.network-badge .network-badge-logo { height: 15px; width: auto; max-width: 100%; object-fit: contain; display: block; }
+  .badge.network-badge.logo-failed { background: rgba(0,0,0,0.55); backdrop-filter: blur(3px); }
+  .badge.network-badge.logo-failed .network-badge-logo { display: none; }
+  .badge.network-badge.logo-failed::before { content: "#" attr(data-idx); font-weight: 700; font-size: 0.85rem; color: var(--text); }
+  /* No hover lift on the image itself (removed - see commit history for
+     why native :hover here was flicker-prone). .card's background hover
+     still keys off the same JS-managed .hover-stable class, kept for that. */
+  .poster-wrap.cycleable, .list-thumb-wrap.cycleable {
+    cursor: pointer;
+  }
+  .poster.flip-out, .list-thumb.flip-out {
+    transition: transform 0.16s ease-in; transform: rotateY(90deg);
+  }
+  @keyframes poster-flip-in {
+    from { transform: rotateY(-90deg); }
+    to { transform: rotateY(0deg); }
+  }
+  .poster.flip-in, .list-thumb.flip-in { animation: poster-flip-in 0.16s ease-out; }
+  /* Mirrored pair used when cycling backwards (left-side click), so the
+     poster visibly turns left instead of right. */
+  .poster.flip-out-rev, .list-thumb.flip-out-rev {
+    transition: transform 0.16s ease-in; transform: rotateY(-90deg);
+  }
+  @keyframes poster-flip-in-rev {
+    from { transform: rotateY(90deg); }
+    to { transform: rotateY(0deg); }
+  }
+  .poster.flip-in-rev, .list-thumb.flip-in-rev { animation: poster-flip-in-rev 0.16s ease-out; }
+  .imdb-btn {
+    position: absolute; bottom: 8px; left: 8px; z-index: 10;
+    border: none; background: transparent; padding: 0; margin: 0;
+    cursor: pointer; line-height: 0;
+    display: flex; align-items: center; gap: 4px;
+    filter: drop-shadow(0 2px 5px rgba(0,0,0,0.55));
+    transition: transform 0.12s ease;
+  }
+  .imdb-btn:hover { transform: scale(1.06); }
+  .imdb-btn svg { display: block; }
+  .imdb-rating {
+    background: rgba(0,0,0,0.7); color: var(--gold); font-weight: 800;
+    font-size: 11px; padding: 2px 6px; border-radius: 4px;
+    line-height: 1.3;
+  }
+  .poster-wrap {
+    position: relative; overflow: hidden; perspective: 900px;
+  }
+  .card .poster-wrap { border-radius: 0; }
+  .poster { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; background: #22303e; display: block; }
+  .poster.banner-img { aspect-ratio: 16 / 9; }
+  .poster.placeholder {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.6rem; font-weight: 700; color: var(--muted);
+  }
+
+  /* Plain (non-link) IMDb pill - used in the Plan to Watch list rows. */
+  .imdb-pill {
+    background: var(--gold); color: #000; font-weight: 800; font-size: 10px;
+    padding: 2px 6px; border-radius: 4px; letter-spacing: 0.02em;
+  }
+  .imdb-pill-rating { color: var(--gold); font-weight: 800; font-size: 0.85rem; }
+  .imdb-pill-btn {
+    display: inline-flex; align-items: center; gap: 6px; background: transparent;
+    border: none; padding: 0; margin: 0; cursor: pointer;
+  }
+  .imdb-pill-btn:hover .imdb-pill { filter: brightness(1.1); }
+
+  .card-body {
+    padding: 10px 12px 11px;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    min-height: 126px;
+    /* Fills the full height of .card (which flex-stretches to match the
+       tallest card in the row), so .time-left's margin-top:auto below
+       always lands flush on the bottom edge - same row, same alignment,
+       regardless of how many text lines the cards above it show. */
+    flex: 1 1 auto;
+  }
+  .card-body h3 {
+    margin: 0;
+    padding: 0;
+    font-size: 1.08rem;
+    line-height: 1.2;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    letter-spacing: -0.01em;
+    height: auto;
+    min-height: 0;
+    max-height: 2.4em;
+    overflow: hidden;
+  }
+  .episode-title {
+    margin: 2px 0 0;
+    padding: 0;
+    font-size: 0.79rem;
+    line-height: 1.2;
+    height: auto;
+    min-height: 0;
+    max-height: 1.2em;
+    color: var(--accent2);
+    font-weight: 500;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+  }
+  .watch-progress { margin-top: 8px; }
+  .watch-progress-track { height: 16px; border-radius: 8px; background: var(--border); overflow: hidden; position: relative; }
+  .watch-progress-fill { height: 100%; border-radius: 8px 0 0 8px; background: var(--accent); }
+  .watch-progress-text {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end;
+    padding: 0 8px; font-size: 0.66rem; font-weight: 800; color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .next-up {
+    margin: 2px 0 0;
+    padding: 0;
+    font-size: 0.82rem;
+    line-height: 1.2;
+    height: auto;
+    min-height: 0;
+    font-weight: 600;
+    overflow: hidden;
+    color: var(--accent2);
+  }
+  .time-left {
+    font-size: 0.95rem;
+    color: var(--gold);
+    font-weight: 700;
+    line-height: 1.2;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; gap: 5px;
+    cursor: pointer;
+  }
+  .time-left:hover { color: #ffd873; }
+  .time-left .time-icon { color: #ffffff; flex: 0 0 auto; display: inline-flex; }
+  .air-date { margin-top: 8px; font-size: 1.05rem; color: var(--accent2); font-weight: 700;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.16);
+    
+  }
+  .section-note {
+    text-align: center; color: var(--muted); font-size: 0.85rem;
+    max-width: 700px; margin: 22px auto 0;
+  }
+  /* ===================== Recently Watched / Airing Next / Plan to Watch panels ===================== */
+  .bottom-panels-row {
+    display: flex; gap: 22px; margin: 26px auto 0; align-items: flex-start;
+  }
+  .bottom-panels-row .list-panel { flex: 1 1 0; min-width: 0; }
+  .list-panel {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px 20px;
+  }
+  .list-panel-header {
+    display: inline-flex; align-items: center; gap: 10px; color: var(--text);
+    font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
+    font-weight: 700; font-size: 1.3rem; letter-spacing: 0.02em; margin-bottom: 14px;
+    border-bottom: 3px solid var(--gold); padding-bottom: 8px;
+  }
+  /* Vertical carousel - all three panels show ~5 rows before scrolling
+     (5 * (76px banner thumb + 24px row padding + 1px border) = 505px). */
+  .list-rows-scroll {
+    max-height: 580px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+    padding-right: 14px; margin-right: -14px;
+  }
+  .list-rows-scroll::-webkit-scrollbar { width: 6px; }
+  .list-rows-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .list-row {
+    display: flex; align-items: center; gap: 14px; padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .list-row:last-child { border-bottom: none; }
+  .list-thumb {
+    width: 161px; height: 91px; border-radius: 6px; object-fit: cover;
+    background: #22303e; flex: 0 0 auto; display: block;
+  }
+  .list-thumb.placeholder {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.9rem; font-weight: 700; color: var(--muted);
+  }
+  .list-row-title-wrap { flex: 1 1 auto; min-width: 0; }
+  .list-row-title {
+    flex: 1 1 auto; min-width: 0; font-weight: 600; font-size: 0.92rem;
+    color: var(--text); white-space: normal; line-height: 1.25;
+    text-transform: uppercase; letter-spacing: 0.02em;
+  }
+  .list-row-sub { font-size: 0.74rem; color: var(--muted); font-weight: 500; margin-top: 2px; }
+  .list-row-sub.network-sub { display: flex; align-items: center; min-height: 22px; }
+  .list-row-sub.episode-code-sub { color: var(--accent2); }
+  /* Light chip behind the logo - most TMDB network logos are dark marks
+     meant for light backgrounds, and disappear directly on this panel's
+     dark background otherwise. */
+  .network-logo {
+    height: 16px; width: auto; max-width: 90px; object-fit: contain; display: block;
+    background: rgba(255,255,255,0.94); border-radius: 3px; padding: 3px 6px;
+    box-sizing: content-box;
+  }
+  .list-row-airdate { color: var(--accent2); font-weight: 700; font-size: 0.8rem; margin-top: 4px; }
+  .premiere-badge {
+    display: inline-block; background: #2fa84f; color: #fff; font-weight: 800;
+    font-size: 0.64rem; letter-spacing: 0.01em; padding: 3px 6px; border-radius: 4px;
+    text-transform: uppercase; margin-top: 5px;
+  }
+  .premiere-badge.finale { background: #c1502e; }
+  .premiere-badge.year-badge { background: #3d6bb3; margin-top: 0; }
+  .title-with-year { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .title-with-year .list-row-title { flex: 0 1 auto; }
+  .next-up-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .next-up-row .next-up { margin: 2px 0 0; }
+  .next-up-row .premiere-badge { margin-top: 2px; }
+  .list-thumb-wrap { position: relative; flex: 0 0 auto; perspective: 900px; }
+  .list-check {
+    flex: 0 0 auto; width: 31px; height: 31px; border-radius: 50%;
+    border: 1.5px solid var(--accent); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .list-imdb { margin-top: 4px; display: flex; align-items: center; gap: 8px; }
+  footer {
+    display: flex; align-items: center; justify-content: space-between;
+    color: var(--muted); font-size: 0.78rem; margin-top: 50px;
+  }
+
+  .center-box {
+    max-width: 480px; margin: 60px auto; background: var(--card); border-radius: 14px;
+    padding: 30px; text-align: center; box-shadow: 0 6px 22px rgba(0,0,0,0.35);
+  }
+  .center-box input {
+    width: 100%; padding: 10px 12px; margin: 8px 0; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 0.9rem;
+  }
+  .center-box label { display: block; text-align: left; font-size: 0.8rem; color: var(--muted); margin-top: 10px; }
+  .center-box code { background: var(--bg); padding: 2px 6px; border-radius: 4px; }
+  .pin-code {
+    font-size: 2rem; letter-spacing: 6px; font-weight: 700; color: var(--accent);
+    margin: 16px 0; font-family: monospace;
+  }
+  .spinner {
+    width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.9s linear infinite; margin: 18px auto;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-box { color: var(--danger); font-size: 0.85rem; margin-top: 10px; white-space: pre-wrap; }
+  a { color: var(--accent2); }
+
+  .my-list-next {
+    color: #67e8f9;
+  }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
+    background: var(--card); color: var(--text); padding: 12px 20px; border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4); font-size: 0.9rem; font-weight: 600;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 200; max-width: 90vw;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.error { color: var(--danger); }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 20px; z-index: 150; overflow-y: auto;
+  }
+  .modal-box {
+    width: 100%; max-width: 560px; background: var(--card); border-radius: 14px;
+    padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .modal-box h2 { margin: 0 0 14px; display: flex; align-items: center; justify-content: space-between; font-size: 1.3rem; }
+  .modal-close-btn {
+    background: transparent; border: none; color: var(--muted); font-size: 1.4rem;
+    cursor: pointer; line-height: 1; padding: 0 4px;
+  }
+  .modal-close-btn:hover { color: var(--text); }
+  .episodes-modal { max-width: 620px; display: flex; flex-direction: column; max-height: 82vh; padding: 20px 0 0; }
+  .episodes-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin: 0 22px; }
+  .episodes-modal-head .list-panel-header { margin: 0; flex: 1 1 auto; }
+  .episodes-modal-subtitle { margin: 4px 22px 14px; font-size: 1rem; color: #ffffff; font-weight: 600; }
+  .episodes-list { overflow-y: auto; padding: 0 12px 8px; }
+  .episode-row { display: flex; align-items: flex-start; gap: 12px; padding: 9px 10px; border-radius: 8px; }
+  .episode-row:hover { background: var(--card-hover); }
+  .episode-row.is-next { background: rgba(251,191,36,0.06); }
+  .episode-code {
+    font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif; font-weight: 700; font-size: 0.95rem;
+    color: var(--accent2); flex: 0 0 auto; width: 52px; font-variant-numeric: tabular-nums;
+  }
+  .episode-name { flex: 1 1 auto; min-width: 0; font-size: 0.85rem; color: var(--text); font-weight: 500;
+    line-height: 1.3; word-break: break-word; }
+  .episode-row.is-next .episode-name { font-weight: 700; }
+  .episode-badge {
+    flex: 0 0 auto; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase;
+    color: var(--accent); background: rgba(56,189,248,0.14); padding: 2px 6px; border-radius: 4px;
+  }
+  .episode-runtime { flex: 0 0 auto; font-size: 0.82rem; color: var(--muted); font-weight: 600;
+    font-variant-numeric: tabular-nums; width: 54px; text-align: right; white-space: nowrap; }
+  .episode-row.is-next .episode-runtime { color: var(--gold); }
+  .episodes-modal-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 22px; border-top: 1px solid var(--border); margin-top: 4px;
+  }
+  .episodes-modal-foot .label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  .episodes-modal-foot .total {
+    font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif; font-weight: 700; font-size: 1.3rem;
+    color: var(--gold); font-variant-numeric: tabular-nums;
+  }
+  .search-input-row input {
+    width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text); font-size: 0.95rem; box-sizing: border-box;
+  }
+  .search-results { margin-top: 16px; max-height: 55vh; overflow-y: auto; }
+  .search-result-row {
+    display: flex; align-items: center; gap: 12px; padding: 8px 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    cursor: pointer; border-radius: 8px;
+  }
+  .search-result-row:hover { background: rgba(255,255,255,0.06); }
+  .search-result-poster {
+    width: 42px; height: 63px; border-radius: 5px; object-fit: cover;
+    background: var(--card-hover); flex: 0 0 auto;
+  }
+  .search-result-poster.placeholder {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; font-weight: 700; color: var(--muted);
+  }
+  .search-result-info { flex: 1 1 auto; min-width: 0; }
+  .search-result-title { font-weight: 700; font-size: 0.95rem; }
+  .search-result-year { color: var(--muted); font-size: 0.8rem; }
+  .modal-back-btn {
+    background: transparent; border: none; color: var(--accent2); font-size: 0.85rem;
+    font-weight: 700; cursor: pointer; padding: 0 0 14px; display: block;
+  }
+  .modal-back-btn:hover { text-decoration: underline; }
+  .detail-header { display: flex; gap: 16px; }
+  .detail-poster {
+    width: 90px; height: 135px; border-radius: 8px; object-fit: cover;
+    background: var(--card-hover); flex: 0 0 auto;
+  }
+  .detail-poster.placeholder {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem; font-weight: 700; color: var(--muted);
+  }
+  .detail-info { flex: 1 1 auto; min-width: 0; }
+  .detail-title { font-size: 1.15rem; font-weight: 800; }
+  .detail-year { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+  .detail-status { margin-top: 10px; font-size: 0.88rem; font-weight: 700; }
+  .detail-status.not-in-list { color: var(--muted); }
+  .detail-status.in-list { color: var(--accent); }
+  .detail-status-picker { margin-top: 20px; }
+  .detail-picker-label { color: var(--muted); font-size: 0.8rem; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+  .card-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
+  .card-title-row h3 { flex: 1 1 auto; min-width: 0; }
+  .card-menu-btn {
+    flex: 0 0 auto; background: transparent; border: none; color: var(--muted);
+    font-size: 1.2rem; line-height: 1; padding: 0 2px; cursor: pointer;
+  }
+  .card-menu-btn:hover { color: var(--text); }
+  .card-menu-dropdown {
+    position: fixed; background: var(--card); border-radius: 10px; min-width: 170px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45); z-index: 160; overflow: hidden; padding: 6px;
+  }
+  .card-menu-item {
+    display: block; width: 100%; text-align: left; background: transparent; border: none;
+    color: var(--text); font-size: 0.86rem; padding: 8px 10px; border-radius: 6px; cursor: pointer;
+  }
+  .card-menu-item:hover { background: rgba(255,255,255,0.08); }
+  .card-menu-item.active { color: var(--accent); font-weight: 700; }
+  .card-menu-item.danger { color: var(--danger); }
+  .card-menu-item.watched-action {
+    color: #2fa84f; font-weight: 700;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-menu-item.watched-action svg { flex: 0 0 auto; }
+  .card-menu-item.watched-action:hover { background: rgba(47,168,79,0.14); }
+  .card-menu-item:disabled { opacity: 0.5; cursor: default; }
+  .card-menu-item:disabled:hover { background: transparent; }
+  .card-menu-sep { height: 1px; background: rgba(255,255,255,0.1); margin: 6px 4px; }
+
+  /* Light theme overrides - toggled via body.light-theme.
+     "Warm Ivory": a dimmed cream (~90% lightness), not stark white - and the
+     accent/gold/danger get their OWN light-tuned values instead of inheriting
+     the dark-theme ones (which were tuned to glow on navy, not read on cream). */
+  body.light-theme {
+    --bg: #e8e2d3;
+    --card: #f2ede0;
+    --card-hover: #ebe4d3;
+    --border: #d8cfb8;
+    --text: #2c2416;
+    --muted: #71674f;
+    --divider: rgba(0,0,0,0.15);
+    --accent: #9a5b1f;
+    --accent2: #b97a3d;
+    --gold: #7c5a12;
+    --danger: #a83a2c;
+  }
+  body.light-theme { background: var(--bg); }
+  body.light-theme .topbar { background: #0a0a0d; border-bottom-color: #0a0a0d; } /* top bar stays dark in both themes, per the reference design */
+  body.light-theme .card { box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
+  body.light-theme .center-box { box-shadow: 0 10px 30px rgba(0,0,0,0.10); }
+  /* The IMDb tag and the remaining-badge overlay both need to stay bright
+     regardless of theme - the former is black text ON TOP of this color, the
+     latter sits on its own fixed dark scrim over the poster, not the page bg. */
+  body.light-theme .imdb-pill { background: #f0b429; }
+  body.light-theme .remaining-badge { color: #f0b429; }
+  /* Network logo chips: an off-tone + border instead of literal white, so a
+     logo doesn't sit as a glaring white square on this already-light card. */
+  body.light-theme .network-logo { background: #e4dcc6; border: 1px solid #cabd9c; }
+  body.light-theme .badge.network-badge { background: rgba(228,220,198,0.96); border: 1px solid rgba(202,189,156,0.9); box-shadow: 0 1px 4px rgba(0,0,0,0.25); }
+
+  /* ===================== Mobile layout ===================== */
+  @media (max-width: 720px) {
+    /* Top bar wraps to two rows instead of becoming a bottom tab bar -
+       logo stays on its own row, controls take the full width below it. */
+    .topbar { display: flex; flex-wrap: wrap; padding: 10px 14px; gap: 8px; }
+    .topbar-slogan-sep, .topbar-slogan, .topbar-clock { display: none; }
+    .topbar-controls { width: 100%; justify-content: space-between; }
+    .navbar-nav { flex: 1 1 auto; gap: 6px; }
+    .nav-item {
+      flex: 1 1 0; min-width: 0; flex-direction: column; gap: 2px;
+      padding: 6px 2px; border-radius: 8px;
+      font-size: 0.56rem; line-height: 1.15; text-align: center; white-space: normal;
+      box-shadow: 0 2px 0 rgba(0,0,0,0.35), 0 3px 5px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.07);
+    }
+    .nav-item:hover:not(.active) {
+      box-shadow: 0 2px 0 rgba(0,0,0,0.35), 0 3px 5px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.07);
+      transform: none;
+    }
+    .nav-item .nav-icon svg { width: 20px; height: 20px; }
+    .nav-item.active { box-shadow: inset 0 -3px 0 0 var(--accent); }
+
+    .main-content { padding: 18px 14px 40px; }
+
+    .series-panel { padding: 14px; }
+    .series-panel-header { flex-wrap: wrap; row-gap: 10px; }
+    .series-panel-header-left {
+      max-width: 100%; overflow-x: auto; scrollbar-width: none;
+      padding-bottom: 8px; gap: 4px;
+    }
+    .series-panel-header-left::-webkit-scrollbar { display: none; }
+    .series-panel-header-left svg { flex-shrink: 0; }
+    .series-panel-stat { flex: 0 0 auto; gap: 3px; }
+    .series-panel-stat .num { font-size: 0.95rem; }
+    .series-panel-stat .label { font-size: 0.62rem; }
+
+    /* Carousel: one card per swipe, no click-arrows - touch takes over. */
+    .carousel-arrow { display: none; }
+    .card.carousel-card, .card.carousel-card.banner-mode {
+      width: 80vw; max-width: 320px;
+    }
+    .carousel-track { scroll-snap-type: x mandatory; }
+    .card.carousel-card { scroll-snap-align: center; }
+
+    /* The three panels stack full-width instead of sitting side by side,
+       but each keeps its own row list scrolling horizontally (touch swipe)
+       rather than vertically, so rows become fixed-width cards. */
+    .bottom-panels-row { flex-direction: column; gap: 16px; }
+    .bottom-panels-row .list-panel { width: 100%; }
+    .list-panel { padding: 14px 16px; }
+    .list-rows-scroll {
+      display: flex; flex-direction: row; gap: 12px;
+      max-height: none; overflow-x: auto; overflow-y: hidden;
+      padding-right: 0; margin-right: 0; padding-bottom: 6px;
+    }
+    .list-row {
+      flex: 0 0 auto; width: 200px; flex-direction: column; align-items: stretch;
+      gap: 8px; padding: 0; border-bottom: none;
+    }
+    .list-thumb { width: 100%; height: auto; aspect-ratio: 16 / 9; }
+    .list-thumb-wrap { width: 100%; }
+    .title-with-year { flex-direction: column; align-items: flex-start; gap: 4px; }
+    .premiere-badge.year-badge { margin-top: 0; }
+    .list-panel--watched .list-check { display: none; }
+
+    .modal-overlay { padding: 12px; }
+  }
