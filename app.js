@@ -2198,7 +2198,10 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
     const timeText = row.remaining > 1
       ? `${row.nextHours}h ${row.nextMins}m / ${row.hours}h ${row.mins}m left`
       : `${row.hours}h ${row.mins}m left`;
-    const episodeTitle = row.episodeTitle ? `<div class="episode-title">${row.episodeTitle}</div>` : "";
+    // Always reserved as its own line (blank when there's no title), so a
+    // card without one doesn't collapse and throw off the progress bar's
+    // position relative to sibling cards in the same row - see .card-fill-spacer.
+    const episodeTitle = `<div class="episode-title">${row.episodeTitle || "&nbsp;"}</div>`;
     const progressPct = row.available > 0 ? Math.min(100, Math.round((row.watched / row.available) * 100)) : 0;
     const progressHtml = row.available > 0
       ? `<div class="watch-progress">
@@ -2224,8 +2227,10 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
             <span class="next-up">Next: ${row.nextLabel}</span>
             ${row.badge ? `<div class="premiere-badge${row.badge === "SEASON FINALE" ? " finale" : ""}">${row.badge}</div>` : ""}
           </div>
-          ${episodeTitle}
-          ${progressHtml}
+          <div class="card-fill-spacer">
+            ${episodeTitle}
+            ${progressHtml}
+          </div>
           <div class="time-left" title="See every remaining episode" onclick="event.stopPropagation(); openEpisodesModal(${arrIdx})"><span class="time-icon">${CLOCK_ICON_SVG}</span>${timeText}</div>
         </div>
       </div>`;

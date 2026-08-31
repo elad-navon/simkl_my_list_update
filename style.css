@@ -327,12 +327,16 @@
     overflow: hidden;
     color: var(--accent2);
   }
+  /* Pushed to the bottom of the card instead of .time-left itself, so the
+     progress bar always docks directly above .time-left with the same gap
+     - whether or not this show has an episode title, and even on rows
+     stretched taller by a sibling card's badge/title. */
+  .card-fill-spacer { margin-top: auto; }
   .time-left {
     font-size: 0.95rem;
     color: var(--gold);
     font-weight: 700;
     line-height: 1.2;
-    margin-top: auto;
     padding-top: 10px;
     border-top: 1px solid var(--border);
     display: flex; align-items: center; gap: 5px;
