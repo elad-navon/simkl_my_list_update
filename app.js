@@ -553,6 +553,22 @@ function watchedEpisodeNumbersBySeason(item) {
   return result;
 }
 
+// Most recent watched_at timestamp across all of a show's watched episodes
+// (null if none are timestamped) - used to keep an old, already-ended show
+// near the top of My List while you're actively rewatching/catching up on
+// it, since its next episode's own air date is from years ago otherwise.
+function mostRecentWatchedAt(item) {
+  let latest = null;
+  for (const season of item.seasons || []) {
+    for (const ep of season.episodes || []) {
+      if (!ep.watched_at) continue;
+      const ts = new Date(ep.watched_at).getTime();
+      if (!isNaN(ts) && (latest == null || ts > latest)) latest = ts;
+    }
+  }
+  return latest;
+}
+
 async function estimateRemainingMinutes(item, tmdbId, simklId, token, cache, episodeCache, remainingCount, fallbackRuntime) {
   // SIMKL's aggregate count (remainingCount, passed in) is always the
   // authoritative number of remaining episodes - this function only
@@ -1022,7 +1038,7 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
       title, imdbId, imdbRating, simklId, tmdbId, year: show.year, ...images, network, networkLogoPath,
       totalEpisodes, available, watched, remaining,
       hours, mins, nextHours, nextMins, nextLabel, nextSeason, nextEpisode, episodeTitle, nextAirDate, badge,
-      episodesLeft,
+      episodesLeft, lastWatchedAt: mostRecentWatchedAt(item),
     };
     return { row, remaining, remainingMinutes };
   }));
@@ -1031,17 +1047,29 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
   const totalRemainingEps = results.reduce((sum, r) => sum + r.remaining, 0);
   const totalRemainingMinutes = results.reduce((sum, r) => sum + r.remainingMinutes, 0);
 
-  // Sort by the air date/time of the next episode to watch, most recent
-  // first; shows with no known date (or a very old backlog) sink toward
-  // the end. Compares actual timestamps (not raw strings), since SIMKL
-  // dates carry a timezone offset that lexical string comparison can get
-  // wrong across different offsets.
+  // Sort by whichever is more recent: the next episode's air date, or the
+  // last time you actually watched an episode of that show - most recent
+  // first, shows with neither signal sink toward the end. The air date
+  // alone would bury an already-ended show you're actively rewatching,
+  // since its next unwatched episode's original air date is from years
+  // ago; lastWatchedAt is what pulls it back to the top while you're
+  // catching up on it. Compares actual timestamps (not raw strings),
+  // since SIMKL dates carry a timezone offset that lexical string
+  // comparison can get wrong across different offsets.
+  const sortTimestamp = (row) => {
+    const airTs = row.nextAirDate != null ? airDateToTimestamp(row.nextAirDate) : null;
+    const watchTs = row.lastWatchedAt;
+    if (airTs == null && watchTs == null) return null;
+    if (airTs == null) return watchTs;
+    if (watchTs == null) return airTs;
+    return Math.max(airTs, watchTs);
+  };
   rows.sort((a, b) => {
-    if (a.nextAirDate == null && b.nextAirDate == null) return 0;
-    if (a.nextAirDate == null) return 1;
-    if (b.nextAirDate == null) return -1;
-    const tsA = airDateToTimestamp(a.nextAirDate);
-    const tsB = airDateToTimestamp(b.nextAirDate);
+    const tsA = sortTimestamp(a);
+    const tsB = sortTimestamp(b);
+    if (tsA == null && tsB == null) return 0;
+    if (tsA == null) return 1;
+    if (tsB == null) return -1;
     return tsB - tsA;
   });
 
