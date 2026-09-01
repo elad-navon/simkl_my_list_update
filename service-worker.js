@@ -1,4 +1,4 @@
-const CACHE_NAME = "tvseries-shell-v2";
+const CACHE_NAME = "tvseries-shell-v3";
 const SHELL_FILES = [
   "./",
   "./index.html",
@@ -33,7 +33,13 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   event.respondWith(
-    fetch(req)
+    // no-store: a plain fetch(req) here still obeys normal HTTP caching,
+    // so a regular refresh could silently reuse the browser's own stale
+    // cached copy of app.js/style.css instead of ever reaching the
+    // network - only a hard reload (which bypasses HTTP cache itself)
+    // happened to show updates. Forcing no-store makes "network first"
+    // actually mean the real network, every time.
+    fetch(req, { cache: "no-store" })
       .then((res) => {
         const resClone = res.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(req, resClone));
