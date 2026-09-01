@@ -187,7 +187,11 @@
        as clipped-into rather than blended, and squared-off keeps this
        badge and the IMDb one (also square, see .imdb-btn) consistent. */
     position: absolute; right: 0; bottom: 0; background: #F5C518;
-    color: #000000; font-size: 0.68rem; font-weight: 800; line-height: 1;
+    /* 12.375px matches the IMDb logo's own rendered text size (an SVG
+       scaled to this badge's 22px height, so its 18-unit text works out
+       to 18 * 22/32) - not the original 0.68rem, which was noticeably
+       smaller. */
+    color: #000000; font-size: 12.375px; font-weight: 800; line-height: 1;
     padding: 0 8px; height: 22px; display: flex; align-items: center;
     border-radius: 0; z-index: 10;
   }
@@ -253,7 +257,8 @@
   .imdb-btn svg { display: block; height: 100%; width: auto; }
   .imdb-rating {
     background: #F5C518; color: #000000; font-weight: 800;
-    font-size: 11px; padding: 0 6px; border-radius: 0;
+    /* Matches the IMDb logo's own rendered text size - see .remaining-badge. */
+    font-size: 12.375px; padding: 0 6px; border-radius: 0;
     height: 100%; display: flex; align-items: center;
     line-height: 1.3;
   }
