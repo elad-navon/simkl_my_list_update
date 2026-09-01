@@ -182,9 +182,12 @@
   .card.carousel-card { width: 225px; flex: 0 0 auto; }
   .card.carousel-card.banner-mode { width: 320px; }
   .remaining-badge {
-    position: absolute; right: 8px; bottom: 8px; background: rgba(0,0,0,0.72);
+    /* Flush into the bottom-right corner, same merged-radius idea as
+       .badge (top-left): the corner touching the card matches the card's
+       own 10px radius so the curves blend, the other 3 stay independent. */
+    position: absolute; right: 0; bottom: 0; background: rgba(0,0,0,0.72);
     color: var(--gold); font-size: 0.68rem; font-weight: 800; line-height: 1;
-    padding: 5px 7px; border-radius: 5px; backdrop-filter: blur(3px); z-index: 10;
+    padding: 5px 12px 6px 7px; border-radius: 8px 8px 10px 8px; backdrop-filter: blur(3px); z-index: 10;
   }
   .badge {
     /* Flush into the card's own top-left corner (card has overflow:hidden
@@ -234,7 +237,10 @@
   }
   .poster.flip-in-rev, .list-thumb.flip-in-rev { animation: poster-flip-in-rev 0.16s ease-out; }
   .imdb-btn {
-    position: absolute; bottom: 8px; left: 8px; z-index: 10;
+    /* Flush into the bottom-left corner - the logo's own shape (see
+       IMDB_LOGO_SVG) has its bottom-left corner enlarged to match the
+       card's radius so it blends the same way the other corner badges do. */
+    position: absolute; bottom: 0; left: 0; z-index: 10;
     border: none; background: transparent; padding: 0; margin: 0;
     cursor: pointer; line-height: 0;
     display: flex; align-items: center; gap: 4px;
