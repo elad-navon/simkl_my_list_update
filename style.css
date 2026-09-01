@@ -186,10 +186,10 @@
        the card's own radius - at this small size a matching curve reads
        as clipped-into rather than blended, and squared-off keeps this
        badge and the IMDb one (also square, see .imdb-btn) consistent. */
-    position: absolute; right: 0; bottom: 0; background: rgba(0,0,0,0.72);
-    color: var(--gold); font-size: 0.68rem; font-weight: 800; line-height: 1;
+    position: absolute; right: 0; bottom: 0; background: #F5C518;
+    color: #000000; font-size: 0.68rem; font-weight: 800; line-height: 1;
     padding: 0 8px; height: 22px; display: flex; align-items: center;
-    border-radius: 0; backdrop-filter: blur(3px); z-index: 10;
+    border-radius: 0; z-index: 10;
   }
   .badge {
     /* Flush into the card's own top-left corner (card has overflow:hidden
@@ -252,7 +252,7 @@
   .imdb-btn:hover { transform: scale(1.06); }
   .imdb-btn svg { display: block; height: 100%; width: auto; }
   .imdb-rating {
-    background: rgba(0,0,0,0.7); color: var(--gold); font-weight: 800;
+    background: #F5C518; color: #000000; font-weight: 800;
     font-size: 11px; padding: 0 6px; border-radius: 0;
     height: 100%; display: flex; align-items: center;
     line-height: 1.3;
@@ -624,11 +624,11 @@
   body.light-theme .topbar { background: #0a0a0d; border-bottom-color: #0a0a0d; } /* top bar stays dark in both themes, per the reference design */
   body.light-theme .card { box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
   body.light-theme .center-box { box-shadow: 0 10px 30px rgba(0,0,0,0.10); }
-  /* The IMDb tag and the remaining-badge overlay both need to stay bright
-     regardless of theme - the former is black text ON TOP of this color, the
-     latter sits on its own fixed dark scrim over the poster, not the page bg. */
+  /* The IMDb tag needs to stay bright regardless of theme - it's black text
+     ON TOP of this color. (.remaining-badge no longer needs an override
+     here - it's a fixed yellow-bg/black-text badge over the poster now,
+     unrelated to the page's own light/dark theme.) */
   body.light-theme .imdb-pill { background: #f0b429; }
-  body.light-theme .remaining-badge { color: #f0b429; }
   /* Network logo chips: an off-tone + border instead of literal white, so a
      logo doesn't sit as a glaring white square on this already-light card. */
   body.light-theme .network-logo { background: #e4dcc6; border: 1px solid #cabd9c; }
