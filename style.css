@@ -308,7 +308,7 @@
     text-overflow: ellipsis;
     text-transform: uppercase;
   }
-  .watch-progress { margin-top: 8px; }
+  .watch-progress { margin-top: 8px; margin-bottom: 10px; }
   .watch-progress-track { height: 16px; border-radius: 8px; background: var(--border); overflow: hidden; position: relative; }
   .watch-progress-fill { height: 100%; border-radius: 8px 0 0 8px; background: var(--accent); }
   .watch-progress-text {
@@ -339,7 +339,7 @@
     font-weight: 700;
     line-height: 1.2;
     padding-top: 10px;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--divider);
     display: flex; align-items: center; gap: 5px;
     cursor: pointer;
   }
