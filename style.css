@@ -188,7 +188,8 @@
        badge and the IMDb one (also square, see .imdb-btn) consistent. */
     position: absolute; right: 0; bottom: 0; background: rgba(0,0,0,0.72);
     color: var(--gold); font-size: 0.68rem; font-weight: 800; line-height: 1;
-    padding: 6px 8px; border-radius: 0; backdrop-filter: blur(3px); z-index: 10;
+    padding: 0 8px; height: 22px; display: flex; align-items: center;
+    border-radius: 0; backdrop-filter: blur(3px); z-index: 10;
   }
   .badge {
     /* Flush into the card's own top-left corner (card has overflow:hidden
@@ -241,7 +242,7 @@
     /* Flush into the bottom-left corner, square (see IMDB_LOGO_SVG and
        .imdb-rating) rather than merged with the card's radius - matches
        .remaining-badge's squared-off corner for consistency. */
-    position: absolute; bottom: 0; left: 0; z-index: 10;
+    position: absolute; bottom: 0; left: 0; z-index: 10; height: 22px;
     border: none; background: transparent; padding: 0; margin: 0;
     cursor: pointer; line-height: 0;
     display: flex; align-items: center; gap: 4px;
@@ -249,10 +250,11 @@
     transition: transform 0.12s ease;
   }
   .imdb-btn:hover { transform: scale(1.06); }
-  .imdb-btn svg { display: block; }
+  .imdb-btn svg { display: block; height: 100%; width: auto; }
   .imdb-rating {
     background: rgba(0,0,0,0.7); color: var(--gold); font-weight: 800;
-    font-size: 11px; padding: 2px 6px; border-radius: 0;
+    font-size: 11px; padding: 0 6px; border-radius: 0;
+    height: 100%; display: flex; align-items: center;
     line-height: 1.3;
   }
   .poster-wrap {
