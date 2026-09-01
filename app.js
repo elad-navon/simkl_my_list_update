@@ -1877,12 +1877,11 @@ function cycleImage(source, idx, modeOverride, direction) {
   rerenderAfterCycle(source);
 }
 
-// Bottom-left corner enlarged (16 units, vs. 4 on the other 3) so it merges
-// with the card's own rounded corner when .imdb-btn sits flush at 0,0 -
-// same idea as .badge/.remaining-badge, just baked into the path since an
-// SVG <rect> can't take 4 different corner radii.
+// Square corners (no rx) - flush at the card's bottom-left corner, matching
+// .remaining-badge's squared-off treatment rather than merging with the
+// card's own radius.
 const IMDB_LOGO_SVG = `<svg viewBox="0 0 64 32" width="34" height="17" xmlns="http://www.w3.org/2000/svg" aria-label="IMDb">
-  <path d="M4,0 H60 A4,4 0 0 1 64,4 V28 A4,4 0 0 1 60,32 H16 A16,16 0 0 1 0,16 V4 A4,4 0 0 1 4,0 Z" fill="#F5C518"/>
+  <rect width="64" height="32" fill="#F5C518"/>
   <text x="32" y="23" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="18" fill="#000000">IMDb</text>
 </svg>`;
 
