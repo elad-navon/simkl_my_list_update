@@ -1874,7 +1874,28 @@ function cycleImage(source, idx, modeOverride, direction) {
   const newPath = paths[row[cfg.indexKey]];
   row[cfg.urlKey] = cfg.base + newPath;
   saveImageOverride(row.tmdbId, mode, newPath); // survives the next refresh
+  syncImageAcrossCards(row.tmdbId, cfg, row[cfg.indexKey], row[cfg.urlKey]);
   rerenderAfterCycle(source);
+}
+
+// The same show can appear in the top carousel and in any of the three
+// bottom panels at once, each with its own separate row object (see
+// getCycleRows) - without this, cycling the poster/banner in one place
+// would only change that one card, leaving the others showing the old
+// image until the next full refresh. computeImages always populates both
+// posterPaths and backdropPaths on every row regardless of that row's own
+// display mode, so the same index/url is valid to apply everywhere.
+function syncImageAcrossCards(tmdbId, cfg, index, url) {
+  if (tmdbId == null) return;
+  for (const arr of [lastRows, lastRecentlyWatched, lastPlanToWatch, lastAiringPreview, airingRows]) {
+    if (!arr) continue;
+    for (const r of arr) {
+      if (r && r.tmdbId === tmdbId) {
+        r[cfg.indexKey] = index;
+        r[cfg.urlKey] = url;
+      }
+    }
+  }
 }
 
 // Square corners (no rx) - flush at the card's bottom-left corner, matching
