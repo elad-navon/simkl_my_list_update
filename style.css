@@ -327,10 +327,11 @@
     overflow: hidden;
     color: var(--accent2);
   }
-  /* Pushed to the bottom of the card instead of .time-left itself, so the
-     progress bar always docks directly above .time-left with the same gap
-     - whether or not this show has an episode title, and even on rows
-     stretched taller by a sibling card's badge/title. */
+  /* Wraps just the progress bar and absorbs the row's leftover height
+     (from being stretched to match a taller sibling card), so the flexible
+     gap lands between the episode title and the progress bar - not between
+     "Next:" and the title, which would otherwise vary with next-up-row's
+     own height (a badge chip is taller than plain text). */
   .card-fill-spacer { margin-top: auto; }
   .time-left {
     font-size: 0.95rem;

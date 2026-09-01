@@ -2227,8 +2227,8 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
             <span class="next-up">Next: ${row.nextLabel}</span>
             ${row.badge ? `<div class="premiere-badge${row.badge === "SEASON FINALE" ? " finale" : ""}">${row.badge}</div>` : ""}
           </div>
+          ${episodeTitle}
           <div class="card-fill-spacer">
-            ${episodeTitle}
             ${progressHtml}
           </div>
           <div class="time-left" title="See every remaining episode" onclick="event.stopPropagation(); openEpisodesModal(${arrIdx})"><span class="time-icon">${CLOCK_ICON_SVG}</span>${timeText}</div>
