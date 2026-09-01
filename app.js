@@ -1266,6 +1266,7 @@ async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, re
   return {
     title: show.title || "Unknown",
     imdbId,
+    tmdbId,
     imdbRating,
     ...images,
     nextLabel,
