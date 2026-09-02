@@ -1348,9 +1348,49 @@ async function markEpisodeWatched(simklId, season, episode, token) {
   });
 }
 
+// Normalized to the same {title, year, posterUrl, ids} shape TMDB results
+// use below, so the rest of the search UI (render, add-to-list, status
+// lookup) never needs to branch on which source a result came from.
 async function searchTvShows(query, token) {
   const data = await simklGet("/search/tv", token, { q: query });
-  return Array.isArray(data) ? data : [];
+  const results = Array.isArray(data) ? data : [];
+  return results.map(r => ({
+    title: r.title || "Unknown",
+    year: r.year || "",
+    posterUrl: r.poster ? `https://simkl.in/posters/${r.poster}_m.jpg` : null,
+    ids: r.ids || {},
+  }));
+}
+
+// SIMKL's own search doesn't handle Hebrew queries well, so this runs
+// alongside it (see wireSearchInput) rather than replacing it - TMDB does
+// support a language param, which improves matching for Hebrew queries
+// specifically (and is a fine default for others too: it only affects
+// which localized title TMDB returns, not whether a show matches at all).
+// Results only ever carry a tmdb id (no simkl id) - simklAddToList and
+// findShowLibraryStatus already accept any subset of simkl/tmdb/imdb ids,
+// so nothing downstream needs to know the difference.
+async function searchTvShowsTmdb(query) {
+  const data = await tmdbGet("/search/tv", { query, language: "he-IL" }).catch(() => null);
+  const results = (data && data.results) || [];
+  return results.map(r => ({
+    title: r.name || r.original_name || "Unknown",
+    year: (r.first_air_date || "").slice(0, 4),
+    posterUrl: r.poster_path ? TMDB_IMAGE_BASE + r.poster_path : null,
+    ids: { tmdb: r.id },
+  }));
+}
+
+// Combines both sources, skipping a TMDB result whose tmdb id is already
+// covered by a SIMKL result (which carries the richer id set) - both lists
+// individually come back oldest-relevance-first from their own API, so
+// simplest is to just keep SIMKL's results first, TMDB's new ones after.
+function mergeSearchResults(simklResults, tmdbResults) {
+  const seenTmdb = new Set(
+    simklResults.map(r => r.ids && r.ids.tmdb).filter(v => v != null).map(String)
+  );
+  const extra = tmdbResults.filter(r => !(r.ids && r.ids.tmdb != null && seenTmdb.has(String(r.ids.tmdb))));
+  return [...simklResults, ...extra];
 }
 
 const LIBRARY_STATUSES = ["watching", "plantowatch", "hold", "completed", "dropped"];
@@ -1399,9 +1439,8 @@ function renderSearchResults(results) {
     return;
   }
   container.innerHTML = results.map((r, i) => {
-    const poster = r.poster ? `https://simkl.in/posters/${r.poster}_m.jpg` : null;
-    const posterHtml = poster
-      ? `<img class="search-result-poster" src="${poster}" alt="${r.title || ""}">`
+    const posterHtml = r.posterUrl
+      ? `<img class="search-result-poster" src="${r.posterUrl}" alt="${r.title || ""}">`
       : `<div class="search-result-poster placeholder">${((r.title || "?")[0] || "?").toUpperCase()}</div>`;
     return `
       <div class="search-result-row" data-idx="${i}">
@@ -1436,10 +1475,17 @@ function wireSearchInput() {
       return;
     }
     searchDebounceTimer = setTimeout(async () => {
+      const queryAtRequestTime = lastSearchQuery;
       try {
-        lastSearchResults = await searchTvShows(lastSearchQuery, simklToken);
+        const [simklResults, tmdbResults] = await Promise.all([
+          searchTvShows(queryAtRequestTime, simklToken).catch(() => []),
+          searchTvShowsTmdb(queryAtRequestTime).catch(() => []),
+        ]);
+        if (queryAtRequestTime !== lastSearchQuery) return; // superseded by newer input
+        lastSearchResults = mergeSearchResults(simklResults, tmdbResults);
         renderSearchResults(lastSearchResults);
       } catch (err) {
+        if (queryAtRequestTime !== lastSearchQuery) return;
         document.getElementById("searchResults").innerHTML = `<div class="error-box">${err.message}</div>`;
       }
     }, 400);
@@ -1487,9 +1533,8 @@ async function openShowDetail(show) {
 function renderShowDetail(show, libraryMatch) {
   const body = document.getElementById("modalBody");
   if (!body) return;
-  const poster = show.poster ? `https://simkl.in/posters/${show.poster}_m.jpg` : null;
-  const posterHtml = poster
-    ? `<img class="detail-poster" src="${poster}" alt="${show.title || ""}">`
+  const posterHtml = show.posterUrl
+    ? `<img class="detail-poster" src="${show.posterUrl}" alt="${show.title || ""}">`
     : `<div class="detail-poster placeholder">${((show.title || "?")[0] || "?").toUpperCase()}</div>`;
 
   let statusHtml;
