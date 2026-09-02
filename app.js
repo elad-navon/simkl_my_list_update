@@ -1871,7 +1871,7 @@ function updateThemeToggleButton() {
 }
 
 function updatePageTitle() {
-  document.title = currentView === "airing" ? "Airing Next" : "My List - Continue Watching";
+  document.title = currentView === "airing" ? "Airing Next" : "My Watch List";
 }
 
 function updateViewModeButton() {

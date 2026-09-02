@@ -1,6 +1,6 @@
 {
-  "name": "TVSERIES - Continue Watching",
-  "short_name": "TVSERIES",
+  "name": "My Watch List",
+  "short_name": "My Watch List",
   "description": "Personal SIMKL watchlist dashboard",
   "start_url": ".",
   "scope": ".",
