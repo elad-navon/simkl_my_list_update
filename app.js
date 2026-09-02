@@ -1496,7 +1496,7 @@ function renderSearchStep() {
   const title = document.getElementById("modalTitle");
   const body = document.getElementById("modalBody");
   if (!title || !body) return;
-  title.textContent = "Search a TV show";
+  title.textContent = "Search a TV show (English or Hebrew)";
   body.innerHTML = `
     <div class="search-input-row">
       <input type="text" id="searchQueryInput" placeholder="Search…" autocomplete="off">
@@ -1698,7 +1698,7 @@ function openSearchModal() {
   overlay.style.paddingTop = `${(headerEl ? headerEl.offsetHeight : 0) + 24}px`;
   overlay.innerHTML = `
     <div class="modal-box">
-      <h2><span id="modalTitle">Search a TV show</span> <button class="modal-close-btn" id="searchModalCloseBtn">&times;</button></h2>
+      <h2><span id="modalTitle">Search a TV show (English or Hebrew)</span> <button class="modal-close-btn" id="searchModalCloseBtn">&times;</button></h2>
       <div id="modalBody"></div>
     </div>`;
   document.body.appendChild(overlay);
