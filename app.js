@@ -1944,12 +1944,14 @@ function syncImageAcrossCards(tmdbId, cfg, index, url) {
   }
 }
 
-// Square corners (no rx) - flush at the card's bottom-left corner, matching
-// .remaining-badge's squared-off treatment rather than merging with the
-// card's own radius.
-const IMDB_LOGO_SVG = `<svg viewBox="0 0 64 32" width="34" height="17" xmlns="http://www.w3.org/2000/svg" aria-label="IMDb">
-  <rect width="64" height="32" fill="#F5C518"/>
-  <text x="32" y="23" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="18" fill="#000000">IMDb</text>
+// Black mark, gold text - square corners (no rx), flush at the card's
+// bottom-left corner. Used everywhere the IMDb logo appears as its own
+// chip (banner mode's corner badge, Airing Next, and inside the poster
+// mode's unified .bottom-bar) so it stays visually distinct against a
+// gold background instead of disappearing into it.
+const IMDB_LOGO_SVG_INVERTED = `<svg viewBox="0 0 64 32" width="34" height="17" xmlns="http://www.w3.org/2000/svg" aria-label="IMDb">
+  <rect width="64" height="32" fill="#000000"/>
+  <text x="32" y="23" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="18" fill="#F5C518">IMDb</text>
 </svg>`;
 
 function imdbButtonHtml(imdbId, rating) {
@@ -1959,17 +1961,8 @@ function imdbButtonHtml(imdbId, rating) {
     ? `<span class="imdb-rating">${rating.toFixed(1)}</span>`
     : "";
   return `<button class="imdb-btn" title="Open on IMDb"
-              onclick="event.stopPropagation(); window.open('${url}', '_blank')">${IMDB_LOGO_SVG}${ratingHtml}</button>`;
+              onclick="event.stopPropagation(); window.open('${url}', '_blank')">${IMDB_LOGO_SVG_INVERTED}${ratingHtml}</button>`;
 }
-
-// Colors swapped from IMDB_LOGO_SVG (black mark, gold text) - used only
-// inside the poster-mode unified .bottom-bar (see bottomBarHtml), where the
-// logo would otherwise sit on a background the same gold as itself and its
-// own shape would disappear, leaving just the wordmark floating free.
-const IMDB_LOGO_SVG_INVERTED = `<svg viewBox="0 0 64 32" width="34" height="17" xmlns="http://www.w3.org/2000/svg" aria-label="IMDb">
-  <rect width="64" height="32" fill="#000000"/>
-  <text x="32" y="23" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="18" fill="#F5C518">IMDb</text>
-</svg>`;
 
 // Poster mode's unified bottom bar (see cardImageBits/renderRows): IMDb +
 // rating flush left, remaining-episode count flush right, one continuous
