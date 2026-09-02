@@ -1962,6 +1962,33 @@ function imdbButtonHtml(imdbId, rating) {
               onclick="event.stopPropagation(); window.open('${url}', '_blank')">${IMDB_LOGO_SVG}${ratingHtml}</button>`;
 }
 
+// Colors swapped from IMDB_LOGO_SVG (black mark, gold text) - used only
+// inside the poster-mode unified .bottom-bar (see bottomBarHtml), where the
+// logo would otherwise sit on a background the same gold as itself and its
+// own shape would disappear, leaving just the wordmark floating free.
+const IMDB_LOGO_SVG_INVERTED = `<svg viewBox="0 0 64 32" width="34" height="17" xmlns="http://www.w3.org/2000/svg" aria-label="IMDb">
+  <rect width="64" height="32" fill="#000000"/>
+  <text x="32" y="23" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="18" fill="#F5C518">IMDb</text>
+</svg>`;
+
+// Poster mode's unified bottom bar (see cardImageBits/renderRows): IMDb +
+// rating flush left, remaining-episode count flush right, one continuous
+// bar instead of two separate corner badges (still used in banner mode).
+function bottomBarHtml(row) {
+  const ratingHtml = (typeof row.imdbRating === "number" && !isNaN(row.imdbRating))
+    ? `<span class="bottom-bar-rating">${row.imdbRating.toFixed(1)}</span>`
+    : "";
+  const imdbHtml = row.imdbId
+    ? `<button class="bottom-bar-imdb" title="Open on IMDb"
+                onclick="event.stopPropagation(); window.open('https://www.imdb.com/title/${row.imdbId}/', '_blank')">${IMDB_LOGO_SVG_INVERTED}${ratingHtml}</button>`
+    : "";
+  const remainingText = row.remaining === 1 ? "1 episode left" : `${row.remaining} episodes left`;
+  return `<div class="bottom-bar">
+      <div class="bottom-bar-left">${imdbHtml}</div>
+      <div class="bottom-bar-remaining">${remainingText}</div>
+    </div>`;
+}
+
 // Plain (non-link) IMDb pill used inline in the My List card scrim and the
 // Plan to Watch list rows - visually distinct from imdbButtonHtml's floating
 // corner button (still used by Airing Next).
@@ -2281,8 +2308,11 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
           </div>
         </div>`
       : "";
-    const remainingText = row.remaining === 1 ? "1 episode left" : `${row.remaining} episodes left`;
-    const overlayHtml = imdbButtonHtml(row.imdbId, row.imdbRating) + `<div class="remaining-badge">${remainingText}</div>`;
+    // Poster mode gets one unified bottom bar (IMDb+rating left, remaining
+    // count right); banner mode keeps the two separate corner badges.
+    const overlayHtml = isWide
+      ? imdbButtonHtml(row.imdbId, row.imdbRating) + `<div class="remaining-badge">${row.remaining === 1 ? "1 episode left" : `${row.remaining} episodes left`}</div>`
+      : bottomBarHtml(row);
     const { wrapHtml } = cardImageBits(row, mode, arrIdx, overlayHtml);
 
     return `
