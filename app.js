@@ -844,11 +844,26 @@ async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token, rat
 
     // Episode title: prefer SIMKL's own title if we have it, else TMDB's -
     // same fallback order used for My List / Airing Next.
+    // Season/series premiere and season finale badges, same rule used
+    // everywhere else (episode 1 -> premiere; matches the season's known
+    // max episode -> finale) - applied to the watched episode itself here,
+    // not the next one to watch.
+    c.badge = null;
+    if (c.episode === 1) {
+      c.badge = c.season === 1 ? "SERIES PREMIERE" : "SEASON PREMIERE";
+    }
     if (c.simklId) {
       const simklEpisodes = await episodeCache.get(c.simklId, token);
       const match = simklEpisodes && simklEpisodes.find(e => e.season === c.season && e.episode === c.episode);
       if (match && match.title && !/^Episode\s+\d+$/i.test(String(match.title).trim())) {
         c.episodeTitle = String(match.title).trim();
+      }
+      if (!c.badge && simklEpisodes) {
+        const sameSeason = simklEpisodes.filter(e => e.season === c.season && e.episode != null);
+        if (sameSeason.length) {
+          const maxEpisode = Math.max(...sameSeason.map(e => e.episode));
+          if (c.episode === maxEpisode) c.badge = "SEASON FINALE";
+        }
       }
     }
     if (!c.episodeTitle && c.tmdbId) {
@@ -2104,13 +2119,17 @@ function renderRecentlyWatchedHtml(list) {
     const { cycleableClass, attrs } = thumbCycleAttrs(ep, "watched", idx);
     const episodeCode = `S${String(ep.season).padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`;
     const episodeTitleHtml = ep.episodeTitle ? `<div class="episode-title">${ep.episodeTitle}</div>` : "";
+    const badgeHtml = ep.badge ? `<div class="premiere-badge${ep.badge === "SEASON FINALE" ? " finale" : ""}">${ep.badge}</div>` : "";
     return `
       <div class="list-row">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
         <div class="list-row-title-wrap">
           <div class="list-row-title">${ep.title}</div>
           ${networkSubHtml(ep.network, ep.networkLogoPath)}
-          <div class="list-row-sub episode-code-sub">${episodeCode}</div>
+          <div class="next-up-row">
+            <div class="list-row-sub episode-code-sub">${episodeCode}</div>
+            ${badgeHtml}
+          </div>
           ${episodeTitleHtml}
         </div>
         <span class="list-check">${CHECK_ICON_SVG}</span>
