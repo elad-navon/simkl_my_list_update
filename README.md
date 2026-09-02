@@ -101,7 +101,10 @@ API; poster/backdrop artwork and episode runtimes come from
 ## Managing your list (search, add, status, remove)
 
 Click **Search Show** in the top bar to open a search box (TV shows
-only). Click a result to open its detail view, which:
+only). Searches both SIMKL and TMDB at once and merges the results —
+SIMKL's own search doesn't handle Hebrew queries well, so TMDB (asked
+for Hebrew results specifically) fills that gap; duplicates are
+dropped automatically. Click a result to open its detail view, which:
 
 - Checks whether the show is already anywhere in your SIMKL list
   (Watching / Plan to Watch / Hold / Completed / Dropped) and shows
