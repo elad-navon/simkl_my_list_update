@@ -1745,6 +1745,33 @@ function closeEpisodesModal() {
   document.removeEventListener("keydown", episodesModalEscHandler);
 }
 
+// Picks how many cast members count as "main cast": sorts by total episode
+// count (aggregate_credits sums it across every season, so long-running
+// leads still rank first late into a show's run) and looks for the natural
+// cliff where episode counts drop off - the point where the regulars end
+// and background/guest actors begin. Always keeps at least 10 (if that many
+// exist) and never more than 20.
+function selectMainCast(cast) {
+  const withCounts = cast.map(c => ({ ...c, epCount: c.total_episode_count || 0 }));
+  withCounts.sort((a, b) => b.epCount - a.epCount || (a.order ?? 999) - (b.order ?? 999));
+
+  const MIN = 10, MAX = 20;
+  if (withCounts.length <= MIN) return withCounts;
+
+  const upper = Math.min(withCounts.length - 1, MAX);
+  let cutIdx = Math.min(withCounts.length, MAX) - 1;
+  let bestRatio = 1, bestIdx = -1;
+  for (let i = MIN - 1; i < upper; i++) {
+    const cur = withCounts[i].epCount;
+    const next = withCounts[i + 1].epCount;
+    if (cur <= 0) break;
+    const ratio = next > 0 ? cur / next : cur + 1;
+    if (ratio > bestRatio) { bestRatio = ratio; bestIdx = i; }
+  }
+  if (bestIdx >= 0 && bestRatio > 1.4) cutIdx = bestIdx;
+  return withCounts.slice(0, cutIdx + 1);
+}
+
 // Main cast for a show - opened by clicking its title in any of the four
 // places it can appear (top carousel + the three bottom panels all share
 // this one handler via the same source/idx convention as getCycleRows).
@@ -1780,13 +1807,7 @@ async function openCastModal(source, idx) {
   const grid = document.getElementById("castGrid");
   if (!grid) return; // closed before this resolved
 
-  // aggregate_credits sums appearances across every season, so top-billed
-  // regulars still sort first even deep into a long-running show; "order"
-  // is TMDB's own billing-order field.
-  const top = ((data && data.cast) || [])
-    .slice()
-    .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
-    .slice(0, 8);
+  const top = selectMainCast((data && data.cast) || []);
 
   if (!top.length) {
     grid.innerHTML = `<p style="color:var(--muted);font-size:0.85rem;padding:10px 4px">No cast information available.</p>`;
