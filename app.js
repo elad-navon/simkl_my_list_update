@@ -2739,6 +2739,20 @@ main();
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("service-worker.js").catch(() => {});
+    // Browsers only auto-recheck a registered service worker's script for
+    // changes at most once every 24h - fine for a site that rarely
+    // changes, but far too slow here given how often this app gets
+    // updated. updateViaCache:"none" stops the browser's own HTTP cache
+    // from ever answering that check, and calling update() explicitly -
+    // on load, and again whenever the app comes back to the foreground
+    // (it may sit open for a long stretch on a TV without a fresh
+    // navigation) - makes the check actually happen instead of waiting
+    // on the browser's own lazy schedule.
+    navigator.serviceWorker.register("service-worker.js", { updateViaCache: "none" }).then(reg => {
+      reg.update().catch(() => {});
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") reg.update().catch(() => {});
+      });
+    }).catch(() => {});
   });
 }
