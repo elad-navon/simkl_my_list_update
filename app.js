@@ -9,6 +9,7 @@ const TMDB_BASE = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w342";
 const TMDB_BACKDROP_BASE = "https://image.tmdb.org/t/p/w780";
 const TMDB_LOGO_BASE = "https://image.tmdb.org/t/p/w92";
+const TMDB_PROFILE_BASE = "https://image.tmdb.org/t/p/w185";
 // Manual fallback for networks that have no logo in TMDB (or aren't in TMDB
 // at all) and none in SIMKL either - mainly small/regional broadcasters,
 // e.g. Israeli channels. `names` lists every name variant this network
@@ -306,6 +307,8 @@ const CACHE_TTL_TMDB_SEASON_MS = 6 * 60 * 60 * 1000;
 const CACHE_TTL_SIMKL_EPISODES_MS = 6 * 60 * 60 * 1000;
 const CACHE_TTL_SIMKL_SHOW_MS = 24 * 60 * 60 * 1000;
 const CACHE_TTL_TMDB_EPISODE_IDS_MS = 7 * 24 * 60 * 60 * 1000; // an episode's IMDb id never changes
+const CACHE_TTL_TMDB_CREDITS_MS = 24 * 60 * 60 * 1000;
+const CACHE_TTL_TMDB_PERSON_IDS_MS = 7 * 24 * 60 * 60 * 1000; // a person's IMDb id never changes
 
 function readPersistedCache(key, ttlMs) {
   try {
@@ -329,7 +332,10 @@ function writePersistedCache(key, value) {
 }
 
 class TmdbCache {
-  constructor() { this.show = new Map(); this.season = new Map(); this.episodeIds = new Map(); }
+  constructor() {
+    this.show = new Map(); this.season = new Map(); this.episodeIds = new Map();
+    this.credits = new Map(); this.personIds = new Map();
+  }
   // Both methods store the in-flight PROMISE in the map (not just the
   // resolved value), and do so synchronously before any await - so if the
   // same id is requested again while the first fetch is still in flight
@@ -401,6 +407,44 @@ class TmdbCache {
       this.episodeIds.set(key, promise);
     }
     return this.episodeIds.get(key);
+  }
+  // aggregate_credits (not the plain "credits" endpoint) sums a person's
+  // appearances across every season instead of just the latest one, so
+  // long-running main cast still rank near the top even in a show's later
+  // seasons - used for the cast modal's "main cast" list (see openCastModal).
+  getCredits(tmdbId) {
+    if (!this.credits.has(tmdbId)) {
+      const cacheKey = `tmdbcredits:${tmdbId}`;
+      const cached = readPersistedCache(cacheKey, CACHE_TTL_TMDB_CREDITS_MS);
+      if (cached !== undefined) {
+        this.credits.set(tmdbId, Promise.resolve(cached));
+        return this.credits.get(tmdbId);
+      }
+      const promise = tmdbGet(`/tv/${tmdbId}/aggregate_credits`).then(data => {
+        if (data) writePersistedCache(cacheKey, data);
+        return data;
+      }).catch(() => null);
+      this.credits.set(tmdbId, promise);
+    }
+    return this.credits.get(tmdbId);
+  }
+  // A cast member's IMDb id isn't in the credits response - same
+  // per-item-endpoint situation as getEpisodeExternalIds.
+  getPersonExternalIds(personId) {
+    if (!this.personIds.has(personId)) {
+      const cacheKey = `tmdbpersonids:${personId}`;
+      const cached = readPersistedCache(cacheKey, CACHE_TTL_TMDB_PERSON_IDS_MS);
+      if (cached !== undefined) {
+        this.personIds.set(personId, Promise.resolve(cached));
+        return this.personIds.get(personId);
+      }
+      const promise = tmdbGet(`/person/${personId}/external_ids`).then(data => {
+        if (data) writePersistedCache(cacheKey, data);
+        return data;
+      }).catch(() => null);
+      this.personIds.set(personId, promise);
+    }
+    return this.personIds.get(personId);
   }
 }
 
@@ -1701,6 +1745,98 @@ function closeEpisodesModal() {
   document.removeEventListener("keydown", episodesModalEscHandler);
 }
 
+// Main cast for a show - opened by clicking its title in any of the four
+// places it can appear (top carousel + the three bottom panels all share
+// this one handler via the same source/idx convention as getCycleRows).
+// Unlike the Episodes Left modal, there's real fetching to do here (no
+// cast data is part of the normal per-card fetch), so this opens showing
+// a spinner and fills in once TMDB's aggregate_credits resolves.
+async function openCastModal(source, idx) {
+  const row = getCycleRows(source)[idx];
+  if (!row || !row.tmdbId || !sharedCache) return;
+
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.id = "castModalOverlay";
+  const headerEl = document.querySelector("header");
+  overlay.style.paddingTop = `${(headerEl ? headerEl.offsetHeight : 0) + 24}px`;
+  overlay.innerHTML = `
+    <div class="modal-box cast-modal">
+      <div class="episodes-modal-head">
+        <div class="list-panel-header">${CAST_ICON_SOLID_SVG}<span>CAST</span></div>
+        <button class="modal-close-btn" id="castModalCloseBtn">&times;</button>
+      </div>
+      <div class="episodes-modal-subtitle">${row.title}</div>
+      <div class="cast-grid" id="castGrid"><div class="spinner" style="margin:30px auto"></div></div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  document.getElementById("castModalCloseBtn").onclick = closeCastModal;
+  overlay.addEventListener("click", e => { if (e.target === overlay) closeCastModal(); });
+  document.addEventListener("keydown", castModalEscHandler);
+
+  const cache = sharedCache;
+  const data = await cache.getCredits(row.tmdbId);
+  const grid = document.getElementById("castGrid");
+  if (!grid) return; // closed before this resolved
+
+  // aggregate_credits sums appearances across every season, so top-billed
+  // regulars still sort first even deep into a long-running show; "order"
+  // is TMDB's own billing-order field.
+  const top = ((data && data.cast) || [])
+    .slice()
+    .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
+    .slice(0, 8);
+
+  if (!top.length) {
+    grid.innerHTML = `<p style="color:var(--muted);font-size:0.85rem;padding:10px 4px">No cast information available.</p>`;
+    return;
+  }
+
+  grid.innerHTML = top.map((person, i) => {
+    const photoHtml = person.profile_path
+      ? `<img class="cast-photo" src="${TMDB_PROFILE_BASE}${person.profile_path}" alt="${person.name}">`
+      : `<div class="cast-photo placeholder">${(person.name[0] || "?").toUpperCase()}</div>`;
+    const character = (person.roles && person.roles[0] && person.roles[0].character) || "";
+    return `
+      <div class="cast-item">
+        ${photoHtml}
+        <div class="cast-info">
+          <span class="cast-name" data-person-idx="${i}">${person.name}</span>
+          ${character ? `<span class="cast-character">${character}</span>` : ""}
+        </div>
+      </div>`;
+  }).join("\n");
+
+  // Each name becomes an IMDb link once that person's id resolves - lazy,
+  // same reasoning as the Episodes Left modal's per-episode IMDb links.
+  top.forEach((person, i) => {
+    cache.getPersonExternalIds(person.id).then(ids => {
+      if (!ids || !ids.imdb_id) return;
+      const nameEl = grid.querySelector(`.cast-name[data-person-idx="${i}"]`);
+      if (!nameEl || nameEl.querySelector("a")) return;
+      const link = document.createElement("a");
+      link.href = `https://www.imdb.com/name/${ids.imdb_id}/`;
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.className = "cast-name-link";
+      link.textContent = nameEl.textContent;
+      nameEl.textContent = "";
+      nameEl.appendChild(link);
+    });
+  });
+}
+
+function castModalEscHandler(e) {
+  if (e.key === "Escape") closeCastModal();
+}
+
+function closeCastModal() {
+  const overlay = document.getElementById("castModalOverlay");
+  if (overlay) overlay.remove();
+  document.removeEventListener("keydown", castModalEscHandler);
+}
+
 function openSearchModal() {
   if (!simklToken) return;
   document.getElementById("addShowBtn").classList.add("active");
@@ -2001,6 +2137,9 @@ const CLOCK_ICON_SOLID_SVG = `<svg viewBox="0 0 24 24" width="17" height="17"><c
 // the "Episodes Left" modal header - a list reads as "what's inside" more
 // directly than a clock does.
 const LIST_ICON_SOLID_SVG = `<svg viewBox="0 0 24 24" width="17" height="17"><circle cx="12" cy="12" r="9" fill="var(--gold)"></circle><rect x="6.5" y="8.2" width="1.8" height="1.8" rx="0.4" fill="var(--card)"></rect><rect x="9.5" y="8.2" width="8" height="1.8" rx="0.4" fill="var(--card)"></rect><rect x="6.5" y="11.1" width="1.8" height="1.8" rx="0.4" fill="var(--card)"></rect><rect x="9.5" y="11.1" width="8" height="1.8" rx="0.4" fill="var(--card)"></rect><rect x="6.5" y="14" width="1.8" height="1.8" rx="0.4" fill="var(--card)"></rect><rect x="9.5" y="14" width="8" height="1.8" rx="0.4" fill="var(--card)"></rect></svg>`;
+// Same gold-circle-with-cutout language again, used only for the Cast
+// modal header - a head-and-shoulders silhouette.
+const CAST_ICON_SOLID_SVG = `<svg viewBox="0 0 24 24" width="17" height="17"><circle cx="12" cy="12" r="9" fill="var(--gold)"></circle><circle cx="12" cy="9.3" r="2.6" fill="var(--card)"></circle><path d="M6.3 17.2c0-3.1 2.6-4.4 5.7-4.4s5.7 1.3 5.7 4.4" fill="var(--card)"></path></svg>`;
 const GRID_ICON_SVG = `<svg viewBox="0 0 24 24" width="15" height="15" fill="var(--accent2)"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>`;
 const CHECK_ICON_SVG = `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
 const BOOKMARK_ICON_SVG = `<svg viewBox="0 0 24 24" width="17" height="17" fill="var(--gold)"><path d="M6 3.5h12a.5.5 0 0 1 .5.5v16.2a.5.5 0 0 1-.77.42L12 16.5l-5.73 4.12a.5.5 0 0 1-.77-.42V4a.5.5 0 0 1 .5-.5z"></path></svg>`;
@@ -2124,7 +2263,7 @@ function renderRecentlyWatchedHtml(list) {
       <div class="list-row">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
         <div class="list-row-title-wrap">
-          <div class="list-row-title">${ep.title}</div>
+          <div class="list-row-title" title="View cast" onclick="event.stopPropagation(); openCastModal('watched', ${idx})">${ep.title}</div>
           ${networkSubHtml(ep.network, ep.networkLogoPath)}
           <div class="next-up-row">
             <div class="list-row-sub episode-code-sub">${episodeCode}</div>
@@ -2162,7 +2301,7 @@ function renderPlanToWatchHtml(list) {
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
         <div class="list-row-title-wrap">
           <div class="title-with-year">
-            <div class="list-row-title">${row.title}</div>
+            <div class="list-row-title" title="View cast" onclick="event.stopPropagation(); openCastModal('plan', ${idx})">${row.title}</div>
             ${yearBadgeHtml}
           </div>
           ${networkSubHtml(row.network, row.networkLogoPath)}
@@ -2195,7 +2334,7 @@ function renderAiringNextPreviewHtml(list) {
       <div class="list-row">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
         <div class="list-row-title-wrap">
-          <div class="list-row-title">${row.title}</div>
+          <div class="list-row-title" title="View cast" onclick="event.stopPropagation(); openCastModal('airing', ${idx})">${row.title}</div>
           ${networkSubHtml(row.network, row.networkLogoPath)}
           <div class="next-up-row">
             <span class="next-up">Next: ${row.nextLabel}</span>
@@ -2311,7 +2450,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
         ${wrapHtml}
         <div class="card-body">
           <div class="card-title-row">
-            <h3>${row.title}</h3>
+            <h3 title="View cast" onclick="event.stopPropagation(); openCastModal('main', ${arrIdx})">${row.title}</h3>
             <button class="card-menu-btn" title="Manage" onclick="event.stopPropagation(); openCardMenu(${arrIdx}, this)">&#8942;</button>
           </div>
           <div class="next-up-row">
@@ -2429,7 +2568,7 @@ function renderAiringRows(rows) {
       <div class="card">
         ${wrapHtml}
         <div class="card-body">
-          <h3>${row.title}</h3>
+          <h3 title="View cast" onclick="event.stopPropagation(); openCastModal('main', ${arrIdx})">${row.title}</h3>
           <div class="next-up">Next: ${row.nextLabel}</div>
           ${row.nextEpisodeTitle ? `<div class="episode-title">${row.nextEpisodeTitle}</div>` : ""}
           <div class="air-date">&#128197; ${row.airDateLabel}</div>
