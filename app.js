@@ -1819,12 +1819,14 @@ async function openCastModal(source, idx) {
       ? `<img class="cast-photo" src="${TMDB_PROFILE_BASE}${person.profile_path}" alt="${person.name}">`
       : `<div class="cast-photo placeholder">${(person.name[0] || "?").toUpperCase()}</div>`;
     const character = (person.roles && person.roles[0] && person.roles[0].character) || "";
+    const epCount = person.epCount || person.total_episode_count || 0;
     return `
       <div class="cast-item">
         ${photoHtml}
         <div class="cast-info">
           <span class="cast-name" data-person-idx="${i}">${person.name}</span>
           ${character ? `<span class="cast-character">${character}</span>` : ""}
+          ${epCount ? `<span class="cast-episodes">${epCount} episode${epCount === 1 ? "" : "s"}</span>` : ""}
         </div>
       </div>`;
   }).join("\n");
