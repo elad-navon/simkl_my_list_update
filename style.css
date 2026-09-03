@@ -193,7 +193,12 @@
        smaller. */
     color: #000000; font-family: "Montserrat", sans-serif; text-transform: uppercase;
     font-size: 12.375px; font-weight: 800; line-height: 1;
-    padding: 0 8px; height: 22px; display: flex; align-items: center;
+    /* Montserrat's own ascent/descent isn't symmetric around its glyphs,
+       so centering the line box (align-items:center alone) still left the
+       visible ink riding high - the extra 1.5px on top (vs. 0 on bottom)
+       nudges it down without moving the badge's own corner-flush edges
+       (a transform on the badge itself would do that instead). */
+    padding: 1.5px 8px 0; height: 22px; display: flex; align-items: center;
     border-radius: 0; z-index: 10;
   }
   .badge {
@@ -259,10 +264,14 @@
   .imdb-rating {
     background: #F5C518; color: #000000; font-weight: 800;
     font-family: "Montserrat", sans-serif; text-transform: uppercase;
-    /* Matches the IMDb logo's own rendered text size - see .remaining-badge. */
-    font-size: 12.375px; padding: 0 6px; border-radius: 0;
+    /* Matches the IMDb logo's own rendered text size - see .remaining-badge.
+       line-height:1 (not the old 1.3, a leftover from before the font
+       change) so the text sits truly centered in the flex box instead of
+       biased by extra leading on one side; padding-top nudges Montserrat's
+       own off-center glyph metrics the rest of the way - see .remaining-badge. */
+    font-size: 12.375px; padding: 1.5px 6px 0; border-radius: 0;
     height: 100%; display: flex; align-items: center;
-    line-height: 1.3;
+    line-height: 1;
   }
   .poster-wrap {
     position: relative; overflow: hidden; perspective: 900px;
