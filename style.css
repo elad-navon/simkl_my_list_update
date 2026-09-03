@@ -518,9 +518,9 @@
     from { transform: rotateY(-90deg); }
     to { transform: rotateY(0deg); }
   }
-  .episodes-modal { animation: episodes-modal-in 0.6s ease-out; transform-origin: center; }
+  .episodes-modal, .cast-modal { animation: episodes-modal-in 0.8s ease-out; transform-origin: center; }
   @media (prefers-reduced-motion: reduce) {
-    .episodes-modal { animation: none; }
+    .episodes-modal, .cast-modal { animation: none; }
   }
   .modal-close-btn {
     background: transparent; border: none; color: var(--muted); font-size: 1.4rem;
