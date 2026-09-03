@@ -1668,7 +1668,7 @@ function openEpisodesModal(arrIdx) {
     const code = ep.season != null && ep.episode != null
       ? `S${String(ep.season).padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`
       : "";
-    const badgeHtml = ep.badge ? `<span class="episode-badge">${ep.badge}</span>` : "";
+    const badgeHtml = ep.badge ? `<span class="episode-badge${ep.badge === "SEASON FINALE" ? " finale" : ""}">${ep.badge}</span>` : "";
     return `
       <div class="episode-row${isNext ? " is-next" : ""}">
         <span class="episode-code">${code}</span>

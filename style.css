@@ -545,9 +545,13 @@
   .episode-name-link { color: inherit; text-decoration: none; }
   .episode-name-link:hover { text-decoration: underline; }
   .episode-badge {
+    /* Same colors as .premiere-badge elsewhere in the app (green for a
+       premiere, red for a finale) instead of this modal's own accent-blue
+       treatment, so the badges read the same everywhere. */
     flex: 0 0 auto; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase;
-    color: var(--accent); background: rgba(56,189,248,0.14); padding: 2px 6px; border-radius: 4px;
+    color: #fff; background: #2fa84f; padding: 2px 6px; border-radius: 4px;
   }
+  .episode-badge.finale { background: #c1502e; }
   .episode-runtime { flex: 0 0 auto; font-size: 0.82rem; color: var(--muted); font-weight: 600;
     font-variant-numeric: tabular-nums; width: 54px; text-align: right; white-space: nowrap; }
   .episode-row.is-next .episode-runtime { color: var(--gold); }
