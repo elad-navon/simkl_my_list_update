@@ -512,6 +512,14 @@
     padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
   }
   .modal-box h2 { margin: 0 0 14px; display: flex; align-items: center; justify-content: space-between; font-size: 1.3rem; }
+  @keyframes episodes-modal-in {
+    from { opacity: 0; transform: rotate(-14deg) scale(0.82); }
+    to { opacity: 1; transform: rotate(0deg) scale(1); }
+  }
+  .episodes-modal { animation: episodes-modal-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); transform-origin: center top; }
+  @media (prefers-reduced-motion: reduce) {
+    .episodes-modal { animation: none; }
+  }
   .modal-close-btn {
     background: transparent; border: none; color: var(--muted); font-size: 1.4rem;
     cursor: pointer; line-height: 1; padding: 0 4px;
