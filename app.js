@@ -1772,21 +1772,77 @@ function selectMainCast(cast) {
   return withCounts.slice(0, cutIdx + 1);
 }
 
+// Preloads a cast photo so it's already decoded in the browser's cache by
+// the time the modal's HTML references it - otherwise, on a slow
+// connection, photos pop in one by one after the flip-in animation has
+// already finished. Never rejects: a failed photo just falls through to
+// the modal's own placeholder handling.
+function preloadImage(src) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = resolve;
+    img.onerror = resolve;
+    img.src = src;
+    // A stalled request (dead network, slow host) must not block the
+    // whole modal from ever appearing - give up on this one photo after
+    // a few seconds and let it fall back to loading in the background.
+    setTimeout(resolve, 5000);
+  });
+}
+
+let castModalOpenToken = 0;
+
 // Main cast for a show - opened by clicking its title in any of the four
 // places it can appear (top carousel + the three bottom panels all share
 // this one handler via the same source/idx convention as getCycleRows).
 // Unlike the Episodes Left modal, there's real fetching to do here (no
-// cast data is part of the normal per-card fetch), so this opens showing
-// a spinner and fills in once TMDB's aggregate_credits resolves.
+// cast data is part of the normal per-card fetch): credits and every
+// photo are resolved *before* the modal is built, so the flip-in
+// animation always reveals a fully-loaded grid instead of one that's
+// still populating mid-spin. A token guards against a second click
+// (same or different title) landing while the first is still loading.
 async function openCastModal(source, idx) {
   const row = getCycleRows(source)[idx];
   if (!row || !row.tmdbId || !sharedCache) return;
+
+  const openToken = ++castModalOpenToken;
+  const cache = sharedCache;
+  document.body.style.cursor = "wait";
+
+  const data = await cache.getCredits(row.tmdbId);
+  const top = selectMainCast((data && data.cast) || []);
+  await Promise.all(
+    top.filter(p => p.profile_path).map(p => preloadImage(`${TMDB_PROFILE_BASE}${p.profile_path}`))
+  );
+
+  if (openToken !== castModalOpenToken) return; // superseded by a newer click
+  document.body.style.cursor = "";
 
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay";
   overlay.id = "castModalOverlay";
   const headerEl = document.querySelector("header");
   overlay.style.paddingTop = `${(headerEl ? headerEl.offsetHeight : 0) + 24}px`;
+
+  const gridHtml = top.length
+    ? top.map((person, i) => {
+        const photoHtml = person.profile_path
+          ? `<img class="cast-photo" src="${TMDB_PROFILE_BASE}${person.profile_path}" alt="${person.name}">`
+          : `<div class="cast-photo placeholder">${(person.name[0] || "?").toUpperCase()}</div>`;
+        const character = (person.roles && person.roles[0] && person.roles[0].character) || "";
+        const epCount = person.epCount || person.total_episode_count || 0;
+        return `
+          <div class="cast-item">
+            ${photoHtml}
+            <div class="cast-info">
+              <span class="cast-name" data-person-idx="${i}">${person.name}</span>
+              ${character ? `<span class="cast-character">${character}</span>` : ""}
+              ${epCount ? `<span class="cast-episodes">${epCount} episode${epCount === 1 ? "" : "s"}</span>` : ""}
+            </div>
+          </div>`;
+      }).join("\n")
+    : `<p style="color:var(--muted);font-size:0.85rem;padding:10px 4px">No cast information available.</p>`;
+
   overlay.innerHTML = `
     <div class="modal-box cast-modal">
       <div class="episodes-modal-head">
@@ -1794,7 +1850,7 @@ async function openCastModal(source, idx) {
         <button class="modal-close-btn" id="castModalCloseBtn">&times;</button>
       </div>
       <div class="episodes-modal-subtitle">${row.title}</div>
-      <div class="cast-grid" id="castGrid"><div class="spinner" style="margin:30px auto"></div></div>
+      <div class="cast-grid" id="castGrid">${gridHtml}</div>
     </div>`;
   document.body.appendChild(overlay);
 
@@ -1802,34 +1858,8 @@ async function openCastModal(source, idx) {
   overlay.addEventListener("click", e => { if (e.target === overlay) closeCastModal(); });
   document.addEventListener("keydown", castModalEscHandler);
 
-  const cache = sharedCache;
-  const data = await cache.getCredits(row.tmdbId);
   const grid = document.getElementById("castGrid");
-  if (!grid) return; // closed before this resolved
-
-  const top = selectMainCast((data && data.cast) || []);
-
-  if (!top.length) {
-    grid.innerHTML = `<p style="color:var(--muted);font-size:0.85rem;padding:10px 4px">No cast information available.</p>`;
-    return;
-  }
-
-  grid.innerHTML = top.map((person, i) => {
-    const photoHtml = person.profile_path
-      ? `<img class="cast-photo" src="${TMDB_PROFILE_BASE}${person.profile_path}" alt="${person.name}">`
-      : `<div class="cast-photo placeholder">${(person.name[0] || "?").toUpperCase()}</div>`;
-    const character = (person.roles && person.roles[0] && person.roles[0].character) || "";
-    const epCount = person.epCount || person.total_episode_count || 0;
-    return `
-      <div class="cast-item">
-        ${photoHtml}
-        <div class="cast-info">
-          <span class="cast-name" data-person-idx="${i}">${person.name}</span>
-          ${character ? `<span class="cast-character">${character}</span>` : ""}
-          ${epCount ? `<span class="cast-episodes">${epCount} episode${epCount === 1 ? "" : "s"}</span>` : ""}
-        </div>
-      </div>`;
-  }).join("\n");
+  if (!top.length) return;
 
   // Each name becomes an IMDb link once that person's id resolves - lazy,
   // same reasoning as the Episodes Left modal's per-episode IMDb links.
