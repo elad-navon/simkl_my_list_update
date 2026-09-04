@@ -61,7 +61,7 @@
   .navbar-logo { display: flex; align-items: center; gap: 12px; padding: 0; }
   .logo-icon { display: flex; align-items: center; padding-top: 2px; }
   .logo-text { display: flex; flex-direction: row; align-items: baseline; gap: 9px; line-height: 1.15; }
-  .logo-text .logo-tv { font-size: 1.75rem; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; }
+  .logo-text .logo-tv { font-size: 1.75rem; font-weight: 800; color: var(--accent2); letter-spacing: 0.5px; }
   .logo-accent {
     font-size: 1.75rem; font-weight: 800; color: var(--accent2);
     letter-spacing: 0.5px;
