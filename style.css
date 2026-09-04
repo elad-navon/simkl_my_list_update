@@ -42,7 +42,7 @@
     justify-self: center; min-width: 0; max-width: 100%;
     display: flex; align-items: baseline; gap: 8px;
     font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
-    font-weight: 700; font-size: 1.3rem; letter-spacing: 0.06em; text-transform: uppercase;
+    font-weight: 700; font-size: 1.75rem; letter-spacing: 0.06em; text-transform: uppercase;
   }
   /* Date shrinks/ellipsizes first on narrow screens - the time stays a
      fixed size and is never the one clipped. */
@@ -119,7 +119,7 @@
   .page-header p { color: var(--muted); margin: 0; font-size: 0.9rem; font-weight: 600; }
   #subtitle:empty { display: none; }
   .page-header:has(#subtitle:empty) { display: none; }
-  .series-panel-updated { color: var(--muted); font-size: 1.3rem; font-weight: 600; margin-left: auto; }
+  .series-panel-updated { color: var(--muted); font-size: 0.8rem; font-weight: 600; margin-left: auto; }
   /* ===================== "MY LIST" series panel + carousel ===================== */
   .series-panel {
     background: var(--card); border: 1px solid var(--border); border-radius: 12px;
@@ -727,7 +727,6 @@
     .series-panel-stat { flex: 0 0 auto; gap: 3px; }
     .series-panel-stat .num { font-size: 0.95rem; }
     .series-panel-stat .label { font-size: 0.62rem; }
-    .series-panel-updated { font-size: 0.62rem; }
 
     /* Carousel: one card per swipe, no click-arrows - touch takes over. */
     .carousel-arrow { display: none; }
