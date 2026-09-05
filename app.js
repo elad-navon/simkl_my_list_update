@@ -260,6 +260,17 @@ async function getWatchingShows(token) {
   return Array.isArray(data) ? data : (data.shows || []);
 }
 
+// Same shape as getWatchingShows, for the "recently watched, then dropped"
+// case in Recently Watched below - a show you stopped following shouldn't
+// vanish from there instantly, since you did just watch something of it.
+async function getDroppedShows(token) {
+  const data = await simklGet("/sync/all-items/shows/dropped", token, {
+    extended: "full", episode_watched_at: "yes",
+  });
+  if (!data) return [];
+  return Array.isArray(data) ? data : (data.shows || []);
+}
+
 async function getPlanToWatchShows(token) {
   const data = await simklGet("/sync/all-items/shows/plantowatch", token, {
     extended: "full",
@@ -831,13 +842,16 @@ function computeImages(showDetail, tmdbId) {
   return out;
 }
 
-async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token, ratingsCache) {
+async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token, ratingsCache, droppedItems) {
   // Scans every currently-"watching" show (even ones you've fully caught
   // up on, which wouldn't otherwise appear in My List) for watched
   // episodes with a timestamp, and returns the 15 most recent - at most
   // one entry per show (its single most recently watched episode), so
   // binge-watching several episodes of the same show in a row doesn't
-  // crowd out everything else.
+  // crowd out everything else. Recently dropped shows are folded into the
+  // same pool (flagged so the render side can badge them "DROPPED") rather
+  // than disappearing the instant their status changes - they still
+  // compete on recency with everything else for one of the 15 slots.
   const candidates = [];
   for (const item of items) {
     if (item.status !== "watching") continue;
@@ -852,6 +866,24 @@ async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token, rat
           watchedAt: ep.watched_at,
           tmdbId: (show.ids || {}).tmdb,
           simklId: (show.ids || {}).simkl,
+        });
+      }
+    }
+  }
+  for (const item of droppedItems || []) {
+    if (item.status !== "dropped") continue;
+    const show = item.show || {};
+    for (const season of item.seasons || []) {
+      for (const ep of season.episodes || []) {
+        if (!ep.watched_at) continue;
+        candidates.push({
+          title: show.title || "Unknown",
+          season: season.number,
+          episode: ep.number,
+          watchedAt: ep.watched_at,
+          tmdbId: (show.ids || {}).tmdb,
+          simklId: (show.ids || {}).simkl,
+          dropped: true,
         });
       }
     }
@@ -892,8 +924,11 @@ async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token, rat
     // everywhere else (episode 1 -> premiere; matches the season's known
     // max episode -> finale) - applied to the watched episode itself here,
     // not the next one to watch.
-    c.badge = null;
-    if (c.episode === 1) {
+    // A dropped show's badge always reads "DROPPED" - more relevant here
+    // than whether the last-watched episode happened to be a premiere or
+    // finale.
+    c.badge = c.dropped ? "DROPPED" : null;
+    if (!c.dropped && c.episode === 1) {
       c.badge = c.season === 1 ? "SERIES PREMIERE" : "SEASON PREMIERE";
     }
     if (c.simklId) {
@@ -902,7 +937,7 @@ async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token, rat
       if (match && match.title && !/^Episode\s+\d+$/i.test(String(match.title).trim())) {
         c.episodeTitle = String(match.title).trim();
       }
-      if (!c.badge && simklEpisodes) {
+      if (!c.dropped && !c.badge && simklEpisodes) {
         const sameSeason = simklEpisodes.filter(e => e.season === c.season && e.episode != null);
         if (sameSeason.length) {
           const maxEpisode = Math.max(...sameSeason.map(e => e.episode));
@@ -984,7 +1019,7 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
 }
 
 async function getMyListRows(token, cache, episodeCache, ratingsCache) {
-  const items = await getWatchingShows(token);
+  const [items, droppedItems] = await Promise.all([getWatchingShows(token), getDroppedShows(token)]);
   cache = cache || new TmdbCache();
   episodeCache = episodeCache || new SimklEpisodeCache();
   ratingsCache = ratingsCache || new SimklShowCache();
@@ -1133,7 +1168,7 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
   });
 
   rows.forEach((r, i) => { r.index = i + 1; });
-  const recentlyWatched = await getRecentlyWatchedEpisodes(items, cache, episodeCache, token, ratingsCache);
+  const recentlyWatched = await getRecentlyWatchedEpisodes(items, cache, episodeCache, token, ratingsCache, droppedItems);
   return [rows, totalRemainingEps, totalRemainingMinutes, recentlyWatched];
 }
 
@@ -2399,7 +2434,8 @@ function renderRecentlyWatchedHtml(list) {
     const { cycleableClass, attrs } = thumbCycleAttrs(ep, "watched", idx);
     const episodeCode = `S${String(ep.season).padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`;
     const episodeTitleHtml = ep.episodeTitle ? `<div class="episode-title">${ep.episodeTitle}</div>` : "";
-    const badgeHtml = ep.badge ? `<div class="premiere-badge${ep.badge === "SEASON FINALE" ? " finale" : ""}">${ep.badge}</div>` : "";
+    const badgeModifier = ep.badge === "SEASON FINALE" ? " finale" : ep.badge === "DROPPED" ? " dropped" : "";
+    const badgeHtml = ep.badge ? `<div class="premiere-badge${badgeModifier}">${ep.badge}</div>` : "";
     return `
       <div class="list-row">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>

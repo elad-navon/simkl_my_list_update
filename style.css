@@ -449,6 +449,7 @@
   }
   .premiere-badge.finale { background: #c1502e; }
   .premiere-badge.year-badge { background: #3d6bb3; margin-top: 0; }
+  .premiere-badge.dropped { background: var(--muted); color: #111820; }
   .title-with-year { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .title-with-year .list-row-title { flex: 0 1 auto; }
   /* Pinned to the row's own top-right corner (same edge the star badge
