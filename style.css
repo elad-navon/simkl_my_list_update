@@ -469,11 +469,6 @@
     display: flex; align-items: center; justify-content: center;
   }
   .list-imdb { margin-top: 4px; display: flex; align-items: center; gap: 8px; }
-  footer {
-    display: flex; align-items: center; justify-content: space-between;
-    color: var(--muted); font-size: 0.78rem; margin-top: 50px;
-  }
-
   .center-box {
     max-width: 480px; margin: 60px auto; background: var(--card); border-radius: 14px;
     padding: 30px; text-align: center; box-shadow: 0 6px 22px rgba(0,0,0,0.35);
