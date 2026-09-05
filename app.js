@@ -1051,6 +1051,7 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
     let showDetail = null;
     let network = null;
     let tmdbLogoPath = null;
+    let yearRangeLabel = null;
     if (tmdbId) {
       // TMDB is now purely supplementary (images/runtime estimate) - if it
       // fails for this one show, that shouldn't take down the whole list.
@@ -1060,6 +1061,13 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
         const showNetwork = latestNetwork(showDetail);
         network = showNetwork ? showNetwork.name : null;
         tmdbLogoPath = showNetwork ? showNetwork.logo_path : null;
+        // "2016-2019" once ended, "2016-" (open-ended, so an empty end year
+        // is itself the signal a show hasn't wrapped up yet) while still
+        // airing - same rule Plan to Watch uses.
+        const ended = showDetail && (showDetail.status === "Ended" || showDetail.status === "Canceled");
+        const startYear = showDetail && showDetail.first_air_date ? showDetail.first_air_date.slice(0, 4) : null;
+        const endYear = showDetail && showDetail.last_air_date ? showDetail.last_air_date.slice(0, 4) : null;
+        if (startYear) yearRangeLabel = `${startYear}-${ended ? (endYear || "") : ""}`;
       } catch (e) {
         showDetail = null;
       }
@@ -1134,7 +1142,7 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
       title, imdbId, imdbRating, simklId, tmdbId, year: show.year, ...images, network, networkLogoPath,
       totalEpisodes, available, watched, remaining,
       hours, mins, nextHours, nextMins, nextLabel, nextSeason, nextEpisode, episodeTitle, nextAirDate, badge,
-      episodesLeft, lastWatchedAt: mostRecentWatchedAt(item),
+      episodesLeft, lastWatchedAt: mostRecentWatchedAt(item), yearRangeLabel,
     };
     return { row, remaining, remainingMinutes };
   }));
@@ -2351,7 +2359,13 @@ function cardImageBits(row, mode, arrIdx, extraOverlayHtml) {
           onerror="this.parentElement.classList.add('logo-failed')">
       </div>`
     : "";
-  const wrapHtml = `<div class="poster-wrap${cycleable ? " cycleable" : ""}"${cycleAttrs}>${badgeHtml}${posterHtml}${extraOverlayHtml || ""}</div>`;
+  // Year range in the opposite top corner - also doubles as an at-a-glance
+  // "has this ended" signal, since an open-ended show has no end year yet
+  // ("2016-") while one that's wrapped up shows the full range.
+  const yearBadgeHtml = row.yearRangeLabel
+    ? `<div class="badge year-corner-badge">${row.yearRangeLabel}</div>`
+    : "";
+  const wrapHtml = `<div class="poster-wrap${cycleable ? " cycleable" : ""}"${cycleAttrs}>${badgeHtml}${yearBadgeHtml}${posterHtml}${extraOverlayHtml || ""}</div>`;
   return { wrapHtml };
 }
 
