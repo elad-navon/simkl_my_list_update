@@ -1614,6 +1614,11 @@ function renderShowDetail(show, libraryMatch) {
     </button>`;
   }).join("");
 
+  const removeHtml = libraryMatch
+    ? `<div class="card-menu-sep"></div>
+       <button class="card-menu-item danger" id="detailRemoveBtn">Remove from list</button>`
+    : "";
+
   body.innerHTML = `
     <button class="modal-back-btn" id="detailBackBtn">&larr; Back to search</button>
     <div class="detail-header">
@@ -1627,12 +1632,37 @@ function renderShowDetail(show, libraryMatch) {
     <div class="detail-status-picker">
       <p class="detail-picker-label">Set status:</p>
       ${statusButtons}
+      ${removeHtml}
     </div>`;
 
   document.getElementById("detailBackBtn").onclick = renderSearchStep;
   body.querySelectorAll("[data-status]").forEach(btn => {
     btn.onclick = () => setShowStatusFromDetail(show, btn.dataset.status, btn);
   });
+  const removeBtn = document.getElementById("detailRemoveBtn");
+  if (removeBtn) {
+    removeBtn.onclick = () => removeShowFromDetail(show, libraryMatch, removeBtn);
+  }
+}
+
+async function removeShowFromDetail(show, libraryMatch, btnEl) {
+  const simklId = (libraryMatch.item.show || {}).ids && libraryMatch.item.show.ids.simkl;
+  if (!simklId) {
+    showToast("This result has no usable ID.", true);
+    return;
+  }
+  if (!confirm(`Remove "${show.title}" from your SIMKL list entirely?`)) return;
+  const buttons = btnEl.parentElement.querySelectorAll("button");
+  buttons.forEach(b => { b.disabled = true; });
+  try {
+    await removeShowFromList(simklId, simklToken);
+    showToast(`Removed "${show.title}"`);
+    closeSearchModal();
+    main();
+  } catch (err) {
+    buttons.forEach(b => { b.disabled = false; });
+    showToast(err.message, true);
+  }
 }
 
 async function setShowStatusFromDetail(show, status, btnEl) {
@@ -2036,6 +2066,47 @@ async function removeShowFromMyList(row) {
   }
 }
 
+// Same dropdown as openCardMenu, but for a Plan to Watch row: the current
+// status is always "plantowatch" here (rather than "watching"), so this
+// uses the full 5-status list - with Plan to Watch itself shown as the
+// active one - instead of the My List menu's watching-excluded set.
+function openPlanCardMenu(idx, btnEl) {
+  const alreadyOpenForThisBtn = cardMenuOpenerBtn === btnEl;
+  closeCardMenu();
+  if (alreadyOpenForThisBtn) return;
+
+  const row = getCycleRows("plan")[idx];
+  if (!row || !row.simklId) return;
+
+  const rect = btnEl.getBoundingClientRect();
+  const menu = document.createElement("div");
+  menu.className = "card-menu-dropdown";
+  menu.id = "cardMenuDropdown";
+  menu.style.top = `${rect.bottom + 6}px`;
+  menu.style.left = `${Math.min(rect.left, window.innerWidth - 190)}px`;
+
+  const statusButtons = ALL_STATUS_OPTIONS.map(opt => `
+    <button class="card-menu-item${opt.value === "plantowatch" ? " active" : ""}" data-status="${opt.value}">
+      ${opt.label}${opt.value === "plantowatch" ? " ✓" : ""}
+    </button>`).join("");
+
+  menu.innerHTML = `
+    ${statusButtons}
+    <div class="card-menu-sep"></div>
+    <button class="card-menu-item danger" id="cardMenuRemoveBtn">Remove from list</button>
+  `;
+  document.body.appendChild(menu);
+  cardMenuOpenerBtn = btnEl;
+
+  menu.querySelectorAll("[data-status]").forEach(b => {
+    b.onclick = () => changeShowStatus(row, b.dataset.status);
+  });
+  document.getElementById("cardMenuRemoveBtn").onclick = () => removeShowFromMyList(row);
+
+  setTimeout(() => document.addEventListener("click", cardMenuOutsideClickHandler), 0);
+  document.addEventListener("keydown", cardMenuEscHandler);
+}
+
 // ---------------------------------------------------------------------
 // Render
 // ---------------------------------------------------------------------
@@ -2361,6 +2432,7 @@ function renderPlanToWatchHtml(list) {
           ${badgeHtml}
           <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId)}</div>
         </div>
+        <button class="card-menu-btn" title="Manage" onclick="event.stopPropagation(); openPlanCardMenu(${idx}, this)">&#8942;</button>
       </div>`;
   }).join("\n");
 
