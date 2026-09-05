@@ -205,8 +205,12 @@
     /* Flush into the card's own top-left corner (card has overflow:hidden
        + border-radius:10px) - top-left matches that radius exactly so the
        two curves read as one continuous corner instead of a smaller pill
-       floating inset from it; the other 3 corners get their own rounding. */
-    position: absolute; top: 0; left: 0; background: rgba(0,0,0,0.55);
+       floating inset from it; the other 3 corners get their own rounding.
+       -1px top/left: .card also has a 1px border, which insets the actual
+       clip curve for anything inside it by that same 1px - without this
+       offset, a sliver of the poster's own (slightly tighter) rounded
+       corner peeks past the badge's curve. */
+    position: absolute; top: -1px; left: -1px; background: rgba(0,0,0,0.55);
     color: var(--text); font-weight: 700; font-size: 0.85rem; padding: 6px 11px 5px 12px;
     border-radius: 10px 8px 8px 8px; backdrop-filter: blur(3px); z-index: 10;
   }
@@ -222,9 +226,13 @@
   }
   .badge.year-corner-badge {
     /* Mirror image of the base .badge corner-merge, flush into the
-       top-right corner instead of top-left. */
-    left: auto; right: 0; padding: 6px 12px 5px 11px;
+       top-right corner instead of top-left - white/black instead of the
+       dark scrim, and flex-centered so the digits sit vertically centered
+       instead of riding on the (asymmetric, text-badge-tuned) padding. */
+    left: auto; right: -1px; padding: 0 12px 0 11px; min-height: 27px;
+    display: flex; align-items: center; justify-content: center;
     border-radius: 8px 10px 8px 8px;
+    background: #ffffff; color: #000000; backdrop-filter: none;
   }
   .badge.network-badge .network-badge-logo { height: 15px; width: auto; max-width: 100%; object-fit: contain; display: block; }
   .badge.network-badge.logo-failed { background: rgba(0,0,0,0.55); backdrop-filter: blur(3px); }
