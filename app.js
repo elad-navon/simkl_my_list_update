@@ -872,21 +872,23 @@ async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token, rat
   }
   for (const item of droppedItems || []) {
     if (item.status !== "dropped") continue;
+    // Unlike /watching, SIMKL's /dropped list doesn't return a
+    // seasons/episodes breakdown at all - just a last_watched_at
+    // timestamp and a "S01E06"-style last_watched code for the single
+    // most recent episode, which is all Recently Watched needs anyway.
+    if (!item.last_watched_at || !item.last_watched) continue;
+    const match = /^S(\d+)E(\d+)$/i.exec(item.last_watched);
+    if (!match) continue;
     const show = item.show || {};
-    for (const season of item.seasons || []) {
-      for (const ep of season.episodes || []) {
-        if (!ep.watched_at) continue;
-        candidates.push({
-          title: show.title || "Unknown",
-          season: season.number,
-          episode: ep.number,
-          watchedAt: ep.watched_at,
-          tmdbId: (show.ids || {}).tmdb,
-          simklId: (show.ids || {}).simkl,
-          dropped: true,
-        });
-      }
-    }
+    candidates.push({
+      title: show.title || "Unknown",
+      season: Number(match[1]),
+      episode: Number(match[2]),
+      watchedAt: item.last_watched_at,
+      tmdbId: (show.ids || {}).tmdb,
+      simklId: (show.ids || {}).simkl,
+      dropped: true,
+    });
   }
   candidates.sort((a, b) => new Date(b.watchedAt) - new Date(a.watchedAt));
 
