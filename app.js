@@ -2266,6 +2266,8 @@ const LIST_ICON_SOLID_SVG = `<svg viewBox="0 0 24 24" width="17" height="17"><ci
 const CAST_ICON_SOLID_SVG = `<svg viewBox="0 0 24 24" width="17" height="17"><circle cx="12" cy="12" r="9" fill="var(--gold)"></circle><circle cx="12" cy="9.3" r="2.6" fill="var(--card)"></circle><path d="M6.3 17.2c0-3.1 2.6-4.4 5.7-4.4s5.7 1.3 5.7 4.4" fill="var(--card)"></path></svg>`;
 const GRID_ICON_SVG = `<svg viewBox="0 0 24 24" width="15" height="15" fill="var(--accent2)"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>`;
 const CHECK_ICON_SVG = `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+const BELL_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg>`;
+const STAR_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 3 14.7 9.2 21.4 9.8 16.3 14.2 17.9 20.8 12 17.3 6.1 20.8 7.7 14.2 2.6 9.8 9.3 9.2"></polygon></svg>`;
 const BOOKMARK_ICON_SVG = `<svg viewBox="0 0 24 24" width="17" height="17" fill="var(--gold)"><path d="M6 3.5h12a.5.5 0 0 1 .5.5v16.2a.5.5 0 0 1-.77.42L12 16.5l-5.73 4.12a.5.5 0 0 1-.77-.42V4a.5.5 0 0 1 .5-.5z"></path></svg>`;
 const CALENDAR_ICON_SVG = `<svg viewBox="0 0 24 24" width="17" height="17"><rect x="3" y="5" width="18" height="16" rx="2" fill="var(--accent2)"></rect><rect x="3" y="9" width="18" height="1.8" fill="var(--card)"></rect><rect x="7" y="2.5" width="1.8" height="4" rx="0.9" fill="var(--card)"></rect><rect x="15.2" y="2.5" width="1.8" height="4" rx="0.9" fill="var(--card)"></rect></svg>`;
 const CAROUSEL_ARROW_ICON_SVG = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
@@ -2433,6 +2435,7 @@ function renderPlanToWatchHtml(list) {
           ${badgeHtml}
           <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId)}</div>
         </div>
+        <span class="list-check">${STAR_ICON_SVG}</span>
       </div>`;
   }).join("\n");
 
@@ -2468,6 +2471,7 @@ function renderAiringNextPreviewHtml(list) {
           ${episodeTitle}
           <div class="list-row-airdate">&#128197; ${row.airDateLabel}</div>
         </div>
+        <span class="list-check">${BELL_ICON_SVG}</span>
       </div>`;
   }).join("\n");
 
