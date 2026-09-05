@@ -1972,6 +1972,7 @@ function closeCardMenu() {
   if (el) el.remove();
   document.removeEventListener("keydown", cardMenuEscHandler);
   document.removeEventListener("click", cardMenuOutsideClickHandler);
+  document.removeEventListener("scroll", cardMenuScrollHandler, true);
   cardMenuOpenerBtn = null;
 }
 
@@ -1982,6 +1983,18 @@ function cardMenuEscHandler(e) {
 function cardMenuOutsideClickHandler(e) {
   const menu = document.getElementById("cardMenuDropdown");
   if (menu && !menu.contains(e.target)) closeCardMenu();
+}
+
+// The dropdown is positioned once (position:fixed, computed from the
+// button's rect at open time) - scrolling anything afterward, the page
+// itself or a panel's own inner scroll container, leaves it either stuck
+// in place while its anchor button moves away, or visibly drifting on
+// browsers where position:fixed isn't fully reliable during a scroll
+// gesture (common on mobile/TV browsers). Simplest robust fix: just close
+// it. Listens in the capture phase since scroll events don't bubble, so
+// this is the only way to catch scrolling inside a nested container too.
+function cardMenuScrollHandler() {
+  closeCardMenu();
 }
 
 function openCardMenu(arrIdx, btnEl) {
@@ -2027,6 +2040,7 @@ function openCardMenu(arrIdx, btnEl) {
 
   setTimeout(() => document.addEventListener("click", cardMenuOutsideClickHandler), 0);
   document.addEventListener("keydown", cardMenuEscHandler);
+  document.addEventListener("scroll", cardMenuScrollHandler, true);
 }
 
 async function changeShowStatus(row, status) {
@@ -2105,6 +2119,7 @@ function openPlanCardMenu(idx, btnEl) {
 
   setTimeout(() => document.addEventListener("click", cardMenuOutsideClickHandler), 0);
   document.addEventListener("keydown", cardMenuEscHandler);
+  document.addEventListener("scroll", cardMenuScrollHandler, true);
 }
 
 // ---------------------------------------------------------------------
