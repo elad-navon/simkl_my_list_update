@@ -451,7 +451,13 @@
   .premiere-badge.year-badge { background: #3d6bb3; margin-top: 0; }
   .title-with-year { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .title-with-year .list-row-title { flex: 0 1 auto; }
-  .title-with-year .card-menu-btn { margin-left: auto; margin-right: -14px; }
+  /* Pinned to the row's own top-right corner (same edge the star badge
+     sits on, further down) instead of living inside the title's flex
+     flow - that's the only way to sit at the row's true right edge while
+     staying up at the title's height, since the star already claims that
+     edge lower down and there's no room further right than the edge itself. */
+  .list-panel--plan .list-row { position: relative; }
+  .plan-menu-btn { position: absolute; top: 12px; right: 0; margin: 0; }
   .next-up-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .next-up-row .next-up { margin: 2px 0 0; }
   .next-up-row .premiere-badge { margin-top: 2px; }
@@ -755,9 +761,16 @@
     .list-thumb { width: 100%; height: auto; aspect-ratio: 16 / 9; }
     .list-thumb-wrap { width: 100%; }
     .title-with-year { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px; }
-    .title-with-year .card-menu-btn { order: 2; margin-left: auto; margin-right: 0; }
-    .title-with-year .premiere-badge.year-badge { order: 3; flex-basis: 100%; margin-top: 0; }
+    .title-with-year .premiere-badge.year-badge { flex-basis: 100%; margin-top: 0; }
+    /* Same top-right pin as desktop, just recomputed for the stacked mobile
+       card: the thumb (full width, 16:9) plus the row's own gap sits above
+       the title line here, instead of the title starting at the very top. */
+    .plan-menu-btn { top: 120px; }
     .list-panel--watched .list-check { display: none; }
+    /* The column layout's default cross-axis alignment left-aligns a
+       fixed-width flex item like this circle badge - pin it to the right
+       edge instead, matching every other right-side element in the card. */
+    .list-check { align-self: flex-end; }
 
     .modal-overlay { padding: 12px; }
     .cast-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
