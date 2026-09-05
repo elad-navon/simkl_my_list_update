@@ -2325,6 +2325,12 @@ const LIST_ICON_SOLID_SVG = `<svg viewBox="0 0 24 24" width="17" height="17"><ci
 // modal header - a head-and-shoulders silhouette.
 const CAST_ICON_SOLID_SVG = `<svg viewBox="0 0 24 24" width="17" height="17"><circle cx="12" cy="12" r="9" fill="var(--gold)"></circle><circle cx="12" cy="9.3" r="2.6" fill="var(--card)"></circle><path d="M6.3 17.2c0-3.1 2.6-4.4 5.7-4.4s5.7 1.3 5.7 4.4" fill="var(--card)"></path></svg>`;
 const GRID_ICON_SVG = `<svg viewBox="0 0 24 24" width="15" height="15" fill="var(--accent2)"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>`;
+// Stat-row icons for the top card's header: a TV screen for "Episodes
+// Left" and a clock for "Watch Time Left" (the grid icon above already
+// covers "Series") - same stroke language as the rest of the app's line
+// icons, colored to match the grid icon they sit alongside.
+const STAT_TV_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--accent2)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="13" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="18" x2="12" y2="21"></line></svg>`;
+const STAT_CLOCK_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--accent2)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.25"></circle><polyline points="12 7 12 12 15.5 14"></polyline></svg>`;
 const CHECK_ICON_SVG = `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
 const BELL_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg>`;
 const STAR_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 3 14.7 9.2 21.4 9.8 16.3 14.2 17.9 20.8 12 17.3 6.1 20.8 7.7 14.2 2.6 9.8 9.3 9.2"></polygon></svg>`;
@@ -2666,12 +2672,20 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
     <div class="series-panel">
       <div class="series-panel-header">
         <div class="series-panel-header-left">
-          ${GRID_ICON_SVG}
-          <div class="series-panel-stat"><span class="num">${rows.length}</span><span class="label">Series</span></div>
+          <div class="series-panel-stat-group">
+            ${GRID_ICON_SVG}
+            <div class="series-panel-stat"><span class="num">${rows.length}</span><span class="label">Series</span></div>
+          </div>
           <div class="stats-divider"></div>
-          <div class="series-panel-stat"><span class="num">${totalRemainingEps}</span><span class="label">Episodes Left</span></div>
+          <div class="series-panel-stat-group">
+            ${STAT_TV_ICON_SVG}
+            <div class="series-panel-stat"><span class="num">${totalRemainingEps}</span><span class="label">Episodes Left</span></div>
+          </div>
           <div class="stats-divider"></div>
-          <div class="series-panel-stat"><span class="num">${totalHours}h ${totalMins}m</span><span class="label">Watch Time Left</span></div>
+          <div class="series-panel-stat-group">
+            ${STAT_CLOCK_ICON_SVG}
+            <div class="series-panel-stat"><span class="num">${totalHours}h ${totalMins}m</span><span class="label">Watch Time Left</span></div>
+          </div>
         </div>
         <span class="series-panel-updated">Updated ${new Date().toLocaleString()}</span>
       </div>
