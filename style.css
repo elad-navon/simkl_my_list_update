@@ -234,7 +234,7 @@
     border-radius: 8px 10px 8px 8px;
     background: #ffffff; color: #000000; backdrop-filter: none;
   }
-  .year-badge-dash { position: relative; top: -1px; }
+  .year-badge-dash { position: relative; top: -2px; }
   .badge.network-badge .network-badge-logo { height: 15px; width: auto; max-width: 100%; object-fit: contain; display: block; }
   .badge.network-badge.logo-failed { background: rgba(0,0,0,0.55); backdrop-filter: blur(3px); }
   .badge.network-badge.logo-failed .network-badge-logo { display: none; }
