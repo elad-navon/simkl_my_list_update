@@ -2429,13 +2429,15 @@ function renderPlanToWatchHtml(list) {
           <div class="title-with-year">
             <div class="list-row-title" title="View cast" onclick="event.stopPropagation(); openCastModal('plan', ${idx})">${row.title}</div>
             ${yearBadgeHtml}
-            <button class="card-menu-btn" title="Manage" onclick="event.stopPropagation(); openPlanCardMenu(${idx}, this)">&#8942;</button>
           </div>
           ${networkSubHtml(row.network, row.networkLogoPath)}
           ${badgeHtml}
           <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId)}</div>
         </div>
-        <span class="list-check">${STAR_ICON_SVG}</span>
+        <div class="plan-row-end">
+          <span class="list-check">${STAR_ICON_SVG}</span>
+          <button class="card-menu-btn" title="Manage" onclick="event.stopPropagation(); openPlanCardMenu(${idx}, this)">&#8942;</button>
+        </div>
       </div>`;
   }).join("\n");
 
