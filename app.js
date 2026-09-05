@@ -2363,7 +2363,7 @@ function cardImageBits(row, mode, arrIdx, extraOverlayHtml) {
   // "has this ended" signal, since an open-ended show has no end year yet
   // ("2016-") while one that's wrapped up shows the full range.
   const yearBadgeHtml = row.yearRangeLabel
-    ? `<div class="badge year-corner-badge">${row.yearRangeLabel}</div>`
+    ? `<div class="badge year-corner-badge">${row.yearRangeLabel.replace("-", '<span class="year-badge-dash">-</span>')}</div>`
     : "";
   const wrapHtml = `<div class="poster-wrap${cycleable ? " cycleable" : ""}"${cycleAttrs}>${badgeHtml}${yearBadgeHtml}${posterHtml}${extraOverlayHtml || ""}</div>`;
   return { wrapHtml };
