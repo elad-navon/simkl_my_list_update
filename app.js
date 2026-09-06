@@ -2622,7 +2622,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   // whole card (which also has the info panel below it) - compute that
   // image's height from the known card width + aspect ratio for the
   // current mode, matching .card.carousel-card / .poster's CSS exactly.
-  const carouselCardWidth = isWide ? 320 : 225;
+  const carouselCardWidth = isWide ? 368 : 259;
   const carouselImageHeight = isWide ? (carouselCardWidth * 9 / 16) : (carouselCardWidth * 3 / 2);
   const carouselArrowTop = Math.round(carouselImageHeight / 2);
 
