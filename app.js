@@ -42,6 +42,7 @@ const LS_TOKEN = "simkl_access_token";
 const LS_IMAGE_MODE = "simkl_image_mode"; // "poster" | "banner"
 const LS_THEME = "simkl_theme"; // "light" | "dark"
 const LS_VIEW_MODE = "simkl_view_mode";   // "list" or "airing" (not restored on load - always starts on "list")
+const LS_EPISODE_AVAILABLE_SNAPSHOT = "simkl_episode_available_snapshot"; // { [simklId]: available count as of the last check }
 
 const app = document.getElementById("app");
 const subtitle = document.getElementById("subtitle");
@@ -2824,6 +2825,72 @@ function showToast(message, isError) {
   toastTimer = setTimeout(() => el.classList.remove("show"), 3000);
 }
 
+function readEpisodeAvailableSnapshot() {
+  try {
+    return JSON.parse(localStorage.getItem(LS_EPISODE_AVAILABLE_SNAPSHOT) || "{}");
+  } catch (e) {
+    return {};
+  }
+}
+
+function writeEpisodeAvailableSnapshot(snapshot) {
+  try {
+    localStorage.setItem(LS_EPISODE_AVAILABLE_SNAPSHOT, JSON.stringify(snapshot));
+  } catch (e) {
+    // localStorage full/unavailable - skip persisting, not critical
+  }
+}
+
+// Compares each "watching" show's current available-episode count (aired
+// and not yet watched) against the last known count, persisted in
+// localStorage so it survives a closed tab - toasts once if any show has
+// more available now than last time. Covers both "tab already open"
+// (called on an interval) and "tab was closed, just reopened" (called once
+// after main()'s own fetch) with the same snapshot. A show seen for the
+// first time ever just seeds the snapshot without notifying, so the very
+// first run after installing doesn't fire a toast for the whole list.
+function diffAndNotifyNewEpisodes(shows) {
+  const snapshot = readEpisodeAvailableSnapshot();
+  const nextSnapshot = { ...snapshot };
+  const newlyAvailable = [];
+  for (const { simklId, title, available } of shows) {
+    if (simklId == null) continue;
+    const prev = snapshot[simklId];
+    if (prev != null && available > prev) newlyAvailable.push(title);
+    nextSnapshot[simklId] = available;
+  }
+  writeEpisodeAvailableSnapshot(nextSnapshot);
+  if (newlyAvailable.length === 1) {
+    showToast(`New episode available: "${newlyAvailable[0]}"`);
+  } else if (newlyAvailable.length > 1) {
+    showToast(`New episodes available: ${newlyAvailable.join(", ")}`);
+  }
+}
+
+// Lightweight background check while the tab stays open - just the
+// watching list's episode counts, no images/full re-render - so it can run
+// on a timer without disturbing whatever the user's looking at.
+async function checkForNewEpisodesInBackground() {
+  if (!simklToken) return;
+  try {
+    const items = await getWatchingShows(simklToken);
+    const shows = items.filter(item => item.status === "watching").map(item => {
+      const show = item.show || {};
+      const total = item.total_episodes_count || 0;
+      const notAired = item.not_aired_episodes_count || 0;
+      return {
+        simklId: (show.ids || {}).simkl,
+        title: show.title || "Unknown",
+        available: Math.max(total - notAired, 0),
+      };
+    });
+    diffAndNotifyNewEpisodes(shows);
+  } catch (e) {
+    // silent - this is a background convenience check, not core functionality
+  }
+}
+setInterval(checkForNewEpisodesInBackground, 3 * 60 * 60 * 1000); // every 3 hours
+
 // ---------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------
@@ -2852,6 +2919,10 @@ async function main() {
     ]);
     airingRows = airingNextRows; // also primes the separate Airing Next tab's cache, so opening it doesn't re-fetch
     renderRows(rows, totalEps, totalMinutes, recentlyWatched, planToWatchRows, airingNextRows);
+    // Covers "the tab was closed and a new episode came out meanwhile" -
+    // reuses the per-row available count main() just fetched anyway, no
+    // extra request needed for this path.
+    diffAndNotifyNewEpisodes(rows.map(r => ({ simklId: r.simklId, title: r.title, available: r.available })));
   } catch (err) {
     showError(err);
   }
