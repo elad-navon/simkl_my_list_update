@@ -2843,12 +2843,12 @@ function writeEpisodeAvailableSnapshot(snapshot) {
 
 // Compares each "watching" show's current available-episode count (aired
 // and not yet watched) against the last known count, persisted in
-// localStorage so it survives a closed tab - toasts once if any show has
+// localStorage so it survives a closed tab - notifies once if any show has
 // more available now than last time. Covers both "tab already open"
 // (called on an interval) and "tab was closed, just reopened" (called once
 // after main()'s own fetch) with the same snapshot. A show seen for the
 // first time ever just seeds the snapshot without notifying, so the very
-// first run after installing doesn't fire a toast for the whole list.
+// first run after installing doesn't fire a notification for the whole list.
 function diffAndNotifyNewEpisodes(shows) {
   const snapshot = readEpisodeAvailableSnapshot();
   const nextSnapshot = { ...snapshot };
@@ -2860,11 +2860,32 @@ function diffAndNotifyNewEpisodes(shows) {
     nextSnapshot[simklId] = available;
   }
   writeEpisodeAvailableSnapshot(nextSnapshot);
-  if (newlyAvailable.length === 1) {
-    showToast(`New episode available: "${newlyAvailable[0]}"`);
-  } else if (newlyAvailable.length > 1) {
-    showToast(`New episodes available: ${newlyAvailable.join(", ")}`);
+  if (newlyAvailable.length) showNewEpisodeNotification(newlyAvailable);
+}
+
+// Unlike showToast (auto-dismisses after 3s - fine for a brief action
+// confirmation), this stays up until the user closes it themselves - the
+// whole point is that it might arrive while nobody's looking at the
+// screen. Styled like the app's own cards/modals rather than a generic
+// toast pill. Calling this again while one's already showing (e.g. the
+// periodic check fires before the last notification was dismissed)
+// replaces its contents rather than stacking a second banner.
+function showNewEpisodeNotification(titles) {
+  let el = document.getElementById("newEpisodeBanner");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "newEpisodeBanner";
+    el.className = "new-episode-banner";
+    document.body.appendChild(el);
   }
+  const itemsHtml = titles.map(t => `<li>${t}</li>`).join("");
+  el.innerHTML = `
+    <div class="new-episode-banner-header">
+      ${BELL_ICON_SVG}<span>New Episodes</span>
+      <button class="new-episode-banner-close" title="Dismiss" onclick="document.getElementById('newEpisodeBanner').remove()">&times;</button>
+    </div>
+    <ul class="new-episode-banner-list">${itemsHtml}</ul>
+  `;
 }
 
 // Lightweight background check while the tab stays open - just the
