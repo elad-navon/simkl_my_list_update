@@ -523,11 +523,12 @@
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .toast.error { color: var(--danger); }
 
-  /* Persistent (no auto-dismiss) new-episode notification - styled like
-     the app's own cards/panels rather than a generic toast pill, since it
-     may sit on screen a while before anyone notices it. */
+  /* Persistent (no auto-dismiss) new-episode notification - sized like the
+     top card's banner mode, reusing the exact Recently Watched row markup
+     (.list-row/.list-thumb/.list-row-title/...) for its entries so it
+     reads as the same design language rather than a bespoke component. */
   .new-episode-banner {
-    position: fixed; right: 20px; bottom: 20px; z-index: 250; max-width: 300px;
+    position: fixed; right: 20px; bottom: 20px; z-index: 250; width: 368px;
     background: var(--card); border: 1px solid var(--border); border-radius: 12px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.45); padding: 14px 16px;
   }
@@ -535,18 +536,15 @@
     display: flex; align-items: center; gap: 8px; color: var(--gold);
     font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
     font-weight: 700; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.04em;
-    border-bottom: 2px solid var(--gold); padding-bottom: 8px; margin-bottom: 8px;
+    border-bottom: 2px solid var(--gold); padding-bottom: 8px; margin-bottom: 4px;
   }
   .new-episode-banner-close {
     margin-left: auto; background: transparent; border: none; color: var(--muted);
     font-size: 1.2rem; line-height: 1; cursor: pointer; padding: 0 2px;
   }
   .new-episode-banner-close:hover { color: var(--text); }
-  .new-episode-banner-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-  .new-episode-banner-list li {
-    color: var(--text); font-size: 0.85rem; font-weight: 600;
-    text-transform: uppercase; letter-spacing: 0.02em;
-  }
+  .new-episode-banner-list { max-height: 60vh; overflow-y: auto; }
+  .new-episode-banner-list .list-row:last-child { border-bottom: none; }
 
   .modal-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.6);

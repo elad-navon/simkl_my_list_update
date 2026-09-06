@@ -42,7 +42,7 @@ const LS_TOKEN = "simkl_access_token";
 const LS_IMAGE_MODE = "simkl_image_mode"; // "poster" | "banner"
 const LS_THEME = "simkl_theme"; // "light" | "dark"
 const LS_VIEW_MODE = "simkl_view_mode";   // "list" or "airing" (not restored on load - always starts on "list")
-const LS_EPISODE_AVAILABLE_SNAPSHOT = "simkl_episode_available_snapshot"; // { [simklId]: available count as of the last check }
+const LS_EPISODE_AVAILABLE_SNAPSHOT = "simkl_episode_available_snapshot"; // { [simklId]: encodeSE(season, episode) of the latest aired episode as of the last check }
 
 const app = document.getElementById("app");
 const subtitle = document.getElementById("subtitle");
@@ -2825,7 +2825,7 @@ function showToast(message, isError) {
   toastTimer = setTimeout(() => el.classList.remove("show"), 3000);
 }
 
-function readEpisodeAvailableSnapshot() {
+function readLatestEpisodeSnapshot() {
   try {
     return JSON.parse(localStorage.getItem(LS_EPISODE_AVAILABLE_SNAPSHOT) || "{}");
   } catch (e) {
@@ -2833,7 +2833,7 @@ function readEpisodeAvailableSnapshot() {
   }
 }
 
-function writeEpisodeAvailableSnapshot(snapshot) {
+function writeLatestEpisodeSnapshot(snapshot) {
   try {
     localStorage.setItem(LS_EPISODE_AVAILABLE_SNAPSHOT, JSON.stringify(snapshot));
   } catch (e) {
@@ -2841,36 +2841,90 @@ function writeEpisodeAvailableSnapshot(snapshot) {
   }
 }
 
-// Compares each "watching" show's current available-episode count (aired
-// and not yet watched) against the last known count, persisted in
-// localStorage so it survives a closed tab - notifies once if any show has
-// more available now than last time. Covers both "tab already open"
-// (called on an interval) and "tab was closed, just reopened" (called once
-// after main()'s own fetch) with the same snapshot. A show seen for the
-// first time ever just seeds the snapshot without notifying, so the very
-// first run after installing doesn't fire a notification for the whole list.
-function diffAndNotifyNewEpisodes(shows) {
-  const snapshot = readEpisodeAvailableSnapshot();
-  const nextSnapshot = { ...snapshot };
-  const newlyAvailable = [];
-  for (const { simklId, title, available } of shows) {
-    if (simklId == null) continue;
-    const prev = snapshot[simklId];
-    if (prev != null && available > prev) newlyAvailable.push(title);
-    nextSnapshot[simklId] = available;
+// The single most recently *aired* episode of a show (date <= now), by
+// season/episode order - not "next to watch", which SIMKL only sets once
+// there's something unwatched, and wouldn't exist yet for a show the user
+// is fully caught up on (exactly the show where a new episode matters
+// most). encodeSE turns (season, episode) into one comparable number.
+const encodeSE = (season, episode) => season * 1000 + episode;
+function latestAiredEpisode(episodes) {
+  const now = Date.now();
+  let best = null;
+  for (const ep of episodes || []) {
+    if (ep.season == null || ep.episode == null || !ep.date) continue;
+    const t = new Date(ep.date).getTime();
+    if (isNaN(t) || t > now) continue;
+    const key = encodeSE(ep.season, ep.episode);
+    if (!best || key > best.key) best = { key, season: ep.season, episode: ep.episode, title: ep.title };
   }
-  writeEpisodeAvailableSnapshot(nextSnapshot);
-  if (newlyAvailable.length) showNewEpisodeNotification(newlyAvailable);
+  return best;
 }
+
+// Checks every "watching" show's latest aired episode against the last
+// known one, persisted in localStorage so it survives a closed tab - shows
+// a notification (with thumbnail, episode code and episode title) for any
+// show where that's moved forward since the last check. Covers both "tab
+// already open" (called on an interval) and "tab was closed, just
+// reopened" (called once after main()'s own fetch) with the same
+// snapshot. A show seen for the first time ever just seeds the snapshot
+// without notifying, so the very first run after installing doesn't fire
+// a notification for the whole list.
+async function checkForNewEpisodes() {
+  if (!simklToken) return;
+  const cache = sharedCache || new TmdbCache();
+  const episodeCache = sharedEpisodeCache || new SimklEpisodeCache();
+  try {
+    const items = await getWatchingShows(simklToken);
+    const snapshot = readLatestEpisodeSnapshot();
+    const nextSnapshot = { ...snapshot };
+    const newEntries = [];
+    await Promise.all(items.filter(item => item.status === "watching").map(async item => {
+      const show = item.show || {};
+      const simklId = (show.ids || {}).simkl;
+      if (simklId == null) return;
+      const episodes = await episodeCache.get(simklId, simklToken);
+      const latest = latestAiredEpisode(episodes);
+      if (!latest) return;
+      const prevKey = snapshot[simklId];
+      if (prevKey != null && latest.key > prevKey) {
+        const tmdbId = (show.ids || {}).tmdb;
+        let thumbUrl = null;
+        if (tmdbId) {
+          try {
+            const images = computeImages(await cache.getShow(tmdbId), tmdbId);
+            thumbUrl = images.bannerUrl || images.posterUrl;
+          } catch (e) {
+            thumbUrl = null;
+          }
+        }
+        newEntries.push({
+          title: show.title || "Unknown",
+          code: `S${String(latest.season).padStart(2, "0")}E${String(latest.episode).padStart(2, "0")}`,
+          episodeTitle: latest.title,
+          thumbUrl,
+        });
+      }
+      nextSnapshot[simklId] = latest.key;
+    }));
+    writeLatestEpisodeSnapshot(nextSnapshot);
+    if (newEntries.length) showNewEpisodeNotification(newEntries);
+  } catch (e) {
+    // silent - this is a background convenience check, not core functionality
+  }
+}
+setInterval(checkForNewEpisodes, 3 * 60 * 60 * 1000); // every 3 hours
 
 // Unlike showToast (auto-dismisses after 3s - fine for a brief action
 // confirmation), this stays up until the user closes it themselves - the
 // whole point is that it might arrive while nobody's looking at the
-// screen. Styled like the app's own cards/modals rather than a generic
-// toast pill. Calling this again while one's already showing (e.g. the
-// periodic check fires before the last notification was dismissed)
-// replaces its contents rather than stacking a second banner.
-function showNewEpisodeNotification(titles) {
+// screen. Sized and styled like the top card's banner mode, reusing the
+// exact same row markup/classes as a Recently Watched entry (thumbnail,
+// title, episode code, episode title) so it reads as the same design
+// language, not a bespoke component. Calling this again while one's
+// already showing (e.g. the periodic check fires before the last
+// notification was dismissed) replaces its contents instead of stacking a
+// second banner.
+function showNewEpisodeNotification(entries) {
   let el = document.getElementById("newEpisodeBanner");
   if (!el) {
     el = document.createElement("div");
@@ -2878,39 +2932,29 @@ function showNewEpisodeNotification(titles) {
     el.className = "new-episode-banner";
     document.body.appendChild(el);
   }
-  const itemsHtml = titles.map(t => `<li>${t}</li>`).join("");
+  const headerLabel = entries.length === 1 ? "New Episode" : "New Episodes";
+  const rowsHtml = entries.map(e => {
+    const thumbHtml = e.thumbUrl
+      ? `<img class="list-thumb" src="${e.thumbUrl}" alt="${e.title}">`
+      : `<div class="list-thumb placeholder">${(e.title[0] || "?").toUpperCase()}</div>`;
+    return `
+      <div class="list-row">
+        <div class="list-thumb-wrap">${thumbHtml}</div>
+        <div class="list-row-title-wrap">
+          <div class="list-row-title">${e.title}</div>
+          <div class="list-row-sub episode-code-sub">${e.code}</div>
+          ${e.episodeTitle ? `<div class="episode-title">${e.episodeTitle}</div>` : ""}
+        </div>
+      </div>`;
+  }).join("\n");
   el.innerHTML = `
     <div class="new-episode-banner-header">
-      ${BELL_ICON_SVG}<span>New Episodes</span>
+      ${BELL_ICON_SVG}<span>${headerLabel}</span>
       <button class="new-episode-banner-close" title="Dismiss" onclick="document.getElementById('newEpisodeBanner').remove()">&times;</button>
     </div>
-    <ul class="new-episode-banner-list">${itemsHtml}</ul>
+    <div class="new-episode-banner-list">${rowsHtml}</div>
   `;
 }
-
-// Lightweight background check while the tab stays open - just the
-// watching list's episode counts, no images/full re-render - so it can run
-// on a timer without disturbing whatever the user's looking at.
-async function checkForNewEpisodesInBackground() {
-  if (!simklToken) return;
-  try {
-    const items = await getWatchingShows(simklToken);
-    const shows = items.filter(item => item.status === "watching").map(item => {
-      const show = item.show || {};
-      const total = item.total_episodes_count || 0;
-      const notAired = item.not_aired_episodes_count || 0;
-      return {
-        simklId: (show.ids || {}).simkl,
-        title: show.title || "Unknown",
-        available: Math.max(total - notAired, 0),
-      };
-    });
-    diffAndNotifyNewEpisodes(shows);
-  } catch (e) {
-    // silent - this is a background convenience check, not core functionality
-  }
-}
-setInterval(checkForNewEpisodesInBackground, 3 * 60 * 60 * 1000); // every 3 hours
 
 // ---------------------------------------------------------------------
 // Main
@@ -2941,9 +2985,12 @@ async function main() {
     airingRows = airingNextRows; // also primes the separate Airing Next tab's cache, so opening it doesn't re-fetch
     renderRows(rows, totalEps, totalMinutes, recentlyWatched, planToWatchRows, airingNextRows);
     // Covers "the tab was closed and a new episode came out meanwhile" -
-    // reuses the per-row available count main() just fetched anyway, no
-    // extra request needed for this path.
-    diffAndNotifyNewEpisodes(rows.map(r => ({ simklId: r.simklId, title: r.title, available: r.available })));
+    // not awaited, so a slow check never delays the page actually
+    // rendering. Deliberately checks ALL watching shows independently
+    // rather than reusing `rows` here, since a show the user is fully
+    // caught up on (no next_to_watch yet) is excluded from `rows`
+    // entirely - exactly the show where a new episode matters most.
+    checkForNewEpisodes();
   } catch (err) {
     showError(err);
   }
