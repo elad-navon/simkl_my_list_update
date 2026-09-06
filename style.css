@@ -440,9 +440,11 @@
   }
   .list-row-title-wrap { flex: 1 1 auto; min-width: 0; }
   .list-row-title {
-    flex: 1 1 auto; min-width: 0; font-weight: 600; font-size: 0.92rem;
+    /* Matches the top card's title (.card-body h3) size/spacing, so the
+       two read as the same typographic treatment. */
+    flex: 1 1 auto; min-width: 0; font-weight: 600; font-size: 1.08rem;
     color: var(--text); white-space: normal; line-height: 1.25;
-    text-transform: uppercase; letter-spacing: 0.02em;
+    text-transform: uppercase; letter-spacing: -0.01em;
     cursor: pointer;
   }
   .list-row-title:hover { color: var(--accent2); }
