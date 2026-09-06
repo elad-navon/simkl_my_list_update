@@ -199,7 +199,7 @@
        visible ink riding high - the extra 1.5px on top (vs. 0 on bottom)
        nudges it down without moving the badge's own corner-flush edges
        (a transform on the badge itself would do that instead). */
-    padding: 1.5px 8px 0; height: 22px; display: flex; align-items: center;
+    padding: 1.5px 8px 0; height: 22px; display: flex; align-items: center; gap: 4px;
     border-radius: 0; z-index: 10;
   }
   .badge {
@@ -357,7 +357,7 @@
   }
   .watch-progress { margin-top: 8px; margin-bottom: 10px; }
   .watch-progress-track { height: 16px; border-radius: 8px; background: var(--border); overflow: hidden; position: relative; }
-  .watch-progress-fill { height: 100%; border-radius: 8px 0 0 8px; background: var(--accent); }
+  .watch-progress-fill { height: 100%; border-radius: 8px 0 0 8px; background: var(--gold); }
   .watch-progress-text {
     position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end;
     padding: 0 8px; font-size: 0.66rem; font-weight: 800; color: var(--text);
