@@ -42,7 +42,14 @@ const LS_TOKEN = "simkl_access_token";
 const LS_IMAGE_MODE = "simkl_image_mode"; // "poster" | "banner"
 const LS_THEME = "simkl_theme"; // "light" | "dark"
 const LS_VIEW_MODE = "simkl_view_mode";   // "list" or "airing" (not restored on load - always starts on "list")
-const LS_EPISODE_AVAILABLE_SNAPSHOT = "simkl_episode_available_snapshot"; // { [simklId]: encodeSE(season, episode) of the latest aired episode as of the last check }
+// v2: this used to store each show's available-episode *count*; now it
+// stores encodeSE(season, episode) of its latest aired episode instead -
+// a different, much larger number for the same show, which briefly made
+// every show look like it had a new episode right after that change
+// shipped (the old small count read as "less than" the new key). New key
+// name so that stale v1 data just reads as "never seen", reseeding
+// silently instead of misfiring, same as any other first-time show.
+const LS_EPISODE_AVAILABLE_SNAPSHOT = "simkl_latest_episode_snapshot_v2"; // { [simklId]: encodeSE(season, episode) of the latest aired episode as of the last check }
 
 const app = document.getElementById("app");
 const subtitle = document.getElementById("subtitle");
