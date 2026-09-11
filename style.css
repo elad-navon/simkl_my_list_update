@@ -692,8 +692,11 @@
   .detail-title { font-size: 1.15rem; font-weight: 800; }
   /* Same title styling whether it's plain text (no known imdb id) or a
      link - only a link gets the hover affordance. */
-  a.detail-title { display: block; color: var(--text); text-decoration: none; }
-  a.detail-title:hover { color: var(--accent2); text-decoration: underline; }
+  /* Underline stays on (not just on hover) - otherwise it's visually
+     identical to the plain-text version right above it and nothing
+     signals it's clickable. */
+  a.detail-title { display: block; color: var(--text); text-decoration: underline; text-decoration-color: var(--muted); text-underline-offset: 3px; }
+  a.detail-title:hover { color: var(--accent2); text-decoration-color: var(--accent2); }
   .detail-year { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
   .detail-status { margin-top: 10px; font-size: 0.88rem; font-weight: 700; }
   .detail-status.not-in-list { color: var(--muted); }
