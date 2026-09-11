@@ -2309,6 +2309,40 @@ function syncImageAcrossCards(tmdbId, cfg, index, url) {
   }
 }
 
+// Wired as the onerror handler on every poster/banner <img> (both the top
+// carousel card and the three bottom-panel thumbnails) - covers the case
+// cycleImageWithFlip's own preload check can't: a show's *default*
+// (never-clicked) image path is itself a broken/stale TMDB URL, so the
+// very first render already 404s with nothing to fall back to. Walks
+// forward through that show's other paths directly on the live <img>
+// (no flip animation - this is a silent self-heal, not a user-driven
+// cycle) until one actually loads, tracking attempts on the element
+// itself so a show with every path broken settles on the placeholder
+// tile instead of looping forever.
+function handleThumbError(imgEl, source, idx, mode) {
+  const rows = getCycleRows(source);
+  const row = rows && rows[idx];
+  const cfg = IMAGE_MODE_CONFIG[mode];
+  const paths = row ? row[cfg.pathsKey] : null;
+  const tried = Number(imgEl.dataset.errAttempts || 0) + 1;
+  imgEl.dataset.errAttempts = String(tried);
+
+  if (!row || !paths || !paths.length || tried > paths.length) {
+    const placeholder = document.createElement("div");
+    placeholder.className = imgEl.className + " placeholder";
+    placeholder.textContent = ((row && row.title && row.title[0]) || "?").toUpperCase();
+    imgEl.replaceWith(placeholder);
+    return;
+  }
+  const nextIndex = (row[cfg.indexKey] + tried) % paths.length;
+  const nextUrl = cfg.base + paths[nextIndex];
+  row[cfg.indexKey] = nextIndex;
+  row[cfg.urlKey] = nextUrl;
+  saveImageOverride(row.tmdbId, mode, paths[nextIndex]);
+  syncImageAcrossCards(row.tmdbId, cfg, nextIndex, nextUrl);
+  imgEl.src = nextUrl;
+}
+
 // Black mark, gold text - square corners (no rx), flush at the card's
 // bottom-left corner. Used everywhere the IMDb logo appears as its own
 // chip (the corner badge shared by the top card and Airing Next) so it
@@ -2380,7 +2414,7 @@ function cardImageBits(row, mode, arrIdx, extraOverlayHtml) {
   const imageUrl = mode === "banner" ? (row.bannerUrl || row.posterUrl) : row[cfg.urlKey];
   const posterClass = "poster" + cfg.extraClass;
   const posterHtml = imageUrl
-    ? `<img class="${posterClass}" src="${imageUrl}" alt="${row.title}">`
+    ? `<img class="${posterClass}" src="${imageUrl}" alt="${row.title}" onerror="handleThumbError(this, 'main', ${arrIdx}, '${mode}')">`
     : `<div class="${posterClass} placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
   const altCount = (row[cfg.pathsKey] || []).length;
   const cycleable = altCount > 1;
@@ -2491,10 +2525,11 @@ function thumbCycleAttrs(row, source, idx) {
   const mode = row.bannerUrl ? "banner" : "poster";
   const cfg = IMAGE_MODE_CONFIG[mode];
   const altCount = (row[cfg.pathsKey] || []).length;
-  if (altCount <= 1) return { cycleableClass: "", attrs: "" };
+  if (altCount <= 1) return { cycleableClass: "", attrs: "", mode };
   return {
     cycleableClass: " cycleable",
     attrs: ` data-cycle-key="${source}-${idx}" title="Click right half for next image, left half for previous" onclick="cycleImageWithFlip('${source}', ${idx}, this, '${mode}', event)"`,
+    mode,
   };
 }
 
@@ -2516,10 +2551,10 @@ function renderRecentlyWatchedHtml(list) {
   if (!list || !list.length) return "";
   const rowsHtml = list.map((ep, idx) => {
     const bannerSrc = ep.bannerUrl || ep.posterUrl;
+    const { cycleableClass, attrs, mode } = thumbCycleAttrs(ep, "watched", idx);
     const thumbHtml = bannerSrc
-      ? `<img class="list-thumb" src="${bannerSrc}" alt="${ep.title}">`
+      ? `<img class="list-thumb" src="${bannerSrc}" alt="${ep.title}" onerror="handleThumbError(this, 'watched', ${idx}, '${mode}')">`
       : `<div class="list-thumb placeholder">${(ep.title[0] || "?").toUpperCase()}</div>`;
-    const { cycleableClass, attrs } = thumbCycleAttrs(ep, "watched", idx);
     const episodeCode = `S${String(ep.season).padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`;
     const episodeTitleHtml = ep.episodeTitle ? `<div class="episode-title">${ep.episodeTitle}</div>` : "";
     const badgeModifier = ep.badge === "SEASON FINALE" ? " finale" : ep.badge === "DROPPED" ? " dropped" : "";
@@ -2551,10 +2586,10 @@ function renderPlanToWatchHtml(list) {
   if (!list || !list.length) return "";
   const rowsHtml = list.map((row, idx) => {
     const bannerSrc = row.bannerUrl || row.posterUrl;
+    const { cycleableClass, attrs, mode } = thumbCycleAttrs(row, "plan", idx);
     const thumbHtml = bannerSrc
-      ? `<img class="list-thumb" src="${bannerSrc}" alt="${row.title}">`
+      ? `<img class="list-thumb" src="${bannerSrc}" alt="${row.title}" onerror="handleThumbError(this, 'plan', ${idx}, '${mode}')">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
-    const { cycleableClass, attrs } = thumbCycleAttrs(row, "plan", idx);
     const badgeHtml = row.airedLabel
       ? `<div class="premiere-badge${row.ended ? " finale" : ""}">${row.airedLabel}</div>`
       : "";
@@ -2589,10 +2624,10 @@ function renderAiringNextPreviewHtml(list) {
   if (!list || !list.length) return "";
   const rowsHtml = list.map((row, idx) => {
     const bannerSrc = row.bannerUrl || row.posterUrl;
+    const { cycleableClass, attrs, mode } = thumbCycleAttrs(row, "airing", idx);
     const thumbHtml = bannerSrc
-      ? `<img class="list-thumb" src="${bannerSrc}" alt="${row.title}">`
+      ? `<img class="list-thumb" src="${bannerSrc}" alt="${row.title}" onerror="handleThumbError(this, 'airing', ${idx}, '${mode}')">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
-    const { cycleableClass, attrs } = thumbCycleAttrs(row, "airing", idx);
     const episodeTitle = row.nextEpisodeTitle ? `<div class="episode-title">${row.nextEpisodeTitle}</div>` : "";
     const badgeHtml = row.badge
       ? `<div class="premiere-badge${row.badge === "SEASON FINALE" ? " finale" : ""}">${row.badge}</div>`
