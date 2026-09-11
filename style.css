@@ -264,6 +264,14 @@
     to { transform: rotateY(0deg); }
   }
   .poster.flip-in-rev, .list-thumb.flip-in-rev { animation: poster-flip-in-rev 0.16s ease-out; }
+  /* Applied the instant a cycle click fires, while the replacement image is
+     still loading in the background - the current image stays fully
+     visible and recognizable (never rotated/hidden) so a slow real-world
+     network fetch never reads as "the banner disappeared". The flip
+     itself only starts once the new image is confirmed ready. */
+  .poster.img-pending, .list-thumb.img-pending {
+    transition: opacity 0.15s ease; opacity: 0.55;
+  }
   .imdb-btn {
     /* Flush into the bottom-left corner, square (see IMDB_LOGO_SVG and
        .imdb-rating) rather than merged with the card's radius - matches

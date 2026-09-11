@@ -2427,20 +2427,28 @@ function cycleImageWithFlip(source, idx, wrapEl, modeOverride, evt) {
   const outClass = direction < 0 ? "flip-out-rev" : "flip-out";
   const inClass = direction < 0 ? "flip-in-rev" : "flip-in";
 
-  // Preloads the target image before swapping it in (rather than after) -
-  // previously, the freshly re-rendered <img> could sit there still
-  // loading (or stall outright) with nothing to show, and only a
-  // *different* card's cycle - which re-renders everything, including
-  // this now-idle image - happened to "fix" it by giving that URL another
-  // attempt. That alone wasn't the whole story, though: some individual
-  // poster/backdrop paths TMDB lists for a show turn out to not actually
-  // resolve to a real image (stale metadata) - no amount of retrying that
-  // exact URL helps. So this walks forward past however many candidates
-  // in a row genuinely fail to load (bounded by paths.length, in case
-  // every one of them is broken) and lands on the first one that
-  // actually does, jumping straight there in one cycleImage() call rather
-  // than one call - and one visible re-render - per skipped candidate.
-  const finishCycle = async () => {
+  // The rotate-away flip only ever runs once the replacement image is
+  // already confirmed loaded - never while it's still in flight. Doing it
+  // in the other order (rotate first, load after) is what caused the
+  // "banner disappears" bug: the flip-out leaves the image invisible
+  // (rotated edge-on) for however long the real network fetch takes,
+  // which on an actual connection to TMDB can be way past the ~160ms this
+  // was tuned for, so the invisible gap - not a loading glitch - was what
+  // read as a blank banner. Resolving the image first means the flip is
+  // always short and bounded; the current image just stays fully visible
+  // (only lightly dimmed via .img-pending) for as long as the fetch takes.
+  //
+  // Some individual poster/backdrop paths TMDB lists for a show also turn
+  // out to not actually resolve to a real image (stale metadata) - no
+  // amount of retrying that exact URL helps. So this walks forward past
+  // however many candidates in a row genuinely fail to load (bounded by
+  // paths.length, in case every one of them is broken) and lands on the
+  // first one that actually does, jumping straight there in one
+  // cycleImage() call rather than one call per skipped candidate.
+  const img = wrapEl.querySelector(".poster, .list-thumb");
+
+  (async () => {
+    if (img) img.classList.add("img-pending");
     let index = row[cfg.indexKey];
     let attempts = 0;
     let loaded = false;
@@ -2451,10 +2459,15 @@ function cycleImageWithFlip(source, idx, wrapEl, modeOverride, evt) {
       if (loaded) break;
     }
     if (!loaded) {
-      // Every alternate image failed - leave the current one in place
-      // rather than committing to a known-broken URL.
-      if (img) img.classList.remove(outClass);
+      // Every alternate image failed - leave the current one exactly as
+      // it was, never having gone invisible or committed a broken URL.
+      if (img) img.classList.remove("img-pending");
       return;
+    }
+    if (img) {
+      img.classList.remove("img-pending");
+      img.classList.add(outClass);
+      await new Promise(r => setTimeout(r, 160));
     }
     cycleImage(source, idx, modeOverride, direction, index);
     requestAnimationFrame(() => {
@@ -2462,15 +2475,7 @@ function cycleImageWithFlip(source, idx, wrapEl, modeOverride, evt) {
       const newImg = newWrap && newWrap.querySelector(".poster, .list-thumb");
       if (newImg) newImg.classList.add(inClass);
     });
-  };
-
-  const img = wrapEl.querySelector(".poster, .list-thumb");
-  if (img) {
-    img.classList.add(outClass);
-    setTimeout(finishCycle, 160);
-  } else {
-    finishCycle();
-  }
+  })();
 }
 
 // Computes the click-to-cycle wrapper attributes for a bottom-panel
