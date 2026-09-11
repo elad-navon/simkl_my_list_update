@@ -2405,7 +2405,17 @@ function cycleImageWithFlip(source, idx, wrapEl, modeOverride, evt) {
   const outClass = direction < 0 ? "flip-out-rev" : "flip-out";
   const inClass = direction < 0 ? "flip-in-rev" : "flip-in";
 
-  const finishCycle = () => {
+  // Preloading the target image before swapping it in (rather than after)
+  // is what keeps this from ever visibly landing on the thumbnail's own
+  // empty background color - previously, the freshly re-rendered <img>
+  // could sit there still loading (or, rarely, stall outright) with
+  // nothing to show, and only a *different* card's cycle - which
+  // re-renders everything, including this now-idle image - happened to
+  // "fix" it by giving the same URL another attempt. preloadImage has its
+  // own 5s stall guard, so a genuinely stuck request still resolves.
+  const finishCycle = async () => {
+    const nextIndex = (row[cfg.indexKey] + direction + paths.length) % paths.length;
+    await preloadImage(cfg.base + paths[nextIndex]);
     cycleImage(source, idx, modeOverride, direction);
     requestAnimationFrame(() => {
       const newWrap = document.querySelector(`[data-cycle-key="${source}-${idx}"]`);
