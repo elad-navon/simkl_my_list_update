@@ -2256,21 +2256,10 @@ function getCycleRows(source) {
   }
 }
 
-function rerenderAfterCycle(source) {
-  if (source === "main" && currentView === "airing") {
-    renderAiringRows(airingRows);
-  } else {
-    // Bottom-panel rows were mutated in place (same array/row references
-    // renderRows already has cached), so a 3-arg call re-renders them from
-    // that cache instead of needing their own dedicated render calls.
-    renderRows(lastRows, lastTotalEps, lastTotalMinutes);
-  }
-}
-
 // explicitIndex jumps straight to a known index (used by
 // cycleImageWithFlip once it's confirmed which candidate actually loads)
 // instead of stepping by `direction` from the current one - so skipping
-// past a broken image doesn't need one cycleImage()+re-render per skip.
+// past a broken image doesn't need one cycleImage()+patch per skip.
 function cycleImage(source, idx, modeOverride, direction, explicitIndex) {
   const rows = getCycleRows(source);
   const row = rows && rows[idx];
@@ -2286,7 +2275,7 @@ function cycleImage(source, idx, modeOverride, direction, explicitIndex) {
   row[cfg.urlKey] = cfg.base + newPath;
   saveImageOverride(row.tmdbId, mode, newPath); // survives the next refresh
   syncImageAcrossCards(row.tmdbId, cfg, row[cfg.indexKey], row[cfg.urlKey]);
-  rerenderAfterCycle(source);
+  patchImagesForTmdbId(row.tmdbId);
 }
 
 // The same show can appear in the top carousel and in any of the three
@@ -2306,6 +2295,49 @@ function syncImageAcrossCards(tmdbId, cfg, index, url) {
         r[cfg.urlKey] = url;
       }
     }
+  }
+}
+
+// What a given card is actually showing right now, matching the exact
+// rule each render function uses (cardImageBits for "main", "whichever
+// of banner/poster is present" for the three bottom panels via
+// thumbCycleAttrs) - kept in sync with those so a patched <img> always
+// shows what a full re-render of that same row would have shown.
+function displaySrcFor(source, row) {
+  if (source === "main") {
+    const mode = getImageMode();
+    const cfg = IMAGE_MODE_CONFIG[mode];
+    return mode === "banner" ? (row.bannerUrl || row.posterUrl) : row[cfg.urlKey];
+  }
+  return row.bannerUrl || row.posterUrl;
+}
+
+// Updates every currently-rendered <img> for a show directly, in place -
+// used after a cycle instead of a full renderRows()/renderAiringRows()
+// rebuild. A full rebuild recreates every card's <img> tag across every
+// panel, not just the one being cycled, which was flashing every
+// thumbnail on screen blank on a single click while they all re-fetched
+// (even already-loaded, unrelated) images. The cycled image itself is
+// already confirmed loaded (cycleImageWithFlip only calls cycleImage
+// once preloadImageOk succeeds), so this swap is instant.
+function patchImagesForTmdbId(tmdbId) {
+  if (tmdbId == null) return;
+  const groups = [
+    { source: "main", rows: currentView === "airing" ? airingRows : lastRows },
+    { source: "watched", rows: lastRecentlyWatched },
+    { source: "plan", rows: lastPlanToWatch },
+    { source: "airing", rows: lastAiringPreview },
+  ];
+  for (const { source, rows } of groups) {
+    if (!rows) continue;
+    rows.forEach((r, i) => {
+      if (!r || r.tmdbId !== tmdbId) return;
+      const wrap = document.querySelector(`[data-cycle-key="${source}-${i}"]`);
+      const img = wrap && wrap.querySelector(".poster, .list-thumb");
+      if (!img) return;
+      const newSrc = displaySrcFor(source, r);
+      if (newSrc && img.src !== newSrc) img.src = newSrc;
+    });
   }
 }
 
@@ -2503,12 +2535,15 @@ function cycleImageWithFlip(source, idx, wrapEl, modeOverride, evt) {
       img.classList.add(outClass);
       await new Promise(r => setTimeout(r, 160));
     }
+    // Patches every card showing this show in place - no full-panel
+    // rebuild, so every *other* thumbnail on screen stays untouched
+    // instead of flashing blank while it re-requests an already-loaded
+    // image. img is still the same live element (nothing tore it down).
     cycleImage(source, idx, modeOverride, direction, index);
-    requestAnimationFrame(() => {
-      const newWrap = document.querySelector(`[data-cycle-key="${source}-${idx}"]`);
-      const newImg = newWrap && newWrap.querySelector(".poster, .list-thumb");
-      if (newImg) newImg.classList.add(inClass);
-    });
+    if (img) {
+      img.classList.remove(outClass);
+      requestAnimationFrame(() => img.classList.add(inClass));
+    }
   })();
 }
 
