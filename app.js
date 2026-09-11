@@ -2513,36 +2513,59 @@ function cycleImageWithFlip(source, idx, wrapEl, modeOverride, evt) {
   // cycleImage() call rather than one call per skipped candidate.
   const img = wrapEl.querySelector(".poster, .list-thumb");
 
+  // A real preload can take a real few seconds, and .img-pending is only
+  // a subtle dimming with no other feedback - a second, impatient click
+  // on the same image while the first is still resolving is completely
+  // normal. Without this guard, two overlapping cycles each only clean up
+  // their *own* flip-out/flip-out-rev variant, so one's leftover class
+  // could survive the other's cleanup - which is exactly how an image was
+  // found permanently stuck rotated away (invisible) with a stale
+  // flip-out class still on it, never touched by anything afterward since
+  // nothing else ever re-renders that element anymore (see
+  // patchImagesForTmdbId). Ignoring clicks while one is already in
+  // flight removes the race entirely.
+  if (img && img.dataset.cycling === "1") return;
+  if (img) img.dataset.cycling = "1";
+
   (async () => {
-    if (img) img.classList.add("img-pending");
-    let index = row[cfg.indexKey];
-    let attempts = 0;
-    let loaded = false;
-    while (attempts < paths.length) {
-      index = (index + direction + paths.length) % paths.length;
-      attempts++;
-      loaded = await preloadImageOk(cfg.base + paths[index]);
-      if (loaded) break;
-    }
-    if (!loaded) {
-      // Every alternate image failed - leave the current one exactly as
-      // it was, never having gone invisible or committed a broken URL.
-      if (img) img.classList.remove("img-pending");
-      return;
-    }
-    if (img) {
-      img.classList.remove("img-pending");
-      img.classList.add(outClass);
-      await new Promise(r => setTimeout(r, 160));
-    }
-    // Patches every card showing this show in place - no full-panel
-    // rebuild, so every *other* thumbnail on screen stays untouched
-    // instead of flashing blank while it re-requests an already-loaded
-    // image. img is still the same live element (nothing tore it down).
-    cycleImage(source, idx, modeOverride, direction, index);
-    if (img) {
-      img.classList.remove(outClass);
-      requestAnimationFrame(() => img.classList.add(inClass));
+    try {
+      if (img) img.classList.add("img-pending");
+      let index = row[cfg.indexKey];
+      let attempts = 0;
+      let loaded = false;
+      while (attempts < paths.length) {
+        index = (index + direction + paths.length) % paths.length;
+        attempts++;
+        loaded = await preloadImageOk(cfg.base + paths[index]);
+        if (loaded) break;
+      }
+      if (!loaded) return; // every alternate failed - leave the current image as-is
+
+      if (img) {
+        img.classList.remove("img-pending");
+        img.classList.add(outClass);
+        await new Promise(r => setTimeout(r, 160));
+      }
+      // Patches every card showing this show in place - no full-panel
+      // rebuild, so every *other* thumbnail on screen stays untouched
+      // instead of flashing blank while it re-requests an already-loaded
+      // image. img is still the same live element (nothing tore it down).
+      cycleImage(source, idx, modeOverride, direction, index);
+      if (img) {
+        img.classList.remove(outClass);
+        requestAnimationFrame(() => img.classList.add(inClass));
+      }
+    } catch (e) {
+      console.error("cycleImageWithFlip failed:", e);
+    } finally {
+      // Whatever happened above - success, a skipped cycle, or an
+      // unexpected exception - the image must never be left dimmed or
+      // rotated away permanently; both are only ever meant to be
+      // transient mid-cycle states.
+      if (img) {
+        img.classList.remove("img-pending", "flip-out", "flip-out-rev");
+        delete img.dataset.cycling;
+      }
     }
   })();
 }
