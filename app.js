@@ -1873,6 +1873,22 @@ function preloadImage(src) {
   });
 }
 
+// Same idea as preloadImage, but reports whether the image actually loaded
+// instead of resolving unconditionally - used where a failed load needs to
+// be treated differently from a successful one (see cycleImageWithFlip),
+// rather than just "eventually shows up or doesn't".
+function preloadImageOk(src) {
+  return new Promise(resolve => {
+    const img = new Image();
+    let settled = false;
+    const finish = (ok) => { if (!settled) { settled = true; resolve(ok); } };
+    img.onload = () => finish(true);
+    img.onerror = () => finish(false);
+    img.src = src;
+    setTimeout(() => finish(false), 5000);
+  });
+}
+
 let castModalOpenToken = 0;
 
 // Main cast for a show - opened by clicking its title in any of the four
@@ -2251,7 +2267,11 @@ function rerenderAfterCycle(source) {
   }
 }
 
-function cycleImage(source, idx, modeOverride, direction) {
+// explicitIndex jumps straight to a known index (used by
+// cycleImageWithFlip once it's confirmed which candidate actually loads)
+// instead of stepping by `direction` from the current one - so skipping
+// past a broken image doesn't need one cycleImage()+re-render per skip.
+function cycleImage(source, idx, modeOverride, direction, explicitIndex) {
   const rows = getCycleRows(source);
   const row = rows && rows[idx];
   if (!row) return;
@@ -2259,7 +2279,9 @@ function cycleImage(source, idx, modeOverride, direction) {
   const cfg = IMAGE_MODE_CONFIG[mode];
   const paths = row[cfg.pathsKey];
   if (!paths || paths.length <= 1) return; // nothing else to switch to
-  row[cfg.indexKey] = (row[cfg.indexKey] + (direction || 1) + paths.length) % paths.length;
+  row[cfg.indexKey] = explicitIndex != null
+    ? explicitIndex
+    : (row[cfg.indexKey] + (direction || 1) + paths.length) % paths.length;
   const newPath = paths[row[cfg.indexKey]];
   row[cfg.urlKey] = cfg.base + newPath;
   saveImageOverride(row.tmdbId, mode, newPath); // survives the next refresh
@@ -2405,18 +2427,36 @@ function cycleImageWithFlip(source, idx, wrapEl, modeOverride, evt) {
   const outClass = direction < 0 ? "flip-out-rev" : "flip-out";
   const inClass = direction < 0 ? "flip-in-rev" : "flip-in";
 
-  // Preloading the target image before swapping it in (rather than after)
-  // is what keeps this from ever visibly landing on the thumbnail's own
-  // empty background color - previously, the freshly re-rendered <img>
-  // could sit there still loading (or, rarely, stall outright) with
-  // nothing to show, and only a *different* card's cycle - which
-  // re-renders everything, including this now-idle image - happened to
-  // "fix" it by giving the same URL another attempt. preloadImage has its
-  // own 5s stall guard, so a genuinely stuck request still resolves.
+  // Preloads the target image before swapping it in (rather than after) -
+  // previously, the freshly re-rendered <img> could sit there still
+  // loading (or stall outright) with nothing to show, and only a
+  // *different* card's cycle - which re-renders everything, including
+  // this now-idle image - happened to "fix" it by giving that URL another
+  // attempt. That alone wasn't the whole story, though: some individual
+  // poster/backdrop paths TMDB lists for a show turn out to not actually
+  // resolve to a real image (stale metadata) - no amount of retrying that
+  // exact URL helps. So this walks forward past however many candidates
+  // in a row genuinely fail to load (bounded by paths.length, in case
+  // every one of them is broken) and lands on the first one that
+  // actually does, jumping straight there in one cycleImage() call rather
+  // than one call - and one visible re-render - per skipped candidate.
   const finishCycle = async () => {
-    const nextIndex = (row[cfg.indexKey] + direction + paths.length) % paths.length;
-    await preloadImage(cfg.base + paths[nextIndex]);
-    cycleImage(source, idx, modeOverride, direction);
+    let index = row[cfg.indexKey];
+    let attempts = 0;
+    let loaded = false;
+    while (attempts < paths.length) {
+      index = (index + direction + paths.length) % paths.length;
+      attempts++;
+      loaded = await preloadImageOk(cfg.base + paths[index]);
+      if (loaded) break;
+    }
+    if (!loaded) {
+      // Every alternate image failed - leave the current one in place
+      // rather than committing to a known-broken URL.
+      if (img) img.classList.remove(outClass);
+      return;
+    }
+    cycleImage(source, idx, modeOverride, direction, index);
     requestAnimationFrame(() => {
       const newWrap = document.querySelector(`[data-cycle-key="${source}-${idx}"]`);
       const newImg = newWrap && newWrap.querySelector(".poster, .list-thumb");
