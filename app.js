@@ -414,17 +414,20 @@ class TmdbCache {
         this.show.set(tmdbId, Promise.resolve(cached));
         return this.show.get(tmdbId);
       }
-      // append_to_response=images pulls ALL available posters/backdrops for
-      // this show in the same request, so we can offer alternates later.
-      // include_image_language asks for English + untagged (no-language) +
-      // Hebrew images - English/no-language is preferred (see computeImages),
-      // Hebrew is used only as a fallback for shows that only have
-      // Hebrew-text artwork (some Israeli shows).
-      // TMDB is purely supplementary now (images/runtime estimate only,
-      // never episode counts) - a failure here degrades gracefully to
-      // null rather than crashing whichever show triggered it.
+      // append_to_response=images,external_ids pulls both ALL available
+      // posters/backdrops (for the cycle-through-alternates feature) and
+      // this show's imdb id (for the search-detail modal's title link) in
+      // the one request every show already needs, rather than firing a
+      // second one just for the id. include_image_language asks for
+      // English + untagged (no-language) + Hebrew images -
+      // English/no-language is preferred (see computeImages), Hebrew is
+      // used only as a fallback for shows that only have Hebrew-text
+      // artwork (some Israeli shows).
+      // TMDB is purely supplementary now (images/external id/runtime
+      // estimate only, never episode counts) - a failure here degrades
+      // gracefully to null rather than crashing whichever show triggered it.
       const promise = tmdbGet(`/tv/${tmdbId}`, {
-        append_to_response: "images",
+        append_to_response: "images,external_ids",
         language: "en-US",
         include_image_language: "en,null,he",
       }).then(data => {
@@ -1689,7 +1692,20 @@ async function openShowDetail(show) {
   const ids = show.ids || {};
   let libraryMatch = null;
   try {
-    libraryMatch = await findShowLibraryStatus(ids, simklToken);
+    // Runs alongside the library lookup rather than after it - a TMDB
+    // (as opposed to SIMKL) search result never carries an imdb id on its
+    // own, which used to mean no link at all for anything not already in
+    // the user's library. getShow's own response already includes
+    // external_ids (see TmdbCache.getShow), so this reuses the exact same
+    // cached per-show fetch every other TMDB-backed feature here does,
+    // rather than a dedicated request.
+    const [match, showDetail] = await Promise.all([
+      findShowLibraryStatus(ids, simklToken),
+      (!ids.imdb && ids.tmdb && sharedCache) ? sharedCache.getShow(ids.tmdb) : null,
+    ]);
+    libraryMatch = match;
+    const fetchedImdbId = showDetail && showDetail.external_ids && showDetail.external_ids.imdb_id;
+    if (fetchedImdbId) ids.imdb = fetchedImdbId;
   } catch (err) {
     body.innerHTML = `
       <button class="modal-back-btn" id="detailBackBtn">&larr; Back to search</button>
@@ -1697,6 +1713,7 @@ async function openShowDetail(show) {
     document.getElementById("detailBackBtn").onclick = renderSearchStep;
     return;
   }
+  show.ids = ids;
   renderShowDetail(show, libraryMatch);
 }
 
