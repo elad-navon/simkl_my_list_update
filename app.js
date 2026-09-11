@@ -51,6 +51,21 @@ const LS_VIEW_MODE = "simkl_view_mode";   // "list" or "airing" (not restored on
 // silently instead of misfiring, same as any other first-time show.
 const LS_EPISODE_AVAILABLE_SNAPSHOT = "simkl_latest_episode_snapshot_v2"; // { [simklId]: encodeSE(season, episode) of the latest aired episode as of the last check }
 
+// A plain localStorage.setItem() throws QuotaExceededError once the
+// origin's whole quota is full - which used to be able to abort renderRows
+// itself (it persists the current view mode partway through), and
+// separately made cycling a poster/banner silently stop doing anything
+// visible (see saveImageOverride). None of these are anything more than
+// a remembered preference/snapshot - losing one write is harmless, so it
+// should never be allowed to break whatever the caller was actually doing.
+function safeSetItem(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch (e) {
+    // quota full or storage unavailable - not critical enough to throw over
+  }
+}
+
 const app = document.getElementById("app");
 const subtitle = document.getElementById("subtitle");
 
@@ -123,13 +138,13 @@ function showSettings(afterSaveCallback) {
       document.getElementById("settingsError").textContent = "Both fields are required.";
       return;
     }
-    localStorage.setItem(LS_CLIENT_ID, clientId);
-    localStorage.setItem(LS_TMDB_KEY, tmdbKey);
+    safeSetItem(LS_CLIENT_ID, clientId);
+    safeSetItem(LS_TMDB_KEY, tmdbKey);
     if (afterSaveCallback) afterSaveCallback();
   };
   document.getElementById("themeToggleBtn").onclick = () => {
     const isLight = document.body.classList.toggle("light-theme");
-    localStorage.setItem(LS_THEME, isLight ? "light" : "dark");
+    safeSetItem(LS_THEME, isLight ? "light" : "dark");
     updateThemeToggleButton();
   };
   updateThemeToggleButton();
@@ -199,7 +214,7 @@ async function getAccessToken() {
       continue; // keep polling through transient errors
     }
     if (poll && poll.result === "OK" && poll.access_token) {
-      localStorage.setItem(LS_TOKEN, poll.access_token);
+      safeSetItem(LS_TOKEN, poll.access_token);
       return poll.access_token;
     }
   }
@@ -347,6 +362,37 @@ function writePersistedCache(key, value) {
   } catch (e) {
     // localStorage full or unavailable - the in-memory cache for this
     // session still works fine, just nothing persists across reloads.
+  }
+}
+
+// A read here already ignores anything past its own TTL, but never
+// deletes it - so months of browsing quietly leaves every expired entry
+// sitting in localStorage forever, until the origin's whole quota fills
+// up. At that point *every* localStorage.setItem() on this origin starts
+// throwing QuotaExceededError, including totally unrelated ones (like
+// saveImageOverride) - which is exactly how cycling a poster/banner once
+// silently stopped actually changing anything. Run once per page load;
+// 7 days covers the longest TTL any entry actually uses, so nothing still
+// legitimately in use is ever removed early.
+const MAX_PERSISTED_CACHE_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+function prunePersistedCache() {
+  try {
+    const toRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(API_CACHE_PREFIX)) continue;
+      let stale = true;
+      try {
+        const entry = JSON.parse(localStorage.getItem(key));
+        stale = !entry || typeof entry.t !== "number" || Date.now() - entry.t > MAX_PERSISTED_CACHE_AGE_MS;
+      } catch (e) {
+        stale = true; // corrupt entry - just as well gone
+      }
+      if (stale) toRemove.push(key);
+    }
+    toRemove.forEach(key => localStorage.removeItem(key));
+  } catch (e) {
+    // localStorage unavailable - nothing to prune anyway
   }
 }
 
@@ -779,15 +825,27 @@ function getImageOverrides() {
 }
 
 // Remembers a manually-picked poster/banner (from clicking to cycle) so it
-// survives a refresh instead of resetting to TMDB's default pick.
+// survives a refresh instead of resetting to TMDB's default pick. Not
+// critical to the click actually succeeding - a QuotaExceededError here
+// (typically from the much larger persisted API cache below filling up
+// the origin's whole localStorage quota, see prunePersistedCache) used to
+// bubble all the way up and abort the in-progress cycle before it ever
+// touched the DOM: the flip-out/flip-in classes would still get added and
+// stripped by cycleImageWithFlip's cleanup, so it visibly flashed through
+// the motion of changing, while the image itself silently never did.
 function saveImageOverride(tmdbId, mode, path) {
   if (!tmdbId) return;
-  const overrides = getImageOverrides();
-  const entry = overrides[tmdbId] || {};
-  if (mode === "banner") entry.bannerPath = path;
-  else entry.posterPath = path;
-  overrides[tmdbId] = entry;
-  localStorage.setItem(LS_IMAGE_OVERRIDES, JSON.stringify(overrides));
+  try {
+    const overrides = getImageOverrides();
+    const entry = overrides[tmdbId] || {};
+    if (mode === "banner") entry.bannerPath = path;
+    else entry.posterPath = path;
+    overrides[tmdbId] = entry;
+    localStorage.setItem(LS_IMAGE_OVERRIDES, JSON.stringify(overrides));
+  } catch (e) {
+    // Doesn't persist across a reload this time, but the cycle itself
+    // (row state + the visible DOM patch) must still go through.
+  }
 }
 
 function computeImages(showDetail, tmdbId) {
@@ -2754,7 +2812,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   if (planToWatch !== undefined) lastPlanToWatch = planToWatch;
   if (airingPreview !== undefined) lastAiringPreview = airingPreview;
   currentView = "list";
-  localStorage.setItem(LS_VIEW_MODE, "list");
+  safeSetItem(LS_VIEW_MODE, "list");
   updateViewModeButton();
 
   const bottomPanelsHtml = [
@@ -2918,7 +2976,7 @@ function updateCarouselArrows() {
 
 function renderAiringRows(rows) {
   currentView = "airing";
-  localStorage.setItem(LS_VIEW_MODE, "airing");
+  safeSetItem(LS_VIEW_MODE, "airing");
   updateViewModeButton();
 
   if (!rows.length) {
@@ -3165,7 +3223,7 @@ document.getElementById("settingsBtn").onclick = () => showSettings(main);
 document.getElementById("addShowBtn").onclick = openSearchModal;
 document.getElementById("imageModeBtn").onclick = () => {
   const current = getImageMode();
-  localStorage.setItem(LS_IMAGE_MODE, nextImageMode(current));
+  safeSetItem(LS_IMAGE_MODE, nextImageMode(current));
   if (currentView === "airing" && airingRows) {
     renderAiringRows(airingRows); // instant, no re-fetch
   } else if (lastRows) {
@@ -3219,6 +3277,7 @@ applyStoredTheme();
   }, true);
 })();
 
+prunePersistedCache();
 main();
 
 if ("serviceWorker" in navigator) {
