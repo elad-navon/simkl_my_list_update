@@ -1730,12 +1730,24 @@ function renderShowDetail(show, libraryMatch) {
        <button class="card-menu-item danger" id="detailRemoveBtn">Remove from list</button>`
     : "";
 
+  // The search result itself carries an imdb id when it came from SIMKL's
+  // own search; a TMDB-sourced result (the Hebrew-query fallback) doesn't,
+  // but the library lookup just above already pulled the full SIMKL show
+  // record (extended=full) for anything already on the user's list, which
+  // does carry one - falls back to no link at all rather than a dead one.
+  const libraryShowIds = libraryMatch && libraryMatch.item.show && libraryMatch.item.show.ids;
+  const imdbId = (show.ids && show.ids.imdb) || (libraryShowIds && libraryShowIds.imdb) || null;
+  const titleText = show.title || "Unknown";
+  const detailTitleHtml = imdbId
+    ? `<a class="detail-title" href="https://www.imdb.com/title/${imdbId}/" target="_blank" rel="noopener" title="Open on IMDb" onclick="event.stopPropagation()">${titleText}</a>`
+    : `<div class="detail-title">${titleText}</div>`;
+
   body.innerHTML = `
     <button class="modal-back-btn" id="detailBackBtn">&larr; Back to search</button>
     <div class="detail-header">
       ${posterHtml}
       <div class="detail-info">
-        <div class="detail-title">${show.title || "Unknown"}</div>
+        ${detailTitleHtml}
         <div class="detail-year">${show.year || ""}</div>
         ${statusHtml}
       </div>
