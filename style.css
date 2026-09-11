@@ -301,7 +301,18 @@
     position: relative; overflow: hidden; perspective: 900px;
   }
   .card .poster-wrap { border-radius: 0; }
-  .poster { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; background: #22303e; display: block; }
+  /* A flat, static background here reads identically whether the image is
+     still loading (e.g. a slow TMDB response) or genuinely broken - the
+     pulse gives "still loading" its own visible identity, so a slow
+     fetch never looks like the poster/banner disappeared outright. Once
+     the real image loads, object-fit: cover paints over it completely,
+     so the animation itself is never actually visible - only its absence
+     (a static fill) once the image is there. */
+  @keyframes thumb-loading-pulse {
+    0%, 100% { background-color: #22303e; }
+    50% { background-color: #32485e; }
+  }
+  .poster { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; background: #22303e; display: block; animation: thumb-loading-pulse 1.6s ease-in-out infinite; }
   .poster.banner-img { aspect-ratio: 16 / 9; }
   .poster.placeholder {
     display: flex; align-items: center; justify-content: center;
@@ -441,6 +452,7 @@
   .list-thumb {
     width: 161px; height: 91px; border-radius: 6px; object-fit: cover;
     background: #22303e; flex: 0 0 auto; display: block;
+    animation: thumb-loading-pulse 1.6s ease-in-out infinite;
   }
   .list-thumb.placeholder {
     display: flex; align-items: center; justify-content: center;
