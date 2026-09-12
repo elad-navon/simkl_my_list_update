@@ -600,6 +600,13 @@
     max-height: none; white-space: normal; display: -webkit-box;
     -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   }
+  /* A 2-line title (above) already uses up the card's one spare line, so
+     Plan to Watch's year badge and IMDb line - both looser than every
+     other line's 2px rhythm - need to give a little of that back, or a
+     title that wraps pushes the last line (the IMDb rating) past the
+     card's fixed height and it gets clipped away entirely. */
+  .mini-card .premiere-badge.year-badge { margin-top: 2px; }
+  .mini-card .list-imdb { margin-top: 2px; }
   .center-box {
     max-width: 480px; margin: 60px auto; background: var(--card); border-radius: 14px;
     padding: 30px; text-align: center; box-shadow: 0 6px 22px rgba(0,0,0,0.35);
