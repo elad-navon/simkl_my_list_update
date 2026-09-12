@@ -457,9 +457,9 @@
   }
   .panel-side-label .label-text {
     font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif; color: var(--text);
-    font-weight: 700; font-size: 0.92rem; letter-spacing: 0.02em; text-transform: uppercase; line-height: 1.2;
+    font-weight: 700; font-size: 1.1rem; letter-spacing: 0.02em; text-transform: uppercase; line-height: 1.2;
   }
-  .panel-side-label .label-count { font-size: 0.7rem; color: var(--muted); font-weight: 600; }
+  .panel-side-label .label-count { font-size: 0.74rem; color: var(--muted); font-weight: 600; }
   .list-row {
     display: flex; align-items: center; gap: 14px; padding: 12px 0;
     border-bottom: 1px solid var(--border);
