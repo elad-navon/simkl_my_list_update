@@ -539,14 +539,21 @@
   .thumb-col .list-thumb-wrap { width: 161px; flex: 0 0 auto; }
   .thumb-col .list-thumb { width: 161px; height: 91px; border-radius: 0; }
   .status-strip {
-    /* Small enough that even a long Plan to Watch label ("Series Ended -
-       1000 Episodes") measures under the thumbnail's own 161px width and
-       stays on one line - checked against the actual rendered text, not
-       guessed. white-space still allows wrapping as a fallback rather than
-       ever clipping, for anything longer than that. */
+    /* Must never wrap to a 2nd line - a taller strip means a taller
+       thumb-col, which (every card in a row stretches to the tallest)
+       can grow the whole row past the fixed height every other card's
+       thumbnail relies on to keep touching the frame on all 3 sides. The
+       0.56rem size fits real content on one line already (checked against
+       actual rendered text - even "Series Ended - 1000 Episodes" fits);
+       nowrap + ellipsis below is the hard guarantee for anything longer
+       (e.g. a far-future air date spelling out the full month name). */
     flex: 0 0 auto; display: flex; align-items: center; justify-content: center; gap: 5px;
     font-size: 0.56rem; font-weight: 700; letter-spacing: 0.02em; line-height: 1.25;
-    padding: 4px 6px; text-align: center;
+    padding: 4px 6px; text-align: center; white-space: nowrap; overflow: hidden;
+  }
+  .status-strip span {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    display: inline-block; max-width: 100%;
   }
   .status-strip.neutral { background: #0f151c; color: var(--accent2); }
   .status-strip.status-ended { background: var(--muted); color: #111820; font-weight: 800; text-transform: uppercase; }
@@ -566,6 +573,14 @@
     display: flex; flex-direction: column; justify-content: flex-start; width: 220px; flex: 0 0 auto;
     padding: 12px 12px 12px 0; max-height: 110px; overflow: hidden;
   }
+  /* Without this, a body whose lines add up to more than max-height (e.g. a
+     SEASON FINALE badge wrapping to its own line on a narrow mobile card)
+     doesn't clip its last line - flexbox shrinks every line's box to fit
+     instead, squashing each one below its own text's height, which paints
+     as every line sliced clean in half. flex-shrink: 0 keeps each line at
+     its natural size, so the (rare) overflow case just clips the bottom
+     line away whole, which is what overflow: hidden above was meant to do. */
+  .mini-card-body > * { flex-shrink: 0; }
   /* Truncated to one line rather than wrapping - a long title growing the
      card past the (fixed) thumbnail's height is exactly what the max-height
      above prevents; better an intentional ellipsis than a mid-word clip. */
