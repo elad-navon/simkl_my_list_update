@@ -458,6 +458,10 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 1.9rem; font-weight: 700; color: var(--muted);
   }
+  /* +15% over the base 161x91 (still ~16:9) - scoped to the three bottom
+     panels only, not the (differently-sized) new-episode notification
+     banner, which reuses the same .list-thumb/.list-row markup. */
+  .list-panel .list-thumb { width: 185px; height: 105px; }
   .list-row-title-wrap { flex: 1 1 auto; min-width: 0; }
   .list-row-title {
     /* Matches the top card's title (.card-body h3) size/spacing, so the
@@ -823,7 +827,7 @@
       flex: 0 0 auto; width: 200px; flex-direction: column; align-items: stretch;
       gap: 8px; padding: 0; border-bottom: none;
     }
-    .list-thumb { width: 100%; height: auto; aspect-ratio: 16 / 9; }
+    .list-thumb, .list-panel .list-thumb { width: 100%; height: auto; aspect-ratio: 16 / 9; }
     .list-thumb-wrap { width: 100%; }
     .title-with-year { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px; }
     .title-with-year .premiere-badge.year-badge { flex-basis: 100%; margin-top: 0; }
