@@ -421,11 +421,13 @@
     text-align: center; color: var(--muted); font-size: 0.85rem;
     max-width: 700px; margin: 22px auto 0;
   }
-  /* ===================== Recently Watched / Airing Next / Plan to Watch panels ===================== */
+  /* ===================== Airing Next / Recently Watched / Plan to Watch panels =====================
+     Stacked full-width in that fixed order, each panel's own row of mini-cards
+     scrolling horizontally - see panelCarouselHtml in app.js. */
   .bottom-panels-row {
-    display: flex; gap: 22px; margin: 26px auto 0; align-items: flex-start;
+    display: flex; flex-direction: column; gap: 22px; margin: 26px auto 0;
   }
-  .bottom-panels-row .list-panel { flex: 1 1 0; min-width: 0; }
+  .bottom-panels-row .list-panel { width: 100%; }
   .list-panel {
     background: var(--card); border: 1px solid var(--border); border-radius: 12px;
     padding: 18px 20px;
@@ -436,14 +438,6 @@
     font-weight: 700; font-size: 1.3rem; letter-spacing: 0.02em; margin-bottom: 14px;
     border-bottom: 3px solid var(--gold); padding-bottom: 8px;
   }
-  /* Vertical carousel - all three panels show ~5 rows before scrolling
-     (5 * (76px banner thumb + 24px row padding + 1px border) = 505px). */
-  .list-rows-scroll {
-    max-height: 580px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent;
-    padding-right: 14px; margin-right: -14px;
-  }
-  .list-rows-scroll::-webkit-scrollbar { width: 6px; }
-  .list-rows-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
   .list-row {
     display: flex; align-items: center; gap: 14px; padding: 12px 0;
     border-bottom: 1px solid var(--border);
@@ -479,7 +473,6 @@
     background: rgba(255,255,255,0.94); border-radius: 3px; padding: 3px 6px;
     box-sizing: content-box;
   }
-  .list-row-airdate { color: var(--accent2); font-weight: 700; font-size: 0.8rem; margin-top: 4px; }
   .premiere-badge {
     display: inline-block; background: #2fa84f; color: #fff; font-weight: 800;
     font-size: 0.64rem; letter-spacing: 0.01em; padding: 3px 6px; border-radius: 4px;
@@ -490,23 +483,43 @@
   .premiere-badge.dropped { background: var(--muted); color: #111820; }
   .title-with-year { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .title-with-year .list-row-title { flex: 0 1 auto; }
-  /* Pinned to the row's own top-right corner (same edge the star badge
-     sits on, further down) instead of living inside the title's flex
-     flow - that's the only way to sit at the row's true right edge while
-     staying up at the title's height, since the star already claims that
-     edge lower down and there's no room further right than the edge itself. */
-  .list-panel--plan .list-row { position: relative; }
-  .plan-menu-btn { position: absolute; top: 12px; right: 0; margin: 0; }
+  /* Pinned to the card's own top-right corner instead of living inside the
+     title's flex flow - the only way to sit at that fixed corner regardless
+     of how long the title/badges below it run. */
+  .list-panel--plan .mini-card { position: relative; }
+  .plan-menu-btn { position: absolute; top: 10px; right: 10px; margin: 0; }
   .next-up-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .next-up-row .next-up { margin: 2px 0 0; }
   .next-up-row .premiere-badge { margin-top: 2px; }
   .list-thumb-wrap { position: relative; flex: 0 0 auto; perspective: 900px; }
-  .list-check {
-    flex: 0 0 auto; width: 31px; height: 31px; border-radius: 50%;
-    border: 1.5px solid var(--accent); color: var(--accent);
-    display: flex; align-items: center; justify-content: center;
-  }
   .list-imdb { margin-top: 4px; display: flex; align-items: center; gap: 8px; }
+
+  /* ===================== Bottom-panel mini cards (horizontal carousels) =====================
+     Same content markup as before (.list-row-title/.list-row-sub/.premiere-badge/...),
+     just re-framed as an individual bordered card - matching the top carousel
+     card's visual language - and laid out in a row of these instead of a
+     vertical divider-separated list. Each card keeps the banner thumbnail at
+     its existing size (161x91); a status strip is glued to the thumbnail's
+     bottom edge (never written over the image itself) for whatever secondary
+     status that panel needs (air date, watched-at, ended/airing). */
+  .mini-card {
+    display: flex; gap: 14px; width: 400px; flex: 0 0 auto; scroll-snap-align: start;
+    background: var(--card-hover); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px;
+  }
+  .mini-card.hover-stable { filter: brightness(1.08); }
+  .thumb-col { width: 161px; flex: 0 0 auto; display: flex; flex-direction: column; border-radius: 6px; overflow: hidden; }
+  .thumb-col .list-thumb-wrap { width: 161px; }
+  .status-strip {
+    height: 22px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; gap: 5px;
+    font-size: 0.66rem; font-weight: 700; letter-spacing: 0.02em; padding: 0 6px;
+    white-space: nowrap; overflow: hidden;
+  }
+  .status-strip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .status-strip.neutral { background: #0f151c; color: var(--accent2); }
+  .status-strip.status-ended { background: var(--muted); color: #111820; font-weight: 800; text-transform: uppercase; }
+  .status-strip.status-airing { background: #2fa84f; color: #fff; font-weight: 800; text-transform: uppercase; }
+  .mini-card-body { display: flex; flex-direction: column; justify-content: center; gap: 4px; min-width: 0; flex: 1 1 auto; }
   .center-box {
     max-width: 480px; margin: 60px auto; background: var(--card); border-radius: 14px;
     padding: 30px; text-align: center; box-shadow: 0 6px 22px rgba(0,0,0,0.35);
@@ -808,34 +821,12 @@
     .carousel-track { scroll-snap-type: x mandatory; }
     .card.carousel-card { scroll-snap-align: center; }
 
-    /* The three panels stack full-width instead of sitting side by side,
-       but each keeps its own row list scrolling horizontally (touch swipe)
-       rather than vertically, so rows become fixed-width cards. */
-    .bottom-panels-row { flex-direction: column; gap: 16px; }
-    .bottom-panels-row .list-panel { width: 100%; }
+    /* Each panel's mini-card row keeps scrolling horizontally exactly like
+       on desktop (touch swipe takes over from the now-hidden arrows, same
+       as the top carousel above), just at a narrower card width. */
+    .bottom-panels-row { gap: 16px; }
     .list-panel { padding: 14px 16px; }
-    .list-rows-scroll {
-      display: flex; flex-direction: row; gap: 12px;
-      max-height: none; overflow-x: auto; overflow-y: hidden;
-      padding-right: 0; margin-right: 0; padding-bottom: 6px;
-    }
-    .list-row {
-      flex: 0 0 auto; width: 200px; flex-direction: column; align-items: stretch;
-      gap: 8px; padding: 0; border-bottom: none;
-    }
-    .list-thumb { width: 100%; height: auto; aspect-ratio: 16 / 9; }
-    .list-thumb-wrap { width: 100%; }
-    .title-with-year { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px; }
-    .title-with-year .premiere-badge.year-badge { flex-basis: 100%; margin-top: 0; }
-    /* Same top-right pin as desktop, just recomputed for the stacked mobile
-       card: the thumb (full width, 16:9) plus the row's own gap sits above
-       the title line here, instead of the title starting at the very top. */
-    .plan-menu-btn { top: 120px; }
-    .list-panel--watched .list-check { display: none; }
-    /* The column layout's default cross-axis alignment left-aligns a
-       fixed-width flex item like this circle badge - pin it to the right
-       edge instead, matching every other right-side element in the card. */
-    .list-check { align-self: flex-end; }
+    .mini-card { width: 320px; }
 
     .modal-overlay { padding: 12px; }
     .cast-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }

@@ -1357,6 +1357,29 @@ function formatAirDate(dateStr) {
     : { weekday: "long", month: "short", day: "numeric", year: "numeric" });
 }
 
+// Mirror image of formatAirDate for a past timestamp (SIMKL's episode_watched_at
+// / last_watched_at, both full date+time with timezone offset) - used by the
+// Recently Watched panel's bottom status strip.
+function formatWatchedAt(dateStr) {
+  const now = new Date();
+  const target = new Date(dateStr);
+  const sameYear = target.getFullYear() === now.getFullYear();
+  const startOfDay = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+  const diffDays = Math.round((startOfDay(now) - startOfDay(target)) / 86400000);
+  const timeStr = target.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+
+  let dayLabel;
+  if (diffDays === 0) dayLabel = "Today";
+  else if (diffDays === 1) dayLabel = "Yesterday";
+  else if (diffDays > 1 && diffDays < 7) dayLabel = target.toLocaleDateString(undefined, { weekday: "long" });
+  else {
+    dayLabel = target.toLocaleDateString(undefined, sameYear
+      ? { month: "short", day: "numeric" }
+      : { month: "short", day: "numeric", year: "numeric" });
+  }
+  return `${dayLabel}, ${timeStr}`;
+}
+
 async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, requirePremiere) {
   // Fast-path guard, trusting SIMKL's own aggregate field directly: if
   // SIMKL itself says there are zero not-yet-aired episodes for this show,
@@ -2516,7 +2539,6 @@ const STAT_STACK_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fil
 const STAT_CLOCK_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--accent2)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.25"></circle><polyline points="12 7 12 12 15.5 14"></polyline></svg>`;
 const CHECK_ICON_SVG = `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
 const BELL_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg>`;
-const STAR_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 3 14.7 9.2 21.4 9.8 16.3 14.2 17.9 20.8 12 17.3 6.1 20.8 7.7 14.2 2.6 9.8 9.3 9.2"></polygon></svg>`;
 const BOOKMARK_ICON_SVG = `<svg viewBox="0 0 24 24" width="17" height="17" fill="var(--accent2)"><path d="M6 3.5h12a.5.5 0 0 1 .5.5v16.2a.5.5 0 0 1-.77.42L12 16.5l-5.73 4.12a.5.5 0 0 1-.77-.42V4a.5.5 0 0 1 .5-.5z"></path></svg>`;
 const CALENDAR_ICON_SVG = `<svg viewBox="0 0 24 24" width="17" height="17"><rect x="3" y="5" width="18" height="16" rx="2" fill="var(--accent2)"></rect><rect x="3" y="9" width="18" height="1.8" fill="var(--card)"></rect><rect x="7" y="2.5" width="1.8" height="4" rx="0.9" fill="var(--card)"></rect><rect x="15.2" y="2.5" width="1.8" height="4" rx="0.9" fill="var(--card)"></rect></svg>`;
 // Same "pile of episodes" stack icon as the top stat row, in black to sit
@@ -2692,9 +2714,25 @@ function networkSubHtml(name, logoPath) {
   return name ? `<div class="list-row-sub">${name}</div>` : "";
 }
 
+// Shared by the three bottom panels below - a row of mini-cards behaves
+// exactly like the top "My List" carousel (arrows + mouse drag-scroll, both
+// wired generically off the .carousel-track/.carousel-wrap classes - see
+// updateCarouselArrows and enableCarouselDragScroll), just with a track id
+// of its own so each panel's arrows scroll only that panel's row.
+function panelCarouselHtml(trackId, cardsHtml) {
+  return `
+    <div class="carousel-wrap">
+      <button class="carousel-arrow left" title="Scroll left" style="top:50%"
+        onclick="document.getElementById('${trackId}').scrollBy({left:-420,behavior:'smooth'})">${CAROUSEL_ARROW_LEFT_ICON_SVG}</button>
+      <div class="carousel-track" id="${trackId}">${cardsHtml}</div>
+      <button class="carousel-arrow" title="Scroll right" style="top:50%"
+        onclick="document.getElementById('${trackId}').scrollBy({left:420,behavior:'smooth'})">${CAROUSEL_ARROW_ICON_SVG}</button>
+    </div>`;
+}
+
 function renderRecentlyWatchedHtml(list) {
   if (!list || !list.length) return "";
-  const rowsHtml = list.map((ep, idx) => {
+  const cardsHtml = list.map((ep, idx) => {
     const bannerSrc = ep.bannerUrl || ep.posterUrl;
     const { cycleableClass, attrs, mode } = thumbCycleAttrs(ep, "watched", idx);
     const thumbHtml = bannerSrc
@@ -2704,10 +2742,16 @@ function renderRecentlyWatchedHtml(list) {
     const episodeTitleHtml = ep.episodeTitle ? `<div class="episode-title">${ep.episodeTitle}</div>` : "";
     const badgeModifier = ep.badge === "SEASON FINALE" ? " finale" : ep.badge === "DROPPED" ? " dropped" : "";
     const badgeHtml = ep.badge ? `<div class="premiere-badge${badgeModifier}">${ep.badge}</div>` : "";
+    const watchedStripHtml = ep.watchedAt
+      ? `<div class="status-strip neutral">Watched &bull; ${formatWatchedAt(ep.watchedAt)}</div>`
+      : "";
     return `
-      <div class="list-row">
-        <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
-        <div class="list-row-title-wrap">
+      <div class="mini-card">
+        <div class="thumb-col">
+          <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
+          ${watchedStripHtml}
+        </div>
+        <div class="mini-card-body">
           <div class="list-row-title" title="View cast" onclick="event.stopPropagation(); openCastModal('watched', ${idx})">${ep.title}</div>
           ${networkSubHtml(ep.network, ep.networkLogoPath)}
           <div class="next-up-row">
@@ -2716,20 +2760,19 @@ function renderRecentlyWatchedHtml(list) {
           </div>
           ${episodeTitleHtml}
         </div>
-        <span class="list-check">${CHECK_ICON_SVG}</span>
       </div>`;
   }).join("\n");
 
   return `
     <div class="list-panel list-panel--watched">
       <div class="list-panel-header">${CLOCK_ICON_SOLID_SVG}<span>RECENTLY WATCHED</span></div>
-      <div class="list-rows-scroll">${rowsHtml}</div>
+      ${panelCarouselHtml("watchedCarouselTrack", cardsHtml)}
     </div>`;
 }
 
 function renderPlanToWatchHtml(list) {
   if (!list || !list.length) return "";
-  const rowsHtml = list.map((row, idx) => {
+  const cardsHtml = list.map((row, idx) => {
     const bannerSrc = row.bannerUrl || row.posterUrl;
     const { cycleableClass, attrs, mode } = thumbCycleAttrs(row, "plan", idx);
     const thumbHtml = bannerSrc
@@ -2741,10 +2784,14 @@ function renderPlanToWatchHtml(list) {
     const yearBadgeHtml = row.yearRangeLabel
       ? `<div class="premiere-badge year-badge">${row.yearRangeLabel}</div>`
       : "";
+    const statusStripHtml = `<div class="status-strip ${row.ended ? "status-ended" : "status-airing"}">${row.ended ? "ENDED" : "AIRED"}</div>`;
     return `
-      <div class="list-row">
-        <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
-        <div class="list-row-title-wrap">
+      <div class="mini-card">
+        <div class="thumb-col">
+          <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
+          ${statusStripHtml}
+        </div>
+        <div class="mini-card-body">
           <div class="title-with-year">
             <div class="list-row-title" title="View cast" onclick="event.stopPropagation(); openCastModal('plan', ${idx})">${row.title}</div>
             ${yearBadgeHtml}
@@ -2753,7 +2800,6 @@ function renderPlanToWatchHtml(list) {
           ${badgeHtml}
           <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId)}</div>
         </div>
-        <span class="list-check">${STAR_ICON_SVG}</span>
         <button class="card-menu-btn plan-menu-btn" title="Manage" onclick="event.stopPropagation(); openPlanCardMenu(${idx}, this)">&#8942;</button>
       </div>`;
   }).join("\n");
@@ -2761,13 +2807,13 @@ function renderPlanToWatchHtml(list) {
   return `
     <div class="list-panel list-panel--plan">
       <div class="list-panel-header">${BOOKMARK_ICON_SVG}<span>PLAN TO WATCH</span></div>
-      <div class="list-rows-scroll">${rowsHtml}</div>
+      ${panelCarouselHtml("planCarouselTrack", cardsHtml)}
     </div>`;
 }
 
 function renderAiringNextPreviewHtml(list) {
   if (!list || !list.length) return "";
-  const rowsHtml = list.map((row, idx) => {
+  const cardsHtml = list.map((row, idx) => {
     const bannerSrc = row.bannerUrl || row.posterUrl;
     const { cycleableClass, attrs, mode } = thumbCycleAttrs(row, "airing", idx);
     const thumbHtml = bannerSrc
@@ -2778,9 +2824,12 @@ function renderAiringNextPreviewHtml(list) {
       ? `<div class="premiere-badge${row.badge === "SEASON FINALE" ? " finale" : ""}">${row.badge}</div>`
       : "";
     return `
-      <div class="list-row">
-        <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
-        <div class="list-row-title-wrap">
+      <div class="mini-card">
+        <div class="thumb-col">
+          <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
+          <div class="status-strip neutral">&#128197; ${row.airDateLabel}</div>
+        </div>
+        <div class="mini-card-body">
           <div class="list-row-title" title="View cast" onclick="event.stopPropagation(); openCastModal('airing', ${idx})">${row.title}</div>
           ${networkSubHtml(row.network, row.networkLogoPath)}
           <div class="next-up-row">
@@ -2788,26 +2837,23 @@ function renderAiringNextPreviewHtml(list) {
             ${badgeHtml}
           </div>
           ${episodeTitle}
-          <div class="list-row-airdate">&#128197; ${row.airDateLabel}</div>
         </div>
-        <span class="list-check">${BELL_ICON_SVG}</span>
       </div>`;
   }).join("\n");
 
   return `
     <div class="list-panel list-panel--airing">
       <div class="list-panel-header">${CALENDAR_ICON_SVG}<span>AIRING NEXT</span></div>
-      <div class="list-rows-scroll">${rowsHtml}</div>
+      ${panelCarouselHtml("airingCarouselTrack", cardsHtml)}
     </div>`;
 }
 
-// Every panel whose scroll position needs to survive a full re-render -
-// the carousel track plus the three bottom-panel row lists (each scrolls
-// vertically on desktop, horizontally on mobile, so both axes are saved).
+// Every panel whose scroll position needs to survive a full re-render - the
+// top carousel track plus each bottom panel's own horizontal card row.
 const SCROLLABLE_PANEL_SELECTORS = {
-  watched: ".list-panel--watched .list-rows-scroll",
-  plan: ".list-panel--plan .list-rows-scroll",
-  airing: ".list-panel--airing .list-rows-scroll",
+  watched: ".list-panel--watched .carousel-track",
+  plan: ".list-panel--plan .carousel-track",
+  airing: ".list-panel--airing .carousel-track",
 };
 
 function capturePanelScrollPositions() {
@@ -2845,8 +2891,8 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   updateViewModeButton();
 
   const bottomPanelsHtml = [
-    renderRecentlyWatchedHtml(lastRecentlyWatched),
     renderAiringNextPreviewHtml(lastAiringPreview),
+    renderRecentlyWatchedHtml(lastRecentlyWatched),
     renderPlanToWatchHtml(lastPlanToWatch),
   ].filter(Boolean).join("");
   const bottomPanelsWrapped = bottomPanelsHtml
@@ -2955,7 +3001,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
     }
   }
   restorePanelScrollPositions(prevPanelScrollPositions);
-  updateCarouselArrows();
+  document.querySelectorAll(".carousel-track").forEach(updateCarouselArrows);
   wireHoverStabilization();
 }
 
@@ -2970,7 +3016,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
 // never fires, while genuinely leaving still un-hovers smoothly.
 function wireHoverStabilization() {
   const HOVER_EXIT_DELAY_MS = 150;
-  document.querySelectorAll(".card, .list-row").forEach(el => {
+  document.querySelectorAll(".card, .list-row, .mini-card").forEach(el => {
     el.addEventListener("mouseenter", () => {
       if (el._hoverLeaveTimer) {
         clearTimeout(el._hoverLeaveTimer);
@@ -2987,8 +3033,11 @@ function wireHoverStabilization() {
   });
 }
 
-function updateCarouselArrows() {
-  const track = document.getElementById("myListCarouselTrack");
+// Shared by the top "My List" carousel and each of the three bottom panels'
+// card rows - all four are just ".carousel-track" elements inside their own
+// ".carousel-wrap", so one generic wiring pass (called once per track after
+// every render) covers all of them.
+function updateCarouselArrows(track) {
   const wrap = track && track.closest(".carousel-wrap");
   if (!track || !wrap) return;
   const leftArrow = wrap.querySelector(".carousel-arrow.left");
@@ -3266,6 +3315,10 @@ updateViewModeButton();
 updatePageTitle();
 applyStoredTheme();
 
+// Covers the top "My List" carousel and all three bottom-panel card rows -
+// every ".carousel-track" element, not just one specific id - so mouse
+// drag-to-scroll works the same way on all four, matching their shared
+// arrow-button behavior (see updateCarouselArrows).
 (function enableCarouselDragScroll() {
   let dragTrack = null;
   let startX = 0;
@@ -3274,7 +3327,7 @@ applyStoredTheme();
 
   app.addEventListener("mousedown", (e) => {
     if (e.button !== 0) return;
-    const track = e.target.closest("#myListCarouselTrack");
+    const track = e.target.closest(".carousel-track");
     if (!track) return;
     dragTrack = track;
     dragged = false;
@@ -3298,7 +3351,7 @@ applyStoredTheme();
   });
 
   app.addEventListener("click", (e) => {
-    if (dragged && e.target.closest("#myListCarouselTrack")) {
+    if (dragged && e.target.closest(".carousel-track")) {
       e.stopPropagation();
       e.preventDefault();
     }
