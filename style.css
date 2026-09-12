@@ -569,9 +569,15 @@
      height (91px image + ~19px single-line strip) and clipped rather than
      letting a card with more text grow taller than that - see the
      .mini-card comment for why. */
+  /* padding-top: 0, not 12px - the thumbnail beside it is flush with zero
+     gap at the card's own top edge, so any top padding here made the title
+     start visibly lower than the image next to it despite both technically
+     being "flex-start" (one aligned to the card's edge, the other to its
+     own box's padded edge) - matching them means the title's own top edge
+     has to BE the card's top edge, same as the image's. */
   .mini-card-body {
     display: flex; flex-direction: column; justify-content: flex-start; width: 220px; flex: 0 0 auto;
-    padding: 12px 12px 12px 0; max-height: 110px; overflow: hidden;
+    padding: 0 12px 12px 0; max-height: 110px; overflow: hidden;
   }
   /* Without this, a body whose lines add up to more than max-height (e.g. a
      SEASON FINALE badge wrapping to its own line on a narrow mobile card)
