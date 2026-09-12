@@ -479,10 +479,8 @@
     text-transform: uppercase; margin-top: 5px;
   }
   .premiere-badge.finale { background: #c1502e; }
-  .premiere-badge.year-badge { background: #3d6bb3; margin-top: 0; }
+  .premiere-badge.year-badge { background: #3d6bb3; }
   .premiere-badge.dropped { background: var(--muted); color: #111820; }
-  .title-with-year { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .title-with-year .list-row-title { flex: 0 1 auto; }
   /* Pinned to the card's own top-right corner instead of living inside the
      title's flex flow - the only way to sit at that fixed corner regardless
      of how long the title/badges below it run. */
@@ -498,31 +496,26 @@
      Same content markup as before (.list-row-title/.list-row-sub/.premiere-badge/...),
      just re-framed as an individual bordered card - matching the top carousel
      card's visual language - and laid out in a row of these instead of a
-     vertical divider-separated list. Each card keeps the banner thumbnail at
-     its existing size (161x91); a status strip is glued to the thumbnail's
-     bottom edge (never written over the image itself) for whatever secondary
-     status that panel needs (air date, watched-at, ended/airing). */
+     vertical divider-separated list. The thumbnail + its status strip
+     together stretch to fill the card's full height (frame) - the strip
+     sizes to whatever its own text needs (wrapping to a 2nd line rather
+     than ever truncating) and the image absorbs the rest via object-fit. */
   .mini-card {
     display: flex; align-items: center; gap: 14px; width: 400px; flex: 0 0 auto; scroll-snap-align: start;
     background: var(--card-hover); border: 1px solid var(--border); border-radius: 10px;
     padding: 12px;
   }
   .mini-card.hover-stable { filter: brightness(1.08); }
-  .thumb-col { width: 161px; flex: 0 0 auto; display: flex; flex-direction: column; border-radius: 6px; overflow: hidden; }
-  .thumb-col .list-thumb-wrap { width: 161px; }
-  .status-strip {
-    height: 22px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; gap: 5px;
-    font-size: 0.66rem; font-weight: 700; letter-spacing: 0.02em; padding: 0 6px;
+  .thumb-col {
+    width: 161px; flex: 0 0 auto; align-self: stretch;
+    display: flex; flex-direction: column; border-radius: 6px; overflow: hidden;
   }
-  /* The strip's text always lives in its own span (even with no icon
-     alongside it) - centering a too-long text node directly inside a
-     centered flex container clips both ends with no ellipsis; giving the
-     span its own inline-block box that can't exceed the strip's width
-     truncates it normally (trailing "...") regardless of the container's
-     centering. */
-  .status-strip span {
-    display: inline-block; max-width: 100%; overflow: hidden;
-    text-overflow: ellipsis; white-space: nowrap;
+  .thumb-col .list-thumb-wrap { width: 161px; flex: 1 1 auto; min-height: 0; }
+  .thumb-col .list-thumb { height: 100%; }
+  .status-strip {
+    flex: 0 0 auto; display: flex; align-items: center; justify-content: center; gap: 5px;
+    font-size: 0.66rem; font-weight: 700; letter-spacing: 0.02em; line-height: 1.25;
+    padding: 4px 8px; text-align: center;
   }
   .status-strip.neutral { background: #0f151c; color: var(--accent2); }
   .status-strip.status-ended { background: var(--muted); color: #111820; font-weight: 800; text-transform: uppercase; }
