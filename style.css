@@ -564,7 +564,7 @@
      why this can't be allowed to depend on the thumbnail's own width.
      Left padding is 0 since .mini-card's gap already provides that spacing
      from the (now edge-to-edge) thumbnail. */
-  .mini-card-body { display: flex; flex-direction: column; justify-content: center; width: 185px; flex: 0 0 auto; padding: 12px 12px 12px 0; }
+  .mini-card-body { display: flex; flex-direction: column; justify-content: center; width: 220px; flex: 0 0 auto; padding: 12px 12px 12px 0; }
   .center-box {
     max-width: 480px; margin: 60px auto; background: var(--card); border-radius: 14px;
     padding: 30px; text-align: center; box-shadow: 0 6px 22px rgba(0,0,0,0.35);
@@ -876,7 +876,7 @@
       flex-direction: row; align-items: center; width: auto; gap: 8px;
       border-right: none; border-bottom: 1px solid var(--divider); padding: 0 0 10px;
     }
-    .mini-card-body { width: 128px; }
+    .mini-card-body { width: 150px; }
 
     .modal-overlay { padding: 12px; }
     .cast-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
