@@ -3034,8 +3034,47 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   }
   restorePanelScrollPositions(prevPanelScrollPositions);
   document.querySelectorAll(".carousel-track").forEach(updateCarouselArrows);
+  adjustCardTextWrapping();
   wireHoverStabilization();
 }
+
+// The mini-card's fixed height has room for one spare line beyond the
+// usual title/network/next-up/episode-title of exactly one line each. Lets
+// whichever of title or episode title actually needs it wrap to a 2nd line
+// instead of truncating - title gets priority when a single card's title
+// AND episode title are both long (only one spare line exists), so the
+// episode title stays truncated in that case rather than both losing their
+// ellipsis to a cramped, clipped mess.
+function adjustCardTextWrapping() {
+  document.querySelectorAll(".mini-card").forEach(card => {
+    const title = card.querySelector(".list-row-title");
+    if (!title) return;
+    const episode = card.querySelector(".episode-title");
+    // Reset to single-line first (a re-run, e.g. on resize, would otherwise
+    // measure an element that's already wrapped from the previous pass -
+    // scrollWidth on a wrapped box just equals clientWidth, which would
+    // always read as "fits", never re-truncating something that no longer
+    // needs 2 lines after the card got wider again).
+    title.classList.remove("title-2line");
+    if (episode) episode.classList.remove("episode-2line");
+    // Measured while single-line (nowrap + overflow: hidden, the default) -
+    // scrollWidth is the width the text would need to show in full on one
+    // line, clientWidth is what's actually available; if the former is
+    // bigger, this line is the one being truncated with "...".
+    const titleOverflows = title.scrollWidth > title.clientWidth + 1;
+    title.classList.toggle("title-2line", titleOverflows);
+    if (episode) {
+      const episodeOverflows = episode.scrollWidth > episode.clientWidth + 1;
+      episode.classList.toggle("episode-2line", episodeOverflows && !titleOverflows);
+    }
+  });
+}
+
+let resizeCardTextTimer = null;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeCardTextTimer);
+  resizeCardTextTimer = setTimeout(adjustCardTextWrapping, 150);
+});
 
 // Debounces hover state for cards/rows whose visual hover effects (the
 // poster/thumb lift, .card's background) are driven by a JS-managed class

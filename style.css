@@ -587,10 +587,19 @@
      its natural size, so the (rare) overflow case just clips the bottom
      line away whole, which is what overflow: hidden above was meant to do. */
   .mini-card-body > * { flex-shrink: 0; }
-  /* Truncated to one line rather than wrapping - a long title growing the
-     card past the (fixed) thumbnail's height is exactly what the max-height
-     above prevents; better an intentional ellipsis than a mid-word clip. */
+  /* Single line by default - a long title growing the card past the
+     (fixed) thumbnail's height is exactly what the max-height above
+     prevents. adjustCardTextWrapping() in app.js opts a specific card's
+     title into .title-2line instead, when the card's one spare line of
+     height is going to it rather than to the episode title. */
   .mini-card .list-row-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mini-card .list-row-title.title-2line {
+    white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  }
+  .mini-card .episode-title.episode-2line {
+    max-height: none; white-space: normal; display: -webkit-box;
+    -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  }
   .center-box {
     max-width: 480px; margin: 60px auto; background: var(--card); border-radius: 14px;
     padding: 30px; text-align: center; box-shadow: 0 6px 22px rgba(0,0,0,0.35);
