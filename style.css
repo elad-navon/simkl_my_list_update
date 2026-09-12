@@ -374,10 +374,10 @@
     text-overflow: ellipsis;
     text-transform: uppercase;
   }
-  /* Recently Watched gets two lines instead of a single truncated one - an
-     episode title cut off after a few words ("Spoiler: We're As Confused
-     As...") reads worse than just wrapping it. */
-  .list-panel--watched .episode-title {
+  /* Recently Watched and Airing Next both get two lines instead of a single
+     truncated one - an episode title cut off after a few words ("Spoiler:
+     We're As Confused As...") reads worse than just wrapping it. */
+  .list-panel--watched .episode-title, .list-panel--airing .episode-title {
     max-height: none; white-space: normal; display: -webkit-box;
     -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   }
