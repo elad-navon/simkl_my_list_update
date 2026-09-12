@@ -532,13 +532,13 @@
      is what the whole card's height is - .mini-card-body is capped to
      the same height and clips/truncates its text rather than growing
      past it, so the thumbnail never sits short of the card's bottom edge. */
-  /* 161x91 + 10% (rounded, still ~16:9). */
+  /* 161x91, +10% twice (rounded, still ~16:9). */
   .thumb-col {
-    width: 177px; flex: 0 0 auto;
+    width: 195px; flex: 0 0 auto;
     display: flex; flex-direction: column;
   }
-  .thumb-col .list-thumb-wrap { width: 177px; flex: 0 0 auto; }
-  .thumb-col .list-thumb { width: 177px; height: 100px; border-radius: 0; }
+  .thumb-col .list-thumb-wrap { width: 195px; flex: 0 0 auto; }
+  .thumb-col .list-thumb { width: 195px; height: 110px; border-radius: 0; }
   .status-strip {
     /* Must never wrap to a 2nd line - a taller strip means a taller
        thumb-col, which (every card in a row stretches to the tallest)
@@ -567,7 +567,7 @@
      why this can't be allowed to depend on the thumbnail's own width.
      Left padding is 0 since .mini-card's gap already provides that spacing
      from the (now edge-to-edge) thumbnail. Capped to the thumbnail's own
-     height (100px image + ~19px single-line strip) and clipped rather than
+     height (110px image + ~19px single-line strip) and clipped rather than
      letting a card with more text grow taller than that - see the
      .mini-card comment for why. */
   /* padding-top: 0, not 12px - the thumbnail beside it is flush with zero
@@ -578,7 +578,7 @@
      has to BE the card's top edge, same as the image's. */
   .mini-card-body {
     display: flex; flex-direction: column; justify-content: flex-start; width: 220px; flex: 0 0 auto;
-    padding: 0 12px 12px 0; max-height: 119px; overflow: hidden;
+    padding: 0 12px 12px 0; max-height: 129px; overflow: hidden;
   }
   /* Without this, a body whose lines add up to more than max-height (e.g. a
      SEASON FINALE badge wrapping to its own line on a narrow mobile card)
