@@ -2543,7 +2543,7 @@ const CLOCK_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="no
 // since it's also reused for the top card's inline "time left" icon, which
 // wasn't part of this redesign. The "hands" are cut out using the card
 // background color rather than a real transparent hole.
-const CLOCK_ICON_SOLID_SVG = `<svg viewBox="0 0 24 24" width="17" height="17"><circle cx="12" cy="12" r="9" fill="var(--accent2)"></circle><rect x="11.2" y="6" width="1.6" height="6.5" rx="0.8" fill="var(--card)"></rect><rect x="11.6" y="11.3" width="4.2" height="1.6" rx="0.8" fill="var(--card)" transform="rotate(35 12 12)"></rect></svg>`;
+const CLOCK_ICON_SOLID_SVG = `<svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="12" r="9" fill="var(--gold)"></circle><rect x="11.2" y="6" width="1.6" height="6.5" rx="0.8" fill="var(--card)"></rect><rect x="11.6" y="11.3" width="4.2" height="1.6" rx="0.8" fill="var(--card)" transform="rotate(35 12 12)"></rect></svg>`;
 // Same gold-circle-with-cutout language as the clock above, used only for
 // the "Episodes Left" modal header - a list reads as "what's inside" more
 // directly than a clock does.
@@ -2560,8 +2560,8 @@ const STAT_STACK_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fil
 const STAT_CLOCK_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--accent2)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.25"></circle><polyline points="12 7 12 12 15.5 14"></polyline></svg>`;
 const CHECK_ICON_SVG = `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
 const BELL_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg>`;
-const BOOKMARK_ICON_SVG = `<svg viewBox="0 0 24 24" width="17" height="17" fill="var(--accent2)"><path d="M6 3.5h12a.5.5 0 0 1 .5.5v16.2a.5.5 0 0 1-.77.42L12 16.5l-5.73 4.12a.5.5 0 0 1-.77-.42V4a.5.5 0 0 1 .5-.5z"></path></svg>`;
-const CALENDAR_ICON_SVG = `<svg viewBox="0 0 24 24" width="17" height="17"><rect x="3" y="5" width="18" height="16" rx="2" fill="var(--accent2)"></rect><rect x="3" y="9" width="18" height="1.8" fill="var(--card)"></rect><rect x="7" y="2.5" width="1.8" height="4" rx="0.9" fill="var(--card)"></rect><rect x="15.2" y="2.5" width="1.8" height="4" rx="0.9" fill="var(--card)"></rect></svg>`;
+const BOOKMARK_ICON_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" fill="var(--gold)"><path d="M6 3.5h12a.5.5 0 0 1 .5.5v16.2a.5.5 0 0 1-.77.42L12 16.5l-5.73 4.12a.5.5 0 0 1-.77-.42V4a.5.5 0 0 1 .5-.5z"></path></svg>`;
+const CALENDAR_ICON_SVG = `<svg viewBox="0 0 24 24" width="22" height="22"><rect x="3" y="5" width="18" height="16" rx="2" fill="var(--gold)"></rect><rect x="3" y="9" width="18" height="1.8" fill="var(--card)"></rect><rect x="7" y="2.5" width="1.8" height="4" rx="0.9" fill="var(--card)"></rect><rect x="15.2" y="2.5" width="1.8" height="4" rx="0.9" fill="var(--card)"></rect></svg>`;
 // Same "pile of episodes" stack icon as the top stat row, in black to sit
 // on the remaining-badge's yellow background.
 const STAT_STACK_ICON_BLACK_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#000000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 3 21 8 12 13 3 8 12 3"></polygon><polyline points="3 12 12 17 21 12"></polyline><polyline points="3 16 12 21 21 16"></polyline></svg>`;
