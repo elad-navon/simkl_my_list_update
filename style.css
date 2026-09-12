@@ -374,13 +374,6 @@
     text-overflow: ellipsis;
     text-transform: uppercase;
   }
-  /* Recently Watched and Airing Next both get two lines instead of a single
-     truncated one - an episode title cut off after a few words ("Spoiler:
-     We're As Confused As...") reads worse than just wrapping it. */
-  .list-panel--watched .episode-title, .list-panel--airing .episode-title {
-    max-height: none; white-space: normal; display: -webkit-box;
-    -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-  }
   .watch-progress { margin-top: 8px; margin-bottom: 10px; }
   .watch-progress-track { height: 16px; border-radius: 8px; background: var(--border); overflow: hidden; position: relative; }
   .watch-progress-fill { height: 100%; border-radius: 8px 0 0 8px; background: var(--gold); }
@@ -527,16 +520,18 @@
      row's tallest card needs (every card in a row still stretches to
      match that, unchanged). */
   .mini-card {
-    display: flex; align-items: center; gap: 14px; flex: 0 0 auto; scroll-snap-align: start;
+    display: flex; align-items: flex-start; gap: 14px; flex: 0 0 auto; scroll-snap-align: start;
     background: var(--card-hover); border: 1px solid var(--border); border-radius: 10px;
     overflow: hidden;
   }
   .mini-card.hover-stable { filter: brightness(1.08); }
-  /* Flush against the card's own left edge (radius: 0 on the image, the
-     card's own overflow: hidden + border-radius does the actual
+  /* Flush against the card's own top/left/bottom edges (radius: 0 on the
+     image, the card's own overflow: hidden + border-radius does the actual
      corner-rounding) - same convention the top carousel card's poster-wrap
-     uses - though a card taller than the thumbnail (more text lines than
-     this fills) centers it instead, same as the text beside it. */
+     uses. The thumbnail's own height (image + strip, currently ~110px)
+     is what the whole card's height is - .mini-card-body is capped to
+     the same height and clips/truncates its text rather than growing
+     past it, so the thumbnail never sits short of the card's bottom edge. */
   .thumb-col {
     width: 161px; flex: 0 0 auto;
     display: flex; flex-direction: column;
@@ -563,8 +558,18 @@
   /* Fixed width, not flex:1 1 auto - see the .mini-card comment above for
      why this can't be allowed to depend on the thumbnail's own width.
      Left padding is 0 since .mini-card's gap already provides that spacing
-     from the (now edge-to-edge) thumbnail. */
-  .mini-card-body { display: flex; flex-direction: column; justify-content: center; width: 220px; flex: 0 0 auto; padding: 12px 12px 12px 0; }
+     from the (now edge-to-edge) thumbnail. Capped to the thumbnail's own
+     height (91px image + ~19px single-line strip) and clipped rather than
+     letting a card with more text grow taller than that - see the
+     .mini-card comment for why. */
+  .mini-card-body {
+    display: flex; flex-direction: column; justify-content: flex-start; width: 220px; flex: 0 0 auto;
+    padding: 12px 12px 12px 0; max-height: 110px; overflow: hidden;
+  }
+  /* Truncated to one line rather than wrapping - a long title growing the
+     card past the (fixed) thumbnail's height is exactly what the max-height
+     above prevents; better an intentional ellipsis than a mid-word clip. */
+  .mini-card .list-row-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .center-box {
     max-width: 480px; margin: 60px auto; background: var(--card); border-radius: 14px;
     padding: 30px; text-align: center; box-shadow: 0 6px 22px rgba(0,0,0,0.35);
