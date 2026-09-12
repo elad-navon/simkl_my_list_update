@@ -2164,6 +2164,25 @@ function cardMenuOutsideClickHandler(e) {
   if (menu && !menu.contains(e.target)) closeCardMenu();
 }
 
+// Positions an already-in-DOM (so it has real dimensions), still-hidden
+// dropdown against the button that opened it - flipping it to open upward
+// when opening downward from `btnRect` would run past the bottom of the
+// viewport, which became common once Plan to Watch's cards moved to the
+// bottom of the page (its menu button is often close to the viewport's own
+// bottom edge by then). Falls back to clamping against the top edge if even
+// the flipped position doesn't fully fit (a very short viewport).
+function positionCardMenu(menu, btnRect) {
+  const margin = 8;
+  const left = Math.max(margin, Math.min(btnRect.left, window.innerWidth - menu.offsetWidth - margin));
+  let top = btnRect.bottom + 6;
+  if (top + menu.offsetHeight > window.innerHeight - margin) {
+    top = btnRect.top - menu.offsetHeight - 6;
+  }
+  top = Math.max(margin, top);
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+}
+
 // The dropdown is positioned once (position:fixed, computed from the
 // button's rect at open time) - scrolling anything afterward, the page
 // itself or a panel's own inner scroll container, leaves it either stuck
@@ -2188,8 +2207,7 @@ function openCardMenu(arrIdx, btnEl) {
   const menu = document.createElement("div");
   menu.className = "card-menu-dropdown";
   menu.id = "cardMenuDropdown";
-  menu.style.top = `${rect.bottom + 6}px`;
-  menu.style.left = `${Math.min(rect.left, window.innerWidth - 190)}px`;
+  menu.style.visibility = "hidden";
 
   const statusButtons = STATUS_OPTIONS.map(opt => `
     <button class="card-menu-item${opt.value === "watching" ? " active" : ""}" data-status="${opt.value}">
@@ -2208,6 +2226,8 @@ function openCardMenu(arrIdx, btnEl) {
     <button class="card-menu-item danger" id="cardMenuRemoveBtn">Remove from list</button>
   `;
   document.body.appendChild(menu);
+  positionCardMenu(menu, rect);
+  menu.style.visibility = "visible";
   cardMenuOpenerBtn = btnEl;
 
   menu.querySelectorAll("[data-status]").forEach(b => {
@@ -2275,8 +2295,7 @@ function openPlanCardMenu(idx, btnEl) {
   const menu = document.createElement("div");
   menu.className = "card-menu-dropdown";
   menu.id = "cardMenuDropdown";
-  menu.style.top = `${rect.bottom + 6}px`;
-  menu.style.left = `${Math.min(rect.left, window.innerWidth - 190)}px`;
+  menu.style.visibility = "hidden";
 
   const statusButtons = ALL_STATUS_OPTIONS.map(opt => `
     <button class="card-menu-item${opt.value === "plantowatch" ? " active" : ""}" data-status="${opt.value}">
@@ -2289,6 +2308,8 @@ function openPlanCardMenu(idx, btnEl) {
     <button class="card-menu-item danger" id="cardMenuRemoveBtn">Remove from list</button>
   `;
   document.body.appendChild(menu);
+  positionCardMenu(menu, rect);
+  menu.style.visibility = "visible";
   cardMenuOpenerBtn = btnEl;
 
   menu.querySelectorAll("[data-status]").forEach(b => {
@@ -3002,7 +3023,36 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   }
   restorePanelScrollPositions(prevPanelScrollPositions);
   document.querySelectorAll(".carousel-track").forEach(updateCarouselArrows);
+  sizeThumbCols();
   wireHoverStabilization();
+}
+
+// The bottom-panel mini-cards stretch their thumbnail column to fill the
+// card's own (content-driven, so different per card) height - CSS alone
+// can't turn that into a correct 16:9-cropped width (aspect-ratio on the
+// image fighting a shrink-to-fit flex column's own width calculation
+// produced wrong, inconsistent results in testing), so this measures each
+// column's actual rendered height post-layout and sets the matching 16:9
+// width directly, once per render.
+function sizeThumbCols() {
+  document.querySelectorAll(".thumb-col").forEach(col => {
+    const strip = col.querySelector(".status-strip");
+    // Changing the column's width can itself change how many lines the
+    // strip's text wraps to (a narrower column may force a 2nd line),
+    // which changes how much height is actually left for the image - so
+    // this re-measures and re-applies until the strip's height stops
+    // moving (in practice at most one or two passes) instead of sizing
+    // once against a strip height that's about to become stale.
+    let stripHeight = strip ? strip.getBoundingClientRect().height : 0;
+    for (let i = 0; i < 3; i++) {
+      const imageHeight = col.clientHeight - stripHeight;
+      if (imageHeight <= 0) break;
+      col.style.width = `${Math.round(imageHeight * 16 / 9)}px`;
+      const newStripHeight = strip ? strip.getBoundingClientRect().height : 0;
+      if (newStripHeight === stripHeight) break;
+      stripHeight = newStripHeight;
+    }
+  });
 }
 
 // Debounces hover state for cards/rows whose visual hover effects (the
@@ -3358,6 +3408,16 @@ applyStoredTheme();
     dragged = false;
   }, true);
 })();
+
+// Crossing the mobile breakpoint changes .mini-card's own width, which
+// reflows its text column and can change the card's height - re-measure
+// the thumbnails against that new height rather than leaving them sized
+// for whichever breakpoint was active at the last render.
+let resizeThumbColsTimer = null;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeThumbColsTimer);
+  resizeThumbColsTimer = setTimeout(sizeThumbCols, 150);
+});
 
 prunePersistedCache();
 main();
