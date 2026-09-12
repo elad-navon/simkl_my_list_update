@@ -3023,36 +3023,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   }
   restorePanelScrollPositions(prevPanelScrollPositions);
   document.querySelectorAll(".carousel-track").forEach(updateCarouselArrows);
-  sizeThumbCols();
   wireHoverStabilization();
-}
-
-// The bottom-panel mini-cards stretch their thumbnail column to fill the
-// card's own (content-driven, so different per card) height - CSS alone
-// can't turn that into a correct 16:9-cropped width (aspect-ratio on the
-// image fighting a shrink-to-fit flex column's own width calculation
-// produced wrong, inconsistent results in testing), so this measures each
-// column's actual rendered height post-layout and sets the matching 16:9
-// width directly, once per render.
-function sizeThumbCols() {
-  document.querySelectorAll(".thumb-col").forEach(col => {
-    const strip = col.querySelector(".status-strip");
-    // Changing the column's width can itself change how many lines the
-    // strip's text wraps to (a narrower column may force a 2nd line),
-    // which changes how much height is actually left for the image - so
-    // this re-measures and re-applies until the strip's height stops
-    // moving (in practice at most one or two passes) instead of sizing
-    // once against a strip height that's about to become stale.
-    let stripHeight = strip ? strip.getBoundingClientRect().height : 0;
-    for (let i = 0; i < 3; i++) {
-      const imageHeight = col.clientHeight - stripHeight;
-      if (imageHeight <= 0) break;
-      col.style.width = `${Math.round(imageHeight * 16 / 9)}px`;
-      const newStripHeight = strip ? strip.getBoundingClientRect().height : 0;
-      if (newStripHeight === stripHeight) break;
-      stripHeight = newStripHeight;
-    }
-  });
 }
 
 // Debounces hover state for cards/rows whose visual hover effects (the
@@ -3408,16 +3379,6 @@ applyStoredTheme();
     dragged = false;
   }, true);
 })();
-
-// Crossing the mobile breakpoint changes .mini-card's own width, which
-// reflows its text column and can change the card's height - re-measure
-// the thumbnails against that new height rather than leaving them sized
-// for whichever breakpoint was active at the last render.
-let resizeThumbColsTimer = null;
-window.addEventListener("resize", () => {
-  clearTimeout(resizeThumbColsTimer);
-  resizeThumbColsTimer = setTimeout(sizeThumbCols, 150);
-});
 
 prunePersistedCache();
 main();

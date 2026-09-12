@@ -503,42 +503,31 @@
      Same content markup as before (.list-row-title/.list-row-sub/.premiere-badge/...),
      just re-framed as an individual bordered card - matching the top carousel
      card's visual language - and laid out in a row of these instead of a
-     vertical divider-separated list. The thumbnail + its status strip
-     together stretch to fill the card's full height (frame) - the strip
-     sizes to whatever its own text needs (wrapping to a 2nd line rather
-     than ever truncating) and the image absorbs the rest via object-fit. */
-  /* No fixed card width - total width is whatever the (dynamic-width)
-     thumbnail plus the fixed-width text column add up to. This matters: if
-     the text column's width depended on the thumbnail's width (e.g. both
-     squeezed into one fixed card width), resizing the thumbnail to match
-     its own height would reflow the text's line-wrapping, which changes
-     the card's height, which (every card in a row stretches to the
-     tallest) changes every sibling's height too - a feedback loop that in
-     practice made whichever panel rendered first (and so got resized
-     first, before its row's "natural" height had settled) come out
-     visibly wrong. Fixing the text column's width removes the loop
-     entirely: nothing about sizing the thumbnail can ever change any
-     card's text layout. */
+     vertical divider-separated list. The thumbnail is a fixed 16:9 size,
+     identical across all three panels - it previously stretched to fill
+     each card's own (content-driven) height instead, which meant a card
+     with more text lines got a visibly bigger banner than one with less,
+     so the three panels never matched each other. Both the thumbnail and
+     the fixed-width text column are centered in whatever height the
+     row's tallest card needs (every card in a row still stretches to
+     match that, unchanged). */
   .mini-card {
     display: flex; align-items: center; gap: 14px; flex: 0 0 auto; scroll-snap-align: start;
     background: var(--card-hover); border: 1px solid var(--border); border-radius: 10px;
     overflow: hidden;
   }
   .mini-card.hover-stable { filter: brightness(1.08); }
-  /* Flush against the card's own left/top/bottom edges - same convention
-     as the top carousel card's poster-wrap (radius: 0 on the image itself,
-     the card's own overflow: hidden + border-radius does the actual
-     corner-rounding) - so the banner reaches all the way to the frame
-     instead of floating inset from it. Width is set inline per-card by
-     sizeThumbCols() in app.js, computed from this column's actual
-     rendered height so the image keeps a correct 16:9 crop - 161px here
-     is only the pre-JS fallback. */
+  /* Flush against the card's own left edge (radius: 0 on the image, the
+     card's own overflow: hidden + border-radius does the actual
+     corner-rounding) - same convention the top carousel card's poster-wrap
+     uses - though a card taller than the thumbnail (more text lines than
+     this fills) centers it instead, same as the text beside it. */
   .thumb-col {
-    width: 161px; flex: 0 0 auto; align-self: stretch;
+    width: 161px; flex: 0 0 auto;
     display: flex; flex-direction: column;
   }
-  .thumb-col .list-thumb-wrap { width: 100%; flex: 1 1 auto; min-height: 0; }
-  .thumb-col .list-thumb { width: 100%; height: 100%; border-radius: 0; }
+  .thumb-col .list-thumb-wrap { width: 161px; flex: 0 0 auto; }
+  .thumb-col .list-thumb { width: 161px; height: 91px; border-radius: 0; }
   .status-strip {
     /* Small enough that even a long Plan to Watch label ("Series Ended -
        1000 Episodes") measures under the thumbnail's own 161px width and
