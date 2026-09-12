@@ -440,7 +440,7 @@
      its own underline unchanged, the count just rides along to its right
      via margin-left: auto (same trick as .series-panel-updated above). */
   .list-panel-header-row { display: flex; align-items: center; }
-  .list-panel-count { color: var(--muted); font-size: 0.8rem; font-weight: 600; margin-left: auto; }
+  .list-panel-count { color: #ffffff; font-size: 2rem; font-weight: 600; margin-left: auto; }
   /* Vertical carousel - all three panels show ~5 rows before scrolling
      (5 * (76px banner thumb + 24px row padding + 1px border) = 505px). */
   .list-rows-scroll {
