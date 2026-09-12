@@ -436,6 +436,11 @@
     font-weight: 700; font-size: 1.3rem; letter-spacing: 0.02em; margin-bottom: 14px;
     border-bottom: 3px solid var(--gold); padding-bottom: 8px;
   }
+  /* Row wrapper for the three bottom panels only - .list-panel-header keeps
+     its own underline unchanged, the count just rides along to its right
+     via margin-left: auto (same trick as .series-panel-updated above). */
+  .list-panel-header-row { display: flex; align-items: center; }
+  .list-panel-count { color: var(--muted); font-size: 0.8rem; font-weight: 600; margin-left: auto; }
   /* Vertical carousel - all three panels show ~5 rows before scrolling
      (5 * (76px banner thumb + 24px row padding + 1px border) = 505px). */
   .list-rows-scroll {
@@ -458,10 +463,10 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 1.9rem; font-weight: 700; color: var(--muted);
   }
-  /* +15% over the base 161x91 (still ~16:9) - scoped to the three bottom
+  /* 161x91, +15% then +10% more (still ~16:9) - scoped to the three bottom
      panels only, not the (differently-sized) new-episode notification
      banner, which reuses the same .list-thumb/.list-row markup. */
-  .list-panel .list-thumb { width: 185px; height: 105px; }
+  .list-panel .list-thumb { width: 204px; height: 115px; }
   .list-row-title-wrap { flex: 1 1 auto; min-width: 0; }
   .list-row-title {
     /* Matches the top card's title (.card-body h3) size/spacing, so the

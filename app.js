@@ -2692,6 +2692,13 @@ function networkSubHtml(name, logoPath) {
   return name ? `<div class="list-row-sub">${name}</div>` : "";
 }
 
+// Right-aligned show count for a bottom panel's header row - same
+// margin-left:auto trick as .series-panel-updated in the top carousel's
+// own header, just reused here instead of duplicated.
+function listPanelCountHtml(count) {
+  return `<span class="list-panel-count">${count} show${count === 1 ? "" : "s"}</span>`;
+}
+
 function renderRecentlyWatchedHtml(list) {
   if (!list || !list.length) return "";
   const rowsHtml = list.map((ep, idx) => {
@@ -2722,7 +2729,10 @@ function renderRecentlyWatchedHtml(list) {
 
   return `
     <div class="list-panel list-panel--watched">
-      <div class="list-panel-header">${CLOCK_ICON_SOLID_SVG}<span>RECENTLY WATCHED</span></div>
+      <div class="list-panel-header-row">
+        <div class="list-panel-header">${CLOCK_ICON_SOLID_SVG}<span>RECENTLY WATCHED</span></div>
+        ${listPanelCountHtml(list.length)}
+      </div>
       <div class="list-rows-scroll">${rowsHtml}</div>
     </div>`;
 }
@@ -2760,7 +2770,10 @@ function renderPlanToWatchHtml(list) {
 
   return `
     <div class="list-panel list-panel--plan">
-      <div class="list-panel-header">${BOOKMARK_ICON_SVG}<span>PLAN TO WATCH</span></div>
+      <div class="list-panel-header-row">
+        <div class="list-panel-header">${BOOKMARK_ICON_SVG}<span>PLAN TO WATCH</span></div>
+        ${listPanelCountHtml(list.length)}
+      </div>
       <div class="list-rows-scroll">${rowsHtml}</div>
     </div>`;
 }
@@ -2796,7 +2809,10 @@ function renderAiringNextPreviewHtml(list) {
 
   return `
     <div class="list-panel list-panel--airing">
-      <div class="list-panel-header">${CALENDAR_ICON_SVG}<span>AIRING NEXT</span></div>
+      <div class="list-panel-header-row">
+        <div class="list-panel-header">${CALENDAR_ICON_SVG}<span>AIRING NEXT</span></div>
+        ${listPanelCountHtml(list.length)}
+      </div>
       <div class="list-rows-scroll">${rowsHtml}</div>
     </div>`;
 }
