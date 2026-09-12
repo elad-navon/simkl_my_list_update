@@ -3040,13 +3040,10 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   wireHoverStabilization();
 }
 
-// The mini-card's fixed height has room for one spare line beyond the
-// usual title/network/next-up/episode-title of exactly one line each. Lets
-// whichever of title or episode title actually needs it wrap to a 2nd line
-// instead of truncating - title gets priority when a single card's title
-// AND episode title are both long (only one spare line exists), so the
-// episode title stays truncated in that case rather than both losing their
-// ellipsis to a cramped, clipped mess.
+// The mini-card's fixed height now has room for two spare lines beyond the
+// usual title/network/next-up/episode-title of one line each (grown along
+// with the enlarged banner) - enough for title AND episode title to each
+// wrap to a 2nd line at once, not just whichever one needs it first.
 function adjustCardTextWrapping() {
   document.querySelectorAll(".mini-card").forEach(card => {
     const title = card.querySelector(".list-row-title");
@@ -3067,7 +3064,7 @@ function adjustCardTextWrapping() {
     title.classList.toggle("title-2line", titleOverflows);
     if (episode) {
       const episodeOverflows = episode.scrollWidth > episode.clientWidth + 1;
-      episode.classList.toggle("episode-2line", episodeOverflows && !titleOverflows);
+      episode.classList.toggle("episode-2line", episodeOverflows);
     }
   });
 }
