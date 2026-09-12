@@ -2735,6 +2735,17 @@ function networkSubHtml(name, logoPath) {
   return name ? `<div class="list-row-sub">${name}</div>` : "";
 }
 
+// Sits beside the card row instead of in its own line above it - see the
+// .panel-side-label comment in style.css for why.
+function panelSideLabelHtml(icon, label, count) {
+  return `
+    <div class="panel-side-label">
+      ${icon}
+      <span class="label-text">${label}</span>
+      <span class="label-count">${count} show${count === 1 ? "" : "s"}</span>
+    </div>`;
+}
+
 // Shared by the three bottom panels below - a row of mini-cards behaves
 // exactly like the top "My List" carousel (arrows + mouse drag-scroll, both
 // wired generically off the .carousel-track/.carousel-wrap classes - see
@@ -2786,7 +2797,7 @@ function renderRecentlyWatchedHtml(list) {
 
   return `
     <div class="list-panel list-panel--watched">
-      <div class="list-panel-header">${CLOCK_ICON_SOLID_SVG}<span>RECENTLY WATCHED</span></div>
+      ${panelSideLabelHtml(CLOCK_ICON_SOLID_SVG, "Recently Watched", list.length)}
       ${panelCarouselHtml("watchedCarouselTrack", cardsHtml)}
     </div>`;
 }
@@ -2827,7 +2838,7 @@ function renderPlanToWatchHtml(list) {
 
   return `
     <div class="list-panel list-panel--plan">
-      <div class="list-panel-header">${BOOKMARK_ICON_SVG}<span>PLAN TO WATCH</span></div>
+      ${panelSideLabelHtml(BOOKMARK_ICON_SVG, "Plan to Watch", list.length)}
       ${panelCarouselHtml("planCarouselTrack", cardsHtml)}
     </div>`;
 }
@@ -2864,7 +2875,7 @@ function renderAiringNextPreviewHtml(list) {
 
   return `
     <div class="list-panel list-panel--airing">
-      <div class="list-panel-header">${CALENDAR_ICON_SVG}<span>AIRING NEXT</span></div>
+      ${panelSideLabelHtml(CALENDAR_ICON_SVG, "Airing Next", list.length)}
       ${panelCarouselHtml("airingCarouselTrack", cardsHtml)}
     </div>`;
 }

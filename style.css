@@ -437,14 +437,29 @@
   .bottom-panels-row .list-panel { width: 100%; }
   .list-panel {
     background: var(--card); border: 1px solid var(--border); border-radius: 12px;
-    padding: 18px 20px;
+    padding: 18px 20px; display: flex; align-items: center; gap: 18px;
   }
+  .list-panel > .carousel-wrap { flex: 1 1 auto; min-width: 0; }
   .list-panel-header {
     display: inline-flex; align-items: center; gap: 10px; color: var(--text);
     font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
     font-weight: 700; font-size: 1.3rem; letter-spacing: 0.02em; margin-bottom: 14px;
     border-bottom: 3px solid var(--gold); padding-bottom: 8px;
   }
+  /* Side label for the three bottom panels (Airing Next / Recently Watched /
+     Plan to Watch) - sits beside the card row instead of in its own line
+     above it, reclaiming the vertical space a full-width header used to
+     take. Stacks back above the row on narrow screens, where there's no
+     spare width to give it. */
+  .panel-side-label {
+    flex: 0 0 auto; width: 110px; display: flex; flex-direction: column; align-items: flex-start;
+    gap: 5px; padding-right: 16px; border-right: 1px solid var(--divider);
+  }
+  .panel-side-label .label-text {
+    font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif; color: var(--text);
+    font-weight: 700; font-size: 0.92rem; letter-spacing: 0.02em; text-transform: uppercase; line-height: 1.2;
+  }
+  .panel-side-label .label-count { font-size: 0.7rem; color: var(--muted); font-weight: 600; }
   .list-row {
     display: flex; align-items: center; gap: 14px; padding: 12px 0;
     border-bottom: 1px solid var(--border);
@@ -856,7 +871,11 @@
        as the top carousel above), just with a narrower text column (and
        so a narrower card overall, once the thumbnail's own width follows). */
     .bottom-panels-row { gap: 16px; }
-    .list-panel { padding: 14px 16px; }
+    .list-panel { padding: 14px 16px; flex-direction: column; align-items: stretch; gap: 10px; }
+    .panel-side-label {
+      flex-direction: row; align-items: center; width: auto; gap: 8px;
+      border-right: none; border-bottom: 1px solid var(--divider); padding: 0 0 10px;
+    }
     .mini-card-body { width: 150px; }
 
     .modal-overlay { padding: 12px; }
