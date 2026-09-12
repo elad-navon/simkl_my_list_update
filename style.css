@@ -503,7 +503,7 @@
      bottom edge (never written over the image itself) for whatever secondary
      status that panel needs (air date, watched-at, ended/airing). */
   .mini-card {
-    display: flex; gap: 14px; width: 400px; flex: 0 0 auto; scroll-snap-align: start;
+    display: flex; align-items: center; gap: 14px; width: 400px; flex: 0 0 auto; scroll-snap-align: start;
     background: var(--card-hover); border: 1px solid var(--border); border-radius: 10px;
     padding: 12px;
   }
@@ -513,13 +513,25 @@
   .status-strip {
     height: 22px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; gap: 5px;
     font-size: 0.66rem; font-weight: 700; letter-spacing: 0.02em; padding: 0 6px;
-    white-space: nowrap; overflow: hidden;
   }
-  .status-strip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* The strip's text always lives in its own span (even with no icon
+     alongside it) - centering a too-long text node directly inside a
+     centered flex container clips both ends with no ellipsis; giving the
+     span its own inline-block box that can't exceed the strip's width
+     truncates it normally (trailing "...") regardless of the container's
+     centering. */
+  .status-strip span {
+    display: inline-block; max-width: 100%; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+  }
   .status-strip.neutral { background: #0f151c; color: var(--accent2); }
   .status-strip.status-ended { background: var(--muted); color: #111820; font-weight: 800; text-transform: uppercase; }
   .status-strip.status-airing { background: #2fa84f; color: #fff; font-weight: 800; text-transform: uppercase; }
-  .mini-card-body { display: flex; flex-direction: column; justify-content: center; gap: 4px; min-width: 0; flex: 1 1 auto; }
+  /* No gap here - spacing between lines comes from each element's own
+     margin-top (.list-row-sub, .next-up-row .next-up, .episode-title, ...),
+     same as when these were a vertical list; a blanket gap on top of those
+     doubled up the space, most visible as a gap under the title. */
+  .mini-card-body { display: flex; flex-direction: column; justify-content: center; min-width: 0; flex: 1 1 auto; }
   .center-box {
     max-width: 480px; margin: 60px auto; background: var(--card); border-radius: 14px;
     padding: 30px; text-align: center; box-shadow: 0 6px 22px rgba(0,0,0,0.35);

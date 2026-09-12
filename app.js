@@ -2743,7 +2743,7 @@ function renderRecentlyWatchedHtml(list) {
     const badgeModifier = ep.badge === "SEASON FINALE" ? " finale" : ep.badge === "DROPPED" ? " dropped" : "";
     const badgeHtml = ep.badge ? `<div class="premiere-badge${badgeModifier}">${ep.badge}</div>` : "";
     const watchedStripHtml = ep.watchedAt
-      ? `<div class="status-strip neutral">Watched &bull; ${formatWatchedAt(ep.watchedAt)}</div>`
+      ? `<div class="status-strip neutral"><span>Watched &bull; ${formatWatchedAt(ep.watchedAt)}</span></div>`
       : "";
     return `
       <div class="mini-card">
@@ -2778,13 +2778,14 @@ function renderPlanToWatchHtml(list) {
     const thumbHtml = bannerSrc
       ? `<img class="list-thumb" src="${bannerSrc}" alt="${row.title}" onerror="handleThumbError(this, 'plan', ${idx}, '${mode}')">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
-    const badgeHtml = row.airedLabel
-      ? `<div class="premiere-badge${row.ended ? " finale" : ""}">${row.airedLabel}</div>`
-      : "";
     const yearBadgeHtml = row.yearRangeLabel
       ? `<div class="premiere-badge year-badge">${row.yearRangeLabel}</div>`
       : "";
-    const statusStripHtml = `<div class="status-strip ${row.ended ? "status-ended" : "status-airing"}">${row.ended ? "ENDED" : "AIRED"}</div>`;
+    // Same aired/ended label the body badge used to show on its own line
+    // (e.g. "Series Ended - 92 Episodes") - now lives in the strip instead,
+    // so it isn't repeated twice on the same small card.
+    const statusStripText = row.airedLabel || (row.ended ? "Ended" : "Airing");
+    const statusStripHtml = `<div class="status-strip ${row.ended ? "status-ended" : "status-airing"}"><span>${statusStripText}</span></div>`;
     return `
       <div class="mini-card">
         <div class="thumb-col">
@@ -2797,7 +2798,6 @@ function renderPlanToWatchHtml(list) {
             ${yearBadgeHtml}
           </div>
           ${networkSubHtml(row.network, row.networkLogoPath)}
-          ${badgeHtml}
           <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId)}</div>
         </div>
         <button class="card-menu-btn plan-menu-btn" title="Manage" onclick="event.stopPropagation(); openPlanCardMenu(${idx}, this)">&#8942;</button>
@@ -2827,7 +2827,7 @@ function renderAiringNextPreviewHtml(list) {
       <div class="mini-card">
         <div class="thumb-col">
           <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
-          <div class="status-strip neutral">&#128197; ${row.airDateLabel}</div>
+          <div class="status-strip neutral">&#128197; <span>${row.airDateLabel}</span></div>
         </div>
         <div class="mini-card-body">
           <div class="list-row-title" title="View cast" onclick="event.stopPropagation(); openCastModal('airing', ${idx})">${row.title}</div>
