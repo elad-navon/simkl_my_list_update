@@ -374,6 +374,13 @@
     text-overflow: ellipsis;
     text-transform: uppercase;
   }
+  /* Recently Watched gets two lines instead of a single truncated one - an
+     episode title cut off after a few words ("Spoiler: We're As Confused
+     As...") reads worse than just wrapping it. */
+  .list-panel--watched .episode-title {
+    max-height: none; white-space: normal; display: -webkit-box;
+    -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  }
   .watch-progress { margin-top: 8px; margin-bottom: 10px; }
   .watch-progress-track { height: 16px; border-radius: 8px; background: var(--border); overflow: hidden; position: relative; }
   .watch-progress-fill { height: 100%; border-radius: 8px 0 0 8px; background: var(--gold); }
@@ -500,8 +507,20 @@
      together stretch to fill the card's full height (frame) - the strip
      sizes to whatever its own text needs (wrapping to a 2nd line rather
      than ever truncating) and the image absorbs the rest via object-fit. */
+  /* No fixed card width - total width is whatever the (dynamic-width)
+     thumbnail plus the fixed-width text column add up to. This matters: if
+     the text column's width depended on the thumbnail's width (e.g. both
+     squeezed into one fixed card width), resizing the thumbnail to match
+     its own height would reflow the text's line-wrapping, which changes
+     the card's height, which (every card in a row stretches to the
+     tallest) changes every sibling's height too - a feedback loop that in
+     practice made whichever panel rendered first (and so got resized
+     first, before its row's "natural" height had settled) come out
+     visibly wrong. Fixing the text column's width removes the loop
+     entirely: nothing about sizing the thumbnail can ever change any
+     card's text layout. */
   .mini-card {
-    display: flex; align-items: center; gap: 14px; width: 400px; flex: 0 0 auto; scroll-snap-align: start;
+    display: flex; align-items: center; gap: 14px; flex: 0 0 auto; scroll-snap-align: start;
     background: var(--card-hover); border: 1px solid var(--border); border-radius: 10px;
     overflow: hidden;
   }
@@ -510,12 +529,10 @@
      as the top carousel card's poster-wrap (radius: 0 on the image itself,
      the card's own overflow: hidden + border-radius does the actual
      corner-rounding) - so the banner reaches all the way to the frame
-     instead of floating inset from it. */
-  /* Width is set inline per-card by sizeThumbCols() in app.js, computed from
-     this column's actual rendered height so the image keeps a correct 16:9
-     crop instead of being squeezed into a fixed width that no longer
-     matches its (now dynamic, frame-filling) height - 161px here is only
-     the pre-JS fallback. */
+     instead of floating inset from it. Width is set inline per-card by
+     sizeThumbCols() in app.js, computed from this column's actual
+     rendered height so the image keeps a correct 16:9 crop - 161px here
+     is only the pre-JS fallback. */
   .thumb-col {
     width: 161px; flex: 0 0 auto; align-self: stretch;
     display: flex; flex-direction: column;
@@ -539,10 +556,11 @@
      margin-top (.list-row-sub, .next-up-row .next-up, .episode-title, ...),
      same as when these were a vertical list; a blanket gap on top of those
      doubled up the space, most visible as a gap under the title. */
-  /* Left padding is 0 - the .mini-card gap already provides that spacing
-     from the (now edge-to-edge) thumbnail; the other three sides keep the
-     card's old inner padding since this is the only element left to carry it. */
-  .mini-card-body { display: flex; flex-direction: column; justify-content: center; min-width: 0; flex: 1 1 auto; padding: 12px 12px 12px 0; }
+  /* Fixed width, not flex:1 1 auto - see the .mini-card comment above for
+     why this can't be allowed to depend on the thumbnail's own width.
+     Left padding is 0 since .mini-card's gap already provides that spacing
+     from the (now edge-to-edge) thumbnail. */
+  .mini-card-body { display: flex; flex-direction: column; justify-content: center; width: 220px; flex: 0 0 auto; padding: 12px 12px 12px 0; }
   .center-box {
     max-width: 480px; margin: 60px auto; background: var(--card); border-radius: 14px;
     padding: 30px; text-align: center; box-shadow: 0 6px 22px rgba(0,0,0,0.35);
@@ -846,10 +864,11 @@
 
     /* Each panel's mini-card row keeps scrolling horizontally exactly like
        on desktop (touch swipe takes over from the now-hidden arrows, same
-       as the top carousel above), just at a narrower card width. */
+       as the top carousel above), just with a narrower text column (and
+       so a narrower card overall, once the thumbnail's own width follows). */
     .bottom-panels-row { gap: 16px; }
     .list-panel { padding: 14px 16px; }
-    .mini-card { width: 320px; }
+    .mini-card-body { width: 150px; }
 
     .modal-overlay { padding: 12px; }
     .cast-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
