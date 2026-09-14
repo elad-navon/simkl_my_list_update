@@ -528,7 +528,7 @@
     flex: 0 0 auto; border: 1px solid var(--muted); border-radius: 3px;
     padding: 1px 5px; font-size: 0.68rem; font-weight: 700; color: var(--text);
   }
-  .genre-label { font-size: 0.74rem; color: var(--muted); font-weight: 500; }
+  .genre-label { font-size: 0.74rem; color: #ffffff; font-weight: 500; }
   .center-box {
     max-width: 480px; margin: 60px auto; background: var(--card); border-radius: 14px;
     padding: 30px; text-align: center; box-shadow: 0 6px 22px rgba(0,0,0,0.35);
