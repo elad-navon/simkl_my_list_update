@@ -416,11 +416,13 @@ class TmdbCache {
         this.show.set(tmdbId, Promise.resolve(cached));
         return this.show.get(tmdbId);
       }
-      // append_to_response=images,external_ids pulls both ALL available
-      // posters/backdrops (for the cycle-through-alternates feature) and
-      // this show's imdb id (for the search-detail modal's title link) in
-      // the one request every show already needs, rather than firing a
-      // second one just for the id. include_image_language asks for
+      // append_to_response=images,external_ids,content_ratings pulls ALL
+      // available posters/backdrops (for the cycle-through-alternates
+      // feature), this show's imdb id (for the search-detail modal's title
+      // link), and its age rating (TV-MA etc., shown on the Plan to Watch
+      // row - see extractContentRating) all in the one request every show
+      // already needs, rather than firing extra ones. include_image_language
+      // asks for
       // English + untagged (no-language) + Hebrew images -
       // English/no-language is preferred (see computeImages), Hebrew is
       // used only as a fallback for shows that only have Hebrew-text
@@ -429,7 +431,7 @@ class TmdbCache {
       // estimate only, never episode counts) - a failure here degrades
       // gracefully to null rather than crashing whichever show triggered it.
       const promise = tmdbGet(`/tv/${tmdbId}`, {
-        append_to_response: "images,external_ids",
+        append_to_response: "images,external_ids,content_ratings",
         language: "en-US",
         include_image_language: "en,null,he",
       }).then(data => {
@@ -593,6 +595,33 @@ function latestNetwork(showDetail) {
   // current one, so use the last entry instead.
   const list = showDetail && showDetail.networks;
   return list && list.length ? list[list.length - 1] : null;
+}
+
+// TMDB's content_ratings.results is one entry per country ("US": "TV-MA",
+// "GB": "15", etc.) - US is what every other age-rating badge in US-style
+// media UIs shows, so prefer it and fall back to whichever country has a
+// non-empty rating first rather than showing nothing.
+function extractContentRating(showDetail) {
+  const results = showDetail && showDetail.content_ratings && showDetail.content_ratings.results;
+  if (!results || !results.length) return null;
+  const us = results.find(r => r.iso_3166_1 === "US" && r.rating);
+  if (us) return us.rating;
+  const any = results.find(r => r.rating);
+  return any ? any.rating : null;
+}
+
+// "Action & Adventure and Crime" (TMDB's own genre list style, e.g. on a
+// show's themoviedb.org page) rather than a plain comma list.
+function joinGenreNames(names) {
+  if (!names.length) return null;
+  if (names.length === 1) return names[0];
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+function extractGenreLabel(showDetail) {
+  const genres = showDetail && showDetail.genres;
+  if (!genres || !genres.length) return null;
+  return joinGenreNames(genres.map(g => g.name).filter(Boolean));
 }
 
 function normalizeNetworkName(name) {
@@ -1051,6 +1080,8 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
     let tmdbLogoPath = null;
     let startYear = null;
     let endYear = null;
+    let contentRating = null;
+    let genreLabel = null;
     if (tmdbId) {
       try {
         const showDetail = await cache.getShow(tmdbId);
@@ -1061,6 +1092,8 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
         tmdbLogoPath = showNetwork ? showNetwork.logo_path : null;
         if (showDetail && showDetail.first_air_date) startYear = showDetail.first_air_date.slice(0, 4);
         if (showDetail && showDetail.last_air_date) endYear = showDetail.last_air_date.slice(0, 4);
+        contentRating = extractContentRating(showDetail);
+        genreLabel = extractGenreLabel(showDetail);
       } catch (e) {
         images = computeImages(null);
       }
@@ -1080,7 +1113,7 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
     // "2016-2019" once ended, "2016-" (open-ended) while still airing.
     const yearRangeLabel = startYear ? `${startYear}-${ended ? (endYear || "") : ""}` : null;
 
-    return { title, imdbId, imdbRating, ...images, simklId, tmdbId, airedLabel, ended, network, networkLogoPath, yearRangeLabel };
+    return { title, imdbId, imdbRating, ...images, simklId, tmdbId, airedLabel, ended, network, networkLogoPath, yearRangeLabel, contentRating, genreLabel };
   }));
 
   // Highest IMDb rating first; shows with no known rating sink to the end.
@@ -2827,6 +2860,16 @@ function renderPlanToWatchHtml(list) {
     const yearBadgeHtml = row.yearRangeLabel
       ? `<div class="premiere-badge year-badge">${row.yearRangeLabel}</div>`
       : "";
+    // Same content-rating-badge + genre-list line TMDB itself shows right
+    // under a show's title (e.g. "TV-MA  Action & Adventure and Crime") -
+    // either half can be missing on its own (rating and genres come from
+    // separate TMDB fields), so the whole line is dropped only if both are.
+    const contentMetaHtml = (row.contentRating || row.genreLabel)
+      ? `<div class="content-meta-row">
+          ${row.contentRating ? `<span class="content-rating-badge">${row.contentRating}</span>` : ""}
+          ${row.genreLabel ? `<span class="genre-label">${row.genreLabel}</span>` : ""}
+        </div>`
+      : "";
     return `
       <div class="list-row">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
@@ -2838,6 +2881,7 @@ function renderPlanToWatchHtml(list) {
           ${networkSubHtml(row.network, row.networkLogoPath)}
           ${badgeHtml}
           <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId)}</div>
+          ${contentMetaHtml}
         </div>
         <span class="list-check">${STAR_ICON_SVG}</span>
         <button class="card-menu-btn plan-menu-btn" title="Manage" onclick="event.stopPropagation(); openPlanCardMenu(${idx}, this)">&#8942;</button>
