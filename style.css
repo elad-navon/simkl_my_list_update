@@ -440,9 +440,15 @@
      its own underline unchanged, the count just rides along to its right
      via margin-left: auto (same trick as .series-panel-updated above). */
   .list-panel-header-row { display: flex; align-items: center; }
+  /* Same font as .list-panel-header right next to it (Barlow Condensed,
+     1.3rem, 700, same letter-spacing) - not actually inherited since this
+     sits as .list-panel-header's sibling in .list-panel-header-row, not
+     its descendant, so every property needs restating here explicitly. */
   .list-panel-count {
-    background: none; border: none; padding: 0; font-family: inherit;
-    color: #ffffff; font-size: 1rem; font-weight: 600; margin-left: auto; cursor: pointer;
+    background: none; border: none; padding: 0;
+    font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
+    font-weight: 700; font-size: 1.3rem; letter-spacing: 0.02em;
+    color: #ffffff; margin-left: auto; cursor: pointer;
   }
   .list-panel-count:hover { color: var(--accent2); text-decoration: underline; }
   /* Vertical carousel - all three panels show ~5 rows before scrolling
