@@ -2149,17 +2149,26 @@ function openPanelShowsModal(source) {
   const headerEl = document.querySelector("header");
   overlay.style.paddingTop = `${(headerEl ? headerEl.offsetHeight : 0) + 24}px`;
 
-  const itemsHtml = rows.map(row => {
+  // Each card is a flip card, not a link: clicking the poster (front) does
+  // a half-turn to a wider, horizontal back face holding the exact same
+  // info the show's own row shows (rowInfoWrapHtml, mode "flip" - only the
+  // title there links to IMDb, matching how it used to work when the whole
+  // card was the link).
+  const itemsHtml = rows.map((row, idx) => {
     const posterSrc = row.posterUrl || row.bannerUrl;
     const thumbHtml = posterSrc
       ? `<img class="list-thumb" src="${posterSrc}" alt="${row.title}">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
-    const innerHtml = `${thumbHtml}<div class="panel-shows-title">${row.title}</div>`;
-    // The whole card is the IMDb link (not just the title) when an id is
-    // known; otherwise it stays a plain, non-clickable card.
-    return row.imdbId
-      ? `<a class="panel-shows-item" href="https://www.imdb.com/title/${row.imdbId}/" target="_blank" rel="noopener">${innerHtml}</a>`
-      : `<div class="panel-shows-item">${innerHtml}</div>`;
+    const infoHtml = rowInfoWrapHtml(row, idx, source, "flip");
+    return `
+      <div class="panel-shows-item" onclick="togglePanelShowsFlip(this)">
+        <div class="panel-shows-flip-inner">
+          <div class="panel-shows-flip-face panel-shows-flip-front">${thumbHtml}</div>
+          <div class="panel-shows-flip-face panel-shows-flip-back">
+            <div class="list-row-title-wrap">${infoHtml}</div>
+          </div>
+        </div>
+      </div>`;
   }).join("\n");
 
   const countHtml = `<span class="panel-shows-modal-count">${rows.length} show${rows.length === 1 ? "" : "s"}</span>`;
@@ -2178,6 +2187,14 @@ function openPanelShowsModal(source) {
   document.getElementById("panelShowsModalCloseBtn").onclick = closePanelShowsModal;
   overlay.addEventListener("click", e => { if (e.target === overlay) closePanelShowsModal(); });
   document.addEventListener("keydown", panelShowsModalEscHandler);
+}
+
+// Toggles one poster card between its front (poster) and back (the row's
+// own info block, see rowInfoWrapHtml) - stopPropagation on the back
+// face's own IMDb link (rowInfoWrapHtml, mode "flip") keeps a click there
+// from also re-triggering this and flipping the card back shut.
+function togglePanelShowsFlip(itemEl) {
+  itemEl.classList.toggle("flipped");
 }
 
 function panelShowsModalEscHandler(e) {
@@ -2814,6 +2831,75 @@ function listPanelCountHtml(count, source) {
   return `<button type="button" class="list-panel-count" onclick="openPanelShowsModal('${source}')">${count} show${count === 1 ? "" : "s"}</button>`;
 }
 
+// Exact inner content of a row's .list-row-title-wrap, factored out of the
+// three render*Html functions below so the "all shows" modal's flip-card
+// back face (openPanelShowsModal) can show precisely the same info as the
+// show's own row instead of a second, drift-prone copy of this markup.
+// mode "row" is the row's own title (opens the cast modal, as always);
+// mode "flip" is the flip-card back face's title (an IMDb link instead,
+// since the cast modal doesn't make sense floating over a poster grid).
+function rowInfoWrapHtml(row, idx, source, mode) {
+  const titleHtml = mode === "flip"
+    ? (row.imdbId
+        ? `<div class="list-row-title"><a href="https://www.imdb.com/title/${row.imdbId}/" target="_blank" rel="noopener" onclick="event.stopPropagation()">${row.title}</a></div>`
+        : `<div class="list-row-title">${row.title}</div>`)
+    : `<div class="list-row-title" title="View cast" onclick="event.stopPropagation(); openCastModal('${source}', ${idx})">${row.title}</div>`;
+
+  if (source === "watched") {
+    const episodeCode = `S${String(row.season).padStart(2, "0")}E${String(row.episode).padStart(2, "0")}`;
+    const episodeTitleHtml = row.episodeTitle ? `<div class="episode-title">${row.episodeTitle}</div>` : "";
+    const badgeModifier = row.badge === "SEASON FINALE" ? " finale" : row.badge === "DROPPED" ? " dropped" : "";
+    const badgeHtml = row.badge ? `<div class="premiere-badge${badgeModifier}">${row.badge}</div>` : "";
+    return `
+      ${titleHtml}
+      ${networkSubHtml(row.network, row.networkLogoPath)}
+      <div class="next-up-row">
+        <div class="list-row-sub episode-code-sub">${episodeCode}</div>
+        ${badgeHtml}
+      </div>
+      ${episodeTitleHtml}`;
+  }
+
+  if (source === "plan") {
+    const badgeHtml = row.airedLabel
+      ? `<div class="premiere-badge${row.ended ? " finale" : ""}">${row.airedLabel}</div>`
+      : "";
+    const yearBadgeHtml = row.yearRangeLabel
+      ? `<div class="premiere-badge year-badge">${row.yearRangeLabel}</div>`
+      : "";
+    const contentMetaHtml = (row.contentRating || row.genreLabel)
+      ? `<div class="content-meta-row">
+          ${row.contentRating ? `<span class="content-rating-badge">${row.contentRating}</span>` : ""}
+          ${row.genreLabel ? `<span class="genre-label">${row.genreLabel}</span>` : ""}
+        </div>`
+      : "";
+    return `
+      <div class="title-with-year">
+        ${titleHtml}
+        ${yearBadgeHtml}
+      </div>
+      ${networkSubHtml(row.network, row.networkLogoPath)}
+      ${badgeHtml}
+      <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId)}</div>
+      ${contentMetaHtml}`;
+  }
+
+  // source === "airing"
+  const episodeTitle = row.nextEpisodeTitle ? `<div class="episode-title">${row.nextEpisodeTitle}</div>` : "";
+  const badgeHtml = row.badge
+    ? `<div class="premiere-badge${row.badge === "SEASON FINALE" ? " finale" : ""}">${row.badge}</div>`
+    : "";
+  return `
+    ${titleHtml}
+    ${networkSubHtml(row.network, row.networkLogoPath)}
+    <div class="next-up-row">
+      <span class="next-up">Next: ${row.nextLabel}</span>
+      ${badgeHtml}
+    </div>
+    ${episodeTitle}
+    <div class="list-row-airdate">&#128197; ${row.airDateLabel}</div>`;
+}
+
 function renderRecentlyWatchedHtml(list) {
   if (!list || !list.length) return "";
   const rowsHtml = list.map((ep, idx) => {
@@ -2822,22 +2908,10 @@ function renderRecentlyWatchedHtml(list) {
     const thumbHtml = bannerSrc
       ? `<img class="list-thumb" src="${bannerSrc}" alt="${ep.title}" onerror="handleThumbError(this, 'watched', ${idx}, '${mode}')">`
       : `<div class="list-thumb placeholder">${(ep.title[0] || "?").toUpperCase()}</div>`;
-    const episodeCode = `S${String(ep.season).padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`;
-    const episodeTitleHtml = ep.episodeTitle ? `<div class="episode-title">${ep.episodeTitle}</div>` : "";
-    const badgeModifier = ep.badge === "SEASON FINALE" ? " finale" : ep.badge === "DROPPED" ? " dropped" : "";
-    const badgeHtml = ep.badge ? `<div class="premiere-badge${badgeModifier}">${ep.badge}</div>` : "";
     return `
       <div class="list-row">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
-        <div class="list-row-title-wrap">
-          <div class="list-row-title" title="View cast" onclick="event.stopPropagation(); openCastModal('watched', ${idx})">${ep.title}</div>
-          ${networkSubHtml(ep.network, ep.networkLogoPath)}
-          <div class="next-up-row">
-            <div class="list-row-sub episode-code-sub">${episodeCode}</div>
-            ${badgeHtml}
-          </div>
-          ${episodeTitleHtml}
-        </div>
+        <div class="list-row-title-wrap">${rowInfoWrapHtml(ep, idx, "watched", "row")}</div>
         <span class="list-check">${CHECK_ICON_SVG}</span>
       </div>`;
   }).join("\n");
@@ -2860,35 +2934,10 @@ function renderPlanToWatchHtml(list) {
     const thumbHtml = bannerSrc
       ? `<img class="list-thumb" src="${bannerSrc}" alt="${row.title}" onerror="handleThumbError(this, 'plan', ${idx}, '${mode}')">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
-    const badgeHtml = row.airedLabel
-      ? `<div class="premiere-badge${row.ended ? " finale" : ""}">${row.airedLabel}</div>`
-      : "";
-    const yearBadgeHtml = row.yearRangeLabel
-      ? `<div class="premiere-badge year-badge">${row.yearRangeLabel}</div>`
-      : "";
-    // Same content-rating-badge + genre-list line TMDB itself shows right
-    // under a show's title (e.g. "TV-MA  Action & Adventure and Crime") -
-    // either half can be missing on its own (rating and genres come from
-    // separate TMDB fields), so the whole line is dropped only if both are.
-    const contentMetaHtml = (row.contentRating || row.genreLabel)
-      ? `<div class="content-meta-row">
-          ${row.contentRating ? `<span class="content-rating-badge">${row.contentRating}</span>` : ""}
-          ${row.genreLabel ? `<span class="genre-label">${row.genreLabel}</span>` : ""}
-        </div>`
-      : "";
     return `
       <div class="list-row">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
-        <div class="list-row-title-wrap">
-          <div class="title-with-year">
-            <div class="list-row-title" title="View cast" onclick="event.stopPropagation(); openCastModal('plan', ${idx})">${row.title}</div>
-            ${yearBadgeHtml}
-          </div>
-          ${networkSubHtml(row.network, row.networkLogoPath)}
-          ${badgeHtml}
-          <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId)}</div>
-          ${contentMetaHtml}
-        </div>
+        <div class="list-row-title-wrap">${rowInfoWrapHtml(row, idx, "plan", "row")}</div>
         <span class="list-check">${STAR_ICON_SVG}</span>
         <button class="card-menu-btn plan-menu-btn" title="Manage" onclick="event.stopPropagation(); openPlanCardMenu(${idx}, this)">&#8942;</button>
       </div>`;
@@ -2912,23 +2961,10 @@ function renderAiringNextPreviewHtml(list) {
     const thumbHtml = bannerSrc
       ? `<img class="list-thumb" src="${bannerSrc}" alt="${row.title}" onerror="handleThumbError(this, 'airing', ${idx}, '${mode}')">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
-    const episodeTitle = row.nextEpisodeTitle ? `<div class="episode-title">${row.nextEpisodeTitle}</div>` : "";
-    const badgeHtml = row.badge
-      ? `<div class="premiere-badge${row.badge === "SEASON FINALE" ? " finale" : ""}">${row.badge}</div>`
-      : "";
     return `
       <div class="list-row">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
-        <div class="list-row-title-wrap">
-          <div class="list-row-title" title="View cast" onclick="event.stopPropagation(); openCastModal('airing', ${idx})">${row.title}</div>
-          ${networkSubHtml(row.network, row.networkLogoPath)}
-          <div class="next-up-row">
-            <span class="next-up">Next: ${row.nextLabel}</span>
-            ${badgeHtml}
-          </div>
-          ${episodeTitle}
-          <div class="list-row-airdate">&#128197; ${row.airDateLabel}</div>
-        </div>
+        <div class="list-row-title-wrap">${rowInfoWrapHtml(row, idx, "airing", "row")}</div>
         <span class="list-check">${BELL_ICON_SVG}</span>
       </div>`;
   }).join("\n");

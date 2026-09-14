@@ -695,15 +695,35 @@
     overflow: auto; padding: 4px 22px 12px;
     display: grid; grid-template-columns: repeat(8, 150px); justify-content: center; gap: 20px;
   }
-  .panel-shows-grid .list-thumb { width: 150px; height: auto; aspect-ratio: 2 / 3; }
-  /* Doubles as an <a> (imdb id known) or a plain <div> (none) - see
-     openPanelShowsModal - so link defaults are reset here rather than
-     scoped to .panel-shows-title the way they used to be, now that the
-     whole card (poster included) is the clickable target, not just the
-     title text. */
-  .panel-shows-item { display: flex; flex-direction: column; gap: 8px; color: inherit; text-decoration: none; }
-  .panel-shows-title { font-size: 0.88rem; font-weight: 700; color: var(--text); line-height: 1.3; word-break: break-word; }
-  a.panel-shows-item:hover .panel-shows-title { color: var(--accent2); text-decoration: underline; }
+  .panel-shows-grid .panel-shows-flip-front .list-thumb {
+    width: 100%; height: 100%; aspect-ratio: auto; border-radius: 0;
+  }
+  /* Flip card: click the poster (front) for a half-turn (rotateY 180deg)
+     into a wider, horizontal back face holding the show's own row info
+     (rowInfoWrapHtml, mode "flip" - see openPanelShowsModal), title
+     included as an IMDb link there. Spans 2 grid columns while flipped
+     (150+20+150=320px) rather than floating an absolute overlay, so a
+     flipped card enlarges in-flow - other cards simply reflow around it -
+     instead of getting clipped by the grid's own scroll boundary. */
+  .panel-shows-item { cursor: pointer; perspective: 1200px; }
+  .panel-shows-item.flipped { grid-column: span 2; }
+  .panel-shows-flip-inner {
+    position: relative; width: 150px; height: 225px;
+    transform-style: preserve-3d; transition: transform 0.5s ease, width 0.5s ease, height 0.5s ease;
+  }
+  .panel-shows-item.flipped .panel-shows-flip-inner {
+    width: 320px; height: 210px; transform: rotateY(180deg);
+  }
+  .panel-shows-flip-face {
+    position: absolute; inset: 0; backface-visibility: hidden;
+    border-radius: 6px; overflow: hidden;
+  }
+  .panel-shows-flip-back {
+    transform: rotateY(180deg); background: var(--card-hover);
+    padding: 10px 14px; display: flex; flex-direction: column; justify-content: center;
+    overflow-y: auto;
+  }
+  .panel-shows-flip-back .list-row-title-wrap > :first-child { margin-top: 0; }
   /* Same font as the modal's own title (all inherited from .list-panel-header)
      - just pinned to the right of that same row via the usual margin-left:auto
      trick used everywhere else a count rides along a header. */
@@ -894,16 +914,19 @@
 
     .modal-overlay { padding: 12px; }
     .cast-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
-    /* The 7-column grid only makes sense at desktop widths - on mobile the
+    /* The 8-column grid only makes sense at desktop widths - on mobile the
        modal falls back to the same horizontally-swiped row of fixed-width
        cards as .list-rows-scroll, just with the same real 2:3 poster ratio
-       as desktop (scaled down to 132px wide) instead of the generic 16:9
-       fluid rule above, which would otherwise win here (same specificity,
-       later in the file) and stretch these back into landscape banners. */
+       as desktop (scaled down to 132px wide). A flipped card here just
+       grows wider in place (flex reflows the row around it) rather than
+       spanning grid columns, since there's no fixed-column grid on mobile
+       to span. */
     .panel-shows-grid {
       display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
       gap: 12px; justify-content: flex-start;
     }
-    .panel-shows-grid .list-thumb { width: 132px; height: auto; aspect-ratio: 2 / 3; }
-    .panel-shows-item { width: 132px; flex: 0 0 auto; }
+    .panel-shows-item { flex: 0 0 auto; }
+    .panel-shows-item.flipped { grid-column: auto; }
+    .panel-shows-flip-inner { width: 132px; height: 198px; }
+    .panel-shows-item.flipped .panel-shows-flip-inner { width: 260px; height: 190px; }
   }
