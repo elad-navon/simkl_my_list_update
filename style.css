@@ -440,7 +440,11 @@
      its own underline unchanged, the count just rides along to its right
      via margin-left: auto (same trick as .series-panel-updated above). */
   .list-panel-header-row { display: flex; align-items: center; }
-  .list-panel-count { color: #ffffff; font-size: 1rem; font-weight: 600; margin-left: auto; }
+  .list-panel-count {
+    background: none; border: none; padding: 0; font-family: inherit;
+    color: #ffffff; font-size: 1rem; font-weight: 600; margin-left: auto; cursor: pointer;
+  }
+  .list-panel-count:hover { color: var(--accent2); text-decoration: underline; }
   /* Vertical carousel - all three panels show ~5 rows before scrolling
      (5 * (76px banner thumb + 24px row padding + 1px border) = 505px). */
   .list-rows-scroll {
@@ -591,9 +595,9 @@
     from { transform: rotateY(-90deg); }
     to { transform: rotateY(0deg); }
   }
-  .episodes-modal, .cast-modal { animation: episodes-modal-in 0.8s ease-out; transform-origin: center; }
+  .episodes-modal, .cast-modal, .panel-shows-modal { animation: episodes-modal-in 0.8s ease-out; transform-origin: center; }
   @media (prefers-reduced-motion: reduce) {
-    .episodes-modal, .cast-modal { animation: none; }
+    .episodes-modal, .cast-modal, .panel-shows-modal { animation: none; }
   }
   .modal-close-btn {
     background: transparent; border: none; color: var(--muted); font-size: 1.4rem;
@@ -661,6 +665,24 @@
   .cast-name-link:hover { text-decoration: underline; color: var(--accent2); }
   .cast-character { font-size: 0.78rem; color: var(--muted); font-weight: 500; }
   .cast-episodes { font-size: 0.68rem; color: var(--muted); font-weight: 500; opacity: 0.75; }
+  /* "All shows" modal opened from a bottom panel's show-count link - same
+     head shape as .cast-modal, but the grid sits inside a .list-panel
+     wrapper (neutralized below) purely so .list-panel .list-thumb's 204x115
+     sizing rule reaches these thumbnails too, guaranteeing they always match
+     the panel's own row thumbs without duplicating that number here. */
+  .panel-shows-modal { max-width: 800px; display: flex; flex-direction: column; max-height: 85vh; padding: 20px 0 4px; }
+  .panel-shows-grid-wrap.list-panel {
+    background: none; border: none; padding: 0; border-radius: 0;
+    display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0;
+  }
+  .panel-shows-grid {
+    overflow-y: auto; padding: 4px 22px 20px;
+    display: flex; flex-wrap: wrap; align-content: flex-start; gap: 20px;
+  }
+  .panel-shows-item { display: flex; flex-direction: column; gap: 8px; }
+  .panel-shows-title { font-size: 0.88rem; font-weight: 700; color: var(--text); line-height: 1.3; }
+  .panel-shows-title a { color: inherit; text-decoration: none; }
+  .panel-shows-title a:hover { text-decoration: underline; color: var(--accent2); }
   .search-input-row input {
     width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
     background: var(--bg); color: var(--text); font-size: 0.95rem; box-sizing: border-box;
@@ -848,4 +870,8 @@
 
     .modal-overlay { padding: 12px; }
     .cast-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    /* Same 200px fixed-width card the mobile row list uses (.list-row above),
+       so .list-thumb's 100%-width mobile rule resolves to the same pixel
+       size here as it does in the panel itself. */
+    .panel-shows-item { width: 200px; }
   }

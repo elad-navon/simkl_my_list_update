@@ -937,6 +937,7 @@ async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token, rat
           watchedAt: ep.watched_at,
           tmdbId: (show.ids || {}).tmdb,
           simklId: (show.ids || {}).simkl,
+          imdbId: (show.ids || {}).imdb,
         });
       }
     }
@@ -958,6 +959,7 @@ async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token, rat
       watchedAt: item.last_watched_at,
       tmdbId: (show.ids || {}).tmdb,
       simklId: (show.ids || {}).simkl,
+      imdbId: (show.ids || {}).imdb,
       dropped: true,
     });
   }
@@ -2078,6 +2080,78 @@ function closeCastModal() {
   document.removeEventListener("keydown", castModalEscHandler);
 }
 
+// Icon/title for the "all shows" modal opened from a bottom panel's show-count
+// link (listPanelCountHtml) - same icon+label each panel's own header uses.
+// A function rather than a module-level object because the icon constants
+// themselves are declared further down the file (TDZ at load time otherwise).
+function panelShowsModalConfig(source) {
+  switch (source) {
+    case "watched": return { icon: CLOCK_ICON_SOLID_SVG, title: "RECENTLY WATCHED" };
+    case "plan": return { icon: BOOKMARK_ICON_SVG, title: "PLAN TO WATCH" };
+    case "airing": return { icon: CALENDAR_ICON_SVG, title: "AIRING NEXT" };
+    default: return null;
+  }
+}
+
+// Every show currently in one bottom panel, thumbnails at the exact same
+// size as the panel's own row thumbs (the grid wrapper carries the
+// .list-panel class purely so .list-panel .list-thumb's sizing rule applies
+// here too, instead of duplicating the 204x115 number) - title links straight
+// to IMDb since every row already carries a resolved imdbId (unlike the cast
+// modal's names, nothing here needs a lazy per-item fetch).
+function openPanelShowsModal(source) {
+  const rows = getCycleRows(source);
+  const config = panelShowsModalConfig(source);
+  if (!rows || !rows.length || !config) return;
+
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.id = "panelShowsModalOverlay";
+  const headerEl = document.querySelector("header");
+  overlay.style.paddingTop = `${(headerEl ? headerEl.offsetHeight : 0) + 24}px`;
+
+  const itemsHtml = rows.map(row => {
+    const bannerSrc = row.bannerUrl || row.posterUrl;
+    const thumbHtml = bannerSrc
+      ? `<img class="list-thumb" src="${bannerSrc}" alt="${row.title}">`
+      : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
+    const titleHtml = row.imdbId
+      ? `<a href="https://www.imdb.com/title/${row.imdbId}/" target="_blank" rel="noopener">${row.title}</a>`
+      : row.title;
+    return `
+      <div class="panel-shows-item">
+        ${thumbHtml}
+        <div class="panel-shows-title">${titleHtml}</div>
+      </div>`;
+  }).join("\n");
+
+  overlay.innerHTML = `
+    <div class="modal-box panel-shows-modal">
+      <div class="episodes-modal-head">
+        <div class="list-panel-header">${config.icon}<span>${config.title}</span></div>
+        <button class="modal-close-btn" id="panelShowsModalCloseBtn">&times;</button>
+      </div>
+      <div class="list-panel panel-shows-grid-wrap">
+        <div class="panel-shows-grid">${itemsHtml}</div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  document.getElementById("panelShowsModalCloseBtn").onclick = closePanelShowsModal;
+  overlay.addEventListener("click", e => { if (e.target === overlay) closePanelShowsModal(); });
+  document.addEventListener("keydown", panelShowsModalEscHandler);
+}
+
+function panelShowsModalEscHandler(e) {
+  if (e.key === "Escape") closePanelShowsModal();
+}
+
+function closePanelShowsModal() {
+  const overlay = document.getElementById("panelShowsModalOverlay");
+  if (overlay) overlay.remove();
+  document.removeEventListener("keydown", panelShowsModalEscHandler);
+}
+
 function openSearchModal() {
   if (!simklToken) return;
   document.getElementById("addShowBtn").classList.add("active");
@@ -2696,9 +2770,10 @@ function networkSubHtml(name, logoPath) {
 
 // Right-aligned show count for a bottom panel's header row - same
 // margin-left:auto trick as .series-panel-updated in the top carousel's
-// own header, just reused here instead of duplicated.
-function listPanelCountHtml(count) {
-  return `<span class="list-panel-count">${count} show${count === 1 ? "" : "s"}</span>`;
+// own header, just reused here instead of duplicated. Doubles as the
+// entry point into that panel's "all shows" modal (openPanelShowsModal).
+function listPanelCountHtml(count, source) {
+  return `<button type="button" class="list-panel-count" onclick="openPanelShowsModal('${source}')">${count} show${count === 1 ? "" : "s"}</button>`;
 }
 
 function renderRecentlyWatchedHtml(list) {
@@ -2733,7 +2808,7 @@ function renderRecentlyWatchedHtml(list) {
     <div class="list-panel list-panel--watched">
       <div class="list-panel-header-row">
         <div class="list-panel-header">${CLOCK_ICON_SOLID_SVG}<span>RECENTLY WATCHED</span></div>
-        ${listPanelCountHtml(list.length)}
+        ${listPanelCountHtml(list.length, "watched")}
       </div>
       <div class="list-rows-scroll">${rowsHtml}</div>
     </div>`;
@@ -2774,7 +2849,7 @@ function renderPlanToWatchHtml(list) {
     <div class="list-panel list-panel--plan">
       <div class="list-panel-header-row">
         <div class="list-panel-header">${BOOKMARK_ICON_SVG}<span>PLAN TO WATCH</span></div>
-        ${listPanelCountHtml(list.length)}
+        ${listPanelCountHtml(list.length, "plan")}
       </div>
       <div class="list-rows-scroll">${rowsHtml}</div>
     </div>`;
@@ -2813,7 +2888,7 @@ function renderAiringNextPreviewHtml(list) {
     <div class="list-panel list-panel--airing">
       <div class="list-panel-header-row">
         <div class="list-panel-header">${CALENDAR_ICON_SVG}<span>AIRING NEXT</span></div>
-        ${listPanelCountHtml(list.length)}
+        ${listPanelCountHtml(list.length, "airing")}
       </div>
       <div class="list-rows-scroll">${rowsHtml}</div>
     </div>`;
