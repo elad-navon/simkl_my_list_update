@@ -2111,9 +2111,9 @@ function openPanelShowsModal(source) {
   overlay.style.paddingTop = `${(headerEl ? headerEl.offsetHeight : 0) + 24}px`;
 
   const itemsHtml = rows.map(row => {
-    const bannerSrc = row.bannerUrl || row.posterUrl;
-    const thumbHtml = bannerSrc
-      ? `<img class="list-thumb" src="${bannerSrc}" alt="${row.title}">`
+    const posterSrc = row.posterUrl || row.bannerUrl;
+    const thumbHtml = posterSrc
+      ? `<img class="list-thumb" src="${posterSrc}" alt="${row.title}">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
     const titleHtml = row.imdbId
       ? `<a href="https://www.imdb.com/title/${row.imdbId}/" target="_blank" rel="noopener">${row.title}</a>`
