@@ -2115,20 +2115,19 @@ function openPanelShowsModal(source) {
     const thumbHtml = posterSrc
       ? `<img class="list-thumb" src="${posterSrc}" alt="${row.title}">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
-    const titleHtml = row.imdbId
-      ? `<a href="https://www.imdb.com/title/${row.imdbId}/" target="_blank" rel="noopener">${row.title}</a>`
-      : row.title;
-    return `
-      <div class="panel-shows-item">
-        ${thumbHtml}
-        <div class="panel-shows-title">${titleHtml}</div>
-      </div>`;
+    const innerHtml = `${thumbHtml}<div class="panel-shows-title">${row.title}</div>`;
+    // The whole card is the IMDb link (not just the title) when an id is
+    // known; otherwise it stays a plain, non-clickable card.
+    return row.imdbId
+      ? `<a class="panel-shows-item" href="https://www.imdb.com/title/${row.imdbId}/" target="_blank" rel="noopener">${innerHtml}</a>`
+      : `<div class="panel-shows-item">${innerHtml}</div>`;
   }).join("\n");
 
+  const countHtml = `<span class="panel-shows-modal-count">${rows.length} show${rows.length === 1 ? "" : "s"}</span>`;
   overlay.innerHTML = `
     <div class="modal-box panel-shows-modal">
       <div class="episodes-modal-head">
-        <div class="list-panel-header">${config.icon}<span>${config.title}</span></div>
+        <div class="list-panel-header">${config.icon}<span>${config.title}</span>${countHtml}</div>
         <button class="modal-close-btn" id="panelShowsModalCloseBtn">&times;</button>
       </div>
       <div class="list-panel panel-shows-grid-wrap">
