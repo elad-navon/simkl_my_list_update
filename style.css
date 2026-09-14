@@ -878,11 +878,10 @@
        card: the thumb (full width, 16:9) plus the row's own gap sits above
        the title line here, instead of the title starting at the very top. */
     .plan-menu-btn { top: 120px; }
-    .list-panel--watched .list-check { display: none; }
-    /* The column layout's default cross-axis alignment left-aligns a
-       fixed-width flex item like this circle badge - pin it to the right
-       edge instead, matching every other right-side element in the card. */
-    .list-check { align-self: flex-end; }
+    /* Check/star/bell circle badge dropped on mobile across all three
+       panels (was watched-only before) - the stacked card is narrow enough
+       that it read as clutter next to the title. */
+    .list-check { display: none; }
 
     .modal-overlay { padding: 12px; }
     .cast-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
