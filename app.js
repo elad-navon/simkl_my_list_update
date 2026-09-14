@@ -410,7 +410,13 @@ class TmdbCache {
   // call reuses the same promise instead of firing a duplicate request.
   getShow(tmdbId) {
     if (!this.show.has(tmdbId)) {
-      const cacheKey = `tmdbshow:${tmdbId}`;
+      // Bumped from tmdbshow: to tmdbshow2: when content_ratings was added
+      // to append_to_response below - otherwise every show already
+      // persisted from before that change (up to 24h old, per
+      // CACHE_TTL_TMDB_SHOW_MS) would keep serving its old response, minus
+      // content_ratings, straight out of localStorage until it naturally
+      // expired, silently hiding the new rating badge for up to a day.
+      const cacheKey = `tmdbshow2:${tmdbId}`;
       const cached = readPersistedCache(cacheKey, CACHE_TTL_TMDB_SHOW_MS);
       if (cached !== undefined) {
         this.show.set(tmdbId, Promise.resolve(cached));
