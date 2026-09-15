@@ -3534,6 +3534,51 @@ applyStoredTheme();
   }, true);
 })();
 
+// Same click-and-drag pattern as enableCarouselDragScroll above, just
+// vertical and targeting the three bottom panels' row lists instead of the
+// horizontal top carousel - .list-rows-scroll gets replaced wholesale on
+// every re-render, so this delegates from the stable `app` root rather
+// than binding to elements that won't exist after the next refresh.
+(function enableListPanelsDragScroll() {
+  let dragTrack = null;
+  let startY = 0;
+  let startScrollTop = 0;
+  let dragged = false;
+
+  app.addEventListener("mousedown", (e) => {
+    if (e.button !== 0) return;
+    const track = e.target.closest(".list-rows-scroll");
+    if (!track) return;
+    dragTrack = track;
+    dragged = false;
+    startY = e.pageY;
+    startScrollTop = track.scrollTop;
+    track.classList.add("dragging");
+    e.preventDefault();
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (!dragTrack) return;
+    const dy = e.pageY - startY;
+    if (Math.abs(dy) > 4) dragged = true;
+    dragTrack.scrollTop = startScrollTop - dy;
+  });
+
+  document.addEventListener("mouseup", () => {
+    if (!dragTrack) return;
+    dragTrack.classList.remove("dragging");
+    dragTrack = null;
+  });
+
+  app.addEventListener("click", (e) => {
+    if (dragged && e.target.closest(".list-rows-scroll")) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    dragged = false;
+  }, true);
+})();
+
 prunePersistedCache();
 main();
 

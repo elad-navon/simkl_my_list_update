@@ -455,10 +455,14 @@
      (5 * (76px banner thumb + 24px row padding + 1px border) = 505px). */
   .list-rows-scroll {
     max-height: 580px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent;
-    padding-right: 14px; margin-right: -14px;
+    padding-right: 14px; margin-right: -14px; cursor: grab;
   }
   .list-rows-scroll::-webkit-scrollbar { width: 6px; }
   .list-rows-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  /* Click-and-drag vertical scrolling (enableListPanelsDragScroll) - same
+     treatment as .carousel-track.dragging for the horizontal carousel. */
+  .list-rows-scroll.dragging { cursor: grabbing; scroll-behavior: auto; user-select: none; }
+  .list-rows-scroll img { -webkit-user-drag: none; user-select: none; }
   .list-row {
     display: flex; align-items: center; gap: 14px; padding: 12px 0;
     border-bottom: 1px solid var(--border);
