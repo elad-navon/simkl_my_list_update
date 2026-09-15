@@ -802,6 +802,10 @@
     cursor: pointer; border-radius: 8px;
   }
   .search-result-row:hover { background: rgba(255,255,255,0.06); }
+  /* Keyboard-highlighted result (arrow keys, see wireSearchInput) - distinct
+     from :hover so it stays visible while navigating with the keyboard
+     alone, mouse nowhere near the list. */
+  .search-result-row.active { background: rgba(56,189,248,0.12); box-shadow: inset 3px 0 0 0 var(--accent); }
   .search-result-poster {
     width: 42px; height: 63px; border-radius: 5px; object-fit: cover;
     background: var(--card-hover); flex: 0 0 auto;

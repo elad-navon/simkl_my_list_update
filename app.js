@@ -1652,6 +1652,7 @@ function renderSearchResults(results) {
   if (!container) return;
   if (!results.length) {
     container.innerHTML = `<p style="color:var(--muted);font-size:0.85rem;padding:10px 4px">No results.</p>`;
+    searchResultsActiveIndex = -1;
     return;
   }
   container.innerHTML = results.map((r, i) => {
@@ -1671,6 +1672,27 @@ function renderSearchResults(results) {
   container.querySelectorAll(".search-result-row").forEach(row => {
     row.onclick = () => openShowDetail(results[Number(row.dataset.idx)]);
   });
+
+  // Highlights the first result by default so Enter works right away
+  // without needing an arrow-key press first - see wireSearchInput.
+  highlightSearchResult(0);
+}
+
+// Which result row the keyboard (arrow keys / Enter, see wireSearchInput)
+// currently has highlighted - independent of :hover, so it stays visible
+// while navigating with the keyboard alone.
+let searchResultsActiveIndex = -1;
+
+function highlightSearchResult(idx) {
+  const container = document.getElementById("searchResults");
+  if (!container) return;
+  const rows = container.querySelectorAll(".search-result-row");
+  rows.forEach(row => row.classList.remove("active"));
+  searchResultsActiveIndex = (idx >= 0 && idx < rows.length) ? idx : -1;
+  if (searchResultsActiveIndex === -1) return;
+  const row = rows[searchResultsActiveIndex];
+  row.classList.add("active");
+  row.scrollIntoView({ block: "nearest" });
 }
 
 let searchDebounceTimer = null;
@@ -1705,6 +1727,23 @@ function wireSearchInput() {
         document.getElementById("searchResults").innerHTML = `<div class="error-box">${err.message}</div>`;
       }
     }, 400);
+  };
+
+  // Arrow keys move the highlighted result (wraps neither way - stops at
+  // the first/last row); Enter opens whichever one is currently
+  // highlighted, same as clicking it.
+  input.onkeydown = e => {
+    if (!lastSearchResults.length) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      highlightSearchResult(Math.min(searchResultsActiveIndex + 1, lastSearchResults.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      highlightSearchResult(Math.max(searchResultsActiveIndex - 1, 0));
+    } else if (e.key === "Enter" && searchResultsActiveIndex !== -1) {
+      e.preventDefault();
+      openShowDetail(lastSearchResults[searchResultsActiveIndex]);
+    }
   };
 }
 
