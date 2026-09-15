@@ -2160,11 +2160,22 @@ function openPanelShowsModal(source) {
       ? `<img class="list-thumb" src="${posterSrc}" alt="${row.title}">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
     const infoHtml = rowInfoWrapHtml(row, idx, source, "flip");
+    // Landscape banner (not the portrait poster - already used on the
+    // front) as a lightly blurred backdrop behind the back face's text, so
+    // the show is still visually recognizable once flipped rather than
+    // reading as a plain vignette. Falls back to the poster when a show
+    // has no banner; the base gradient in .panel-shows-flip-back's own CSS
+    // still shows through when neither is available.
+    const backBannerSrc = row.bannerUrl || row.posterUrl;
+    const backBgHtml = backBannerSrc
+      ? `<div class="panel-shows-flip-back-bg" style="background-image:url('${backBannerSrc}')"></div>`
+      : "";
     return `
       <div class="panel-shows-item" onclick="togglePanelShowsFlip(this)">
         <div class="panel-shows-flip-inner">
           <div class="panel-shows-flip-face panel-shows-flip-front">${thumbHtml}</div>
           <div class="panel-shows-flip-face panel-shows-flip-back">
+            ${backBgHtml}
             <div class="list-row-title-wrap">${infoHtml}</div>
           </div>
         </div>

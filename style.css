@@ -728,7 +728,12 @@
      gold as the left accent bar, rather than the flat --card-hover fill -
      picked from a set of mockups (see chat), option 11: the gold bar (04)
      laid over the vignette + rim-light (09), rim recolored gold instead of
-     accent-blue so the two read as one border instead of two elements. */
+     accent-blue so the two read as one border instead of two elements.
+     The vignette gradient below is now just the fallback for a show with
+     no banner/poster at all - .panel-shows-flip-back-bg (that show's own
+     banner, set inline per-card in openPanelShowsModal) sits on top of it
+     when there is one, only lightly blurred so the show stays recognizable
+     rather than reading as an abstract color field. */
   .panel-shows-flip-back {
     transform: rotateY(180deg);
     background: radial-gradient(ellipse at center, #1c2836 0%, #0a121a 100%);
@@ -737,6 +742,18 @@
     padding: 10px 14px; display: flex; flex-direction: column; justify-content: center;
     overflow-y: auto;
   }
+  .panel-shows-flip-back-bg {
+    position: absolute; inset: -8px; z-index: 0;
+    background-size: cover; background-position: center;
+    filter: blur(4px) brightness(0.72) saturate(1.15);
+  }
+  /* Scrim between the (barely blurred) banner and the text, so the title
+     and badges stay legible over whatever part of the scene sits behind
+     them without needing to blur the banner itself any harder. */
+  .panel-shows-flip-back::before {
+    content: ""; position: absolute; inset: 0; z-index: 1;
+    background: linear-gradient(180deg, rgba(8,12,18,0.15) 0%, rgba(8,12,18,0.72) 100%);
+  }
   .panel-shows-flip-back .list-row-title-wrap > :first-child { margin-top: 0; }
   /* .list-row-title-wrap's flex:1 1 auto (base rule) is meant for a ROW
      flex parent (.list-row - grow sideways next to the thumbnail); reused
@@ -744,8 +761,11 @@
      grows to fill the whole height instead, which defeats that parent's
      justify-content:center - content ends up pinned to the top with empty
      space below rather than centered. Overriding back to flex:none (its
-     natural content height) lets the centering actually take effect. */
-  .panel-shows-flip-back .list-row-title-wrap { flex: none; }
+     natural content height) lets the centering actually take effect.
+     position/z-index lift it above the banner + scrim layers, which are
+     absolutely-positioned siblings that would otherwise paint on top of
+     this (position:static) content regardless of DOM order. */
+  .panel-shows-flip-back .list-row-title-wrap { flex: none; position: relative; z-index: 2; }
   /* .episode-title truncates to one line with an ellipsis everywhere else
      (the narrow 204px row, the top carousel card) - there's no need for
      that here, the flip-back face is 320px wide with room to spare, so a
