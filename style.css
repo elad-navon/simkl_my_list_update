@@ -730,6 +730,27 @@
     overflow-y: auto;
   }
   .panel-shows-flip-back .list-row-title-wrap > :first-child { margin-top: 0; }
+  /* .episode-title truncates to one line with an ellipsis everywhere else
+     (the narrow 204px row, the top carousel card) - there's no need for
+     that here, the flip-back face is 320px wide with room to spare, so a
+     long episode title just wraps instead of getting cut off. */
+  .panel-shows-flip-back .episode-title {
+    white-space: normal; text-overflow: clip; max-height: none; overflow: visible;
+  }
+  /* Every row text size bumped up a bit (not just the title) since the
+     flip-back face has far more room than the narrow row it's copied from -
+     each needs restating individually since they're rem-based, not relative
+     to a parent font-size. */
+  .panel-shows-flip-back .list-row-title { font-size: 1.24rem; }
+  .panel-shows-flip-back .list-row-sub { font-size: 0.85rem; }
+  .panel-shows-flip-back .episode-title { font-size: 0.9rem; }
+  .panel-shows-flip-back .next-up { font-size: 0.94rem; }
+  .panel-shows-flip-back .list-row-airdate { font-size: 0.92rem; }
+  .panel-shows-flip-back .premiere-badge { font-size: 0.74rem; }
+  .panel-shows-flip-back .content-rating-badge { font-size: 0.78rem; }
+  .panel-shows-flip-back .genre-label { font-size: 0.85rem; }
+  .panel-shows-flip-back .imdb-pill { font-size: 11px; }
+  .panel-shows-flip-back .imdb-pill-rating { font-size: 0.98rem; }
   /* Same font as the modal's own title (all inherited from .list-panel-header)
      - just pinned to the right of that same row via the usual margin-left:auto
      trick used everywhere else a count rides along a header. */
