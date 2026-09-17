@@ -3148,7 +3148,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
         <div class="series-panel-header-left">
           <div class="series-panel-stat-group">
             ${STAT_TV_ICON_SVG}
-            <div class="series-panel-stat"><span class="num">${rows.length}</span><span class="label">Series</span></div>
+            <div class="series-panel-stat"><span class="num">${rows.length}</span><span class="label">Shows</span></div>
           </div>
           <div class="stats-divider"></div>
           <div class="series-panel-stat-group">
