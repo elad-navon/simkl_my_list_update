@@ -2167,6 +2167,10 @@ function panelShowsModalConfig(source) {
     case "watched": return { icon: CLOCK_ICON_SOLID_SVG, title: "RECENTLY WATCHED" };
     case "plan": return { icon: BOOKMARK_ICON_SVG, title: "PLAN TO WATCH" };
     case "airing": return { icon: CALENDAR_ICON_SVG, title: "AIRING NEXT" };
+    // The top panel's own "N Shows" stat - title follows currentView since
+    // that stat only actually exists in the "list" header today, but the
+    // underlying rows (getCycleRows("main")) already switch on it too.
+    case "main": return { icon: STAT_TV_ICON_SVG, title: currentView === "airing" ? "AIRING NEXT" : "MY WATCH LIST" };
     default: return null;
   }
 }
@@ -2934,7 +2938,29 @@ function rowInfoWrapHtml(row, idx, source, mode) {
       ${contentMetaHtml}`;
   }
 
-  // source === "airing"
+  if (source === "main" && currentView !== "airing") {
+    // The top panel's own "My Watch List" row shape (renderRows) - a
+    // progress/remaining-episode count instead of an "aired" badge, no
+    // genre/content-rating (that's Plan to Watch only).
+    const episodeTitleHtml = row.episodeTitle ? `<div class="episode-title">${row.episodeTitle}</div>` : "";
+    const badgeHtml = row.badge
+      ? `<div class="premiere-badge${row.badge === "SEASON FINALE" ? " finale" : ""}">${row.badge}</div>`
+      : "";
+    const remainingText = row.remaining === 1 ? "1 episode left" : `${row.remaining} episodes left`;
+    return `
+      ${titleHtml}
+      ${networkSubHtml(row.network, row.networkLogoPath)}
+      <div class="next-up-row">
+        <span class="next-up">Next: ${row.nextLabel}</span>
+        ${badgeHtml}
+      </div>
+      ${episodeTitleHtml}
+      <div class="list-row-sub">${remainingText}</div>
+      <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId)}</div>`;
+  }
+
+  // source === "airing", or source === "main" while showing the Airing
+  // Next view (renderAiringRows) - both share the exact same row shape.
   const episodeTitle = row.nextEpisodeTitle ? `<div class="episode-title">${row.nextEpisodeTitle}</div>` : "";
   const badgeHtml = row.badge
     ? `<div class="premiere-badge${row.badge === "SEASON FINALE" ? " finale" : ""}">${row.badge}</div>`
@@ -3146,10 +3172,10 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
     <div class="series-panel">
       <div class="series-panel-header">
         <div class="series-panel-header-left">
-          <div class="series-panel-stat-group">
+          <button type="button" class="series-panel-stat-group series-panel-stat-clickable" onclick="openPanelShowsModal('main')">
             ${STAT_TV_ICON_SVG}
             <div class="series-panel-stat"><span class="num">${rows.length}</span><span class="label">Shows</span></div>
-          </div>
+          </button>
           <div class="stats-divider"></div>
           <div class="series-panel-stat-group">
             ${STAT_STACK_ICON_SVG}

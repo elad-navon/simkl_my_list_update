@@ -134,6 +134,12 @@
     border-bottom: 3px solid var(--gold); padding-bottom: 10px;
   }
   .series-panel-stat-group { display: flex; align-items: center; gap: 8px; }
+  /* The "N Shows" stat doubles as the entry point into the "all shows"
+     modal (openPanelShowsModal('main')) - same feature as each bottom
+     panel's own show-count link, button-reset so it still looks exactly
+     like the other (non-clickable) stat groups beside it. */
+  .series-panel-stat-clickable { background: none; border: none; padding: 0; font: inherit; cursor: pointer; }
+  .series-panel-stat-clickable:hover .series-panel-stat .label { color: var(--accent2); }
   .series-panel-stat { display: flex; align-items: baseline; gap: 6px; }
   .stats-divider { width: 2px; align-self: stretch; background: var(--muted); }
   .series-panel-stat .num { color: var(--gold); font-weight: 800; font-size: 1.3rem; }
