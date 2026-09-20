@@ -14,7 +14,8 @@
     "lint": "eslint .",
     "parity": "vite-node scripts/parity.ts",
     "migrate": "vite-node scripts/migrate.ts",
-    "coverage": "vite-node scripts/coverage.ts"
+    "coverage": "vite-node scripts/coverage.ts",
+    "profile": "vite-node scripts/profile-load.ts"
   },
   "dependencies": {
     "@tanstack/query-async-storage-persister": "^5.62.0",

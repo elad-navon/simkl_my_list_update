@@ -30,6 +30,7 @@ import {
   normalizeTmdbSeasons,
   regularSeasonNumbers,
   tmdbSeriesEnded,
+  trimTmdbShow,
   type TmdbClient,
   type TmdbShow,
 } from "./tmdb";
@@ -62,7 +63,11 @@ export type LoadedEpisodes = {
   coverage: EpisodeCoverage;
   /** Resolved ids worth writing back to the library to skip a lookup later. */
   resolved: { tvmaze: number | null; imdb: string | null };
-  /** The TMDB show detail, which the UI needs anyway for artwork and network. */
+  /**
+   * The TMDB show detail, trimmed to what the UI reads - see `trimTmdbShow`.
+   * This whole object ends up in the persisted query cache, so the raw response
+   * is not what goes in it.
+   */
   tmdbShow: TmdbShow | null;
   /** Which services answered at all, so the UI can say why a show looks thin. */
   sources: { tvmaze: boolean; tmdb: boolean };
@@ -120,7 +125,7 @@ export async function loadEpisodes(
       tvmaze: tvmazeResult.show?.id ?? null,
       imdb: tmdbShow?.external_ids?.imdb_id ?? show.ids.imdb ?? null,
     },
-    tmdbShow,
+    tmdbShow: trimTmdbShow(tmdbShow),
     sources: { tvmaze: tvmazeResult.show != null, tmdb: tmdbShow != null },
   };
 }

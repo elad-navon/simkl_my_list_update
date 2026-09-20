@@ -119,7 +119,13 @@ export function createCachePersister() {
       },
     },
     key: PERSIST_KEY,
-    throttleTime: 2000,
+    // Every resolved query dirties the cache, and a write serializes the WHOLE
+    // cache. With a hundred shows loading one after another, a two-second
+    // throttle meant near-continuous JSON.stringify over megabytes on the main
+    // thread - the page crawled while the requests themselves were fine. Ten
+    // seconds costs nothing: the point of persisting is the next load, not this
+    // one.
+    throttleTime: 10_000,
   });
 }
 

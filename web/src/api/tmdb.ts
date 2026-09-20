@@ -208,3 +208,126 @@ export function tmdbSearchResultToSummary(result: TmdbSearchResult): {
     ids: { tmdb: result.id },
   };
 }
+
+/**
+ * How many artwork alternates to keep per shape.
+ *
+ * TMDB returns every poster and backdrop it has - sometimes hundreds - and the
+ * card's cycle button exists to flip through a handful, not to page a catalogue.
+ */
+const MAX_ARTWORK = 12;
+
+/**
+ * Projects a show detail down to the fields this app reads.
+ *
+ * A projection, not a filter: anything not listed here is dropped. That is the
+ * point. The raw response is a wire format, and caching a wire format means
+ * caching whatever the service felt like sending - overviews, production
+ * companies, spoken languages, a full object per season. On this library that was
+ * 44-123 KB per show, and at a hundred shows it is megabytes of JSON that the
+ * cache persister re-serializes on every change. It is why the page crawled while
+ * the requests themselves were perfectly healthy.
+ *
+ * The return type is still `TmdbShow`, so `computeImages` and the metadata
+ * extractors work on it unchanged. The cost of that convenience is that adding a
+ * new field to a card means adding it HERE too, or it will silently be undefined.
+ */
+export function trimTmdbShow(show: TmdbShow | null): TmdbShow | null {
+  if (!show) return null;
+
+  const trimmed: TmdbShow = {
+    ...(show.id !== undefined ? { id: show.id } : {}),
+    name: show.name ?? null,
+    original_name: show.original_name ?? null,
+    first_air_date: show.first_air_date ?? null,
+    last_air_date: show.last_air_date ?? null,
+    status: show.status ?? null,
+    poster_path: show.poster_path ?? null,
+    backdrop_path: show.backdrop_path ?? null,
+
+    // Runtime: the declared per-episode lengths, and the last aired episode's own
+    // runtime as the fallback - nothing else of that episode is used.
+    ...(show.episode_run_time ? { episode_run_time: show.episode_run_time } : {}),
+    ...(show.last_episode_to_air
+      ? { last_episode_to_air: { runtime: show.last_episode_to_air.runtime ?? null } }
+      : {}),
+
+    // Seasons are read for their numbers only, to know which ones to fetch.
+    ...(show.seasons
+      ? {
+          seasons: show.seasons.map((season) => ({
+            season_number: season.season_number ?? null,
+            episode_count: season.episode_count ?? null,
+          })),
+        }
+      : {}),
+
+    ...(show.networks
+      ? {
+          networks: show.networks.map((network) => ({
+            name: network.name ?? null,
+            logo_path: network.logo_path ?? null,
+          })),
+        }
+      : {}),
+
+    ...(show.genres ? { genres: show.genres.map((genre) => ({ name: genre.name ?? null })) } : {}),
+
+    ...(show.external_ids
+      ? {
+          external_ids: {
+            imdb_id: show.external_ids.imdb_id ?? null,
+            tvdb_id: show.external_ids.tvdb_id ?? null,
+          },
+        }
+      : {}),
+
+    ...(show.content_ratings?.results
+      ? {
+          content_ratings: {
+            // Only the entries that actually carry a rating, and only the two
+            // fields `extractContentRating` looks at. TMDB returns one per country
+            // and most of them are empty.
+            results: show.content_ratings.results
+              .filter((entry) => entry.rating)
+              .map((entry) => ({
+                ...(entry.iso_3166_1 === undefined ? {} : { iso_3166_1: entry.iso_3166_1 }),
+                ...(entry.rating === undefined ? {} : { rating: entry.rating }),
+              })),
+          },
+        }
+      : {}),
+
+    ...(show.images
+      ? {
+          images: {
+            ...(show.images.posters
+              ? { posters: pickArtwork(show.images.posters, show.poster_path) }
+              : {}),
+            ...(show.images.backdrops
+              ? { backdrops: pickArtwork(show.images.backdrops, show.backdrop_path) }
+              : {}),
+          },
+        }
+      : {}),
+  };
+
+  return trimmed;
+}
+
+type Artwork = { file_path?: string | null; iso_639_1?: string | null };
+
+/**
+ * The first few alternates, with TMDB's own primary pick guaranteed among them.
+ *
+ * Without that guarantee `computeImages` would fall back to the front of the list
+ * and the card would show different artwork than the one TMDB chose - a visible
+ * change caused by nothing but a cache optimisation.
+ */
+function pickArtwork(all: Artwork[], primary: string | null | undefined): Artwork[] {
+  const kept = all.slice(0, MAX_ARTWORK);
+  if (!primary || kept.some((image) => image.file_path === primary)) return kept;
+
+  const found = all.find((image) => image.file_path === primary);
+  return found ? [found, ...kept.slice(0, MAX_ARTWORK - 1)] : kept;
+}

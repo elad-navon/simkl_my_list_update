@@ -11,7 +11,6 @@ import { useCallback, useState } from "react";
 import { useGistSync } from "./hooks/useGistSync";
 import { useSearch } from "./hooks/useSearch";
 import { useLibraryTransfer } from "./hooks/useLibraryTransfer";
-import { QueryClientProvider } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { createCachePersister, createQueryClient, PERSIST_MAX_AGE } from "./query/client";
 import { useBackend } from "./hooks/useBackend";
@@ -266,9 +265,7 @@ export function App(): React.JSX.Element {
       client={queryClient}
       persistOptions={{ persister, maxAge: PERSIST_MAX_AGE }}
     >
-      <QueryClientProvider client={queryClient}>
-        <Shell />
-      </QueryClientProvider>
+      <Shell />
     </PersistQueryClientProvider>
   );
 }
