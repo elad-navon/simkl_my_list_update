@@ -2,7 +2,7 @@
  * Can the replacement sources account for your whole watch history?
  *
  *   npm run coverage -- "C:/Elad/TV/library-2026-09-20.json"
- *   npm run coverage -- "C:/Elad/TV/library-2026-09-20.json" --tmdb-key=KEY --all
+ *   TMDB_API_KEY=... npm run coverage -- "C:/Elad/TV/library-2026-09-20.json" --all
  *
  * This is the gate the plan asks for before SIMKL can be deleted: not "do the
  * services answer" but "does what they return cover every episode you have
@@ -14,9 +14,9 @@
  * what it measures is the code path the app will actually use, merge rules and
  * all. Reads only.
  *
- * Without --tmdb-key it measures TVmaze alone, which is still worth knowing
- * since TVmaze is the primary and needs no key. With a key it measures the
- * merge, which is what the app will really have.
+ * Without a TMDB key it measures TVmaze alone, which is still worth knowing
+ * since TVmaze is the primary and needs no key. With one it measures the merge,
+ * which is what the app will really have.
  *
  * Paced by TVmaze's rate limit, so budget about a second per show. Results are
  * cached next to the library and a rerun only fetches what it has not seen;
@@ -60,13 +60,20 @@ type Probe = {
 
 const args = process.argv.slice(2);
 const file = args.find((a) => !a.startsWith("--"));
-const tmdbKey = args.find((a) => a.startsWith("--tmdb-key="))?.slice("--tmdb-key=".length);
+/**
+ * The key comes from the environment by preference. A credential passed as an
+ * argument ends up in the shell history and in npm's own echo of the command,
+ * which is a poor place for it; the flag stays supported for convenience.
+ */
+const tmdbKey =
+  process.env["TMDB_API_KEY"] ||
+  args.find((a) => a.startsWith("--tmdb-key="))?.slice("--tmdb-key=".length);
 const checkAll = args.includes("--all");
 const refresh = args.includes("--refresh");
 
 if (!file) {
   console.error(
-    "usage: npm run coverage -- <path-to-library.json> [--tmdb-key=KEY] [--all] [--refresh]",
+    "usage: TMDB_API_KEY=... npm run coverage -- <path-to-library.json> [--all] [--refresh]",
   );
   process.exit(2);
 }
