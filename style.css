@@ -860,34 +860,76 @@
   }
   .detail-status-link:hover { text-decoration-color: currentColor; }
 
-  /* Episodes manager (opened from the detail view's status line) */
+  /* Episodes manager (opened from the detail view's status line): season
+     rail on the left, that season's episodes in two columns on the right.
+     Stacks (rail on top, one column) when the modal itself is narrow. */
+  .modal-box.modal-wide { max-width: 820px; }
   .ep-manage-summary { color: var(--accent); font-size: 0.88rem; font-weight: 700; margin-bottom: 10px; }
-  .ep-manage-diag { color: var(--muted); font-size: 0.7rem; margin-bottom: 8px; }
-  .ep-manage-list { max-height: 55vh; overflow-y: auto; }
-  .ep-season { border-top: 1px solid var(--border); }
-  .ep-season-head { display: flex; align-items: center; gap: 10px; padding: 10px 4px; cursor: pointer; }
-  .ep-season-head:hover { background: var(--card-hover); }
-  .ep-season-caret { width: 14px; color: var(--muted); }
-  .ep-season-name { flex: 1 1 auto; font-weight: 700; font-size: 0.92rem; }
-  .ep-season-count { color: var(--muted); font-size: 0.8rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .ep-season-bulk {
-    background: transparent; border: 1px solid var(--border); color: var(--accent2); border-radius: 6px;
-    font-size: 0.72rem; font-weight: 700; padding: 3px 8px; cursor: pointer;
+  .ep-manage-diag { color: var(--muted); font-size: 0.72rem; margin: -4px 0 10px; }
+  .ep-manager { container-type: inline-size; display: flex; flex-direction: column; gap: 8px; max-height: 66vh; overflow-y: auto; }
+  .ep-season-block { display: flex; flex-direction: column; gap: 6px; }
+  .ep-rail-item {
+    display: flex; align-items: center; gap: 10px; cursor: pointer;
+    background: var(--card-hover); border: 1.5px solid transparent; border-radius: 10px; padding: 9px 12px;
   }
-  .ep-season-bulk:hover:not(:disabled) { border-color: var(--accent2); }
-  .ep-season-bulk:disabled { opacity: 0.35; cursor: default; }
-  .ep-manage-row { display: flex; align-items: center; gap: 10px; padding: 6px 4px 6px 24px; border-radius: 6px; }
-  .ep-manage-row:hover { background: var(--card-hover); }
-  .ep-manage-row.unaired { opacity: 0.45; }
-  .ep-manage-name { flex: 1 1 auto; min-width: 0; font-size: 0.85rem; word-break: break-word; }
-  .ep-manage-note { font-size: 0.7rem; color: var(--muted); }
-  .ep-toggle, .ep-toggle-placeholder { flex: 0 0 auto; width: 22px; height: 22px; box-sizing: border-box; }
-  .ep-toggle {
-    border: 1.5px solid var(--muted); border-radius: 5px; background: transparent; color: #fff;
-    font-size: 0.8rem; line-height: 1; cursor: pointer; padding: 0;
+  .ep-rail-text { flex: 1 1 auto; display: flex; align-items: baseline; gap: 10px; }
+  .ep-rail-caret { color: var(--muted); font-size: 0.8rem; }
+  .ep-rail-item:hover { border-color: var(--border); }
+  .ep-rail-item.on { border-color: var(--accent); }
+  .ep-rail-name {
+    font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif; font-weight: 700; font-size: 1.05rem;
+    letter-spacing: 0.04em; text-transform: uppercase; line-height: 1.1;
   }
-  .ep-toggle:hover { border-color: var(--accent2); }
-  .ep-toggle.is-watched { background: var(--accent); border-color: var(--accent); }
+  .ep-rail-count { color: var(--muted); font-size: 0.72rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .ep-grid { display: grid; grid-template-columns: 1fr; gap: 6px; align-content: start; padding: 0 0 6px 14px; }
+  .ep-card {
+    display: flex; align-items: flex-start; gap: 10px; cursor: pointer;
+    background: var(--card-hover); border: 1px solid transparent; border-radius: 9px; padding: 9px 11px;
+  }
+  .ep-card:hover { border-color: var(--accent2); }
+  .ep-card .ep-cb { margin-top: 1px; }
+  .ep-card-code {
+    display: block; font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif; font-weight: 700;
+    font-size: 0.8rem; letter-spacing: 0.05em; color: var(--accent2); line-height: 1.1;
+  }
+  .ep-card-title { font-weight: 600; font-size: 0.88rem; line-height: 1.25; word-break: break-word; }
+  .ep-card.w { background: transparent; border-color: var(--border); }
+  .ep-card.w .ep-card-title { color: var(--muted); font-weight: 500; }
+  .ep-card.nx { border-color: var(--gold); }
+  .ep-card.nx .ep-card-code { color: var(--gold); }
+  .ep-card.un { opacity: 0.45; cursor: default; }
+  .ep-card.un:hover { border-color: transparent; }
+  /* Tri-state checkbox: empty / partly checked (dash) / fully checked */
+  .ep-cb {
+    flex: 0 0 auto; width: 22px; height: 22px; box-sizing: border-box; padding: 0; border-radius: 6px;
+    border: 1.5px solid var(--muted); background: transparent; color: transparent; cursor: pointer;
+    font-size: 0.82rem; font-weight: 800; line-height: 1; display: inline-flex; align-items: center; justify-content: center;
+  }
+  .ep-cb:hover:not(:disabled) { border-color: var(--accent2); }
+  .ep-cb.lg { width: 26px; height: 26px; border-radius: 7px; font-size: 0.95rem; }
+  .ep-cb.all { background: var(--accent); border-color: var(--accent); color: var(--card); }
+  .ep-cb.some { border-color: var(--accent); color: var(--accent); }
+  .ep-cb.off { visibility: hidden; }
+  .ep-cb:disabled { opacity: 0.35; cursor: default; }
+  /* Shown only while there are unsaved changes; sits below the scrolling
+     list, so it stays visible however far down the list is scrolled. */
+  .ep-savebar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    margin-top: 12px; padding: 10px 12px; border: 1px solid var(--gold); border-radius: 10px;
+    background: var(--card-hover);
+  }
+  .ep-savebar-text { color: var(--gold); font-weight: 700; font-size: 0.86rem; }
+  .ep-savebar-actions { display: flex; gap: 8px; }
+  .ep-savebar-btn {
+    background: transparent; border: 1px solid var(--border); color: var(--text); border-radius: 8px;
+    font-size: 0.82rem; font-weight: 700; padding: 6px 14px; cursor: pointer;
+  }
+  .ep-savebar-btn:hover:not(:disabled) { border-color: var(--accent2); }
+  .ep-savebar-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--card); }
+  .ep-savebar-btn:disabled { opacity: 0.55; cursor: default; }
+  @container (min-width: 520px) {
+    .ep-grid { grid-template-columns: 1fr 1fr; }
+  }
   .detail-status-picker { margin-top: 20px; }
   .detail-picker-label { color: var(--muted); font-size: 0.8rem; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.06em; }
 

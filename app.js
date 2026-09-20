@@ -1932,6 +1932,9 @@ async function setShowStatusFromDetail(show, status, btnEl) {
 // one at a time or a whole season at once. Swaps the search modal's body
 // (like the detail view itself) rather than stacking a second modal.
 let watchedMarksChanged = false;
+// Set while the episodes manager holds unsaved changes: closeSearchModal
+// asks it first, so X / Esc / clicking outside can't silently drop them.
+let searchModalCloseGuard = null;
 
 async function openEpisodesManager(show, libraryMatch) {
   const title = document.getElementById("modalTitle");
@@ -1940,7 +1943,20 @@ async function openEpisodesManager(show, libraryMatch) {
   const item = libraryMatch.item;
   const simklId = item.show.ids.simkl;
   title.textContent = show.title || "Episodes";
-  const backToDetail = () => { title.textContent = show.title || "Show"; renderShowDetail(show, libraryMatch); };
+  // The two-column layout below needs more room than the search modal's
+  // usual width - dropped again on the way back to the detail view.
+  const box = body.closest(".modal-box");
+  if (box) box.classList.add("modal-wide");
+  // Changes are staged locally until Save: `watched` is the working copy,
+  // `saved` the last state SIMKL is known to have (null until loaded).
+  let saved = null, saving = false;
+  const backToDetail = () => {
+    if (!confirmLeave()) return;
+    if (box) box.classList.remove("modal-wide");
+    searchModalCloseGuard = null;
+    title.textContent = show.title || "Show";
+    renderShowDetail(show, libraryMatch);
+  };
   body.innerHTML = `
     <button class="modal-back-btn" id="detailBackBtn">&larr; Back</button>
     <div class="spinner" style="margin:30px auto"></div>`;
@@ -2002,46 +2018,75 @@ async function openEpisodesManager(show, libraryMatch) {
     }
   }
   const pad = n => String(n).padStart(2, "0");
-  // Default-open season: the first with an aired-but-unwatched episode,
-  // else the last one.
+  // Season shown in the list: the first with an aired-but-unwatched
+  // episode, else the last one.
   const firstUnfinished = seasonNums.find(n => seasons.get(n).some(e => e.aired && !watchedSet(n).has(e.episode)));
-  const openSeasons = new Set([firstUnfinished != null ? firstUnfinished : seasonNums[seasonNums.length - 1]]);
+  let currentSeason = firstUnfinished != null ? firstUnfinished : seasonNums[seasonNums.length - 1];
+
+  // Tri-state box: only aired episodes count, since an unaired one can't be
+  // watched yet.
+  function seasonState(n) {
+    const aired = seasons.get(n).filter(e => e.aired);
+    const done = aired.filter(e => watchedSet(n).has(e.episode)).length;
+    return done === 0 ? "none" : done === aired.length ? "all" : "some";
+  }
+  const checkboxHtml = (state, extraClass, attrs) => {
+    const aria = state === "all" ? "true" : state === "some" ? "mixed" : "false";
+    const glyph = state === "all" ? "&#10003;" : state === "some" ? "&minus;" : "";
+    return `<button class="ep-cb ${state}${extraClass}" role="checkbox" aria-checked="${aria}" ${attrs}>${glyph}</button>`;
+  };
 
   function render() {
     const totalWatched = seasonNums.reduce((s, n) => s + seasons.get(n).filter(e => watchedSet(n).has(e.episode)).length, 0);
-    item.watched_episodes_count = totalWatched;
+    const pending = pendingCount();
 
+    let next = null;
+    for (const n of seasonNums) {
+      const e = seasons.get(n).find(e => e.aired && !watchedSet(n).has(e.episode));
+      if (e) { next = { season: n, episode: e.episode }; break; }
+    }
+
+    // Each season's episodes open right under its own header (accordion,
+    // one season at a time) instead of in a separate block after them all.
     const seasonsHtml = seasonNums.map(n => {
       const eps = seasons.get(n);
       const done = eps.filter(e => watchedSet(n).has(e.episode)).length;
-      const airedEps = eps.filter(e => e.aired);
-      const allAiredWatched = airedEps.length > 0 && airedEps.every(e => watchedSet(n).has(e.episode));
-      const isOpen = openSeasons.has(n);
-      const bulkLabel = allAiredWatched ? "Unwatch all" : "Watch all";
-      const rows = isOpen ? eps.map(e => {
+      const hasAired = eps.some(e => e.aired);
+      const isOpen = n === currentSeason;
+      const gridHtml = isOpen ? `<div class="ep-grid">${eps.map(e => {
         const isWatched = watchedSet(n).has(e.episode);
-        const action = e.aired || isWatched
-          ? `<button class="ep-toggle${isWatched ? " is-watched" : ""}" data-season="${n}" data-episode="${e.episode}" title="${isWatched ? "Mark as not watched" : "Mark as watched"}">${isWatched ? "&#10003;" : ""}</button>`
-          : `<span class="ep-toggle-placeholder"></span>`;
+        const actionable = e.aired || isWatched;
+        const isNext = next && next.season === n && next.episode === e.episode;
         return `
-          <div class="ep-manage-row${e.aired || isWatched ? "" : " unaired"}">
-            ${action}
-            <span class="episode-code">E${pad(e.episode)}</span>
-            <span class="ep-manage-name">${e.title || `Episode ${e.episode}`}</span>
-            ${e.aired || isWatched ? "" : `<span class="ep-manage-note">Not aired</span>`}
+          <div class="ep-card${isWatched ? " w" : ""}${isNext ? " nx" : ""}${actionable ? "" : " un"}" ${actionable ? `data-toggle-ep="${e.episode}" tabindex="0"` : ""}>
+            ${actionable ? checkboxHtml(isWatched ? "all" : "none", "", 'tabindex="-1" aria-hidden="true"') : checkboxHtml("none", " off", 'tabindex="-1" aria-hidden="true"')}
+            <div>
+              <span class="ep-card-code">S${pad(n)}E${pad(e.episode)}${isNext ? " &middot; UP NEXT" : ""}${actionable ? "" : " &middot; NOT AIRED"}</span>
+              <span class="ep-card-title">${e.title || `Episode ${e.episode}`}</span>
+            </div>
           </div>`;
-      }).join("") : "";
+      }).join("")}</div>` : "";
       return `
-        <div class="ep-season">
-          <div class="ep-season-head" data-toggle-season="${n}">
-            <span class="ep-season-caret">${isOpen ? "&#9662;" : "&#9656;"}</span>
-            <span class="ep-season-name">Season ${n}</span>
-            <span class="ep-season-count">${done}/${eps.length}</span>
-            <button class="ep-season-bulk" data-bulk-season="${n}" ${airedEps.length ? "" : "disabled"}>${bulkLabel}</button>
+        <div class="ep-season-block">
+          <div class="ep-rail-item${isOpen ? " on" : ""}" data-select-season="${n}" tabindex="0" aria-expanded="${isOpen}">
+            ${checkboxHtml(seasonState(n), " lg", `data-season-cb="${n}" aria-label="Season ${n}" ${hasAired ? "" : "disabled"}`)}
+            <div class="ep-rail-text">
+              <span class="ep-rail-name">Season ${n}</span>
+              <span class="ep-rail-count">${done}/${eps.length}</span>
+            </div>
+            <span class="ep-rail-caret">${isOpen ? "&#9662;" : "&#9656;"}</span>
           </div>
-          ${rows}
+          ${gridHtml}
         </div>`;
     }).join("");
+
+    // Rebuilding the markup below resets every scroll position, so remember
+    // both scrollers (the list itself and the modal overlay) and put them
+    // back - otherwise each click on a low episode jumps back to the top.
+    const listEl = body.querySelector(".ep-manager");
+    const overlayEl = document.getElementById("searchModalOverlay");
+    const listScroll = listEl ? listEl.scrollTop : 0;
+    const overlayScroll = overlayEl ? overlayEl.scrollTop : 0;
 
     body.innerHTML = `
       <button class="modal-back-btn" id="detailBackBtn">&larr; Back</button>
@@ -2049,49 +2094,121 @@ async function openEpisodesManager(show, libraryMatch) {
       ${estimatedMarks ? `<div class="ep-manage-diag">${estimateOff
         ? "Marks are estimated from the last watched episode and may not match exactly what you watched."
         : "Marks are inferred from the last watched episode."}</div>` : ""}
-      <div class="ep-manage-list">${seasonsHtml}</div>`;
+      <div class="ep-manager">${seasonsHtml}</div>
+      ${pending ? `
+        <div class="ep-savebar">
+          <span class="ep-savebar-text">${pending} unsaved change${pending === 1 ? "" : "s"}</span>
+          <span class="ep-savebar-actions">
+            <button class="ep-savebar-btn" id="epDiscardBtn" ${saving ? "disabled" : ""}>Discard</button>
+            <button class="ep-savebar-btn primary" id="epSaveBtn" ${saving ? "disabled" : ""}>${saving ? "Saving&hellip;" : "Save"}</button>
+          </span>
+        </div>` : ""}`;
     document.getElementById("detailBackBtn").onclick = backToDetail;
+    const saveBtn = document.getElementById("epSaveBtn");
+    if (saveBtn) saveBtn.onclick = saveChanges;
+    const discardBtn = document.getElementById("epDiscardBtn");
+    if (discardBtn) discardBtn.onclick = discardChanges;
+    const newListEl = body.querySelector(".ep-manager");
+    if (newListEl) newListEl.scrollTop = listScroll;
+    if (overlayEl) overlayEl.scrollTop = overlayScroll;
 
-    body.querySelectorAll("[data-toggle-season]").forEach(el => {
-      el.onclick = e => {
-        if (e.target.closest("button")) return;
-        const n = Number(el.dataset.toggleSeason);
-        openSeasons.has(n) ? openSeasons.delete(n) : openSeasons.add(n);
+    const onActivate = (el, fn) => {
+      el.onclick = fn;
+      el.onkeydown = e => { if ((e.key === "Enter" || e.key === " ") && e.target === el) { e.preventDefault(); fn(e); } };
+    };
+    body.querySelectorAll("[data-select-season]").forEach(el => {
+      onActivate(el, e => {
+        if (e.target.closest && e.target.closest(".ep-cb")) return;
+        const n = Number(el.dataset.selectSeason);
+        currentSeason = currentSeason === n ? null : n;
         render();
-      };
+      });
     });
-    body.querySelectorAll(".ep-toggle").forEach(btn => {
-      btn.onclick = () => applyChange(Number(btn.dataset.season), [Number(btn.dataset.episode)],
-        !btn.classList.contains("is-watched"));
-    });
-    body.querySelectorAll("[data-bulk-season]").forEach(btn => {
+    body.querySelectorAll("[data-season-cb]").forEach(btn => {
       btn.onclick = () => {
-        const n = Number(btn.dataset.bulkSeason);
+        const n = Number(btn.dataset.seasonCb);
         const airedEps = seasons.get(n).filter(e => e.aired);
-        const makeWatched = !airedEps.every(e => watchedSet(n).has(e.episode));
+        const makeWatched = seasonState(n) !== "all";
         const targets = airedEps.filter(e => watchedSet(n).has(e.episode) !== makeWatched).map(e => e.episode);
-        if (!confirm(`${makeWatched ? "Mark" : "Unmark"} ${targets.length} episode(s) of Season ${n} as ${makeWatched ? "watched" : "not watched"}?`)) return;
-        applyChange(n, targets, makeWatched);
+        if (!targets.length) return;
+        setLocal(n, targets, makeWatched);
       };
+    });
+    body.querySelectorAll("[data-toggle-ep]").forEach(el => {
+      onActivate(el, () => {
+        const ep = Number(el.dataset.toggleEp);
+        setLocal(currentSeason, [ep], !watchedSet(currentSeason).has(ep));
+      });
     });
   }
 
-  // Optimistic: the UI flips right away and rolls back if SIMKL rejects it.
-  async function applyChange(season, episodeNumbers, makeWatched) {
+  // Clicks only edit the local working copy; nothing reaches SIMKL until Save.
+  function setLocal(season, episodeNumbers, makeWatched) {
+    if (saving) return;
     const set = watchedSet(season);
-    const before = new Set(set);
     episodeNumbers.forEach(n => makeWatched ? set.add(n) : set.delete(n));
     render();
+  }
+
+  // Per-season difference between the working copy and what SIMKL has.
+  function pendingChanges() {
+    const out = [];
+    for (const n of seasonNums) {
+      const now = watchedSet(n), was = saved[n];
+      const add = [...now].filter(x => !was.has(x));
+      const remove = [...was].filter(x => !now.has(x));
+      if (add.length || remove.length) out.push({ season: n, add, remove });
+    }
+    return out;
+  }
+  function pendingCount() {
+    if (!saved) return 0;
+    return pendingChanges().reduce((s, c) => s + c.add.length + c.remove.length, 0);
+  }
+  function confirmLeave() {
+    const n = pendingCount();
+    return !n || confirm(`You have ${n} unsaved change${n === 1 ? "" : "s"}. Leave without saving?`);
+  }
+  function discardChanges() {
+    if (saving) return;
+    for (const n of seasonNums) watched[n] = new Set(saved[n]);
+    render();
+  }
+  async function saveChanges() {
+    const changes = pendingChanges();
+    if (!changes.length || saving) return;
+    saving = true;
+    render();
+    let savedCount = 0;
     try {
-      await setEpisodesWatched(simklId, season, episodeNumbers, makeWatched, simklToken);
-      watchedMarksChanged = true;
+      // One request per season and direction; `saved` advances after each
+      // one, so a failure halfway leaves only the unsent part pending.
+      for (const c of changes) {
+        if (c.add.length) {
+          await setEpisodesWatched(simklId, c.season, c.add, true, simklToken);
+          c.add.forEach(x => saved[c.season].add(x));
+          savedCount += c.add.length;
+        }
+        if (c.remove.length) {
+          await setEpisodesWatched(simklId, c.season, c.remove, false, simklToken);
+          c.remove.forEach(x => saved[c.season].delete(x));
+          savedCount += c.remove.length;
+        }
+      }
+      showToast(`Saved ${savedCount} change${savedCount === 1 ? "" : "s"}`);
     } catch (err) {
-      watched[season] = before;
-      render();
       showToast(err.message, true);
+    } finally {
+      if (savedCount) watchedMarksChanged = true;
+      item.watched_episodes_count = seasonNums.reduce((s, n) => s + saved[n].size, 0);
+      saving = false;
+      render();
     }
   }
 
+  saved = {};
+  for (const n of seasonNums) saved[n] = new Set(watchedSet(n));
+  searchModalCloseGuard = confirmLeave;
   render();
 }
 
@@ -2479,6 +2596,8 @@ function searchModalEscHandler(e) {
 }
 
 function closeSearchModal() {
+  if (searchModalCloseGuard && !searchModalCloseGuard()) return;
+  searchModalCloseGuard = null;
   document.getElementById("addShowBtn").classList.remove("active");
   const overlay = document.getElementById("searchModalOverlay");
   if (overlay) overlay.remove();
