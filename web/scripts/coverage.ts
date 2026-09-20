@@ -195,7 +195,7 @@ const noEpisodes = probes.filter((p) => p.episodeCount === 0);
  */
 const phantom = probes.filter((p) => p.status === "completed" && p.unwatchedListed > 0);
 
-const pad = (label: string) => label.padEnd(32);
+const pad = (label: string) => label.padEnd(34);
 const line = (label: string, value: string | number) => console.log(`  ${pad(label)}${value}`);
 const pct = (n: number) => (probes.length ? `${((n / probes.length) * 100).toFixed(1)}%` : "-");
 
@@ -214,6 +214,7 @@ line("watched episodes unaccounted", incomplete.reduce((n, p) => n + p.missingWa
 line("episodes only TMDB had", probes.reduce((n, p) => n + p.fallbackOnly, 0));
 line("episodes with a broadcast time", probes.reduce((n, p) => n + p.withBroadcastTime, 0));
 line("completed, yet reading unwatched", phantom.length);
+line("episodes listed in total", probes.reduce((n, p) => n + p.episodeCount, 0));
 
 if (tmdbOnly.length) {
   console.log(`\nTVmaze has no record of these - TMDB is carrying them alone`);
