@@ -95,6 +95,27 @@ export function buildShowData(
  *   on screen can resolve. See `useInView`.
  */
 /**
+ * Runs a cache write, and never lets it fail the load it rode in on.
+ *
+ * What gets written here - resolved ids, the progress summary - is an optimisation:
+ * losing it costs one repeated lookup later. It must not cost the card it was being
+ * recorded for. A store that is missing a method, a rejected IndexedDB write, a
+ * quota error: none of them are a reason for the user to see "Could not load" over
+ * data that was fetched perfectly well.
+ *
+ * (This is not hypothetical. A stale dev server once served a store without
+ * `rememberSummary`, and every card on the page reported that instead of showing.)
+ */
+export function bestEffort(write: () => unknown): void {
+  try {
+    const result = write();
+    if (result instanceof Promise) result.catch(() => undefined);
+  } catch {
+    // Deliberately silent: see above.
+  }
+}
+
+/**
  * Fetches and assembles one show, and records what it found.
  *
  * Extracted from the hook so the background summary pass can use the very same
@@ -124,20 +145,24 @@ export async function fetchShowData(
   // Caching the ids a lookup resolved is what stops the next load repeating a
   // hundred rate-limited TVmaze lookups. `rememberIds` only fills blanks, so this
   // cannot overwrite anything the library already knew.
-  void useLibrary.getState().rememberIds(show.key, {
-    ...(loaded.resolved.tvmaze !== null ? { tvmaze: loaded.resolved.tvmaze } : {}),
-    ...(loaded.resolved.imdb !== null ? { imdb: loaded.resolved.imdb } : {}),
-  });
+  bestEffort(() =>
+    useLibrary.getState().rememberIds(show.key, {
+      ...(loaded.resolved.tvmaze !== null ? { tvmaze: loaded.resolved.tvmaze } : {}),
+      ...(loaded.resolved.imdb !== null ? { imdb: loaded.resolved.imdb } : {}),
+    }),
+  );
 
   const data = buildShowData(loaded, simklEpisodes, show);
 
   // What lets the NEXT list be built without loading a hundred shows to find out
   // which ten of them have anything left to watch.
-  void useLibrary.getState().rememberSummary(show.key, {
-    remaining: data.progress.remaining,
-    nextAirDate: data.progress.nextToWatch?.airDate ?? null,
-    checkedAt: new Date().toISOString(),
-  });
+  bestEffort(() =>
+    useLibrary.getState().rememberSummary(show.key, {
+      remaining: data.progress.remaining,
+      nextAirDate: data.progress.nextToWatch?.airDate ?? null,
+      checkedAt: new Date().toISOString(),
+    }),
+  );
 
   return data;
 }
