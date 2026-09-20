@@ -95,7 +95,10 @@ export function ShowCardContainer({
       // The ref lives on the placeholder, which is what has to be observed: the
       // card cannot report that it is visible once it exists, because it only
       // exists after the data it was waiting for arrives.
-      <article className="card carousel-card" ref={ref}>
+      <article
+        className={imageMode === "banner" ? "card carousel-card banner-mode" : "card carousel-card"}
+        ref={ref}
+      >
         <div className="poster-wrap">
           <div className={imageMode === "banner" ? "poster banner-img" : "poster"} />
         </div>

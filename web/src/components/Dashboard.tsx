@@ -246,7 +246,14 @@ export function Dashboard({
         ) : null}
 
         <div className="carousel-wrap">
-          <div className={`grid${imageMode === "banner" ? " banner-mode" : ""} carousel-track`}>
+          {/*
+            `carousel-track` ONLY. The old sheet uses `.grid` for a different
+            view's wrapped layout (app.js:3291) and `.carousel-track` for this
+            horizontal one (app.js:3195) - they were never on the same element, and
+            putting both here let `.grid`'s `display: grid` win on sheet order and
+            turn the carousel into a wrapping grid.
+          */}
+          <div className="carousel-track">
             {myList.map((show, i) => (
               <ShowCardContainer
                 key={show.key}
@@ -265,6 +272,18 @@ export function Dashboard({
                 eager={i < EAGER_CARDS}
               />
             ))}
+            {/* Fills whatever space is left when there are too few cards to
+                fill the row, and shrinks to nothing rather than forcing extra
+                scroll width when there are not (style.css:158-165). */}
+            {myList.length > 0 ? (
+              <div className="carousel-watermark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="3" y="3" width="18" height="15" rx="3.5" fill="none" stroke="var(--accent)" strokeWidth="1.8" />
+                  <polygon points="10,7.8 10,13.2 14.6,10.5" fill="var(--accent)" />
+                  <line x1="9" y1="21" x2="15" y2="21" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" />
+                </svg>
+              </div>
+            ) : null}
           </div>
           {myList.length === 0 ? (
             <p className="section-note">

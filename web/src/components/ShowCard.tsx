@@ -79,7 +79,9 @@ export function ShowCard({
   const percent = progress.aired > 0 ? Math.round((progress.watched / progress.aired) * 100) : 0;
 
   return (
-    <article className="card carousel-card">
+    // `banner-mode` belongs on the card, which is what `.card.carousel-card.banner-mode`
+    // widens to 368px (style.css:190) - the track has no say in it.
+    <article className={banner ? "card carousel-card banner-mode" : "card carousel-card"}>
       <div className={`poster-wrap${imageUrl ? " cycleable" : ""}`}>
         {imageUrl ? (
           <button
