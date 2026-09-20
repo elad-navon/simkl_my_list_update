@@ -68,6 +68,9 @@ function Harness({ lib }: { lib: Library }): React.JSX.Element {
 
 async function mount(lib: Library) {
   await useLibrary.getState().replaceAll(lib);
+  // The pass waits for the first read to finish, so it does not race a library that
+  // is still being loaded. The real app sets this in `hydrate`.
+  useLibrary.setState({ hydrated: true });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
@@ -145,5 +148,46 @@ describe("useSummaryBackfill", () => {
     await mount(emptyLibrary());
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(fetched).toEqual([]);
+  });
+});
+
+describe("useSummaryBackfill lifecycle", () => {
+  it("waits for the library to be read before doing anything", async () => {
+    // Starting on an empty, still-loading library would find nothing to do and then
+    // never look again.
+    await useLibrary.getState().replaceAll(library([show()]));
+    useLibrary.setState({ hydrated: false });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <Harness lib={library([show()])} />
+      </QueryClientProvider>,
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(fetched).toEqual([]);
+
+    useLibrary.setState({ hydrated: true });
+    await waitFor(() => expect(fetched).toEqual(["tmdb:1"]));
+  });
+
+  it("picks up shows that arrive after mount, such as an import over a mounted list", async () => {
+    await useLibrary.getState().replaceAll(emptyLibrary());
+    useLibrary.setState({ hydrated: true });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    function Live(): React.JSX.Element {
+      const lib = useLibrary((s) => s.library);
+      return <Harness lib={lib} />;
+    }
+    render(
+      <QueryClientProvider client={client}>
+        <Live />
+      </QueryClientProvider>,
+    );
+    expect(fetched).toEqual([]);
+
+    await useLibrary.getState().replaceAll(library([show()]));
+    await waitFor(() => expect(fetched).toEqual(["tmdb:1"]));
   });
 });

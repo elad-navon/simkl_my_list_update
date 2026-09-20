@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { computeProgress, countWatched, mostRecentWatchedAt, seasonMaxEpisodes } from "./progress";
+import {
+  computeProgress,
+  countWatched,
+  furthestWatchedKey,
+  mostRecentWatchedAt,
+  seasonMaxEpisodes,
+} from "./progress";
 import type { Episode, WatchedMap } from "./types";
 
 const NOW = Date.parse("2026-09-20T12:00:00Z");
@@ -218,5 +224,75 @@ describe("seasonMaxEpisodes", () => {
     expect(max.get(1)).toBe(8);
     expect(max.get(2)).toBe(3);
     expect(max.has(0)).toBe(false);
+  });
+});
+
+/**
+ * List membership. SIMKL's `next_to_watch` was always "the episode after your
+ * furthest watch" and never counted holes, and My List is defined by it.
+ */
+describe("remainingAfterFurthest", () => {
+  const aired = [
+    ep(1, 1, "2026-01-01"),
+    ep(1, 2, "2026-01-08"),
+    ep(1, 3, "2026-01-15"),
+    ep(1, 4, "2026-01-22"),
+  ];
+
+  it("counts aired episodes after the furthest one watched", () => {
+    const p = computeProgress(aired, { 1: { 1: "x", 2: "x" } }, { now: NOW });
+    expect(p.remainingAfterFurthest).toBe(2);
+    expect(p.remaining).toBe(2);
+  });
+
+  it("ignores a hole BEHIND the furthest watch, unlike remaining", () => {
+    // Watched 1 and 3: episode 2 is a hole. `remaining` counts it - right for a
+    // badge - but it is not a reason to put the show on My List.
+    const p = computeProgress(aired, { 1: { 1: "x", 3: "x", 4: "x" } }, { now: NOW });
+    expect(p.remaining).toBe(1);
+    expect(p.remainingAfterFurthest).toBe(0);
+  });
+
+  it("is everything when nothing has been watched, so a show about to start qualifies", () => {
+    const p = computeProgress(aired, {}, { now: NOW });
+    expect(p.remainingAfterFurthest).toBe(4);
+  });
+
+  it("is zero when the history runs past everything the source lists", () => {
+    // The renumbering case: 277 watched against a list of 152.
+    const p = computeProgress(aired, { 9: { 40: "x" } }, { now: NOW });
+    expect(p.remainingAfterFurthest).toBe(0);
+  });
+
+  it("counts a new episode after a caught-up history", () => {
+    // Lioness: watched through S03E07, S03E08 airs.
+    const p = computeProgress([...aired, ep(1, 5, "2026-01-29")], { 1: { 1: "x", 2: "x", 3: "x", 4: "x" } }, { now: NOW });
+    expect(p.remainingAfterFurthest).toBe(1);
+  });
+
+  it("does not let a special move the furthest mark", () => {
+    const p = computeProgress(aired, { 0: { 99: "x" }, 1: { 1: "x" } }, { now: NOW });
+    expect(p.remainingAfterFurthest).toBe(3);
+  });
+
+  it("crosses season boundaries in broadcast order", () => {
+    const eps = [ep(1, 10, "2026-01-01"), ep(2, 1, "2026-02-01"), ep(2, 2, "2026-02-08")];
+    const p = computeProgress(eps, { 1: { 10: "x" } }, { now: NOW });
+    expect(p.remainingAfterFurthest).toBe(2);
+  });
+});
+
+describe("furthestWatchedKey", () => {
+  it("returns the highest season/episode key", () => {
+    expect(furthestWatchedKey({ 1: { 5: "x" }, 2: { 1: "x" } })).toBe(2001);
+  });
+
+  it("is null for an empty history and for specials only", () => {
+    expect(furthestWatchedKey({})).toBeNull();
+    expect(furthestWatchedKey({ 0: { 1: "x" } })).toBeNull();
+  });
+
+  it("counts an episode no source lists, which is how a renumbered show looks", () => {
+    expect(furthestWatchedKey({ 22: { 40: "x" } })).toBe(22040);
   });
 });

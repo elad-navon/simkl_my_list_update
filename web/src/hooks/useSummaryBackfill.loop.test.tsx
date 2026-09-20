@@ -28,8 +28,19 @@ const fetches: string[] = [];
 vi.mock("./useShowData", () => ({
   fetchShowData: vi.fn(async (_clients: unknown, show: LibraryShow) => {
     fetches.push(show.key);
-    // A real fetch yields, which is when a self-cancelling effect gets its chance.
-    await new Promise((resolve) => setTimeout(resolve, 1));
+    // The REAL fetchShowData records a summary itself, so every show changes the
+    // library twice - once here, once in the pass. A mock that did not would leave
+    // the pass as the only writer, which is not the situation the browser is in.
+    const { useLibrary: store } = await import("../library/store");
+    await store.getState().rememberSummary(show.key, {
+      remaining: 1,
+      nextAirDate: null,
+      checkedAt: new Date().toISOString(),
+    });
+    // NO artificial delay. The first version of this test yielded to a timer, which
+    // gave React room to breathe and hid the bug: in the browser these resolve from
+    // the query cache in microtasks, so a summary is written and the effect re-runs
+    // before React has had a chance to settle - "Maximum update depth exceeded".
     return {
       episodes: [{ season: 1, episode: 1, airDate: "2026-01-01", title: null, runtime: 45 }],
       loaded: { seriesEnded: false },
@@ -59,6 +70,7 @@ function library(count: number): Library {
 }
 
 let effectRuns = 0;
+const reactErrors: string[] = [];
 
 function Harness(): React.JSX.Element {
   // Reads the live store, exactly as the dashboard does - which is what made the
@@ -70,6 +82,10 @@ function Harness(): React.JSX.Element {
 }
 
 beforeEach(async () => {
+  reactErrors.length = 0;
+  vi.spyOn(console, "error").mockImplementation((...args) => {
+    reactErrors.push(args.map(String).join(" "));
+  });
   storage.clear();
   fetches.length = 0;
   effectRuns = 0;
@@ -77,7 +93,8 @@ beforeEach(async () => {
 
 describe("useSummaryBackfill settles", () => {
   it("fetches each show exactly once", async () => {
-    await useLibrary.getState().replaceAll(library(8));
+    await useLibrary.getState().replaceAll(library(30));
+    useLibrary.setState({ hydrated: true });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={client}>
@@ -86,16 +103,18 @@ describe("useSummaryBackfill settles", () => {
     );
 
     await waitFor(
-      () => expect(useLibrary.getState().library.shows["tmdb:7"]?.summary).toBeDefined(),
+      () => expect(useLibrary.getState().library.shows["tmdb:29"]?.summary).toBeDefined(),
       { timeout: 4000 },
     );
 
-    expect(fetches).toHaveLength(8);
-    expect(new Set(fetches).size).toBe(8);
+    expect(reactErrors.filter((e) => /Maximum update depth/.test(e))).toEqual([]);
+    expect(fetches).toHaveLength(30);
+    expect(new Set(fetches).size).toBe(30);
   });
 
   it("writes a summary for every show and then stops", async () => {
-    await useLibrary.getState().replaceAll(library(8));
+    await useLibrary.getState().replaceAll(library(30));
+    useLibrary.setState({ hydrated: true });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={client}>

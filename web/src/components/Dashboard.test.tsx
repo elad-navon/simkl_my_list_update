@@ -54,6 +54,7 @@ function showData(latestAired: Episode | null): ShowData {
       watched: 1,
       remaining: 0,
       remainingEpisodes: [],
+      remainingAfterFurthest: 0,
       nextToWatch: null,
       nextAiring: null,
       lastWatchedAt: Date.parse("2026-01-02T00:00:00Z"),

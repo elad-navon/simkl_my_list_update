@@ -36,6 +36,12 @@ export function registerServiceWorker(options: {
 
   if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return noop;
 
+  // Not in dev. The plugin does not emit a worker there (devOptions.enabled is off,
+  // deliberately - a worker caching a dev server's output is a way to spend an
+  // afternoon debugging a stale bundle), so this would fetch /sw.js, get the dev
+  // server's HTML fallback back, and log "unsupported MIME type" on every load.
+  if (import.meta.env.DEV) return noop;
+
   let registration: ServiceWorkerRegistration | null = null;
 
   const check = () => {

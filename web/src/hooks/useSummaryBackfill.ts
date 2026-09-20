@@ -20,9 +20,20 @@
  * episode list is cached for six hours, and running `computeProgress` over it again
  * with a current clock is pure arithmetic. An episode that aired an hour ago becomes
  * "aired" with no request at all.
+ *
+ * ## Why the effect does not depend on the queue
+ *
+ * An earlier version keyed its effect on the SIZE of its own queue. The pass shrinks
+ * that queue by design, so every summary it wrote invalidated the effect that was
+ * running it: the cleanup cancelled the pass, the effect re-ran, and started another.
+ * In a browser, where results arrive from the query cache in microtasks, that cascade
+ * ran fast enough to hit React's "Maximum update depth exceeded". The rule that fixes
+ * it is general: an effect must never depend on something it changes. So the effect
+ * here depends only on things the pass does not touch - and a periodic tick, not a
+ * dependency, is what picks up work that appears later.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ApiClients } from "../api/clients";
 import { computeProgress } from "../domain/progress";
@@ -40,12 +51,17 @@ import { fetchShowData, type ShowData } from "./useShowData";
  */
 const SUMMARY_MAX_AGE_MS = 2 * 60 * 60 * 1000;
 
+/** How often an idle pass looks for newly stale summaries. */
+const RECHECK_MS = 60 * 1000;
+
 export type BackfillState = {
   /** How many shows still need checking. Zero means the list has settled. */
   pending: number;
   done: number;
   running: boolean;
 };
+
+const IDLE: BackfillState = { pending: 0, done: 0, running: false };
 
 function needsCheck(library: Library, now: number): LibraryShow[] {
   return Object.values(library.shows).filter((show) => {
@@ -63,34 +79,36 @@ export function useSummaryBackfill(
   enabled: boolean,
 ): BackfillState {
   const queryClient = useQueryClient();
-  const [state, setState] = useState<BackfillState>({ pending: 0, done: 0, running: false });
+  const hydrated = useLibrary((s) => s.hydrated);
+  const [state, setState] = useState<BackfillState>(IDLE);
 
-  // One pass at a time. A second would double the requests and race the first to
-  // write the same summaries.
-  const running = useRef(false);
+  // How many shows there ARE, which changes when one is added, removed or imported
+  // and NOT when a summary is written - that distinction is the whole point.
+  const showCount = Object.keys(library.shows).length;
 
-  // The queue is taken once per pass, and the effect keys on its SIZE rather than
-  // on the library - every summary written changes the library, and depending on
-  // that would restart the pass on its own first result.
-  const queueSize = needsCheck(library, Date.now()).length;
+  /** Identifies the current pass. Bumping it cancels whichever is running. */
+  const pass = useRef(0);
+  const active = useRef(false);
 
-  useEffect(() => {
-    if (!enabled || running.current || queueSize === 0) {
-      if (queueSize === 0) setState((s) => ({ ...s, pending: 0, running: false }));
+  const start = useCallback(() => {
+    if (active.current) return;
+
+    const queue = needsCheck(useLibrary.getState().library, Date.now());
+    if (queue.length === 0) {
+      // The SAME object when already idle, so an idle tick is not a state change and
+      // therefore not a render.
+      setState((s) => (s.pending === 0 && !s.running ? s : { ...s, pending: 0, running: false }));
       return;
     }
 
-    const queue = needsCheck(useLibrary.getState().library, Date.now());
-    if (queue.length === 0) return;
-
-    running.current = true;
-    let cancelled = false;
+    active.current = true;
+    const id = ++pass.current;
     setState({ pending: queue.length, done: 0, running: true });
 
     void (async () => {
       let done = 0;
       for (const show of queue) {
-        if (cancelled) break;
+        if (pass.current !== id) return;
         try {
           // Through the query client under the card's own key, so a card that
           // appears later finds this already done rather than repeating it - and so
@@ -111,7 +129,7 @@ export function useSummaryBackfill(
               seriesEnded: data.loaded.seriesEnded,
             });
             await useLibrary.getState().rememberSummary(show.key, {
-              remaining: progress.remaining,
+              remaining: progress.remainingAfterFurthest,
               nextAirDate: progress.nextToWatch?.airDate ?? null,
               checkedAt: new Date().toISOString(),
             });
@@ -120,18 +138,35 @@ export function useSummaryBackfill(
           // A show whose sources are unreachable keeps the summary it had and is
           // tried again next session. Better than recording a wrong one.
         }
+
         done += 1;
-        if (!cancelled) setState({ pending: queue.length - done, done, running: true });
+        if (pass.current !== id) return;
+        setState({ pending: queue.length - done, done, running: true });
       }
-      if (!cancelled) setState({ pending: 0, done, running: false });
-      running.current = false;
+
+      // Only the pass that is still current gets to declare itself finished; a
+      // cancelled one must not clear the flag a newer pass is relying on.
+      if (pass.current === id) {
+        active.current = false;
+        setState({ pending: 0, done, running: false });
+      }
     })();
+  }, [queryClient, clients, mode]);
+
+  useEffect(() => {
+    if (!enabled || !hydrated) return;
+
+    start();
+    // Work that appears LATER - a summary going stale, a file imported over an
+    // already-mounted list - is found by ticking, not by depending on the library.
+    const timer = setInterval(start, RECHECK_MS);
 
     return () => {
-      cancelled = true;
-      running.current = false;
+      clearInterval(timer);
+      pass.current += 1; // cancels a pass still in flight
+      active.current = false;
     };
-  }, [enabled, mode, queryClient, clients, queueSize]);
+  }, [enabled, hydrated, showCount, start]);
 
   return state;
 }

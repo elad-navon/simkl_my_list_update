@@ -29,6 +29,20 @@ export type Progress = {
   remaining: number;
   /** Aired and unwatched, oldest first. The first entry is the next one to watch. */
   remainingEpisodes: Episode[];
+  /**
+   * Aired episodes that come AFTER the furthest one watched.
+   *
+   * What My List is actually asking. SIMKL's `next_to_watch` was always "the episode
+   * after your furthest watch" and never counted holes, and the old app listed a show
+   * only when that existed (app.js:1157). `remaining` counts every unwatched aired
+   * episode, holes included, which is right for a badge and wrong for membership: a
+   * show whose source numbers it differently from your history has hundreds of
+   * "unwatched" episodes BEHIND your furthest watch that are noise, not a queue.
+   *
+   * With nothing watched yet this equals `remaining`, so a show you are about to
+   * start still qualifies.
+   */
+  remainingAfterFurthest: number;
   /** Convenience alias for `remainingEpisodes[0]`. */
   nextToWatch: Episode | null;
   /** Soonest episode whose air time is strictly in the future. */
@@ -160,6 +174,12 @@ export function computeProgress(
     if (!isWatched(watched, ep.season, ep.episode)) remainingEpisodes.push(ep);
   }
 
+  const furthest = furthestWatchedKey(watched);
+  const remainingAfterFurthest =
+    furthest === null
+      ? remainingEpisodes.length
+      : remainingEpisodes.filter((ep) => encodeSE(ep.season, ep.episode) > furthest).length;
+
   return {
     total: regular.length,
     aired: aired.length,
@@ -167,11 +187,31 @@ export function computeProgress(
     watched: countWatched(watched),
     remaining: remainingEpisodes.length,
     remainingEpisodes,
+    remainingAfterFurthest,
     nextToWatch: remainingEpisodes[0] ?? null,
     nextAiring,
     lastWatchedAt: mostRecentWatchedAt(watched),
     latestAired,
   };
+}
+
+/**
+ * The highest season/episode key in the watch history, specials excluded.
+ *
+ * Read from the HISTORY rather than the episode list on purpose: it has to count an
+ * episode the sources no longer list, which is exactly how a renumbered show looks.
+ */
+export function furthestWatchedKey(watched: WatchedMap): number | null {
+  let best: number | null = null;
+  for (const [seasonKey, episodes] of Object.entries(watched)) {
+    const season = Number(seasonKey);
+    if (season === 0) continue;
+    for (const episodeKey of Object.keys(episodes)) {
+      const key = encodeSE(season, Number(episodeKey));
+      if (best === null || key > best) best = key;
+    }
+  }
+  return best;
 }
 
 /**

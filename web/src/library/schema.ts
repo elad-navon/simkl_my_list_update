@@ -72,7 +72,11 @@ export type LibraryShow = {
    */
   summary?:
     | {
-        /** Aired and unwatched, from `computeProgress`. */
+        /**
+         * Aired episodes AFTER the furthest one watched - `remainingAfterFurthest`,
+         * not `remaining`. This is list membership, not a badge: see the note there
+         * for why holes behind your furthest watch must not put a show on My List.
+         */
         remaining: number;
         /** The next unwatched episode's air date, for ordering. */
         nextAirDate: string | null;

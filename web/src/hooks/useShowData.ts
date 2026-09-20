@@ -158,7 +158,7 @@ export async function fetchShowData(
   // which ten of them have anything left to watch.
   bestEffort(() =>
     useLibrary.getState().rememberSummary(show.key, {
-      remaining: data.progress.remaining,
+      remaining: data.progress.remainingAfterFurthest,
       nextAirDate: data.progress.nextToWatch?.airDate ?? null,
       checkedAt: new Date().toISOString(),
     }),
