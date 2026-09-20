@@ -1,0 +1,12 @@
+# Regenerable, never versioned.
+node_modules/
+dist/
+
+# Personal data. The SIMKL export and the library files derived from it hold the
+# whole watch history, and this repo is public, so they are ignored by name pattern
+# rather than by folder: they get moved around and regenerated.
+/simkl-export-*.json
+/library-*.json
+/coverage-*.json
+/parity-*.json
+/tvmaze-coverage-*.json
