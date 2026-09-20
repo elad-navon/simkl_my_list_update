@@ -1,0 +1,28 @@
+/*
+ * The dialog reuses .modal-box, .pin-code, .spinner and .error-box from the
+ * ported sheet. Only the two elements the old flow did not have are here: it
+ * never offered a retry, because a failure meant reloading the page.
+ */
+
+.note {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 8px 0 0;
+}
+
+.retry {
+  margin-top: 14px;
+  background: var(--card-hover);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--gold);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 7px 16px;
+  cursor: pointer;
+}
+
+.retry:hover {
+  border-color: var(--gold);
+}

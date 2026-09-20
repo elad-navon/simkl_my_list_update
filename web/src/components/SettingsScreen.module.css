@@ -96,3 +96,22 @@
   white-space: nowrap;
   border: 0;
 }
+
+.transfer {
+  color: var(--text);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  margin: 14px 0 0;
+  text-align: left;
+}
+
+.dismiss {
+  background: none;
+  border: none;
+  color: var(--accent2);
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}

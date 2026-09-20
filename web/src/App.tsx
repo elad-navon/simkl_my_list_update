@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useState } from "react";
+import { useLibraryTransfer } from "./hooks/useLibraryTransfer";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { createCachePersister, createQueryClient, PERSIST_MAX_AGE } from "./query/client";
@@ -17,6 +18,7 @@ import { useLibrary } from "./library/store";
 import { applyTheme, useSettings } from "./settings/store";
 import { isConfigured, type Settings } from "./settings/schema";
 import { Dashboard } from "./components/Dashboard";
+import { SimklAuthDialog } from "./components/SimklAuthDialog";
 import { SettingsScreen } from "./components/SettingsScreen";
 import { TopBar } from "./components/TopBar";
 import type { LibraryShow } from "./library/schema";
@@ -33,6 +35,7 @@ function Shell(): React.JSX.Element {
   const toggleImageMode = useSettings((s) => s.toggleImageMode);
 
   const { backend, clients, requestedMode, unavailable } = useBackend();
+  const transfer = useLibraryTransfer();
   const { loading, report, error, reload } = useLibraryLoad(backend);
   const library = useLibrary((s) => s.library);
   const setImage = useLibrary((s) => s.setImage);
@@ -40,6 +43,7 @@ function Shell(): React.JSX.Element {
   // On first run there is no dashboard to show, so settings is the only screen.
   const configured = isConfigured(settings);
   const [screen, setScreen] = useState<Screen>(configured ? "dashboard" : "settings");
+  const [authorizing, setAuthorizing] = useState(false);
 
   const save = useCallback(
     (patch: Partial<Settings>) => {
@@ -47,6 +51,22 @@ function Shell(): React.JSX.Element {
       setScreen("dashboard");
       // Changing the key or the source changes what every request would return,
       // so the load is redone rather than left showing the previous source's data.
+      reload();
+    },
+    [update, reload],
+  );
+
+  /**
+   * Stores the token the PIN flow produced, and selects SIMKL mode with it.
+   *
+   * Authorizing is only ever done in order to use SIMKL, so making it the source
+   * at the same time saves a second deliberate step that would otherwise be easy
+   * to miss and leave the user wondering why nothing changed.
+   */
+  const onAuthorized = useCallback(
+    (token: string) => {
+      update({ simklToken: token, backendMode: "simkl" });
+      setAuthorizing(false);
       reload();
     },
     [update, reload],
@@ -77,15 +97,26 @@ function Shell(): React.JSX.Element {
             onSave={save}
             onToggleTheme={toggleTheme}
             onClose={configured ? () => setScreen("dashboard") : null}
-            // Both of these are phase 5 and 6 work. They are wired as no-ops
-            // with a visible message rather than as dead buttons, so the screen
-            // says what it cannot do yet instead of appearing to do it.
-            onAuthorizeSimkl={() => window.alert("The SIMKL PIN flow lands with the next slice.")}
-            onImportFromSimkl={null}
-            onExportLibrary={() => exportLibrary(library)}
-            onImportLibrary={() => window.alert("Importing a library file lands with the backup slice.")}
+            onAuthorizeSimkl={() => setAuthorizing(true)}
+            // Only offered when SIMKL can actually answer. A button that needs an
+            // authorization you do not have should not be there to click.
+            onImportFromSimkl={
+              clients.simkl ? () => void transfer.importFromSimkl(nonNull(clients.simkl)) : null
+            }
+            onExportLibrary={() => transfer.exportToFile(library)}
+            onImportLibrary={(file) => void transfer.importFromFile(file)}
+            transfer={transfer.progress}
+            onDismissTransfer={transfer.dismiss}
           />
         </main>
+
+        {authorizing ? (
+          <SimklAuthDialog
+            clientId={settings.simklClientId}
+            onAuthorized={onAuthorized}
+            onClose={() => setAuthorizing(false)}
+          />
+        ) : null}
       </>
     );
   }
@@ -134,7 +165,7 @@ function subtitleFor(state: {
   unavailable: string | null;
 }): string {
   if (state.unavailable === "simkl-not-authorized") {
-    return "SIMKL is selected but not authorized - showing your local library. Open Settings to authorize.";
+    return "SIMKL is selected but not authorized - showing your local mirror. Open Settings to authorize again.";
   }
   if (state.loading) {
     return state.requestedMode === "simkl" ? "Syncing with SIMKL…" : "Loading your library…";
@@ -151,15 +182,15 @@ function subtitleFor(state: {
   return parts.join(" · ");
 }
 
-/** Downloads the library as JSON. The manual half of the backup safety net. */
-function exportLibrary(library: unknown): void {
-  const blob = new Blob([JSON.stringify(library, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `library-${new Date().toISOString().slice(0, 10)}.json`;
-  link.click();
-  URL.revokeObjectURL(url);
+/**
+ * Narrows a value the caller has already tested.
+ *
+ * Only here because the guard and the use sit in different closures, so the
+ * compiler cannot carry the narrowing across.
+ */
+function nonNull<T>(value: T | null): T {
+  if (value === null) throw new Error("expected a value");
+  return value;
 }
 
 export function App(): React.JSX.Element {

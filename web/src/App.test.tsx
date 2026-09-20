@@ -132,3 +132,72 @@ describe("App", () => {
     );
   });
 });
+
+describe("App transfer and authorization", () => {
+  it("offers the SIMKL import only once SIMKL can answer", async () => {
+    configure({ tmdbApiKey: "key" });
+    render(<App />);
+
+    screen.getByRole("button", { name: /Settings/ }).click();
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Setup" })).toBeInTheDocument());
+
+    // A button that needs an authorization you do not have should not be there.
+    expect(
+      screen.queryByRole("button", { name: /Import everything into the local library/ }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Authorize" })).toBeInTheDocument();
+  });
+
+  it("offers a re-authorization once a token exists", async () => {
+    configure({ tmdbApiKey: "key", simklClientId: "cid", simklToken: "tok" });
+    render(<App />);
+
+    screen.getByRole("button", { name: /Settings/ }).click();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Re-authorize" })).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByRole("button", { name: /Import everything into the local library/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens the PIN dialog and asks SIMKL for a code", async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValue(
+      new Response(JSON.stringify({ user_code: "ABC123", expires_in: 900, interval: 5 }), {
+        status: 200,
+      }),
+    );
+    configure({ tmdbApiKey: "key", simklClientId: "cid" });
+    render(<App />);
+
+    screen.getByRole("button", { name: /Settings/ }).click();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Authorize" })).toBeInTheDocument());
+    screen.getByRole("button", { name: "Authorize" }).click();
+
+    await waitFor(() => expect(screen.getByText("ABC123")).toBeInTheDocument());
+    expect(screen.getByText(/Waiting for approval/)).toBeInTheDocument();
+  });
+
+  it("says so when SIMKL will not issue a code, rather than spinning forever", async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValue(new Response("{}", { status: 200 }));
+    configure({ tmdbApiKey: "key", simklClientId: "cid" });
+    render(<App />);
+
+    screen.getByRole("button", { name: /Settings/ }).click();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Authorize" })).toBeInTheDocument());
+    screen.getByRole("button", { name: "Authorize" }).click();
+
+    await waitFor(() => expect(screen.getByText(/did not return a PIN code/)).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+  });
+
+  it("explains why the SIMKL import is slow, instead of just being slow", async () => {
+    configure({ tmdbApiKey: "key", simklClientId: "cid", simklToken: "tok" });
+    render(<App />);
+
+    screen.getByRole("button", { name: /Settings/ }).click();
+    await waitFor(() =>
+      expect(screen.getByText(/only breaks history down per episode/)).toBeInTheDocument(),
+    );
+  });
+});

@@ -14,6 +14,8 @@
  */
 
 import { useMemo } from "react";
+import { guardBackend } from "../library/guardBackend";
+import { useSimklAuthGuard } from "./useSimklAuthGuard";
 import { createClients, type ApiClients } from "../api/clients";
 import { createLocalBackend } from "../library/localBackend";
 import { createSimklBackend } from "../library/simklBackend";
@@ -37,6 +39,7 @@ export type BackendSelection = {
 
 export function useBackend(): BackendSelection {
   const settings = useSettings((s) => s.settings);
+  const { guard } = useSimklAuthGuard();
 
   return useMemo(() => {
     const simklUsable = canUseSimkl(settings);
@@ -54,7 +57,12 @@ export function useBackend(): BackendSelection {
     const wantsSimkl = settings.backendMode === "simkl";
     if (wantsSimkl && clients.simkl) {
       return {
-        backend: createSimklBackend({ simkl: clients.simkl, mirror: local, store }),
+        // Wrapped so that a 401 from any call - a load, a status change, a
+        // watched episode - clears the token in one place rather than in each.
+        backend: guardBackend(
+          createSimklBackend({ simkl: clients.simkl, mirror: local, store }),
+          guard,
+        ),
         clients,
         requestedMode: "simkl" as const,
         unavailable: null,
@@ -67,5 +75,5 @@ export function useBackend(): BackendSelection {
       requestedMode: settings.backendMode,
       unavailable: wantsSimkl ? ("simkl-not-authorized" as const) : null,
     };
-  }, [settings]);
+  }, [settings, guard]);
 }

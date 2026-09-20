@@ -12,6 +12,7 @@
 
 import { useState } from "react";
 import { canUseSimkl, type BackendMode, type Settings } from "../settings/schema";
+import type { TransferProgress } from "../hooks/useLibraryTransfer";
 import styles from "./SettingsScreen.module.css";
 
 export type SettingsScreenProps = {
@@ -26,6 +27,9 @@ export type SettingsScreenProps = {
   onImportFromSimkl: (() => void) | null;
   onExportLibrary: () => void;
   onImportLibrary: (file: File) => void;
+  /** What an export, import or SIMKL pull is currently doing. */
+  transfer: TransferProgress;
+  onDismissTransfer: () => void;
 };
 
 export function SettingsScreen({
@@ -37,7 +41,10 @@ export function SettingsScreen({
   onImportFromSimkl,
   onExportLibrary,
   onImportLibrary,
+  transfer,
+  onDismissTransfer,
 }: SettingsScreenProps): React.JSX.Element {
+  const busy = transfer.phase !== null;
   const [draft, setDraft] = useState(settings);
   const [error, setError] = useState<string | null>(null);
 
@@ -145,15 +152,21 @@ export function SettingsScreen({
           onChange={(e) => field("simklClientId", e.target.value)}
         />
         <div className={styles.actions}>
-          <button type="button" className={styles.pill} onClick={onAuthorizeSimkl}>
+          <button type="button" className={styles.pill} onClick={onAuthorizeSimkl} disabled={busy}>
             {settings.simklToken ? "Re-authorize" : "Authorize"}
           </button>
           {onImportFromSimkl ? (
-            <button type="button" className={styles.pill} onClick={onImportFromSimkl}>
+            <button type="button" className={styles.pill} onClick={onImportFromSimkl} disabled={busy}>
               Import everything into the local library
             </button>
           ) : null}
         </div>
+        <p className={styles.help}>
+          Importing pulls every list and rebuilds each show&apos;s history. It takes a while
+          because SIMKL only breaks history down per episode for shows you are watching or have
+          on hold - for completed and dropped shows it gives a count, and each of those needs
+          its episode list fetched to place that count onto real episodes.
+        </p>
       </fieldset>
 
       <fieldset className={styles.group}>
@@ -170,7 +183,7 @@ export function SettingsScreen({
           onChange={(e) => field("gistToken", e.target.value)}
         />
         <div className={styles.actions}>
-          <button type="button" className={styles.pill} onClick={onExportLibrary}>
+          <button type="button" className={styles.pill} onClick={onExportLibrary} disabled={busy}>
             Export a JSON file
           </button>
           <label className={styles.fileButton}>
@@ -178,6 +191,7 @@ export function SettingsScreen({
             <input
               type="file"
               accept="application/json"
+              disabled={busy}
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) onImportLibrary(file);
@@ -186,6 +200,8 @@ export function SettingsScreen({
           </label>
         </div>
       </fieldset>
+
+      <TransferStatus progress={transfer} onDismiss={onDismissTransfer} />
 
       <fieldset className={styles.group}>
         <legend className={styles.legend}>This is you</legend>
@@ -230,4 +246,51 @@ export function SettingsScreen({
       {error ? <div className="error-box">{error}</div> : null}
     </div>
   );
+}
+
+const PHASE_LABELS = {
+  lists: "Fetching your lists from SIMKL…",
+  episodes: "Fetching episode lists",
+  writing: "Writing to the local library…",
+} as const;
+
+/**
+ * What a transfer is doing, or what it did.
+ *
+ * A SIMKL import can take minutes, and the episode phase is the long one - so it
+ * counts, because a progress line that only says "working" is indistinguishable
+ * from one that has hung.
+ */
+function TransferStatus({
+  progress,
+  onDismiss,
+}: {
+  progress: TransferProgress;
+  onDismiss: () => void;
+}): React.JSX.Element | null {
+  if (progress.error) return <div className="error-box">{progress.error}</div>;
+
+  if (progress.phase) {
+    return (
+      <p className={styles.transfer} role="status">
+        {PHASE_LABELS[progress.phase]}
+        {progress.phase === "episodes" && progress.total > 0
+          ? ` ${progress.done} of ${progress.total}…`
+          : null}
+      </p>
+    );
+  }
+
+  if (progress.message) {
+    return (
+      <p className={styles.transfer} role="status">
+        {progress.message}{" "}
+        <button type="button" className={styles.dismiss} onClick={onDismiss}>
+          Dismiss
+        </button>
+      </p>
+    );
+  }
+
+  return null;
 }
