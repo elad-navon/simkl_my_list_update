@@ -19,6 +19,7 @@ import type { ShowStatus } from "../domain/types";
 import {
   emptyLibrary,
   showKey,
+  type AddShowInput,
   type Library,
   type LibraryShow,
   type ShowIds,
@@ -35,7 +36,7 @@ export type LibraryState = {
   hydrate: () => Promise<void>;
   replaceAll: (library: Library) => Promise<void>;
 
-  addShow: (input: { ids: ShowIds; title: string; year?: number; status: ShowStatus }) => Promise<ShowKey | null>;
+  addShow: (input: AddShowInput) => Promise<ShowKey | null>;
   setStatus: (key: ShowKey, status: ShowStatus) => Promise<void>;
   removeShow: (key: ShowKey) => Promise<void>;
   markWatched: (key: ShowKey, season: number, episode: number, watchedAt?: string) => Promise<void>;

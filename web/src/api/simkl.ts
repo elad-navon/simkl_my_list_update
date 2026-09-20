@@ -87,6 +87,7 @@ export type SimklClient = {
   addToList: (ids: SimklWriteIds, status: ShowStatus) => Promise<void>;
   removeFromList: (ids: SimklWriteIds) => Promise<void>;
   markEpisodeWatched: (simklId: number, season: number, episode: number) => Promise<void>;
+  removeEpisodeFromHistory: (simklId: number, season: number, episode: number) => Promise<void>;
 };
 
 /** SIMKL accepts any subset of these when identifying a show for a write. */
@@ -236,6 +237,20 @@ export function createSimklClient(options: {
 
     markEpisodeWatched(simklId, season, episode) {
       return post("/sync/history", {
+        shows: [{ ids: { simkl: simklId }, seasons: [{ number: season, episodes: [{ number: episode }] }] }],
+      });
+    },
+
+    /**
+     * The one call here with no precedent in the old app, which had no way to
+     * un-mark an episode at all. `/sync/history/remove` takes the same nested
+     * shape as `/sync/history` - the old code used the same endpoint to remove a
+     * whole show (app.js:1558) - so this is the documented form rather than a
+     * behaviour observed in production. A non-2xx throws, so a wrong guess
+     * surfaces as a visible failure rather than as silent divergence.
+     */
+    removeEpisodeFromHistory(simklId, season, episode) {
+      return post("/sync/history/remove", {
         shows: [{ ids: { simkl: simklId }, seasons: [{ number: season, episodes: [{ number: episode }] }] }],
       });
     },

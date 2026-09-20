@@ -69,6 +69,14 @@ export type Library = {
   shows: Record<ShowKey, LibraryShow>;
 };
 
+/** What adding a show needs. Shared so the store and the backends cannot drift. */
+export type AddShowInput = {
+  ids: ShowIds;
+  title: string;
+  year?: number | undefined;
+  status: ShowStatus;
+};
+
 export function emptyLibrary(): Library {
   return { version: LIBRARY_VERSION, syncedAt: null, shows: {} };
 }
