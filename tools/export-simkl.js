@@ -64,7 +64,15 @@
           episode_watched_at: "yes",
         }),
       );
-      console.log(`  ${status}: ${lists[status].length} shows`);
+      // SIMKL returns per-episode `seasons` data for `watching` and `hold`
+      // only - never for `completed` or `dropped`, whatever
+      // episode_watched_at is set to. Those shows' history has to be rebuilt
+      // from `watched_episodes_count` (see library/migrate/simkl.ts), so the
+      // coverage is printed rather than left to be discovered later.
+      const withEpisodes = lists[status].filter((i) => i?.seasons?.length).length;
+      console.log(
+        `  ${status}: ${lists[status].length} shows, ${withEpisodes} with per-episode watch data`,
+      );
     } catch (e) {
       lists[status] = [];
       errors.push({ what: `list:${status}`, message: String(e) });
@@ -133,5 +141,9 @@
     "color:#4ade80;font-weight:bold",
   );
   if (errors.length) console.table(errors);
+  const perEpisode = Object.values(lists).flat().filter((i) => i?.seasons?.length).length;
+  console.log(
+    `${perEpisode} of ${totalShows} shows carry per-episode watch data; the rest are rebuilt from SIMKL's watched count.`,
+  );
   console.log("Keep simkl-export-" + stamp + ".json somewhere safe before migrating.");
 })();

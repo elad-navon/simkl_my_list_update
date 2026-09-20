@@ -22,7 +22,7 @@ function sampleEpisodes(): Episode[] {
 describe("computeProgress", () => {
   it("counts aired, not-aired and remaining from the episode list alone", () => {
     const watched: WatchedMap = { 1: { 1: "2026-09-02T09:00:00Z" } };
-    const p = computeProgress(sampleEpisodes(), watched, NOW);
+    const p = computeProgress(sampleEpisodes(), watched, { now: NOW });
 
     expect(p.total).toBe(5);
     expect(p.aired).toBe(3);
@@ -32,13 +32,13 @@ describe("computeProgress", () => {
   });
 
   it("keeps remaining and remainingEpisodes consistent by construction", () => {
-    const p = computeProgress(sampleEpisodes(), {}, NOW);
+    const p = computeProgress(sampleEpisodes(), {}, { now: NOW });
     expect(p.remaining).toBe(p.remainingEpisodes.length);
   });
 
   it("orders remaining episodes oldest first and exposes the first as nextToWatch", () => {
     const watched: WatchedMap = { 1: { 1: "2026-09-02T09:00:00Z" } };
-    const p = computeProgress(sampleEpisodes(), watched, NOW);
+    const p = computeProgress(sampleEpisodes(), watched, { now: NOW });
 
     expect(p.remainingEpisodes.map((e) => e.episode)).toEqual([2, 3]);
     expect(p.nextToWatch?.episode).toBe(2);
@@ -46,7 +46,7 @@ describe("computeProgress", () => {
 
   it("treats an episode that aired earlier today as already available", () => {
     const earlierToday = "2026-09-20T09:00:00Z"; // NOW is 12:00Z the same day
-    const p = computeProgress([ep(1, 1, earlierToday)], {}, NOW);
+    const p = computeProgress([ep(1, 1, earlierToday)], {}, { now: NOW });
 
     expect(p.aired).toBe(1);
     expect(p.remaining).toBe(1);
@@ -54,13 +54,13 @@ describe("computeProgress", () => {
   });
 
   it("picks the soonest future episode as nextAiring, ignoring undated ones", () => {
-    const p = computeProgress(sampleEpisodes(), {}, NOW);
+    const p = computeProgress(sampleEpisodes(), {}, { now: NOW });
     expect(p.nextAiring?.episode).toBe(4);
   });
 
   it("excludes specials from every count", () => {
     const withSpecial = [...sampleEpisodes(), ep(0, 1, "2026-09-02T20:00:00+03:00")];
-    const p = computeProgress(withSpecial, { 0: { 1: "2026-09-03T00:00:00Z" } }, NOW);
+    const p = computeProgress(withSpecial, { 0: { 1: "2026-09-03T00:00:00Z" } }, { now: NOW });
 
     expect(p.total).toBe(5);
     expect(p.watched).toBe(0);
@@ -71,7 +71,7 @@ describe("computeProgress", () => {
     const watched: WatchedMap = {
       1: { 1: "2026-09-02T09:00:00Z", 2: "2026-09-09T09:00:00Z", 3: "2026-09-16T09:00:00Z" },
     };
-    const p = computeProgress(sampleEpisodes(), watched, NOW);
+    const p = computeProgress(sampleEpisodes(), watched, { now: NOW });
 
     expect(p.remaining).toBe(0);
     expect(p.nextToWatch).toBeNull();
@@ -80,20 +80,111 @@ describe("computeProgress", () => {
 
   it("never goes negative when the user watched more than the source lists", () => {
     const watched: WatchedMap = { 1: { 1: "x", 2: "x", 3: "x", 4: "x", 9: "x" } };
-    const p = computeProgress(sampleEpisodes(), watched, NOW);
+    const p = computeProgress(sampleEpisodes(), watched, { now: NOW });
 
     expect(p.remaining).toBe(0);
     expect(p.watched).toBe(5); // honest about what the user recorded
   });
 
   it("handles a show with no episode data at all", () => {
-    const p = computeProgress([], {}, NOW);
+    const p = computeProgress([], {}, { now: NOW });
     expect(p).toMatchObject({ total: 0, aired: 0, remaining: 0, nextToWatch: null, nextAiring: null });
   });
 
   it("tracks the latest aired episode for the new-episode notification", () => {
-    const p = computeProgress(sampleEpisodes(), {}, NOW);
+    const p = computeProgress(sampleEpisodes(), {}, { now: NOW });
     expect(p.latestAired?.episode).toBe(3);
+  });
+});
+
+/**
+ * The rule that replaces SIMKL's self-contradicting aired data. SIMKL marks
+ * every undated episode `aired: true` while its aggregate count calls the
+ * upcoming ones unaired, so neither field can be trusted and position is used
+ * instead. See `computeProgress`.
+ */
+describe("computeProgress with undated episodes", () => {
+  it("counts an undated episode as aired when a later one has already aired", () => {
+    // The Israeli-show case: TheTVDB lists the episode but not its date, and
+    // the broadcast has demonstrably run past it.
+    const p = computeProgress(
+      [ep(1, 1, "2026-01-01"), ep(1, 2, null), ep(1, 3, "2026-01-15")],
+      {},
+      { now: NOW },
+    );
+    expect(p.aired).toBe(3);
+    expect(p.notAired).toBe(0);
+    expect(p.remainingEpisodes.map((e) => e.episode)).toEqual([1, 2, 3]);
+  });
+
+  it("keeps a trailing undated episode unaired, the safe direction", () => {
+    // An unannounced upcoming episode. Listing it as remaining would offer an
+    // episode that does not exist yet.
+    const p = computeProgress([ep(1, 1, "2026-01-01"), ep(1, 2, null)], {}, { now: NOW });
+    expect(p.aired).toBe(1);
+    expect(p.notAired).toBe(1);
+    expect(p.remainingEpisodes.map((e) => e.episode)).toEqual([1]);
+  });
+
+  it("does not let a merely announced future episode place an undated one", () => {
+    // S01E03 is scheduled but has not aired, so it says nothing about S01E02.
+    const p = computeProgress(
+      [ep(1, 1, "2026-01-01"), ep(1, 2, null), ep(1, 3, "2026-12-01")],
+      {},
+      { now: NOW },
+    );
+    expect(p.notAired).toBe(2);
+    expect(p.remainingEpisodes.map((e) => e.episode)).toEqual([1]);
+  });
+
+  it("judges position across season boundaries, not within a season", () => {
+    const p = computeProgress(
+      [ep(1, 1, "2026-01-01"), ep(1, 2, null), ep(2, 1, "2026-02-01")],
+      {},
+      { now: NOW },
+    );
+    expect(p.notAired).toBe(0);
+  });
+
+  it("treats every undated episode as aired once the series has ended", () => {
+    // A finished show has no future episodes, so an undated one is a past one
+    // whose date the source never recorded.
+    const episodes = [ep(1, 1, null), ep(1, 2, null), ep(1, 3, null)];
+    expect(computeProgress(episodes, {}, { now: NOW }).notAired).toBe(3);
+    expect(computeProgress(episodes, {}, { now: NOW, seriesEnded: true }).aired).toBe(3);
+  });
+
+  it("still respects a real future date on an ended series", () => {
+    // `seriesEnded` only settles episodes with no date; a date always wins.
+    const p = computeProgress(
+      [ep(1, 1, null), ep(1, 2, "2026-12-01")],
+      {},
+      { now: NOW, seriesEnded: true },
+    );
+    expect(p.aired).toBe(1);
+    expect(p.notAired).toBe(1);
+  });
+
+  it("never makes an undated episode the next airing one", () => {
+    const p = computeProgress([ep(1, 1, "2026-01-01"), ep(1, 2, null)], {}, { now: NOW });
+    expect(p.nextAiring).toBeNull();
+  });
+
+  it("never anchors the notification to an undated episode", () => {
+    // latestAired drives "a new episode aired", which needs a date to mean
+    // anything; the last DATED aired episode is the honest anchor.
+    const p = computeProgress(
+      [ep(1, 1, "2026-01-01"), ep(1, 2, "2026-01-08"), ep(1, 3, null)],
+      {},
+      { now: NOW, seriesEnded: true },
+    );
+    expect(p.aired).toBe(3);
+    expect(p.latestAired?.episode).toBe(2);
+  });
+
+  it("defaults the clock to now when no options are passed at all", () => {
+    const p = computeProgress([ep(1, 1, "2000-01-01")], {});
+    expect(p.aired).toBe(1);
   });
 });
 

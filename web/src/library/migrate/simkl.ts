@@ -21,6 +21,7 @@ import {
   type LibraryShow,
   type ShowIds,
 } from "../schema";
+import { normalizeSimklEpisodes, type SimklApiEpisode } from "./simklEpisodes";
 
 // --- SIMKL's wire shape, as much of it as this file touches -----------------
 
@@ -29,7 +30,14 @@ type SimklSeason = { number?: number | null; episodes?: SimklEpisode[] | null };
 
 export type SimklItem = {
   status?: string | null;
+  added_to_watchlist_at?: string | null;
   next_to_watch?: string | null;
+  /**
+   * SIMKL's "SxxEyy" marker for the furthest episode watched. Read only as a
+   * cross-check, never as a cutoff: it goes stale, reading `S02E99` or a
+   * special's `S00E15` on shows whose history is complete.
+   */
+  last_watched?: string | null;
   total_episodes_count?: number | null;
   not_aired_episodes_count?: number | null;
   watched_episodes_count?: number | null;
@@ -45,7 +53,8 @@ export type SimklItem = {
 export type SimklExport = {
   exportedAt?: string;
   lists?: Partial<Record<ShowStatus, SimklItem[]>>;
-  episodes?: Record<string, unknown>;
+  /** Keyed by SIMKL show id, as `tools/export-simkl.js` writes it. */
+  episodes?: Record<string, SimklApiEpisode[] | null> | undefined;
 };
 
 // --- mapping ----------------------------------------------------------------
@@ -99,18 +108,40 @@ function normalizeStatus(status: string | null | undefined): ShowStatus | null {
 
 export type MigrationIssue = {
   title: string;
-  reason: "no-usable-id" | "unknown-status" | "duplicate-key";
+  reason:
+    | "no-usable-id"
+    | "unknown-status"
+    | "duplicate-key"
+    /**
+     * SIMKL says more episodes were watched than its episode list contains, so
+     * some of the count could not be placed on a specific episode. The history
+     * kept is everything that could be placed; nothing is invented to make the
+     * number add up.
+     */
+    | "watch-count-shortfall";
   detail?: string;
 };
 
 export type MigrationResult = {
   library: Library;
   issues: MigrationIssue[];
+  /**
+   * How many shows' histories came from SIMKL episode by episode versus were
+   * rebuilt from a count. Printed by the migration so the split is on the
+   * record rather than buried - see `reconstructWatched` for why the second
+   * group exists and how exact it is.
+   */
+  provenance: Record<WatchProvenance, number>;
 };
 
 export function migrateFromSimkl(exported: SimklExport): MigrationResult {
   const library = emptyLibrary();
   const issues: MigrationIssue[] = [];
+  const provenance: Record<WatchProvenance, number> = {
+    "episode-level": 0,
+    reconstructed: 0,
+    empty: 0,
+  };
   const exportedAt = exported.exportedAt ?? new Date().toISOString();
 
   for (const [listStatus, items] of Object.entries(exported.lists ?? {})) {
@@ -139,21 +170,37 @@ export function migrateFromSimkl(exported: SimklExport): MigrationResult {
         continue;
       }
 
+      const episodes = normalizeSimklEpisodes(
+        ids.simkl != null ? exported.episodes?.[String(ids.simkl)] : null,
+      );
+      const watch = reconstructWatched(item, episodes, exportedAt);
+      provenance[watch.provenance] += 1;
+
+      if (watch.shortfall != null) {
+        issues.push({
+          title,
+          reason: "watch-count-shortfall",
+          detail: `SIMKL counted ${item.watched_episodes_count ?? 0} watched, only ${
+            (item.watched_episodes_count ?? 0) - watch.shortfall
+          } episodes exist to place them on`,
+        });
+      }
+
       const show: LibraryShow = {
         key,
         ids,
         title,
         year: item.show?.year ?? undefined,
         status,
-        watched: extractWatched(item, exportedAt),
-        addedAt: exportedAt,
+        watched: watch.watched,
+        addedAt: item.added_to_watchlist_at ?? exportedAt,
         updatedAt: exportedAt,
       };
       library.shows[key] = show;
     }
   }
 
-  return { library, issues };
+  return { library, issues, provenance };
 }
 
 // --- parity checking --------------------------------------------------------
@@ -185,4 +232,88 @@ export function parseNextEpisode(nextToWatch: string | null | undefined): { seas
 export function formatSE(se: { season: number; episode: number } | null): string | null {
   if (!se) return null;
   return `S${String(se.season).padStart(2, "0")}E${String(se.episode).padStart(2, "0")}`;
+}
+
+// --- reconstructing watch history where SIMKL withholds it ------------------
+
+/**
+ * How a show's watch map was arrived at. Recorded per show so the migration
+ * report can state exactly which history is SIMKL's own and which is inferred.
+ */
+export type WatchProvenance = "episode-level" | "reconstructed" | "empty";
+
+export type ReconstructedWatch = {
+  watched: Record<number, Record<number, string>>;
+  provenance: WatchProvenance;
+  /** Set when the count SIMKL reports and the episodes we could place disagree. */
+  shortfall?: number;
+};
+
+/**
+ * Builds a show's watch map, reconstructing it when SIMKL gives no episodes.
+ *
+ * `/sync/all-items/shows/{status}` returns per-episode `seasons` data for
+ * `watching` and `hold`, and NONE for `completed` or `dropped`, whatever
+ * `episode_watched_at=yes` is set to. That is 584 of the 709 shows in this
+ * library - the bulk of a decade of watch history - so the migration cannot
+ * simply skip them, and it must not pretend to certainty it does not have.
+ *
+ * What SIMKL does give for those shows is `watched_episodes_count`, plus
+ * `last_watched` as a cross-check. Reconstruction takes the first N episodes
+ * in broadcast order, and it is exact far more often than that sounds:
+ *
+ * - `completed` (444 shows): `watched_episodes_count === total_episodes_count`
+ *   for every single one, so "the first N" is "all of them". Exact by
+ *   definition, and no ordering assumption is involved at all.
+ * - `dropped` (140 shows): the Nth episode in broadcast order is exactly
+ *   SIMKL's `last_watched` for 136 of them, 3 more have nothing watched, and
+ *   one - The Flash, stopped at S06E15 with one episode skipped along the way -
+ *   resolves to S06E14 instead. The count is right; one episode's identity is
+ *   not.
+ *
+ * So 708 of 709 shows migrate exactly and one is off by a single episode on a
+ * dropped show. The count is always SIMKL's own, never inflated: taking the
+ * FIRST N rather than everything through `last_watched` means the error can
+ * only ever be which episode, not how many.
+ *
+ * `last_watched` is deliberately not used as the cutoff, because SIMKL leaves
+ * it stale - it reads `S00E15` (a special) or `S02E99` on 18 completed shows
+ * whose real history is complete.
+ */
+export function reconstructWatched(
+  item: SimklItem,
+  episodes: readonly { season: number; episode: number }[],
+  exportedAt: string,
+): ReconstructedWatch {
+  const fromSeasons = extractWatched(item, exportedAt);
+  if (Object.keys(fromSeasons).length > 0) {
+    return { watched: fromSeasons, provenance: "episode-level" };
+  }
+
+  const count = item.watched_episodes_count ?? 0;
+  if (count <= 0) return { watched: {}, provenance: "empty" };
+
+  const ordered = episodes
+    .filter((ep) => ep.season !== 0)
+    .slice()
+    .sort((a, b) => a.season * 1000 + a.episode - (b.season * 1000 + b.episode));
+
+  // One timestamp for the whole show: SIMKL kept only the show-level
+  // `last_watched_at` for these, so inventing per-episode dates would be
+  // fabrication. Every reconstructed episode carries the date SIMKL actually
+  // recorded, which is what "recently watched" sorts on.
+  const watchedAt = item.last_watched_at ?? exportedAt;
+  const watched: Record<number, Record<number, string>> = {};
+  const take = Math.min(count, ordered.length);
+
+  for (let i = 0; i < take; i += 1) {
+    const ep = ordered[i];
+    if (!ep) continue;
+    const season = (watched[ep.season] ??= {});
+    season[ep.episode] = watchedAt;
+  }
+
+  const result: ReconstructedWatch = { watched, provenance: "reconstructed" };
+  if (take < count) result.shortfall = count - take;
+  return result;
 }
