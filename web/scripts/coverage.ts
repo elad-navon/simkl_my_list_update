@@ -47,8 +47,14 @@ type Probe = {
   fallbackOnly: number;
   /** Watched episodes no source lists. These are the real failures. */
   missingWatched: string[];
-  /** What the app would show as left to watch, for a sanity read. */
+  /** What the app would show as left to watch. */
   remaining: number;
+  /**
+   * Listed episodes the watch map does not cover. For a `completed` show this
+   * should be zero, and anything else is a numbering mismatch between sources -
+   * see the report section at the bottom.
+   */
+  unwatchedListed: number;
   seriesEnded: boolean;
 };
 
@@ -122,6 +128,8 @@ async function probe(show: LibraryShow): Promise<Probe> {
     seriesEnded: loaded.seriesEnded,
   });
 
+  const unwatchedListed = regular.filter((e) => show.watched[e.season]?.[e.episode] == null).length;
+
   return {
     key: show.key,
     title: show.title,
@@ -133,6 +141,7 @@ async function probe(show: LibraryShow): Promise<Probe> {
     fallbackOnly: loaded.coverage.fallbackOnly,
     missingWatched,
     remaining: progress.remaining,
+    unwatchedListed,
     seriesEnded: loaded.seriesEnded,
   };
 }
@@ -170,6 +179,22 @@ const both = probes.filter((p) => p.sources.tvmaze && p.sources.tmdb);
 const incomplete = probes.filter((p) => p.missingWatched.length > 0);
 const noEpisodes = probes.filter((p) => p.episodeCount === 0);
 
+/**
+ * SIMKL reported watched === total for every completed show, so a completed show
+ * with episodes still listed as unwatched means the sources number the show
+ * differently - not that any history was lost.
+ *
+ * Money Heist is the clearest case: SIMKL and TVmaze both list 41 episodes but
+ * split them into seasons differently, so 18 of TVmaze's episode numbers have no
+ * counterpart in the migrated history. The rest are mostly two-part episodes
+ * that TheTVDB counted as one and TVmaze counts as two.
+ *
+ * Harmless but visible - the show reads as having episodes left. One "mark
+ * remaining as watched" per show settles it for good, which is why this is
+ * reported rather than worked around in the data model.
+ */
+const phantom = probes.filter((p) => p.status === "completed" && p.unwatchedListed > 0);
+
 const pad = (label: string) => label.padEnd(32);
 const line = (label: string, value: string | number) => console.log(`  ${pad(label)}${value}`);
 const pct = (n: number) => (probes.length ? `${((n / probes.length) * 100).toFixed(1)}%` : "-");
@@ -188,6 +213,7 @@ line("history NOT covered", `${incomplete.length} (${pct(incomplete.length)})`);
 line("watched episodes unaccounted", incomplete.reduce((n, p) => n + p.missingWatched.length, 0));
 line("episodes only TMDB had", probes.reduce((n, p) => n + p.fallbackOnly, 0));
 line("episodes with a broadcast time", probes.reduce((n, p) => n + p.withBroadcastTime, 0));
+line("completed, yet reading unwatched", phantom.length);
 
 if (tmdbOnly.length) {
   console.log(`\nTVmaze has no record of these - TMDB is carrying them alone`);
@@ -208,6 +234,17 @@ if (incomplete.length) {
         `${p.missingWatched.length} watched missing: ${sample}${more}`,
     );
   }
+}
+
+if (phantom.length) {
+  console.log(`\nCompleted shows that still read as having episodes left`);
+  console.log(`Source numbering differs from SIMKL's; mark them watched once and they are done.`);
+  for (const p of [...phantom].sort((a, b) => b.unwatchedListed - a.unwatchedListed)) {
+    console.log(`  ${p.title.padEnd(44)} ${p.unwatchedListed} of ${p.episodeCount} listed`);
+  }
+  console.log(
+    `  ${phantom.length} shows, ${phantom.reduce((n, p) => n + p.unwatchedListed, 0)} episodes total`,
+  );
 }
 
 if (noSource.length) {
