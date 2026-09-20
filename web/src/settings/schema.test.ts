@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultSettings, isConfigured, parseSettings } from "./schema";
+import { canUseSimkl, defaultSettings, isConfigured, parseSettings } from "./schema";
 
 describe("parseSettings", () => {
   it("reads a stored blob", () => {
@@ -45,17 +45,61 @@ describe("parseSettings", () => {
     expect(parseSettings({ tmdbApiKey: 12345 }).tmdbApiKey).toBe("");
   });
 
-  it("defaults to dark with posters and no personalization", () => {
+  it("defaults to dark with posters, local mode and no personalization", () => {
     expect(parseSettings({})).toEqual({
       tmdbApiKey: "",
       omdbApiKey: "",
       gistToken: "",
       gistId: "",
+      backendMode: "local",
+      simklClientId: "",
+      simklToken: "",
       theme: "dark",
       imageMode: "poster",
       displayName: "",
       avatarUrl: "",
     });
+  });
+});
+
+describe("backendMode", () => {
+  it("keeps an explicit choice", () => {
+    expect(parseSettings({ backendMode: "local", simklToken: "tok" }).backendMode).toBe("local");
+    expect(parseSettings({ backendMode: "simkl" }).backendMode).toBe("simkl");
+  });
+
+  it("stays on SIMKL when the browser already holds a token", () => {
+    // Defaulting a working setup to `local` would silently show an empty list.
+    expect(parseSettings({}, { simklToken: "tok" }).backendMode).toBe("simkl");
+  });
+
+  it("is local when there is no token and nothing was chosen", () => {
+    expect(parseSettings({}).backendMode).toBe("local");
+  });
+
+  it("rejects a mode it does not recognise", () => {
+    expect(parseSettings({ backendMode: "trakt" }).backendMode).toBe("local");
+  });
+
+  it("adopts the old app's SIMKL credentials so no re-authorizing is needed", () => {
+    const settings = parseSettings({}, { simklClientId: "cid", simklToken: "tok" });
+    expect(settings).toMatchObject({ simklClientId: "cid", simklToken: "tok" });
+  });
+});
+
+describe("canUseSimkl", () => {
+  it("needs both the client id and the token", () => {
+    expect(canUseSimkl(parseSettings({ simklClientId: "c", simklToken: "t" }))).toBe(true);
+    expect(canUseSimkl(parseSettings({ simklClientId: "c" }))).toBe(false);
+    expect(canUseSimkl(parseSettings({ simklToken: "t" }))).toBe(false);
+  });
+
+  it("is independent of the selected mode, so a 401 can be reported honestly", () => {
+    // Being on SIMKL and needing to authorize again is a real state; it must not
+    // read as though the setting had flipped.
+    const settings = parseSettings({ backendMode: "simkl", simklClientId: "c" });
+    expect(settings.backendMode).toBe("simkl");
+    expect(canUseSimkl(settings)).toBe(false);
   });
 });
 

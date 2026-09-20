@@ -41,6 +41,8 @@ function readLegacy(): Partial<Record<keyof Settings, unknown>> {
     tmdbApiKey: readString(LEGACY_KEYS.tmdbApiKey),
     theme: readString(LEGACY_KEYS.theme),
     imageMode: readString(LEGACY_KEYS.imageMode),
+    simklClientId: readString(LEGACY_KEYS.simklClientId),
+    simklToken: readString(LEGACY_KEYS.simklToken),
   };
 }
 

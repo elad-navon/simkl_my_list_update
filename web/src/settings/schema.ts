@@ -32,9 +32,26 @@ export const LEGACY_KEYS = {
   theme: "simkl_theme",
   imageMode: "simkl_image_mode",
   imageOverrides: "simkl_image_overrides",
+  /**
+   * Reading these means the rewrite starts already authorized against SIMKL,
+   * rather than sending you through the PIN flow for an account the browser is
+   * already holding a token for.
+   */
+  simklClientId: "simkl_client_id",
+  simklToken: "simkl_access_token",
 } as const;
 
 export type Theme = "dark" | "light";
+
+/**
+ * Who owns the list.
+ *
+ * `simkl` keeps SIMKL as the source of truth with the local library mirroring
+ * it; `local` cuts the dependency and makes the library itself the truth. See
+ * `library/backend.ts` - the point of the setting is that the second is always
+ * available without a migration.
+ */
+export type BackendMode = "simkl" | "local";
 
 /** Which artwork shape the cards use. Ported from app.js:44. */
 export type ImageMode = "poster" | "banner";
@@ -48,6 +65,12 @@ export type Settings = {
   gistToken: string;
   /** The gist holding the backup, once one exists. */
   gistId: string;
+  /** Which source owns the list. Defaults to SIMKL when a token is present. */
+  backendMode: BackendMode;
+  /** SIMKL app credentials, needed only in SIMKL mode. */
+  simklClientId: string;
+  /** The PIN flow's access token. No refresh token exists, so a 401 is final. */
+  simklToken: string;
   theme: Theme;
   imageMode: ImageMode;
   /**
@@ -66,6 +89,9 @@ export function defaultSettings(): Settings {
     omdbApiKey: "",
     gistToken: "",
     gistId: "",
+    backendMode: "local",
+    simklClientId: "",
+    simklToken: "",
     theme: "dark",
     imageMode: "poster",
     displayName: "",
@@ -75,6 +101,7 @@ export function defaultSettings(): Settings {
 
 const THEMES: readonly string[] = ["dark", "light"];
 const IMAGE_MODES: readonly string[] = ["poster", "banner"];
+const BACKEND_MODES: readonly string[] = ["simkl", "local"];
 
 function str(value: unknown): string | null {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
@@ -95,12 +122,28 @@ export function parseSettings(stored: unknown, legacy: Partial<Record<keyof Sett
 
   const theme = pick("theme");
   const imageMode = pick("imageMode");
+  const simklClientId = pick("simklClientId") ?? defaults.simklClientId;
+  const simklToken = pick("simklToken") ?? defaults.simklToken;
+
+  // An explicit choice always wins. With none recorded, a browser that already
+  // holds a SIMKL token was using SIMKL, so that is where it should carry on -
+  // defaulting a working setup to `local` would silently show an empty list.
+  const storedMode = pick("backendMode");
+  const backendMode: BackendMode =
+    storedMode && BACKEND_MODES.includes(storedMode)
+      ? (storedMode as BackendMode)
+      : simklToken
+        ? "simkl"
+        : defaults.backendMode;
 
   return {
     tmdbApiKey: pick("tmdbApiKey") ?? defaults.tmdbApiKey,
     omdbApiKey: pick("omdbApiKey") ?? defaults.omdbApiKey,
     gistToken: pick("gistToken") ?? defaults.gistToken,
     gistId: pick("gistId") ?? defaults.gistId,
+    backendMode,
+    simklClientId,
+    simklToken,
     theme: theme && THEMES.includes(theme) ? (theme as Theme) : defaults.theme,
     imageMode:
       imageMode && IMAGE_MODES.includes(imageMode) ? (imageMode as ImageMode) : defaults.imageMode,
@@ -112,4 +155,16 @@ export function parseSettings(stored: unknown, legacy: Partial<Record<keyof Sett
 /** True once the app has the one key it cannot work without. */
 export function isConfigured(settings: Settings): boolean {
   return settings.tmdbApiKey !== "";
+}
+
+/**
+ * Whether SIMKL mode can actually run.
+ *
+ * Selecting the mode is not the same as being able to use it: the client id and
+ * the token are both required, and a 401 clears the token without changing the
+ * mode - so the UI has to be able to say "still on SIMKL, needs authorizing
+ * again" rather than silently behaving as though the setting had flipped.
+ */
+export function canUseSimkl(settings: Settings): boolean {
+  return settings.simklClientId !== "" && settings.simklToken !== "";
 }

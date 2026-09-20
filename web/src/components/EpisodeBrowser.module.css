@@ -1,0 +1,219 @@
+/*
+ * Styles for the episode browser.
+ *
+ * Built on the custom properties `style.css` already defines on `:root`, and on
+ * the `body.light-theme` block that redefines them - so this inherits both
+ * themes without a single duplicated colour. That is the whole reason the port
+ * keeps the token names: 1,009 lines of tuned palette carry straight over.
+ */
+
+.browser {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  max-height: 80vh;
+  overflow: hidden;
+}
+
+.header {
+  position: relative;
+  padding-right: 34px;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--text);
+}
+
+.summary {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.close {
+  position: absolute;
+  top: -4px;
+  right: 0;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.close:hover {
+  color: var(--text);
+}
+
+.bulk button,
+.rowActions button {
+  background: var(--card-hover);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--gold);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.bulk button:disabled,
+.rowActions button:disabled,
+.toggle:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.seasons {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.seasonTab,
+.seasonTabActive {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  background: var(--card-hover);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.seasonTabActive {
+  color: var(--gold);
+  border-color: var(--gold);
+}
+
+.seasonCount {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+.episodes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+}
+
+.episode {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.episode:last-child {
+  border-bottom: none;
+}
+
+.toggle {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--gold);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.toggle[aria-pressed="true"] {
+  border-color: var(--gold);
+}
+
+.tick {
+  display: block;
+}
+
+.number {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.name {
+  color: var(--text);
+  font-size: 0.88rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.untitled {
+  color: var(--muted);
+}
+
+.badge {
+  margin-left: 8px;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--gold);
+  border: 1px solid var(--gold);
+  border-radius: 4px;
+  padding: 1px 4px;
+  white-space: nowrap;
+}
+
+.runtime,
+.meta {
+  color: var(--muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.rowActions {
+  display: flex;
+  gap: 6px;
+}
+
+.empty,
+.specialsNote {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+/* The single breakpoint style.css uses, so the two agree about "narrow". */
+@media (max-width: 720px) {
+  .episode {
+    grid-template-columns: auto auto 1fr;
+    grid-template-areas:
+      "toggle number name"
+      ". . meta"
+      ". . actions";
+    row-gap: 4px;
+  }
+
+  .runtime {
+    display: none;
+  }
+
+  .rowActions {
+    grid-area: actions;
+  }
+}

@@ -14,7 +14,11 @@ export default defineConfig({
     sourcemap: true,
   },
   test: {
+    // Node by default: most of this codebase is pure functions, and a DOM would
+    // only make them slower. Component tests opt into jsdom with a
+    // `@vitest-environment jsdom` docblock at the top of the file.
     environment: "node",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    setupFiles: ["./src/test/setup.ts"],
   },
 });

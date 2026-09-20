@@ -29,6 +29,14 @@
   // need the DOM lib and JSX, which a Node script has no business seeing.
   // tsconfig.app.json still checks every one of these files on its own without
   // Node's globals, so browser code cannot quietly start using `process`.
-  "include": ["scripts", "src/api", "src/domain", "src/library"],
+  // Only settings/schema.ts, not the whole settings tree: the settings STORE
+  // applies the theme to `document`, which a Node script has no business seeing.
+  "include": [
+    "scripts",
+    "src/api",
+    "src/domain",
+    "src/library",
+    "src/settings/schema.ts"
+  ],
   "exclude": ["**/*.test.ts"]
 }
