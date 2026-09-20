@@ -1564,6 +1564,17 @@ async function markEpisodeWatched(simklId, season, episode, token) {
   });
 }
 
+// Marks a batch of one season's episodes watched or not watched - the
+// history-remove endpoint takes the exact same body shape as the add one.
+async function setEpisodesWatched(simklId, season, episodeNumbers, watched, token) {
+  return simklPost(watched ? "/sync/history" : "/sync/history/remove", token, {
+    shows: [{
+      ids: { simkl: simklId },
+      seasons: [{ number: season, episodes: episodeNumbers.map(n => ({ number: n })) }],
+    }],
+  });
+}
+
 // Normalized to the same {title, year, posterUrl, ids} shape TMDB results
 // use below, so the rest of the search UI (render, add-to-list, status
 // lookup) never needs to branch on which source a result came from.
@@ -1635,7 +1646,10 @@ async function findShowLibraryStatus(ids, token) {
   // getWatchingShows/getPlanToWatchShows) and returns the first match.
   const lists = await Promise.all(
     LIBRARY_STATUSES.map(status =>
-      simklGet(`/sync/all-items/shows/${status}`, token, { extended: "full" }).catch(() => null)
+      // episode_watched_at is what makes SIMKL include each item's per-
+      // episode `seasons` list (same as getWatchingShows) - the episodes
+      // manager needs it to know which episodes are already watched.
+      simklGet(`/sync/all-items/shows/${status}`, token, { extended: "full", episode_watched_at: "yes" }).catch(() => null)
     )
   );
   for (let i = 0; i < LIBRARY_STATUSES.length; i++) {
@@ -1814,7 +1828,12 @@ function renderShowDetail(show, libraryMatch) {
     const watched = item.watched_episodes_count || 0;
     const total = item.total_episodes_count || 0;
     const progress = total ? ` — ${watched}/${total} episodes watched` : "";
-    statusHtml = `<div class="detail-status in-list">${STATUS_LABELS[libraryMatch.status]}${progress}</div>`;
+    const label = `${STATUS_LABELS[libraryMatch.status]}${progress}`;
+    // Only shows with a SIMKL id can be managed episode-by-episode.
+    const canOpenEpisodes = !!(item.show && item.show.ids && item.show.ids.simkl);
+    statusHtml = canOpenEpisodes
+      ? `<button class="detail-status in-list detail-status-link" id="detailEpisodesBtn" title="Open episodes list">${label} <span aria-hidden="true">&rsaquo;</span></button>`
+      : `<div class="detail-status in-list">${label}</div>`;
   }
 
   const statusButtons = ALL_STATUS_OPTIONS.map(opt => {
@@ -1858,6 +1877,8 @@ function renderShowDetail(show, libraryMatch) {
     </div>`;
 
   document.getElementById("detailBackBtn").onclick = renderSearchStep;
+  const episodesBtn = document.getElementById("detailEpisodesBtn");
+  if (episodesBtn) episodesBtn.onclick = () => openEpisodesManager(show, libraryMatch);
   body.querySelectorAll("[data-status]").forEach(btn => {
     btn.onclick = () => setShowStatusFromDetail(show, btn.dataset.status, btn);
   });
@@ -1904,6 +1925,174 @@ async function setShowStatusFromDetail(show, status, btnEl) {
     buttons.forEach(b => { b.disabled = false; });
     showToast(err.message, true);
   }
+}
+
+// Full per-season episode list for a show in the user's library, opened from
+// the detail view's status line - lets episodes be marked watched/unwatched
+// one at a time or a whole season at once. Swaps the search modal's body
+// (like the detail view itself) rather than stacking a second modal.
+let watchedMarksChanged = false;
+
+async function openEpisodesManager(show, libraryMatch) {
+  const title = document.getElementById("modalTitle");
+  const body = document.getElementById("modalBody");
+  if (!title || !body) return;
+  const item = libraryMatch.item;
+  const simklId = item.show.ids.simkl;
+  title.textContent = show.title || "Episodes";
+  const backToDetail = () => { title.textContent = show.title || "Show"; renderShowDetail(show, libraryMatch); };
+  body.innerHTML = `
+    <button class="modal-back-btn" id="detailBackBtn">&larr; Back</button>
+    <div class="spinner" style="margin:30px auto"></div>`;
+  document.getElementById("detailBackBtn").onclick = backToDetail;
+
+  const episodeCache = sharedEpisodeCache || new SimklEpisodeCache();
+  const all = await episodeCache.get(simklId, simklToken);
+  if (!all || !all.length) {
+    body.innerHTML = `
+      <button class="modal-back-btn" id="detailBackBtn">&larr; Back</button>
+      <div class="error-box">SIMKL has no episode list for this show.</div>`;
+    document.getElementById("detailBackBtn").onclick = backToDetail;
+    return;
+  }
+
+  // season number -> [{episode, title, aired}] (specials excluded, same as
+  // everywhere else here)
+  const now = Date.now();
+  const seasons = new Map();
+  for (const ep of all) {
+    if (ep.season == null || ep.season === 0 || ep.episode == null) continue;
+    if (!seasons.has(ep.season)) seasons.set(ep.season, []);
+    const ts = ep.date ? new Date(ep.date).getTime() : NaN;
+    seasons.get(ep.season).push({
+      episode: ep.episode, title: ep.title || "", aired: !isNaN(ts) && ts <= now,
+    });
+  }
+  const seasonNums = [...seasons.keys()].sort((a, b) => a - b);
+  for (const n of seasonNums) seasons.get(n).sort((a, b) => a.episode - b.episode);
+
+  const watched = watchedEpisodeNumbersBySeason(item);
+  const watchedSet = n => watched[n] || (watched[n] = new Set());
+  // SIMKL sometimes returns no per-episode `seasons` list for an item (only
+  // the counts). A fully-watched show is the one case that's still
+  // unambiguous without it: every aired episode counts as watched.
+  const hasWatchedDetail = Array.isArray(item.seasons) && item.seasons.length > 0;
+  // SIMKL only returns the per-episode list for shows in "watching"; every
+  // other status (dropped, completed, on hold) gets just the counts plus a
+  // "S01E08"-style last_watched code. In that case, assume the episodes
+  // were watched in order up to that one - exact for the usual "watched
+  // the first N, then stopped" case, an estimate if some were skipped
+  // (flagged in the summary line below when the counts disagree).
+  let estimatedMarks = false, estimateOff = false;
+  if (!hasWatchedDetail) {
+    const match = /^S(\d+)E(\d+)$/i.exec(item.last_watched || "");
+    if (item.total_episodes_count && item.watched_episodes_count >= item.total_episodes_count) {
+      for (const n of seasonNums) seasons.get(n).filter(e => e.aired).forEach(e => watchedSet(n).add(e.episode));
+      estimatedMarks = true;
+    } else if (match) {
+      const lastS = Number(match[1]), lastE = Number(match[2]);
+      let marked = 0;
+      for (const n of seasonNums) {
+        for (const e of seasons.get(n)) {
+          if (n < lastS || (n === lastS && e.episode <= lastE)) { watchedSet(n).add(e.episode); marked++; }
+        }
+      }
+      estimatedMarks = true;
+      estimateOff = marked !== item.watched_episodes_count;
+    }
+  }
+  const pad = n => String(n).padStart(2, "0");
+  // Default-open season: the first with an aired-but-unwatched episode,
+  // else the last one.
+  const firstUnfinished = seasonNums.find(n => seasons.get(n).some(e => e.aired && !watchedSet(n).has(e.episode)));
+  const openSeasons = new Set([firstUnfinished != null ? firstUnfinished : seasonNums[seasonNums.length - 1]]);
+
+  function render() {
+    const totalWatched = seasonNums.reduce((s, n) => s + seasons.get(n).filter(e => watchedSet(n).has(e.episode)).length, 0);
+    item.watched_episodes_count = totalWatched;
+
+    const seasonsHtml = seasonNums.map(n => {
+      const eps = seasons.get(n);
+      const done = eps.filter(e => watchedSet(n).has(e.episode)).length;
+      const airedEps = eps.filter(e => e.aired);
+      const allAiredWatched = airedEps.length > 0 && airedEps.every(e => watchedSet(n).has(e.episode));
+      const isOpen = openSeasons.has(n);
+      const bulkLabel = allAiredWatched ? "Unwatch all" : "Watch all";
+      const rows = isOpen ? eps.map(e => {
+        const isWatched = watchedSet(n).has(e.episode);
+        const action = e.aired || isWatched
+          ? `<button class="ep-toggle${isWatched ? " is-watched" : ""}" data-season="${n}" data-episode="${e.episode}" title="${isWatched ? "Mark as not watched" : "Mark as watched"}">${isWatched ? "&#10003;" : ""}</button>`
+          : `<span class="ep-toggle-placeholder"></span>`;
+        return `
+          <div class="ep-manage-row${e.aired || isWatched ? "" : " unaired"}">
+            ${action}
+            <span class="episode-code">E${pad(e.episode)}</span>
+            <span class="ep-manage-name">${e.title || `Episode ${e.episode}`}</span>
+            ${e.aired || isWatched ? "" : `<span class="ep-manage-note">Not aired</span>`}
+          </div>`;
+      }).join("") : "";
+      return `
+        <div class="ep-season">
+          <div class="ep-season-head" data-toggle-season="${n}">
+            <span class="ep-season-caret">${isOpen ? "&#9662;" : "&#9656;"}</span>
+            <span class="ep-season-name">Season ${n}</span>
+            <span class="ep-season-count">${done}/${eps.length}</span>
+            <button class="ep-season-bulk" data-bulk-season="${n}" ${airedEps.length ? "" : "disabled"}>${bulkLabel}</button>
+          </div>
+          ${rows}
+        </div>`;
+    }).join("");
+
+    body.innerHTML = `
+      <button class="modal-back-btn" id="detailBackBtn">&larr; Back</button>
+      <div class="ep-manage-summary">${STATUS_LABELS[libraryMatch.status]} &mdash; ${totalWatched}/${item.total_episodes_count || all.length} episodes watched</div>
+      ${estimatedMarks ? `<div class="ep-manage-diag">${estimateOff
+        ? "Marks are estimated from the last watched episode and may not match exactly what you watched."
+        : "Marks are inferred from the last watched episode."}</div>` : ""}
+      <div class="ep-manage-list">${seasonsHtml}</div>`;
+    document.getElementById("detailBackBtn").onclick = backToDetail;
+
+    body.querySelectorAll("[data-toggle-season]").forEach(el => {
+      el.onclick = e => {
+        if (e.target.closest("button")) return;
+        const n = Number(el.dataset.toggleSeason);
+        openSeasons.has(n) ? openSeasons.delete(n) : openSeasons.add(n);
+        render();
+      };
+    });
+    body.querySelectorAll(".ep-toggle").forEach(btn => {
+      btn.onclick = () => applyChange(Number(btn.dataset.season), [Number(btn.dataset.episode)],
+        !btn.classList.contains("is-watched"));
+    });
+    body.querySelectorAll("[data-bulk-season]").forEach(btn => {
+      btn.onclick = () => {
+        const n = Number(btn.dataset.bulkSeason);
+        const airedEps = seasons.get(n).filter(e => e.aired);
+        const makeWatched = !airedEps.every(e => watchedSet(n).has(e.episode));
+        const targets = airedEps.filter(e => watchedSet(n).has(e.episode) !== makeWatched).map(e => e.episode);
+        if (!confirm(`${makeWatched ? "Mark" : "Unmark"} ${targets.length} episode(s) of Season ${n} as ${makeWatched ? "watched" : "not watched"}?`)) return;
+        applyChange(n, targets, makeWatched);
+      };
+    });
+  }
+
+  // Optimistic: the UI flips right away and rolls back if SIMKL rejects it.
+  async function applyChange(season, episodeNumbers, makeWatched) {
+    const set = watchedSet(season);
+    const before = new Set(set);
+    episodeNumbers.forEach(n => makeWatched ? set.add(n) : set.delete(n));
+    render();
+    try {
+      await setEpisodesWatched(simklId, season, episodeNumbers, makeWatched, simklToken);
+      watchedMarksChanged = true;
+    } catch (err) {
+      watched[season] = before;
+      render();
+      showToast(err.message, true);
+    }
+  }
+
+  render();
 }
 
 // Per-episode breakdown of a top-card show's remaining watch time -
@@ -2294,6 +2483,12 @@ function closeSearchModal() {
   const overlay = document.getElementById("searchModalOverlay");
   if (overlay) overlay.remove();
   document.removeEventListener("keydown", searchModalEscHandler);
+  // Watched marks changed in the episodes manager - the dashboard behind
+  // the modal is stale until it re-fetches.
+  if (watchedMarksChanged) {
+    watchedMarksChanged = false;
+    main();
+  }
 }
 
 // ---------------------------------------------------------------------

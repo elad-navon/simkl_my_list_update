@@ -854,6 +854,40 @@
   .detail-status { margin-top: 10px; font-size: 0.88rem; font-weight: 700; }
   .detail-status.not-in-list { color: var(--muted); }
   .detail-status.in-list { color: var(--accent); }
+  .detail-status-link {
+    background: transparent; border: none; padding: 0; cursor: pointer; text-align: left;
+    font-family: inherit; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px;
+  }
+  .detail-status-link:hover { text-decoration-color: currentColor; }
+
+  /* Episodes manager (opened from the detail view's status line) */
+  .ep-manage-summary { color: var(--accent); font-size: 0.88rem; font-weight: 700; margin-bottom: 10px; }
+  .ep-manage-diag { color: var(--muted); font-size: 0.7rem; margin-bottom: 8px; }
+  .ep-manage-list { max-height: 55vh; overflow-y: auto; }
+  .ep-season { border-top: 1px solid var(--border); }
+  .ep-season-head { display: flex; align-items: center; gap: 10px; padding: 10px 4px; cursor: pointer; }
+  .ep-season-head:hover { background: var(--card-hover); }
+  .ep-season-caret { width: 14px; color: var(--muted); }
+  .ep-season-name { flex: 1 1 auto; font-weight: 700; font-size: 0.92rem; }
+  .ep-season-count { color: var(--muted); font-size: 0.8rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .ep-season-bulk {
+    background: transparent; border: 1px solid var(--border); color: var(--accent2); border-radius: 6px;
+    font-size: 0.72rem; font-weight: 700; padding: 3px 8px; cursor: pointer;
+  }
+  .ep-season-bulk:hover:not(:disabled) { border-color: var(--accent2); }
+  .ep-season-bulk:disabled { opacity: 0.35; cursor: default; }
+  .ep-manage-row { display: flex; align-items: center; gap: 10px; padding: 6px 4px 6px 24px; border-radius: 6px; }
+  .ep-manage-row:hover { background: var(--card-hover); }
+  .ep-manage-row.unaired { opacity: 0.45; }
+  .ep-manage-name { flex: 1 1 auto; min-width: 0; font-size: 0.85rem; word-break: break-word; }
+  .ep-manage-note { font-size: 0.7rem; color: var(--muted); }
+  .ep-toggle, .ep-toggle-placeholder { flex: 0 0 auto; width: 22px; height: 22px; box-sizing: border-box; }
+  .ep-toggle {
+    border: 1.5px solid var(--muted); border-radius: 5px; background: transparent; color: #fff;
+    font-size: 0.8rem; line-height: 1; cursor: pointer; padding: 0;
+  }
+  .ep-toggle:hover { border-color: var(--accent2); }
+  .ep-toggle.is-watched { background: var(--accent); border-color: var(--accent); }
   .detail-status-picker { margin-top: 20px; }
   .detail-picker-label { color: var(--muted); font-size: 0.8rem; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.06em; }
 
