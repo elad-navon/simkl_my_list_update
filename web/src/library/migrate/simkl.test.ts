@@ -342,3 +342,32 @@ describe("migrateFromSimkl with episode data", () => {
     expect(issues[0]?.reason).toBe("watch-count-shortfall");
   });
 });
+
+describe("summaryFromSimkl", () => {
+  it("seeds the cached progress from SIMKL's own figures", () => {
+    // The list asks one question - is there anything left - and SIMKL has already
+    // answered it. Computing it properly would mean a hundred requests before the
+    // list could be drawn at all.
+    const { library } = migrateFromSimkl(exportOf([item()]));
+    expect(library.shows["tmdb:555"]?.summary).toEqual({
+      remaining: 5, // 10 total - 2 unaired - 3 watched
+      nextAirDate: null,
+      checkedAt: EXPORTED_AT,
+    });
+  });
+
+  it("seeds zero for a show with nothing left, which keeps it off My List", () => {
+    const { library } = migrateFromSimkl(
+      exportOf(
+        [item({ total_episodes_count: 10, not_aired_episodes_count: 0, watched_episodes_count: 10 })],
+        "completed",
+      ),
+    );
+    expect(library.shows["tmdb:555"]?.summary?.remaining).toBe(0);
+  });
+
+  it("leaves the air date null, since SIMKL's list response has none", () => {
+    const { library } = migrateFromSimkl(exportOf([item({ next_to_watch: "S02E01" })]));
+    expect(library.shows["tmdb:555"]?.summary?.nextAirDate).toBeNull();
+  });
+});

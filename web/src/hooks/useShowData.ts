@@ -94,6 +94,54 @@ export function buildShowData(
  *   a hundred cards avoids firing a hundred paced TVmaze requests before anything
  *   on screen can resolve. See `useInView`.
  */
+/**
+ * Fetches and assembles one show, and records what it found.
+ *
+ * Extracted from the hook so the background summary pass can use the very same
+ * function under the very same query key - two code paths fetching the same show
+ * into two cache entries would double every request.
+ */
+export async function fetchShowData(
+  clients: ApiClients,
+  show: LibraryShow,
+  signal?: AbortSignal,
+): Promise<ShowData> {
+  const [loaded, simklEpisodes] = await Promise.all([
+    loadEpisodes(
+      { tvmaze: clients.tvmaze, tmdb: clients.tmdb },
+      {
+        ids: show.ids,
+        watched: show.watched,
+        ...(show.manualEpisodes
+          ? { manualEpisodes: show.manualEpisodes.map((ep) => ({ ...ep, runtime: null })) }
+          : {}),
+      },
+      signal,
+    ),
+    loadSimklEpisodes(clients.simkl, show.ids.simkl, signal),
+  ]);
+
+  // Caching the ids a lookup resolved is what stops the next load repeating a
+  // hundred rate-limited TVmaze lookups. `rememberIds` only fills blanks, so this
+  // cannot overwrite anything the library already knew.
+  void useLibrary.getState().rememberIds(show.key, {
+    ...(loaded.resolved.tvmaze !== null ? { tvmaze: loaded.resolved.tvmaze } : {}),
+    ...(loaded.resolved.imdb !== null ? { imdb: loaded.resolved.imdb } : {}),
+  });
+
+  const data = buildShowData(loaded, simklEpisodes, show);
+
+  // What lets the NEXT list be built without loading a hundred shows to find out
+  // which ten of them have anything left to watch.
+  void useLibrary.getState().rememberSummary(show.key, {
+    remaining: data.progress.remaining,
+    nextAirDate: data.progress.nextToWatch?.airDate ?? null,
+    checkedAt: new Date().toISOString(),
+  });
+
+  return data;
+}
+
 export function useShowData(
   show: LibraryShow | null,
   clients: ApiClients,
@@ -106,48 +154,6 @@ export function useShowData(
     // The shortest of the underlying TTLs, since this is derived from all of
     // them and must not outlive the freshest thing it depends on.
     staleTime: STALE_TIME.tvmazeEpisodes,
-    queryFn: async ({ signal }) => {
-      if (!show) return null;
-
-      const [loaded, simklEpisodes] = await Promise.all([
-        loadEpisodes(
-          { tvmaze: clients.tvmaze, tmdb: clients.tmdb },
-          {
-            ids: show.ids,
-            watched: show.watched,
-            ...(show.manualEpisodes
-              ? {
-                  manualEpisodes: show.manualEpisodes.map((ep) => ({
-                    ...ep,
-                    runtime: null,
-                  })),
-                }
-              : {}),
-          },
-          signal,
-        ),
-        loadSimklEpisodes(clients.simkl, show.ids.simkl, signal),
-      ]);
-
-      // Caching the ids a lookup resolved is what stops the next load repeating
-      // 107 rate-limited TVmaze lookups from scratch. `rememberIds` only fills
-      // blanks, so this cannot overwrite anything the library already knew.
-      void useLibrary.getState().rememberIds(show.key, {
-        ...(loaded.resolved.tvmaze !== null ? { tvmaze: loaded.resolved.tvmaze } : {}),
-        ...(loaded.resolved.imdb !== null ? { imdb: loaded.resolved.imdb } : {}),
-      });
-
-      const data = buildShowData(loaded, simklEpisodes, show);
-
-      // What lets the NEXT list be built without loading a hundred shows to find
-      // out which ten of them have anything left to watch.
-      void useLibrary.getState().rememberSummary(show.key, {
-        remaining: data.progress.remaining,
-        nextAirDate: data.progress.nextToWatch?.airDate ?? null,
-        checkedAt: new Date().toISOString(),
-      });
-
-      return data;
-    },
+    queryFn: ({ signal }) => (show ? fetchShowData(clients, show, signal) : null),
   });
 }

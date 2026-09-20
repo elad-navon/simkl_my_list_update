@@ -26,7 +26,12 @@
 import { countWatched } from "../domain/progress";
 import type { ShowStatus } from "../domain/types";
 import { normalizeSimklEpisodes, type SimklApiEpisode } from "./migrate/simklEpisodes";
-import { reconstructWatched, extractWatched, type SimklItem } from "./migrate/simkl";
+import {
+  extractWatched,
+  reconstructWatched,
+  summaryFromSimkl,
+  type SimklItem,
+} from "./migrate/simkl";
 import { showKey, type Library, type LibraryShow, type ShowIds, type ShowKey } from "./schema";
 
 /** Why a show needs work, which is also what the caller has to fetch for it. */
@@ -200,6 +205,9 @@ export function applyReconcile(
       ...(entry.item.show?.year != null ? { year: entry.item.show.year } : {}),
       status: entry.status,
       watched,
+      // Refreshed from SIMKL on every reconcile, which keeps My List correct
+      // without waiting for each show's episode list to be fetched.
+      summary: summaryFromSimkl(entry.item, now),
       ...(existing?.manualEpisodes ? { manualEpisodes: existing.manualEpisodes } : {}),
       ...(existing?.images ? { images: existing.images } : {}),
       addedAt: existing?.addedAt ?? entry.item.added_to_watchlist_at ?? now,

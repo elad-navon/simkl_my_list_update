@@ -193,6 +193,7 @@ export function migrateFromSimkl(exported: SimklExport): MigrationResult {
         year: item.show?.year ?? undefined,
         status,
         watched: watch.watched,
+        summary: summaryFromSimkl(item, exportedAt),
         addedAt: item.added_to_watchlist_at ?? exportedAt,
         updatedAt: exportedAt,
       };
@@ -212,6 +213,28 @@ export type ParityRow = {
   local: { total: number; notAired: number; watched: number; remaining: number; nextToWatch: string | null };
   differences: string[];
 };
+
+/**
+ * Seeds the cached progress summary from SIMKL's own figures.
+ *
+ * The summary decides which shows appear on My List, and computing it properly
+ * needs each show's episode list - a hundred requests before the list can even be
+ * built. SIMKL has already answered the only question the list asks, because its
+ * `next_to_watch` is exactly what the old app listed on (app.js:1157), so there is
+ * no reason to go and ask again before showing anything.
+ *
+ * Still a cache: the real derivation overwrites it the first time each show loads.
+ * What this avoids is an empty or wrong list in the meantime.
+ */
+export function summaryFromSimkl(item: SimklItem, now: string): NonNullable<LibraryShow["summary"]> {
+  return {
+    remaining: simklRemaining(item),
+    // SIMKL's list response carries no air date for the next episode, only its
+    // code. Ordering falls back to the last watch, which the library does have.
+    nextAirDate: null,
+    checkedAt: now,
+  };
+}
 
 /** SIMKL's own remaining-count formula, app.js:813-818. */
 export function simklRemaining(item: SimklItem): number {

@@ -215,3 +215,30 @@ describe("applyReconcile", () => {
     expect(counts["needs-episodes"]).toBe(1);
   });
 });
+
+describe("applyReconcile and the cached summary", () => {
+  it("refreshes it from SIMKL, so My List is right without fetching episodes", () => {
+    const plan = planReconcile(emptyLibrary(), {
+      watching: [item({ total_episodes_count: 10, not_aired_episodes_count: 2, watched_episodes_count: 3, seasons: null })],
+    });
+    const { library } = applyReconcile(emptyLibrary(), plan, {}, NOW);
+
+    expect(library.shows["tmdb:1"]?.summary).toEqual({
+      remaining: 5,
+      nextAirDate: null,
+      checkedAt: NOW,
+    });
+  });
+
+  it("keeps a derived summary on an unchanged show rather than replacing it", () => {
+    // An unchanged row is kept whole, and its summary is the DERIVED one if the
+    // show has ever loaded - which is better than SIMKL's own count.
+    const mirror = mirrorWith({
+      summary: { remaining: 2, nextAirDate: "2026-09-22T20:00:00+03:00", checkedAt: "2026-09-01T00:00:00Z" },
+    });
+    const plan = planReconcile(mirror, { watching: [item()] });
+    const { library } = applyReconcile(mirror, plan, {}, NOW);
+
+    expect(library.shows["tmdb:1"]?.summary?.nextAirDate).toBe("2026-09-22T20:00:00+03:00");
+  });
+});

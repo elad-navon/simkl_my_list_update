@@ -29,6 +29,7 @@ import { Carousel } from "./Carousel";
 import { EpisodeBrowser } from "./EpisodeBrowser";
 import { ShowCardContainer } from "./ShowCardContainer";
 import { useShowData } from "../hooks/useShowData";
+import { useSummaryBackfill } from "../hooks/useSummaryBackfill";
 import { useNewEpisodeCheck } from "../hooks/useNewEpisodeCheck";
 import { describeNewEpisode } from "../domain/newEpisodes";
 import { useQueryClient as useClient } from "@tanstack/react-query";
@@ -152,6 +153,10 @@ export function Dashboard({
   );
 
   const recent = useMemo(() => recentlyWatched(shows), [shows]);
+
+  // Fills in the summaries nothing else will - see `useSummaryBackfill` for why a
+  // card's own load cannot: a show that is not on the list is never on screen.
+  const backfill = useSummaryBackfill(library, clients, backend.mode, true);
   const newEpisodes = useNewEpisodeCheck();
 
   /**
@@ -231,6 +236,13 @@ export function Dashboard({
         </div>
 
         {error ? <div className="error-box">{error}</div> : null}
+
+        {backfill.running ? (
+          <p className="series-panel-updated">
+            Working out what is left to watch - {backfill.pending} shows to go. The list
+            shortens as it goes.
+          </p>
+        ) : null}
 
         {newEpisodes.fresh.length > 0 ? (
           <aside className="new-episode-banner">
