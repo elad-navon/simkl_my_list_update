@@ -9,6 +9,7 @@
 
 import { useCallback, useState } from "react";
 import { useGistSync } from "./hooks/useGistSync";
+import { useSearch } from "./hooks/useSearch";
 import { useLibraryTransfer } from "./hooks/useLibraryTransfer";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
@@ -19,10 +20,12 @@ import { useLibrary } from "./library/store";
 import { applyTheme, useSettings } from "./settings/store";
 import { isConfigured, type Settings } from "./settings/schema";
 import { Dashboard } from "./components/Dashboard";
+import { SearchModal } from "./components/SearchModal";
 import { SimklAuthDialog } from "./components/SimklAuthDialog";
 import { SettingsScreen } from "./components/SettingsScreen";
 import { TopBar } from "./components/TopBar";
 import type { LibraryShow } from "./library/schema";
+import type { ShowStatus } from "./domain/types";
 
 const queryClient = createQueryClient();
 const persister = createCachePersister();
@@ -47,6 +50,12 @@ function Shell(): React.JSX.Element {
   const configured = isConfigured(settings);
   const [screen, setScreen] = useState<Screen>(configured ? "dashboard" : "settings");
   const [authorizing, setAuthorizing] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [adding, setAdding] = useState<string | null>(null);
+  const [addError, setAddError] = useState<string | null>(null);
+
+  const search = useSearch(query, clients, library);
 
   const save = useCallback(
     (patch: Partial<Settings>) => {
@@ -73,6 +82,33 @@ function Shell(): React.JSX.Element {
       reload();
     },
     [update, reload],
+  );
+
+  /**
+   * Adds a show, or moves one that is already on the list.
+   *
+   * `addShow` handles both: it keeps the watch history of a show it already has
+   * and only changes the status, which is what makes "already Completed, move to
+   * Watching" safe to offer from a search result.
+   */
+  const onAdd = useCallback(
+    async (result: { title: string; year: string; ids: LibraryShow["ids"] }, status: ShowStatus) => {
+      setAdding(result.title);
+      setAddError(null);
+      try {
+        await backend.addShow({
+          ids: result.ids,
+          title: result.title,
+          ...(result.year ? { year: Number(result.year) } : {}),
+          status,
+        });
+      } catch (cause) {
+        setAddError(cause instanceof Error ? cause.message : String(cause));
+      } finally {
+        setAdding(null);
+      }
+    },
+    [backend],
   );
 
   const onSetImage = useCallback(
@@ -130,7 +166,7 @@ function Shell(): React.JSX.Element {
       <TopBar
         imageMode={settings.imageMode}
         onToggleImageMode={toggleImageMode}
-        onOpenSearch={() => setScreen("dashboard")}
+        onOpenSearch={() => setSearchOpen(true)}
         onOpenSettings={() => setScreen("settings")}
         settingsActive={false}
         displayName={settings.displayName}
@@ -159,6 +195,20 @@ function Shell(): React.JSX.Element {
           onSetImage={onSetImage}
         />
       </main>
+
+      {searchOpen ? (
+        <SearchModal
+          query={query}
+          onQueryChange={setQuery}
+          results={search.results}
+          searching={search.searching}
+          error={addError ?? search.error}
+          empty={search.empty}
+          busyKey={adding}
+          onAdd={(result, status) => void onAdd(result, status)}
+          onClose={() => setSearchOpen(false)}
+        />
+      ) : null}
     </>
   );
 }

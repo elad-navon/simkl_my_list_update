@@ -22,4 +22,14 @@ if (typeof document !== "undefined") {
   afterEach(() => {
     cleanup();
   });
+
+  // jsdom implements no layout, so it has no scrollIntoView. Stubbed rather than
+  // guarded at every call site: keeping a highlighted row visible is real
+  // behaviour in a browser, and a component should not have to defend against an
+  // environment that has no scrolling.
+  if (!Element.prototype.scrollIntoView) {
+    Element.prototype.scrollIntoView = function scrollIntoView() {
+      /* no layout to scroll */
+    };
+  }
 }

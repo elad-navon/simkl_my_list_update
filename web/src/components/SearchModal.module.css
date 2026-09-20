@@ -1,0 +1,131 @@
+/*
+ * The search modal's own chrome.
+ *
+ * The old sheet has no `.search-result-*` rules - the markup that used them was
+ * built in app.js and styled inline (app.js:1663-1670), which is why there is
+ * nothing to inherit here beyond .modal-box and the shared tokens.
+ */
+
+.input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 9px 12px;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.note {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 10px 0 0;
+}
+
+.results {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  max-height: 56vh;
+  overflow-y: auto;
+}
+
+.row,
+.rowActive {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+/* One highlight for both the mouse and the keyboard, rather than :hover for one
+   and a hand-managed class for the other. */
+.rowActive {
+  background: var(--card-hover);
+}
+
+.poster {
+  width: 46px;
+  height: 69px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: var(--card-hover);
+  display: block;
+}
+
+.posterPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.info {
+  min-width: 0;
+}
+
+.title {
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.year {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin-top: 2px;
+}
+
+.onList {
+  color: var(--accent2);
+}
+
+.status {
+  background: var(--card-hover);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--gold);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+.status:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+@media (max-width: 720px) {
+  .results {
+    max-height: 62vh;
+  }
+
+  .row,
+  .rowActive {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "poster info"
+      "poster status";
+    row-gap: 6px;
+  }
+
+  .status {
+    grid-area: status;
+    justify-self: start;
+  }
+}
