@@ -18,14 +18,25 @@
  *    `npm run tvmaze-coverage` is what measured it.
  *  - Your own manual episodes last, filling anything both services still miss.
  *
- * TMDB is fetched even when TVmaze answered, rather than only as a fallback.
- * It costs one request for the show detail the app needs anyway for artwork,
- * and it is what catches the case where TVmaze has a show but is missing a
- * season of it - a gap that a first-source-wins fallback would never see.
+ * The TMDB show DETAIL is always fetched - it is one request, and the artwork,
+ * network, genres and content rating all come from it.
+ *
+ * TMDB's per-season episode lists are not. They are one request PER SEASON, which
+ * on this library is about ten per show, and fetching them for everything was
+ * measured at roughly 1,130 requests for a hundred shows through a browser
+ * connection pool six wide. That is what made a first load appear to hang. The old
+ * app fetched only the seasons containing episodes it still needed
+ * (app.js:735-747), which is the same instinct.
+ *
+ * So they are fetched only when TVmaze cannot account for the history: either it
+ * has no episodes for the show at all, or its list does not contain every episode
+ * the library says was watched. That targets exactly the shows measured as needing
+ * it - 46 with no TVmaze record and 22 whose list is short - and skips it for the
+ * 641 where TVmaze's list is already complete and carries better dates besides.
  */
 
 import { mergeEpisodes, describeCoverage, type EpisodeCoverage } from "../domain/episodes";
-import type { Episode } from "../domain/types";
+import { encodeSE, type Episode, type WatchedMap } from "../domain/types";
 import {
   normalizeTmdbSeasons,
   regularSeasonNumbers,
@@ -70,7 +81,7 @@ export type LoadedEpisodes = {
    */
   tmdbShow: TmdbShow | null;
   /** Which services answered at all, so the UI can say why a show looks thin. */
-  sources: { tvmaze: boolean; tmdb: boolean };
+  sources: { tvmaze: boolean; tmdb: boolean; tmdbSeasons: boolean };
 };
 
 export type EpisodeSourceDeps = {
@@ -96,7 +107,16 @@ async function attempt<T>(work: () => Promise<T>): Promise<T | null> {
 
 export async function loadEpisodes(
   deps: EpisodeSourceDeps,
-  show: { ids: ShowIdentity; manualEpisodes?: readonly Episode[] | undefined },
+  show: {
+    ids: ShowIdentity;
+    manualEpisodes?: readonly Episode[] | undefined;
+    /**
+     * The show's watch history, used only to decide whether TVmaze's episode list
+     * is good enough to skip TMDB's seasons. Absent means "assume it is not", so a
+     * caller with no history still gets the complete list.
+     */
+    watched?: WatchedMap | undefined;
+  },
   signal?: AbortSignal,
 ): Promise<LoadedEpisodes> {
   const tmdbId = show.ids.tmdb;
@@ -108,8 +128,11 @@ export async function loadEpisodes(
     canUseTmdb ? attempt(() => tmdb.getShow(tmdbId, signal)) : Promise.resolve(null),
   ]);
 
+  const needsTmdbSeasons =
+    canUseTmdb && tmdbShow !== null && !coversHistory(tvmazeResult.episodes, show.watched);
+
   const tmdbEpisodes =
-    canUseTmdb && tmdbShow ? await loadTmdbSeasons(tmdb, tmdbId, tmdbShow, signal) : [];
+    needsTmdbSeasons && tmdbShow ? await loadTmdbSeasons(tmdb, tmdbId, tmdbShow, signal) : [];
 
   const sources: EpisodeSourcesInput = {
     primary: tvmazeResult.episodes,
@@ -126,11 +149,39 @@ export async function loadEpisodes(
       imdb: tmdbShow?.external_ids?.imdb_id ?? show.ids.imdb ?? null,
     },
     tmdbShow: trimTmdbShow(tmdbShow),
-    sources: { tvmaze: tvmazeResult.show != null, tmdb: tmdbShow != null },
+    sources: {
+      tvmaze: tvmazeResult.show != null,
+      tmdb: tmdbShow != null,
+      // Whether TMDB's episode lists were needed, which is the expensive part and
+      // therefore the thing worth being able to see.
+      tmdbSeasons: needsTmdbSeasons,
+    },
   };
 }
 
 type EpisodeSourcesInput = Parameters<typeof mergeEpisodes>[0];
+
+/**
+ * Whether a list contains every episode the history says was watched.
+ *
+ * The question behind "do we need TMDB's seasons as well". A list that cannot
+ * account for something already watched is missing episodes, whatever else it has,
+ * and that is exactly when the fallback earns its requests.
+ */
+function coversHistory(episodes: readonly Episode[], watched: WatchedMap | undefined): boolean {
+  if (episodes.length === 0) return false;
+  if (!watched) return false;
+
+  const listed = new Set(episodes.map((ep) => encodeSE(ep.season, ep.episode)));
+  for (const [seasonKey, seasonEpisodes] of Object.entries(watched)) {
+    const season = Number(seasonKey);
+    if (season === 0) continue;
+    for (const episodeKey of Object.keys(seasonEpisodes)) {
+      if (!listed.has(encodeSE(season, Number(episodeKey)))) return false;
+    }
+  }
+  return true;
+}
 
 async function loadFromTvmaze(
   client: TvmazeClient,

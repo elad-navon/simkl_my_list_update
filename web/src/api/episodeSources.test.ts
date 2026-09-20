@@ -83,7 +83,7 @@ describe("loadEpisodes", () => {
     const result = await loadEpisodes(deps, { ids: { tmdb: 1, imdb: "tt1" } });
 
     expect(result.episodes).toHaveLength(3);
-    expect(result.sources).toEqual({ tvmaze: false, tmdb: true });
+    expect(result.sources).toMatchObject({ tvmaze: false, tmdb: true });
   });
 
   it("works with no TMDB key at all", async () => {
@@ -168,7 +168,7 @@ describe("loadEpisodes", () => {
 
     const result = await loadEpisodes(deps, { ids: { tmdb: 1, imdb: "tt1" } });
     expect(result.episodes).toEqual([]);
-    expect(result.sources).toEqual({ tvmaze: false, tmdb: false });
+    expect(result.sources).toMatchObject({ tvmaze: false, tmdb: false });
   });
 
   it("marks the series ended when either source says so", async () => {
@@ -221,5 +221,119 @@ describe("loadEpisodes", () => {
 
     expect(result.episodes).toHaveLength(3);
     expect(result.coverage.manualCount).toBe(1);
+  });
+});
+
+/**
+ * Whether TMDB's per-season lists get fetched at all.
+ *
+ * This is the expensive decision in the whole app: one request per season, about
+ * ten per show, and fetching them for everything came to roughly 1,130 requests
+ * for a hundred shows - which is what made a first load look like it had hung.
+ */
+describe("loadEpisodes and the cost of TMDB seasons", () => {
+  const withSeasons = () =>
+    fakeTmdb({
+      getShow: vi.fn<TmdbClient["getShow"]>().mockResolvedValue(TMDB_SHOW),
+      getSeason: vi.fn<TmdbClient["getSeason"]>().mockResolvedValue(TMDB_SEASON),
+    });
+
+  it("skips them when TVmaze already covers the watch history", () => {
+    const tmdb = withSeasons();
+    const deps: EpisodeSourceDeps = {
+      tvmaze: fakeTvmaze({
+        lookupShow: vi.fn<TvmazeClient["lookupShow"]>().mockResolvedValue(TVMAZE_SHOW),
+        getEpisodes: vi.fn<TvmazeClient["getEpisodes"]>().mockResolvedValue(TVMAZE_EPISODES),
+      }),
+      tmdb,
+    };
+
+    return loadEpisodes(deps, {
+      ids: { tmdb: 1, imdb: "tt1" },
+      watched: { 1: { 1: "x", 2: "x" } },
+    }).then((result) => {
+      expect(tmdb.getSeason).not.toHaveBeenCalled();
+      // The show detail is still fetched: it is one request and the artwork,
+      // network, genres and rating all come from it.
+      expect(tmdb.getShow).toHaveBeenCalledTimes(1);
+      expect(result.sources.tmdbSeasons).toBe(false);
+      expect(result.episodes).toHaveLength(2);
+    });
+  });
+
+  it("fetches them when TVmaze cannot account for something watched", async () => {
+    // Eretz Nehederet: TVmaze lists 333 episodes and the history has 445.
+    const tmdb = withSeasons();
+    const deps: EpisodeSourceDeps = {
+      tvmaze: fakeTvmaze({
+        lookupShow: vi.fn<TvmazeClient["lookupShow"]>().mockResolvedValue(TVMAZE_SHOW),
+        getEpisodes: vi.fn<TvmazeClient["getEpisodes"]>().mockResolvedValue(TVMAZE_EPISODES),
+      }),
+      tmdb,
+    };
+
+    const result = await loadEpisodes(deps, {
+      ids: { tmdb: 1, imdb: "tt1" },
+      watched: { 1: { 1: "x", 9: "x" } },
+    });
+
+    expect(tmdb.getSeason).toHaveBeenCalled();
+    expect(result.sources.tmdbSeasons).toBe(true);
+  });
+
+  it("fetches them for a show TVmaze has no episodes for at all", async () => {
+    const tmdb = withSeasons();
+    const result = await loadEpisodes(
+      { tvmaze: fakeTvmaze(), tmdb },
+      { ids: { tmdb: 1, imdb: "tt1" }, watched: { 1: { 1: "x" } } },
+    );
+
+    expect(tmdb.getSeason).toHaveBeenCalled();
+    expect(result.sources.tmdbSeasons).toBe(true);
+  });
+
+  it("fetches them when no history was given, since nothing can be ruled out", async () => {
+    const tmdb = withSeasons();
+    await loadEpisodes(
+      {
+        tvmaze: fakeTvmaze({
+          lookupShow: vi.fn<TvmazeClient["lookupShow"]>().mockResolvedValue(TVMAZE_SHOW),
+          getEpisodes: vi.fn<TvmazeClient["getEpisodes"]>().mockResolvedValue(TVMAZE_EPISODES),
+        }),
+        tmdb,
+      },
+      { ids: { tmdb: 1, imdb: "tt1" } },
+    );
+    expect(tmdb.getSeason).toHaveBeenCalled();
+  });
+
+  it("ignores specials when deciding, since no count includes them", async () => {
+    const tmdb = withSeasons();
+    await loadEpisodes(
+      {
+        tvmaze: fakeTvmaze({
+          lookupShow: vi.fn<TvmazeClient["lookupShow"]>().mockResolvedValue(TVMAZE_SHOW),
+          getEpisodes: vi.fn<TvmazeClient["getEpisodes"]>().mockResolvedValue(TVMAZE_EPISODES),
+        }),
+        tmdb,
+      },
+      { ids: { tmdb: 1, imdb: "tt1" }, watched: { 0: { 99: "x" }, 1: { 1: "x", 2: "x" } } },
+    );
+    expect(tmdb.getSeason).not.toHaveBeenCalled();
+  });
+
+  it("skips them for a show with nothing watched that TVmaze knows", async () => {
+    const tmdb = withSeasons();
+    await loadEpisodes(
+      {
+        tvmaze: fakeTvmaze({
+          lookupShow: vi.fn<TvmazeClient["lookupShow"]>().mockResolvedValue(TVMAZE_SHOW),
+          getEpisodes: vi.fn<TvmazeClient["getEpisodes"]>().mockResolvedValue(TVMAZE_EPISODES),
+        }),
+        tmdb,
+      },
+      { ids: { tmdb: 1, imdb: "tt1" }, watched: {} },
+    );
+    expect(tmdb.getSeason).not.toHaveBeenCalled();
   });
 });

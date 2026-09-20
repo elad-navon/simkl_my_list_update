@@ -78,14 +78,20 @@ const rows: Row[] = [];
 await Promise.all(
   selected.map(async (show) => {
     const started = Date.now();
-    const loaded = await loadEpisodes({ tvmaze, tmdb }, { ids: show.ids });
+    // The watch history has to go in, or the profile measures a path the app no
+    // longer takes: it is what decides whether TMDB's per-season lists are needed.
+    const loaded = await loadEpisodes({ tvmaze, tmdb }, { ids: show.ids, watched: show.watched });
     const ms = Date.now() - started;
 
     rows.push({
       title: show.title,
       ms,
       episodes: loaded.episodes.length,
-      sources: [loaded.sources.tvmaze ? "tvmaze" : null, loaded.sources.tmdb ? "tmdb" : null]
+      sources: [
+        loaded.sources.tvmaze ? "tvmaze" : null,
+        loaded.sources.tmdb ? "tmdb" : null,
+        loaded.sources.tmdbSeasons ? "tmdb-seasons" : null,
+      ]
         .filter(Boolean)
         .join("+") || "none",
     });

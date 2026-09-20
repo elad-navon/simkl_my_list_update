@@ -24,7 +24,7 @@ function loaded(over: Partial<LoadedEpisodes> = {}): LoadedEpisodes {
     },
     resolved: { tvmaze: null, imdb: null },
     tmdbShow: null,
-    sources: { tvmaze: false, tmdb: false },
+    sources: { tvmaze: false, tmdb: false, tmdbSeasons: false },
     ...over,
   };
 }
@@ -133,12 +133,12 @@ describe("buildShowData", () => {
 
   it("reports which sources answered", () => {
     const data = buildShowData(
-      loaded({ sources: { tvmaze: true, tmdb: false } }),
+      loaded({ sources: { tvmaze: true, tmdb: false, tmdbSeasons: false } }),
       [ep(1, 1, "2026-01-01")],
       { watched: {} },
       NOW,
     );
-    expect(data.sources).toEqual({ tvmaze: true, tmdb: false, simkl: true });
+    expect(data.sources).toEqual({ tvmaze: true, tmdb: false, tmdbSeasons: false, simkl: true });
   });
 
   it("handles a show no source knows anything about", () => {

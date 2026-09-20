@@ -61,7 +61,7 @@ function showData(latestAired: Episode | null): ShowData {
     },
     remainingTime: { totalMinutes: 0, nextEpisodeMinutes: 45, episodes: [] },
     seasonView: { seasons: [], specials: [], total: 1, watched: 1 },
-    sources: { tvmaze: true, tmdb: true, simkl: false },
+    sources: { tvmaze: true, tmdb: true, tmdbSeasons: false, simkl: false },
     loaded: {
       episodes: [ep(1, 1)],
       seriesEnded: false,
@@ -76,7 +76,7 @@ function showData(latestAired: Episode | null): ShowData {
       },
       resolved: { tvmaze: null, imdb: null },
       tmdbShow: null,
-      sources: { tvmaze: true, tmdb: true },
+      sources: { tvmaze: true, tmdb: true, tmdbSeasons: false },
     },
   };
 }

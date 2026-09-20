@@ -32,6 +32,14 @@ import { useNewEpisodeCheck } from "../hooks/useNewEpisodeCheck";
 import { describeNewEpisode } from "../domain/newEpisodes";
 import { useQueryClient as useClient } from "@tanstack/react-query";
 
+/**
+ * How many cards load without waiting to be seen.
+ *
+ * Six is a little more than fits across a desktop carousel, so the first screen
+ * is populated and the seventh is already on its way.
+ */
+const EAGER_CARDS = 6;
+
 export type DashboardProps = {
   library: Library;
   backend: LibraryBackend;
@@ -252,6 +260,9 @@ export function Dashboard({
                 onApplyPatch={(target, patch) => void apply(target, patch)}
                 onCycleImage={onSetImage}
                 busy={busyKey === show.key}
+                // About what fits on screen. These load immediately so the first
+                // view is real; the rest wait until they are scrolled towards.
+                eager={i < EAGER_CARDS}
               />
             ))}
           </div>

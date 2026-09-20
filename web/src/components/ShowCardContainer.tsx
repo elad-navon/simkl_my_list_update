@@ -20,6 +20,7 @@ import { queryKeys, STALE_TIME } from "../query/client";
 import type { ApiClients } from "../api/clients";
 import type { LibraryShow } from "../library/schema";
 import { useShowData } from "../hooks/useShowData";
+import { useInView } from "../hooks/useInView";
 import { ShowCard } from "./ShowCard";
 import type { WatchedPatch } from "../domain/watchEdits";
 
@@ -34,6 +35,11 @@ export type ShowCardContainerProps = {
   onApplyPatch: (show: LibraryShow, patch: WatchedPatch) => void;
   onCycleImage: (show: LibraryShow, mode: "poster" | "banner", nextPath: string) => void;
   busy?: boolean;
+  /**
+   * True for the handful of cards that should load without waiting to be seen, so
+   * the first screen is not a row of skeletons while an observer decides.
+   */
+  eager?: boolean;
 };
 
 export function ShowCardContainer({
@@ -47,8 +53,10 @@ export function ShowCardContainer({
   onApplyPatch,
   onCycleImage,
   busy = false,
+  eager = false,
 }: ShowCardContainerProps): React.JSX.Element | null {
-  const { data } = useShowData(show, clients, mode);
+  const { ref, inView } = useInView<HTMLElement>({ skip: eager });
+  const { data, error } = useShowData(show, clients, mode, inView);
   const tmdbShow = data?.loaded.tmdbShow ?? null;
   const imdbId = tmdbShow?.external_ids?.imdb_id ?? show.ids.imdb ?? null;
 
@@ -79,15 +87,21 @@ export function ShowCardContainer({
   };
 
   if (!data) {
-    // A skeleton rather than nothing, so the carousel does not reflow as each
-    // card resolves. `.poster` already carries the loading pulse (style.css:321).
+    // A skeleton rather than nothing, so the carousel does not reflow as each card
+    // resolves (`.poster` already carries the loading pulse, style.css:321) - but a
+    // FAILED card says so. An eternal skeleton is indistinguishable from a slow
+    // one, which is exactly the confusion that cost an afternoon.
     return (
-      <article className="card carousel-card">
+      // The ref lives on the placeholder, which is what has to be observed: the
+      // card cannot report that it is visible once it exists, because it only
+      // exists after the data it was waiting for arrives.
+      <article className="card carousel-card" ref={ref}>
         <div className="poster-wrap">
           <div className={imageMode === "banner" ? "poster banner-img" : "poster"} />
         </div>
         <div className="card-body">
           <h3>{show.title}</h3>
+          {error ? <p className="section-note">Could not load: {error.message}</p> : null}
         </div>
       </article>
     );

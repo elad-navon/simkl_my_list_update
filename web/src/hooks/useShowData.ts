@@ -22,6 +22,7 @@ import { averageEpisodeRuntime, estimateRemainingTime, type RemainingTime } from
 import { buildSeasonView, type SeasonView } from "../domain/seasonView";
 import type { Episode } from "../domain/types";
 import type { LibraryShow } from "../library/schema";
+import { useLibrary } from "../library/store";
 import { queryKeys, STALE_TIME } from "../query/client";
 import type { ApiClients } from "../api/clients";
 
@@ -88,14 +89,20 @@ export function buildShowData(
   };
 }
 
+/**
+ * @param enabled False holds the query back entirely, which is how a carousel of
+ *   a hundred cards avoids firing a hundred paced TVmaze requests before anything
+ *   on screen can resolve. See `useInView`.
+ */
 export function useShowData(
   show: LibraryShow | null,
   clients: ApiClients,
   mode: string,
+  enabled = true,
 ): ReturnType<typeof useQuery<ShowData | null>> {
   return useQuery<ShowData | null>({
     queryKey: queryKeys.showData(show?.key ?? "none", mode),
-    enabled: show !== null,
+    enabled: show !== null && enabled,
     // The shortest of the underlying TTLs, since this is derived from all of
     // them and must not outlive the freshest thing it depends on.
     staleTime: STALE_TIME.tvmazeEpisodes,
@@ -107,6 +114,7 @@ export function useShowData(
           { tvmaze: clients.tvmaze, tmdb: clients.tmdb },
           {
             ids: show.ids,
+            watched: show.watched,
             ...(show.manualEpisodes
               ? {
                   manualEpisodes: show.manualEpisodes.map((ep) => ({
@@ -120,6 +128,14 @@ export function useShowData(
         ),
         loadSimklEpisodes(clients.simkl, show.ids.simkl, signal),
       ]);
+
+      // Caching the ids a lookup resolved is what stops the next load repeating
+      // 107 rate-limited TVmaze lookups from scratch. `rememberIds` only fills
+      // blanks, so this cannot overwrite anything the library already knew.
+      void useLibrary.getState().rememberIds(show.key, {
+        ...(loaded.resolved.tvmaze !== null ? { tvmaze: loaded.resolved.tvmaze } : {}),
+        ...(loaded.resolved.imdb !== null ? { imdb: loaded.resolved.imdb } : {}),
+      });
 
       return buildShowData(loaded, simklEpisodes, show);
     },
