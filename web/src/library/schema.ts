@@ -46,6 +46,17 @@ export type LibraryShow = {
    * the episode list before progress is computed.
    */
   manualEpisodes?: Array<{ season: number; episode: number; airDate: string | null; title: string | null }> | undefined;
+  /**
+   * A poster or backdrop the user picked by clicking through the alternates.
+   *
+   * In the library rather than in settings, because it is a choice that cannot
+   * be re-derived from anywhere - and because the old app kept it in
+   * localStorage alongside the API response cache, where a QuotaExceededError
+   * from that cache filling up silently stopped picks from saving at all. The
+   * card would play the whole flip animation and then show the same image
+   * (app.js:866-889). Storage this shares a budget with nothing.
+   */
+  images?: { posterPath?: string | undefined; bannerPath?: string | undefined } | undefined;
   addedAt: string;
   /** Last local change. Drives last-writer-wins when merging a backup. */
   updatedAt: string;

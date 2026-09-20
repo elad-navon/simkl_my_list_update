@@ -40,6 +40,14 @@ export type LibraryState = {
   removeShow: (key: ShowKey) => Promise<void>;
   markWatched: (key: ShowKey, season: number, episode: number, watchedAt?: string) => Promise<void>;
   unmarkWatched: (key: ShowKey, season: number, episode: number) => Promise<void>;
+  /** Remembers a hand-picked poster or backdrop. */
+  setImage: (key: ShowKey, mode: "poster" | "banner", path: string | null) => Promise<void>;
+  /**
+   * Caches ids a metadata lookup resolved, so the next load can skip it.
+   * TVmaze's rate limit is what makes this worth persisting: a saved tvmaze id
+   * removes one request per show from every subsequent load.
+   */
+  rememberIds: (key: ShowKey, ids: Partial<ShowIds>) => Promise<void>;
 };
 
 async function persist(library: Library): Promise<void> {
@@ -126,6 +134,37 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       delete seasonMap[episode];
       return { ...show, watched: { ...show.watched, [season]: seasonMap } };
     });
+    set({ library: next });
+    await persist(next);
+  },
+
+  setImage: async (key, mode, path) => {
+    const field = mode === "banner" ? "bannerPath" : "posterPath";
+    const next = withShow(get().library, key, (show) => ({
+      ...show,
+      images: { ...show.images, [field]: path ?? undefined },
+    }));
+    set({ library: next });
+    await persist(next);
+  },
+
+  rememberIds: async (key, ids) => {
+    const existing = get().library.shows[key];
+    if (!existing) return;
+
+    // Only ever fills blanks. An id already in the library came from the SIMKL
+    // export or from the user adding the show, and a metadata lookup guessing
+    // differently is not grounds for overwriting it.
+    const merged: ShowIds = { ...existing.ids };
+    let changed = false;
+    for (const [field, value] of Object.entries(ids) as [keyof ShowIds, unknown][]) {
+      if (value == null || merged[field] != null) continue;
+      Object.assign(merged, { [field]: value });
+      changed = true;
+    }
+    if (!changed) return;
+
+    const next = withShow(get().library, key, (show) => ({ ...show, ids: merged }));
     set({ library: next });
     await persist(next);
   },
