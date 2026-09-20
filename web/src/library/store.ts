@@ -31,8 +31,20 @@ const IDB_KEY = "library";
 
 export type LibraryState = {
   library: Library;
-  /** False until the first read from IndexedDB resolves. */
+  /**
+   * False until the first read has been ATTEMPTED. True even when that read
+   * failed - see `hydrate`. Anything gated on this is waiting to know the
+   * library, not waiting for storage to work.
+   */
   hydrated: boolean;
+  /**
+   * Set when IndexedDB could not be read or written.
+   *
+   * Surfaced rather than swallowed, because it changes what the session means:
+   * the app works, but nothing entered will survive a reload, and that is worth
+   * saying before someone spends an evening marking episodes.
+   */
+  storageError: string | null;
 
   hydrate: () => Promise<void>;
   replaceAll: (library: Library) => Promise<void>;
@@ -61,8 +73,21 @@ export type LibraryState = {
   rememberIds: (key: ShowKey, ids: Partial<ShowIds>) => Promise<void>;
 };
 
-async function persist(library: Library): Promise<void> {
-  await idbSet(IDB_KEY, library);
+/**
+ * Writes the library, reporting rather than throwing when storage refuses.
+ *
+ * A failed write must not break the action that triggered it - the change is
+ * already in memory and the session is still usable - but it must not pass
+ * silently either, or the first anyone hears of it is a reload with the work
+ * gone.
+ */
+async function persist(library: Library): Promise<string | null> {
+  try {
+    await idbSet(IDB_KEY, library);
+    return null;
+  } catch (cause) {
+    return cause instanceof Error ? cause.message : String(cause);
+  }
 }
 
 /** Applies `mutate` to one show, stamps `updatedAt`, saves, and returns the new library. */
@@ -80,15 +105,33 @@ function withShow(
 export const useLibrary = create<LibraryState>((set, get) => ({
   library: emptyLibrary(),
   hydrated: false,
+  storageError: null,
 
+  /**
+   * Reads the library, and marks itself hydrated either way.
+   *
+   * A read that throws - IndexedDB disabled, a private window, a corrupt
+   * database - used to leave `hydrated` false forever, which silently blocked
+   * everything waiting on it, the Gist pull included. There is nothing to wait
+   * for after a failed read: the answer is "no local library", and the app has
+   * to get on with it.
+   */
   hydrate: async () => {
-    const stored = await idbGet<Library>(IDB_KEY);
-    set({ library: stored ?? emptyLibrary(), hydrated: true });
+    try {
+      const stored = await idbGet<Library>(IDB_KEY);
+      set({ library: stored ?? emptyLibrary(), hydrated: true, storageError: null });
+    } catch (cause) {
+      set({
+        library: emptyLibrary(),
+        hydrated: true,
+        storageError: cause instanceof Error ? cause.message : String(cause),
+      });
+    }
   },
 
   replaceAll: async (library) => {
     set({ library });
-    await persist(library);
+    set({ storageError: await persist(library) });
   },
 
   addShow: async ({ ids, title, year, status }) => {
@@ -107,14 +150,14 @@ export const useLibrary = create<LibraryState>((set, get) => ({
 
     const next = { ...library, shows: { ...library.shows, [key]: show } };
     set({ library: next });
-    await persist(next);
+    set({ storageError: await persist(next) });
     return key;
   },
 
   setStatus: async (key, status) => {
     const next = withShow(get().library, key, (show) => ({ ...show, status }));
     set({ library: next });
-    await persist(next);
+    set({ storageError: await persist(next) });
   },
 
   removeShow: async (key) => {
@@ -124,7 +167,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     delete shows[key];
     const next = { ...library, shows };
     set({ library: next });
-    await persist(next);
+    set({ storageError: await persist(next) });
   },
 
   markWatched: async (key, season, episode, watchedAt = new Date().toISOString()) => {
@@ -142,7 +185,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       watched: applyPatch(show.watched, patch),
     }));
     set({ library: next });
-    await persist(next);
+    set({ storageError: await persist(next) });
   },
 
   setImage: async (key, mode, path) => {
@@ -152,7 +195,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       images: { ...show.images, [field]: path ?? undefined },
     }));
     set({ library: next });
-    await persist(next);
+    set({ storageError: await persist(next) });
   },
 
   rememberIds: async (key, ids) => {
@@ -173,6 +216,6 @@ export const useLibrary = create<LibraryState>((set, get) => ({
 
     const next = withShow(get().library, key, (show) => ({ ...show, ids: merged }));
     set({ library: next });
-    await persist(next);
+    set({ storageError: await persist(next) });
   },
 }));

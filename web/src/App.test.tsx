@@ -201,3 +201,42 @@ describe("App transfer and authorization", () => {
     );
   });
 });
+
+describe("App backup", () => {
+  it("says nothing is backed up when there is no token, and that export still works", async () => {
+    configure({ tmdbApiKey: "key" });
+    render(<App />);
+
+    screen.getByRole("button", { name: /Settings/ }).click();
+    await waitFor(() =>
+      expect(screen.getByText(/nothing is being backed up/)).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("button", { name: "Export a JSON file" })).toBeEnabled();
+  });
+
+  it("refuses to write over a backup it could not read, and says what to do", async () => {
+    // The state that matters most: a refusal to overwrite, not a failed save.
+    vi.mocked(globalThis.fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({ id: "g1", files: { "library.json": { content: "corrupted{" } } }),
+        { status: 200 },
+      ),
+    );
+    configure({ tmdbApiKey: "key", gistToken: "ghp_x", gistId: "g1" });
+    render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByText(/nothing is being written to it/)).toBeInTheDocument(),
+    );
+  });
+
+  it("reports a rejected GitHub token as an authorization problem", async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValue(
+      new Response("Bad credentials", { status: 401 }),
+    );
+    configure({ tmdbApiKey: "key", gistToken: "ghp_bad", gistId: "g1" });
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText(/gist scope/)).toBeInTheDocument());
+  });
+});

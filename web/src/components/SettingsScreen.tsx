@@ -13,6 +13,7 @@
 import { useState } from "react";
 import { canUseSimkl, type BackendMode, type Settings } from "../settings/schema";
 import type { TransferProgress } from "../hooks/useLibraryTransfer";
+import type { SyncStatus } from "../hooks/useGistSync";
 import styles from "./SettingsScreen.module.css";
 
 export type SettingsScreenProps = {
@@ -30,6 +31,8 @@ export type SettingsScreenProps = {
   /** What an export, import or SIMKL pull is currently doing. */
   transfer: TransferProgress;
   onDismissTransfer: () => void;
+  /** What the Gist backup is doing. */
+  sync: SyncStatus;
 };
 
 export function SettingsScreen({
@@ -43,6 +46,7 @@ export function SettingsScreen({
   onImportLibrary,
   transfer,
   onDismissTransfer,
+  sync,
 }: SettingsScreenProps): React.JSX.Element {
   const busy = transfer.phase !== null;
   const [draft, setDraft] = useState(settings);
@@ -201,6 +205,7 @@ export function SettingsScreen({
         </div>
       </fieldset>
 
+      <SyncStatusLine sync={sync} />
       <TransferStatus progress={transfer} onDismiss={onDismissTransfer} />
 
       <fieldset className={styles.group}>
@@ -293,4 +298,57 @@ function TransferStatus({
   }
 
   return null;
+}
+
+const SYNC_LABELS = {
+  off: null,
+  idle: null,
+  pulling: "Reading the backup…",
+  pushing: "Saving to the backup…",
+  error: null,
+  blocked: null,
+} as const;
+
+/**
+ * What the backup is doing, or why it is not.
+ *
+ * The blocked state is the one worth reading carefully: the remote copy could not
+ * be parsed, so nothing is being written to it. That is a refusal to overwrite,
+ * not a failure to save, and the difference decides what the user should do next.
+ */
+function SyncStatusLine({ sync }: { sync: SyncStatus }): React.JSX.Element | null {
+  if (sync.state === "blocked" || sync.state === "error") {
+    return <div className="error-box">{sync.message}</div>;
+  }
+
+  const label = SYNC_LABELS[sync.state];
+  if (label) {
+    return (
+      <p className={styles.transfer} role="status">
+        {label}
+      </p>
+    );
+  }
+
+  if (sync.message) {
+    return (
+      <p className={styles.transfer} role="status">
+        {sync.message}
+      </p>
+    );
+  }
+
+  if (sync.state === "off") {
+    return (
+      <p className={styles.help}>
+        No token, so nothing is being backed up. The export button below still works.
+      </p>
+    );
+  }
+
+  return sync.lastSyncedAt ? (
+    <p className={styles.transfer}>
+      Backed up {new Date(sync.lastSyncedAt).toLocaleString()}.
+    </p>
+  ) : null;
 }

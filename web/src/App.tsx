@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useState } from "react";
+import { useGistSync } from "./hooks/useGistSync";
 import { useLibraryTransfer } from "./hooks/useLibraryTransfer";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
@@ -36,9 +37,11 @@ function Shell(): React.JSX.Element {
 
   const { backend, clients, requestedMode, unavailable } = useBackend();
   const transfer = useLibraryTransfer();
+  const sync = useGistSync();
   const { loading, report, error, reload } = useLibraryLoad(backend);
   const library = useLibrary((s) => s.library);
   const setImage = useLibrary((s) => s.setImage);
+  const storageError = useLibrary((s) => s.storageError);
 
   // On first run there is no dashboard to show, so settings is the only screen.
   const configured = isConfigured(settings);
@@ -107,6 +110,7 @@ function Shell(): React.JSX.Element {
             onImportLibrary={(file) => void transfer.importFromFile(file)}
             transfer={transfer.progress}
             onDismissTransfer={transfer.dismiss}
+            sync={sync}
           />
         </main>
 
@@ -136,6 +140,15 @@ function Shell(): React.JSX.Element {
       <main className="main-content">
         <div className="page-header">
           <p id="subtitle">{subtitleFor({ loading, report, error, requestedMode, unavailable })}</p>
+          {storageError ? (
+            <p className="series-panel-updated">
+              This browser will not let the app store anything, so nothing will survive a reload.
+              Export a file before you change anything.
+            </p>
+          ) : null}
+          {sync.state === "blocked" || sync.state === "error" ? (
+            <p className="series-panel-updated">{sync.message}</p>
+          ) : null}
         </div>
 
         <Dashboard

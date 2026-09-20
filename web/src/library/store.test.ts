@@ -208,3 +208,35 @@ describe("rememberIds", () => {
     expect(persisted()?.shows["tmdb:999"]).toBeUndefined();
   });
 });
+
+describe("storage failure", () => {
+  it("still hydrates when the read throws, instead of waiting forever", async () => {
+    // A read that threw used to leave `hydrated` false permanently, which
+    // silently blocked everything gated on it - the Gist pull included.
+    const idb = await import("idb-keyval");
+    vi.mocked(idb.get).mockRejectedValueOnce(new Error("IndexedDB is disabled"));
+
+    useLibrary.setState({ hydrated: false, storageError: null });
+    await useLibrary.getState().hydrate();
+
+    expect(useLibrary.getState().hydrated).toBe(true);
+    expect(useLibrary.getState().storageError).toMatch(/disabled/);
+    expect(useLibrary.getState().library.shows).toEqual({});
+  });
+
+  it("records a failed write without breaking the action", async () => {
+    const idb = await import("idb-keyval");
+    vi.mocked(idb.set).mockRejectedValueOnce(new Error("QuotaExceededError"));
+
+    await expect(useLibrary.getState().setStatus("tmdb:1", "hold")).resolves.toBeUndefined();
+    // The change is in memory and the session works; it just will not survive.
+    expect(useLibrary.getState().library.shows["tmdb:1"]?.status).toBe("hold");
+    expect(useLibrary.getState().storageError).toMatch(/QuotaExceeded/);
+  });
+
+  it("clears the error once a write succeeds again", async () => {
+    useLibrary.setState({ storageError: "stale" });
+    await useLibrary.getState().setStatus("tmdb:1", "completed");
+    expect(useLibrary.getState().storageError).toBeNull();
+  });
+});
