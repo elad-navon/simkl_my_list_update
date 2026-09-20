@@ -88,7 +88,30 @@ export type SimklClient = {
   removeFromList: (ids: SimklWriteIds) => Promise<void>;
   markEpisodeWatched: (simklId: number, season: number, episode: number) => Promise<void>;
   removeEpisodeFromHistory: (simklId: number, season: number, episode: number) => Promise<void>;
+  /** Several episodes of one show in a single request. */
+  addEpisodesToHistory: (simklId: number, episodes: readonly EpisodeRef[]) => Promise<void>;
+  removeEpisodesFromHistory: (simklId: number, episodes: readonly EpisodeRef[]) => Promise<void>;
 };
+
+/** A season/episode pair, as SIMKL's history endpoints group them. */
+export type EpisodeRef = { season: number; episode: number };
+
+/**
+ * SIMKL's nested shape: one entry per season, each listing its episodes. Sending
+ * two hundred episodes as two hundred requests would be the obvious way to get
+ * rate-limited for no reason.
+ */
+function groupBySeason(episodes: readonly EpisodeRef[]) {
+  const bySeason = new Map<number, number[]>();
+  for (const ref of episodes) {
+    const list = bySeason.get(ref.season) ?? [];
+    list.push(ref.episode);
+    bySeason.set(ref.season, list);
+  }
+  return [...bySeason.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([number, eps]) => ({ number, episodes: eps.sort((a, b) => a - b).map((n) => ({ number: n })) }));
+}
 
 /** SIMKL accepts any subset of these when identifying a show for a write. */
 export type SimklWriteIds = {
@@ -252,6 +275,20 @@ export function createSimklClient(options: {
     removeEpisodeFromHistory(simklId, season, episode) {
       return post("/sync/history/remove", {
         shows: [{ ids: { simkl: simklId }, seasons: [{ number: season, episodes: [{ number: episode }] }] }],
+      });
+    },
+
+    async addEpisodesToHistory(simklId, episodes) {
+      if (episodes.length === 0) return;
+      await post("/sync/history", {
+        shows: [{ ids: { simkl: simklId }, seasons: groupBySeason(episodes) }],
+      });
+    },
+
+    async removeEpisodesFromHistory(simklId, episodes) {
+      if (episodes.length === 0) return;
+      await post("/sync/history/remove", {
+        shows: [{ ids: { simkl: simklId }, seasons: groupBySeason(episodes) }],
       });
     },
   };

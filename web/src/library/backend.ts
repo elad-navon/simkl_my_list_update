@@ -17,6 +17,7 @@
  */
 
 import type { ShowStatus } from "../domain/types";
+import type { WatchedPatch } from "../domain/watchEdits";
 import type { AddShowInput, Library, ShowKey } from "./schema";
 
 export type { AddShowInput };
@@ -59,6 +60,15 @@ export type LibraryBackend = {
   removeShow: (key: ShowKey) => Promise<void>;
   markWatched: (key: ShowKey, season: number, episode: number, watchedAt?: string) => Promise<void>;
   unmarkWatched: (key: ShowKey, season: number, episode: number) => Promise<void>;
+  /**
+   * Applies a whole history edit - see `domain/watchEdits`.
+   *
+   * The primitive the other two are built from, and the one the UI should reach
+   * for: "I stopped watching here" and "I have seen everything to here" are
+   * single actions to the user, so they are single actions here too, rather
+   * than two hundred calls the user can watch trickle through.
+   */
+  applyWatchedPatch: (key: ShowKey, patch: WatchedPatch) => Promise<void>;
 };
 
 /**

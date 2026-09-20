@@ -37,5 +37,6 @@ export function createLocalBackend(store: () => LibraryState): LibraryBackend {
         ? store().markWatched(key, season, episode)
         : store().markWatched(key, season, episode, watchedAt),
     unmarkWatched: (key, season, episode) => store().unmarkWatched(key, season, episode),
+    applyWatchedPatch: (key, patch) => store().applyWatchedPatch(key, patch),
   };
 }

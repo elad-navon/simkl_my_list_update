@@ -16,6 +16,7 @@
 import { create } from "zustand";
 import { get as idbGet, set as idbSet } from "idb-keyval";
 import type { ShowStatus } from "../domain/types";
+import { applyPatch, isEmptyPatch, type WatchedPatch } from "../domain/watchEdits";
 import {
   emptyLibrary,
   showKey,
@@ -41,6 +42,15 @@ export type LibraryState = {
   removeShow: (key: ShowKey) => Promise<void>;
   markWatched: (key: ShowKey, season: number, episode: number, watchedAt?: string) => Promise<void>;
   unmarkWatched: (key: ShowKey, season: number, episode: number) => Promise<void>;
+  /**
+   * Applies a whole edit at once - see `domain/watchEdits`.
+   *
+   * One write and one `updatedAt` however many episodes move, which matters for
+   * "I have seen everything up to here" on a two-hundred-episode show. An empty
+   * patch is a no-op: nothing is written and no timestamp is touched, so a
+   * redundant click never makes the row look changed to the backup.
+   */
+  applyWatchedPatch: (key: ShowKey, patch: WatchedPatch) => Promise<void>;
   /** Remembers a hand-picked poster or backdrop. */
   setImage: (key: ShowKey, mode: "poster" | "banner", path: string | null) => Promise<void>;
   /**
@@ -118,23 +128,19 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   },
 
   markWatched: async (key, season, episode, watchedAt = new Date().toISOString()) => {
-    const next = withShow(get().library, key, (show) => ({
-      ...show,
-      watched: {
-        ...show.watched,
-        [season]: { ...(show.watched[season] ?? {}), [episode]: watchedAt },
-      },
-    }));
-    set({ library: next });
-    await persist(next);
+    await get().applyWatchedPatch(key, { add: [{ season, episode, watchedAt }], remove: [] });
   },
 
   unmarkWatched: async (key, season, episode) => {
-    const next = withShow(get().library, key, (show) => {
-      const seasonMap = { ...(show.watched[season] ?? {}) };
-      delete seasonMap[episode];
-      return { ...show, watched: { ...show.watched, [season]: seasonMap } };
-    });
+    await get().applyWatchedPatch(key, { add: [], remove: [{ season, episode }] });
+  },
+
+  applyWatchedPatch: async (key, patch) => {
+    if (isEmptyPatch(patch)) return;
+    const next = withShow(get().library, key, (show) => ({
+      ...show,
+      watched: applyPatch(show.watched, patch),
+    }));
     set({ library: next });
     await persist(next);
   },

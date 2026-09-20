@@ -36,6 +36,10 @@ function fakeSimkl(over: Partial<SimklClient> = {}): SimklClient {
     removeEpisodeFromHistory: vi
       .fn<SimklClient["removeEpisodeFromHistory"]>()
       .mockResolvedValue(undefined),
+    addEpisodesToHistory: vi.fn<SimklClient["addEpisodesToHistory"]>().mockResolvedValue(undefined),
+    removeEpisodesFromHistory: vi
+      .fn<SimklClient["removeEpisodesFromHistory"]>()
+      .mockResolvedValue(undefined),
     ...over,
   };
 }
@@ -238,7 +242,9 @@ describe("writes", () => {
     const simkl = fakeSimkl();
     await backend(simkl).markWatched("tmdb:1", 2, 5, "2026-05-05T00:00:00Z");
 
-    expect(simkl.markEpisodeWatched).toHaveBeenCalledWith(11, 2, 5);
+    expect(simkl.addEpisodesToHistory).toHaveBeenCalledWith(11, [
+      { season: 2, episode: 5, watchedAt: "2026-05-05T00:00:00Z" },
+    ]);
     expect(persisted()?.shows["tmdb:1"]?.watched[2]).toEqual({ 5: "2026-05-05T00:00:00Z" });
   });
 
@@ -246,8 +252,9 @@ describe("writes", () => {
     const simkl = fakeSimkl();
     await backend(simkl).unmarkWatched("tmdb:1", 1, 1);
 
-    expect(simkl.removeEpisodeFromHistory).toHaveBeenCalledWith(11, 1, 1);
-    expect(persisted()?.shows["tmdb:1"]?.watched[1]).toEqual({});
+    expect(simkl.removeEpisodesFromHistory).toHaveBeenCalledWith(11, [{ season: 1, episode: 1 }]);
+    // The season key goes with its last episode rather than lingering as {}.
+    expect(persisted()?.shows["tmdb:1"]?.watched[1]).toBeUndefined();
   });
 
   it("removes a show from SIMKL and from the mirror", async () => {
@@ -293,6 +300,6 @@ describe("writes", () => {
     await expect(backend(simkl).markWatched("tmdb:9", 1, 1)).rejects.toBeInstanceOf(
       BackendUnsupportedError,
     );
-    expect(simkl.markEpisodeWatched).not.toHaveBeenCalled();
+    expect(simkl.addEpisodesToHistory).not.toHaveBeenCalled();
   });
 });

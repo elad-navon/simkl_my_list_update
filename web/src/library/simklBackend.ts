@@ -14,6 +14,7 @@
 
 import type { SimklClient, SimklWriteIds } from "../api/simkl";
 import type { ShowStatus } from "../domain/types";
+import { isEmptyPatch, type WatchedPatch } from "../domain/watchEdits";
 import {
   BackendUnsupportedError,
   type AddShowInput,
@@ -81,6 +82,26 @@ export function createSimklBackend(deps: SimklBackendDeps): LibraryBackend {
     return simklId;
   };
 
+  /**
+   * One request per direction, then the mirror.
+   *
+   * Un-marking has no precedent in the old app, which could only ever add to the
+   * history - so `/sync/history/remove` with episodes is the documented shape of
+   * that endpoint rather than a behaviour observed in production. It throws
+   * before the mirror is touched, so a wrong guess surfaces as a visible failure
+   * instead of a silent divergence, and the capability is wanted mainly for the
+   * independent mode anyway, where SIMKL is not involved at all.
+   */
+  const applyWatchedPatch = async (key: ShowKey, patch: WatchedPatch): Promise<void> => {
+    if (isEmptyPatch(patch)) return;
+    const simklId = requireSimklId(key);
+
+    if (patch.remove.length) await simkl.removeEpisodesFromHistory(simklId, patch.remove);
+    if (patch.add.length) await simkl.addEpisodesToHistory(simklId, patch.add);
+
+    await mirror.applyWatchedPatch(key, patch);
+  };
+
   return {
     mode: "simkl",
 
@@ -144,25 +165,17 @@ export function createSimklBackend(deps: SimklBackendDeps): LibraryBackend {
       await mirror.removeShow(key);
     },
 
-    async markWatched(key: ShowKey, season: number, episode: number, watchedAt?: string) {
-      const simklId = requireSimklId(key);
-      await simkl.markEpisodeWatched(simklId, season, episode);
-      if (watchedAt === undefined) await mirror.markWatched(key, season, episode);
-      else await mirror.markWatched(key, season, episode, watchedAt);
+    markWatched(key: ShowKey, season: number, episode: number, watchedAt?: string) {
+      return applyWatchedPatch(key, {
+        add: [{ season, episode, watchedAt: watchedAt ?? new Date().toISOString() }],
+        remove: [],
+      });
     },
 
-    /**
-     * Un-marking a single episode is NOT a ported behaviour - the old app had no
-     * such action, so this is the one call here with no precedent in code that
-     * has run against the live API. `/sync/history/remove` takes the same nested
-     * season/episode shape as `/sync/history`, and a non-2xx throws before the
-     * mirror is touched, so the worst case is a visible failure rather than a
-     * silent divergence.
-     */
-    async unmarkWatched(key: ShowKey, season: number, episode: number) {
-      const simklId = requireSimklId(key);
-      await simkl.removeEpisodeFromHistory(simklId, season, episode);
-      await mirror.unmarkWatched(key, season, episode);
+    unmarkWatched(key: ShowKey, season: number, episode: number) {
+      return applyWatchedPatch(key, { add: [], remove: [{ season, episode }] });
     },
+
+    applyWatchedPatch,
   };
 }
