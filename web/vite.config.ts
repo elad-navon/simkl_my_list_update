@@ -3,12 +3,15 @@ import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
 // Deployed to GitHub Pages under https://elad-navon.github.io/simkl_my_list_update/,
-// so every asset URL has to carry that prefix. `npm run dev` serves from "/" instead,
-// which is what BASE_PATH=/ in the env gives you.
-const base = process.env.BASE_PATH ?? "/simkl_my_list_update/";
+// so every built asset URL has to carry that prefix.
+const PAGES_BASE = "/simkl_my_list_update/";
 
-export default defineConfig({
-  base,
+export default defineConfig(({ command }) => ({
+  // The dev server serves from the root, decided here rather than by an env var
+  // the developer has to remember - and BASE_PATH=/ is actively a trap on
+  // Windows, where Git Bash rewrites a lone slash into a Windows path and the
+  // base silently becomes "/Program Files/Git/".
+  base: command === "serve" ? "/" : (process.env.BASE_PATH ?? PAGES_BASE),
   plugins: [
     react(),
     VitePWA({
@@ -98,4 +101,4 @@ export default defineConfig({
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     setupFiles: ["./src/test/setup.ts"],
   },
-});
+}));
