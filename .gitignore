@@ -2,3 +2,12 @@ node_modules/
 dist/
 *.tsbuildinfo
 .DS_Store
+
+# Personal data. The SIMKL export and the library files derived from it contain your
+# whole watch history, and this repo is public. Kept out of git by name pattern
+# rather than by folder, because they get moved around and regenerated.
+/simkl-export-*.json
+/library-*.json
+/coverage-*.json
+/parity-*.json
+/tvmaze-coverage-*.json

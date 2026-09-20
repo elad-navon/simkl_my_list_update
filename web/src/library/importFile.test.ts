@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseLibraryFile } from "./importFile";
-import { LIBRARY_VERSION } from "./schema";
+import { LIBRARY_VERSION, type LibraryShow } from "./schema";
 
 const good = {
   version: LIBRARY_VERSION,
@@ -146,5 +146,72 @@ describe("parseLibraryFile", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.library.version).toBe(LIBRARY_VERSION);
+  });
+});
+
+describe("parseLibraryFile and the cached summary", () => {
+  const summary = { remaining: 3, nextAirDate: "2026-09-22T20:00:00+03:00", checkedAt: "2026-09-20T00:00:00Z" };
+
+  it("carries the summary through, because My List is defined by it", () => {
+    // A show with no summary is INCLUDED on the list (its answer is unknown), so a
+    // validator that drops the field puts every watching show back on it. That is
+    // what happened: 709 seeded summaries discarded on import, nine shows became 107.
+    const result = parse({ ...good, shows: { "tmdb:1": { ...good.shows["tmdb:1"], summary } } });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.library.shows["tmdb:1"]?.summary).toEqual(summary);
+  });
+
+  it("keeps a summary with no air date", () => {
+    const result = parse({
+      ...good,
+      shows: { "tmdb:1": { ...good.shows["tmdb:1"], summary: { remaining: 0, checkedAt: "2026-09-20T00:00:00Z" } } },
+    });
+    expect(result.ok && result.library.shows["tmdb:1"]?.summary).toEqual({
+      remaining: 0,
+      nextAirDate: null,
+      checkedAt: "2026-09-20T00:00:00Z",
+    });
+  });
+
+  it("drops a malformed summary rather than trusting it", () => {
+    // It is only a cache, so the background pass simply derives it again.
+    for (const bad of [{ remaining: -1, checkedAt: "x" }, { remaining: "3", checkedAt: "x" }, { remaining: 3 }, "3", null]) {
+      const result = parse({ ...good, shows: { "tmdb:1": { ...good.shows["tmdb:1"], summary: bad } } });
+      expect(result.ok && result.library.shows["tmdb:1"]?.summary).toBeUndefined();
+    }
+  });
+
+  it("still imports the show when its summary is unusable", () => {
+    const result = parse({ ...good, shows: { "tmdb:1": { ...good.shows["tmdb:1"], summary: "junk" } } });
+    expect(result.ok).toBe(true);
+  });
+});
+
+describe("parseLibraryFile round trip", () => {
+  it("loses no field of a fully populated show", () => {
+    // The class of bug behind the summary loss: a validator that rebuilds each show
+    // from the fields it knows about, so a field added to LibraryShow later is
+    // silently discarded on import. `satisfies Required<...>` makes THIS fixture
+    // fail to compile the moment a field is added to the type, which forces the
+    // validator to be updated in the same change.
+    const full = {
+      key: "tmdb:1",
+      ids: { tmdb: 1, imdb: "tt1", tvdb: 2, tvmaze: 3, simkl: 4 },
+      title: "Everything",
+      year: 2020,
+      status: "watching",
+      watched: { 1: { 1: "2026-01-01T00:00:00Z" } },
+      manualEpisodes: [{ season: 9, episode: 1, airDate: "2026-09-01", title: "Typed" }],
+      images: { posterPath: "/p.jpg", bannerPath: "/b.jpg" },
+      summary: { remaining: 2, nextAirDate: "2026-09-22", checkedAt: "2026-09-20T00:00:00Z" },
+      addedAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-02-01T00:00:00Z",
+    } satisfies Required<LibraryShow>;
+
+    const result = parse({ version: LIBRARY_VERSION, syncedAt: null, shows: { "tmdb:1": full } });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.library.shows["tmdb:1"]).toEqual(full);
   });
 });

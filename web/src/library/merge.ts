@@ -74,6 +74,12 @@ function resolveMissing(remote: LibraryShow, syncedAt: string | null): "add" | "
   return remote.updatedAt > syncedAt ? "add" : "keep-deleted";
 }
 
+function newerSummary(a: LibraryShow["summary"], b: LibraryShow["summary"]): LibraryShow["summary"] {
+  if (!a) return b;
+  if (!b) return a;
+  return a.checkedAt >= b.checkedAt ? a : b;
+}
+
 /**
  * Combines one show from both sides.
  *
@@ -104,6 +110,13 @@ function mergeShow(local: LibraryShow, remote: LibraryShow): LibraryShow {
 
   const images = winner.images ?? loser.images;
   if (images) merged.images = images;
+
+  // The cached summary belongs to whichever side derived it most recently, which is
+  // NOT necessarily the side whose row was edited last: a status change and a
+  // progress check are unrelated events. Dropping it here would put every watching
+  // show back on My List after a pull, since a show with no summary is included.
+  const summary = newerSummary(local.summary, remote.summary);
+  if (summary) merged.summary = summary;
 
   return merged;
 }

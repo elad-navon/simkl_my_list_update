@@ -55,6 +55,30 @@ function parseWatched(raw: unknown): {
   return { watched, dropped };
 }
 
+/**
+ * The cached progress summary, kept only if it is well-formed.
+ *
+ * Carried across because My List is DEFINED by it: a watching show with no summary
+ * is included (its answer is unknown, and hiding it would make a fresh library look
+ * empty), so a validator that silently drops the field puts every watching show
+ * back on the list. That is exactly what happened - all 709 seeded summaries were
+ * discarded on the way in and the list came back as 107 shows instead of nine.
+ *
+ * A malformed one is dropped rather than repaired, since it is only a cache and the
+ * background pass will simply derive it again.
+ */
+function parseSummary(raw: unknown): LibraryShow["summary"] {
+  if (!isObject(raw)) return undefined;
+  const { remaining, nextAirDate, checkedAt } = raw;
+  if (typeof remaining !== "number" || !Number.isFinite(remaining) || remaining < 0) return undefined;
+  if (typeof checkedAt !== "string") return undefined;
+  return {
+    remaining,
+    nextAirDate: typeof nextAirDate === "string" ? nextAirDate : null,
+    checkedAt,
+  };
+}
+
 function parseIds(raw: unknown): LibraryShow["ids"] {
   if (!isObject(raw)) return {};
   const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
@@ -130,6 +154,7 @@ export function parseLibraryFile(text: string): ImportResult {
         ? { manualEpisodes: raw["manualEpisodes"] as LibraryShow["manualEpisodes"] }
         : {}),
       ...(isObject(raw["images"]) ? { images: raw["images"] as LibraryShow["images"] } : {}),
+      ...(parseSummary(raw["summary"]) ? { summary: parseSummary(raw["summary"]) } : {}),
       addedAt: typeof raw["addedAt"] === "string" ? raw["addedAt"] : now,
       updatedAt: typeof raw["updatedAt"] === "string" ? raw["updatedAt"] : now,
     };

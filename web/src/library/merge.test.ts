@@ -167,4 +167,23 @@ describe("mergeLibraries", () => {
     expect(merged.shows).toEqual(one.shows);
     expect(stats.episodesGained).toBe(0);
   });
+
+  it("keeps the cached summary, taking the more recently derived one", () => {
+    // Dropping it would put every watching show back on My List after a pull.
+    const local = library([
+      show({ updatedAt: "2026-06-01T00:00:00Z", summary: { remaining: 5, nextAirDate: null, checkedAt: "2026-06-01T00:00:00Z" } }),
+    ]);
+    const remote = library([
+      show({ updatedAt: "2026-01-01T00:00:00Z", summary: { remaining: 0, nextAirDate: null, checkedAt: "2026-08-01T00:00:00Z" } }),
+    ]);
+
+    // The remote ROW is older, but its summary was derived later - unrelated events.
+    expect(mergeLibraries(local, remote, NOW).library.shows["tmdb:1"]?.summary?.remaining).toBe(0);
+  });
+
+  it("keeps a summary only one side has", () => {
+    const withSummary = show({ summary: { remaining: 2, nextAirDate: null, checkedAt: "2026-06-01T00:00:00Z" } });
+    expect(mergeLibraries(library([show()]), library([withSummary]), NOW).library.shows["tmdb:1"]?.summary?.remaining).toBe(2);
+    expect(mergeLibraries(library([withSummary]), library([show()]), NOW).library.shows["tmdb:1"]?.summary?.remaining).toBe(2);
+  });
 });
