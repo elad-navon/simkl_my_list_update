@@ -20,7 +20,10 @@ export type TmdbImageSource = {
 };
 
 /** A poster/banner the user picked by hand, which outranks TMDB's default. */
-export type ImageOverride = { posterPath?: string | null; bannerPath?: string | null };
+export type ImageOverride = {
+  posterPath?: string | null | undefined;
+  bannerPath?: string | null | undefined;
+};
 
 export type ImageBases = { poster: string; backdrop: string };
 

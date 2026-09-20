@@ -1,0 +1,1029 @@
+/*
+ * The app's stylesheet, ported from the old app's style.css unchanged.
+ *
+ * Kept as ONE global sheet rather than split into a module per component, which
+ * is a departure from the plan and a deliberate one. The class names here are
+ * already componential (.card, .list-panel--plan, .carousel-track), the palette
+ * and the two themes are tuned, and every rule carries a reason in a comment.
+ * Splitting 1,009 lines of that by hand buys scoping the names do not need and
+ * risks visual drift in exchange - and visual parity with the old page is one of
+ * the plan's own acceptance criteria.
+ *
+ * The rule from here on: this sheet stays global and is edited as little as
+ * possible, and anything NEW gets its own CSS Module - see
+ * components/EpisodeBrowser.module.css. New modules are built on the custom
+ * properties defined below, so they inherit both themes for free.
+ *
+ * The `:root` tokens and the `body.light-theme` block that redefines them have
+ * to be global either way: a module cannot scope a theme.
+ */
+
+  :root {
+    --bg: #111820;
+    --sidebar-bg: #0d131a;
+    --card: #1a2430;
+    --card-hover: #22303e;
+    --border: #334255;
+    --text: #eef3f8;
+    --muted: #93a4b8;
+    --accent: #38bdf8;
+    --accent2: #7dd3fc;
+    --gold: #fbbf24;
+    --danger: #ff6b6b;
+    --divider: rgba(255,255,255,0.14);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100vh; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+  }
+
+  /* ===================== Top bar ===================== */
+  .topbar {
+    display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 20px;
+    background: var(--sidebar-bg); border-bottom: 1px solid var(--border);
+    padding: 12px 32px; position: sticky; top: 0; z-index: 100;
+    /* The top bar always keeps its own dark background regardless of the
+       light/dark theme toggle, so pin its text colors locally too - this
+       overrides --text/--muted for every var() lookup inside it, without
+       needing a body.light-theme override per rule. */
+    --text: #eef3f8;
+    --muted: #93a4b8;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 14px; }
+  .topbar-slogan-sep { color: #ffffff; font-size: 0.9rem; }
+  .topbar-slogan {
+    font-weight: 800; font-size: 1.75rem; letter-spacing: 0.5px;
+    text-transform: uppercase; color: #ffffff; white-space: nowrap;
+  }
+  .topbar-clock {
+    justify-self: center; min-width: 0; max-width: 100%;
+    display: flex; align-items: baseline; gap: 8px;
+    font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
+    font-weight: 700; font-size: 1.75rem; letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  /* Date shrinks/ellipsizes first on narrow screens - the time stays a
+     fixed size and is never the one clipped. */
+  #topbarDateText {
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: #ffffff; border-bottom: 2px solid var(--gold); padding-bottom: 4px;
+  }
+  #topbarClockText {
+    flex: 0 0 auto; color: var(--gold); font-variant-numeric: tabular-nums;
+    border-bottom: 2px solid #ffffff; padding-bottom: 4px;
+  }
+  .topbar-clock-sep { flex: 0 0 auto; color: #ffffff; }
+  .topbar-controls { display: flex; align-items: center; gap: 20px; }
+  .theme-toggle-wrap { display: flex; align-items: center; gap: 8px; }
+  .theme-toggle-wrap .nav-icon { color: var(--muted); }
+  .navbar-logo { display: flex; align-items: center; gap: 12px; padding: 0; }
+  .logo-icon { display: flex; align-items: center; padding-top: 2px; }
+  .logo-text { display: flex; flex-direction: row; align-items: baseline; gap: 9px; line-height: 1.15; }
+  .logo-text .logo-tv { font-size: 1.75rem; font-weight: 800; color: var(--accent2); letter-spacing: 0.5px; }
+  .logo-accent {
+    font-size: 1.75rem; font-weight: 800; color: var(--accent2);
+    letter-spacing: 0.5px;
+  }
+  .navbar-nav { display: flex; flex-direction: row; gap: 12px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px; position: relative;
+    background: linear-gradient(160deg, var(--card-hover), var(--card));
+    border: 1px solid var(--border); color: var(--gold);
+    font-size: 0.9rem; font-weight: 600; letter-spacing: 0.01em; text-align: left;
+    padding: 10px 16px; border-radius: 10px; cursor: pointer; white-space: nowrap;
+    box-shadow: 0 3px 0 rgba(0,0,0,0.35), 0 5px 8px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.07);
+    transform: translateY(0); transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+  }
+  .nav-item .nav-icon { color: var(--gold); }
+  .nav-icon { line-height: 1; display: inline-flex; flex: 0 0 auto; color: var(--muted); }
+  .nav-item:hover:not(.active) {
+    background: linear-gradient(160deg, var(--card-hover), var(--card-hover));
+    transform: translateY(-1px);
+    box-shadow: 0 4px 0 rgba(0,0,0,0.35), 0 7px 10px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.09);
+  }
+  .nav-item:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 rgba(0,0,0,0.35), inset 0 2px 4px rgba(0,0,0,0.4);
+  }
+  .nav-item.active {
+    color: var(--accent); font-weight: 700;
+    background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 16%, var(--card)), var(--card));
+    border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+    box-shadow: inset 3px 0 0 0 var(--accent), inset 0 2px 5px rgba(0,0,0,0.35);
+    transform: translateY(1px);
+  }
+  .nav-item.active .nav-icon { color: var(--accent); }
+  .profile-greeting-inline { display: flex; align-items: center; gap: 8px; margin-left: 22px; }
+  .profile-greeting-hi { font-size: 0.85rem; font-weight: 700; color: var(--text); white-space: nowrap; }
+  .profile-pic-small { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; flex: 0 0 auto; }
+  .theme-toggle {
+    flex: 0 0 auto; width: 38px; height: 21px; border-radius: 20px;
+    background: #334255; border: none; cursor: pointer; position: relative;
+    padding: 0; transition: background 0.15s ease;
+  }
+  .theme-toggle::after {
+    content: ""; position: absolute; top: 2.5px; left: 3px; width: 16px; height: 16px;
+    border-radius: 50%; background: #fff; transition: left 0.15s ease;
+  }
+  .theme-toggle.on { background: var(--accent); }
+  .theme-toggle.on::after { left: 19px; }
+
+  /* ===================== Main content ===================== */
+  .main-content { padding: 28px 40px 60px; }
+  .page-header {
+    margin-bottom: 22px; display: flex; align-items: baseline;
+    justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  }
+  .page-header p { color: var(--muted); margin: 0; font-size: 0.9rem; font-weight: 600; }
+  #subtitle:empty { display: none; }
+  .page-header:has(#subtitle:empty) { display: none; }
+  .series-panel-updated { color: var(--muted); font-size: 0.8rem; font-weight: 600; margin-left: auto; }
+  /* ===================== "MY LIST" series panel + carousel ===================== */
+  .series-panel {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; max-width: 100%; margin: 0 auto;
+  }
+  .series-panel-header {
+    display: flex; align-items: center; gap: 9px; color: var(--gold);
+    font-weight: 700; font-size: 0.95rem; letter-spacing: 0.04em; margin-bottom: 16px;
+  }
+  .series-panel-header-left {
+    display: flex; align-items: center; gap: 24px;
+    border-bottom: 3px solid var(--gold); padding-bottom: 10px;
+  }
+  .series-panel-stat-group { display: flex; align-items: center; gap: 8px; }
+  /* The "N Shows" stat doubles as the entry point into the "all shows"
+     modal (openPanelShowsModal('main')) - same feature as each bottom
+     panel's own show-count link, button-reset so it still looks exactly
+     like the other (non-clickable) stat groups beside it. */
+  .series-panel-stat-clickable { background: none; border: none; padding: 0; font: inherit; cursor: pointer; }
+  .series-panel-stat-clickable:hover .series-panel-stat .label { color: var(--accent2); }
+  .series-panel-stat { display: flex; align-items: baseline; gap: 6px; }
+  .stats-divider { width: 2px; align-self: stretch; background: var(--muted); }
+  .series-panel-stat .num { color: var(--gold); font-weight: 800; font-size: 1.3rem; }
+  .series-panel-stat .label {
+    color: #ffffff; font-size: 1.3rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .carousel-wrap { position: relative; }
+  .carousel-track {
+    display: flex; gap: 18px; overflow-x: auto; scroll-behavior: smooth;
+    scrollbar-width: none; padding-bottom: 2px; cursor: grab;
+  }
+  .carousel-track::-webkit-scrollbar { display: none; }
+  .carousel-track.dragging { cursor: grabbing; scroll-behavior: auto; user-select: none; }
+  .carousel-track img { -webkit-user-drag: none; user-select: none; }
+  /* Faint brand watermark that fills whatever space is left after the real
+     cards, when there aren't enough shows to fill the row - shrinks to
+     nothing (rather than forcing extra scroll width) once there isn't. */
+  .carousel-watermark {
+    flex: 1 1 0; min-width: 0; display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
+  }
+  .carousel-watermark svg { width: 135px; height: 135px; opacity: 0.06; }
+  .carousel-arrow {
+    position: absolute; right: -14px; transform: translateY(-50%);
+    width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border);
+    background: #0d131a; color: var(--text); cursor: pointer; z-index: 20;
+    display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+  }
+  .carousel-arrow:hover { background: var(--card-hover); }
+  .carousel-arrow.left { right: auto; left: -14px; }
+  .carousel-arrow.is-hidden { display: none; }
+
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 24px; max-width: 1400px; margin: 40px auto 0;
+  }
+  .grid.banner-mode {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35); transition: background 0.15s ease;
+    display: flex; flex-direction: column; position: relative; overflow: hidden;
+  }
+  .card.hover-stable { background: var(--card-hover); }
+  .card.carousel-card { width: 259px; flex: 0 0 auto; }
+  .card.carousel-card.banner-mode { width: 368px; }
+  .remaining-badge {
+    /* Flush into the bottom-right corner, square rather than merged with
+       the card's own radius - at this small size a matching curve reads
+       as clipped-into rather than blended, and squared-off keeps this
+       badge and the IMDb one (also square, see .imdb-btn) consistent. */
+    position: absolute; right: 0; bottom: 0; background: #F5C518;
+    /* 12.375px matches the IMDb logo's own rendered text size (an SVG
+       scaled to this badge's 22px height, so its 18-unit text works out
+       to 18 * 22/32) - not the original 0.68rem, which was noticeably
+       smaller. */
+    color: #000000; font-family: "Montserrat", sans-serif; text-transform: uppercase;
+    font-size: 12.375px; font-weight: 800; line-height: 1;
+    /* Montserrat's own ascent/descent isn't symmetric around its glyphs,
+       so centering the line box (align-items:center alone) still left the
+       visible ink riding high - the extra 1.5px on top (vs. 0 on bottom)
+       nudges it down without moving the badge's own corner-flush edges
+       (a transform on the badge itself would do that instead). */
+    padding: 1.5px 8px 0; height: 22px; display: flex; align-items: center; gap: 4px;
+    border-radius: 0; z-index: 10;
+  }
+  .badge {
+    /* Flush into the card's own top-left corner (card has overflow:hidden
+       + border-radius:10px) - top-left matches that radius exactly so the
+       two curves read as one continuous corner instead of a smaller pill
+       floating inset from it; the other 3 corners get their own rounding.
+       -1px top/left: .card also has a 1px border, which insets the actual
+       clip curve for anything inside it by that same 1px - without this
+       offset, a sliver of the poster's own (slightly tighter) rounded
+       corner peeks past the badge's curve. */
+    position: absolute; top: -1px; left: -1px; background: rgba(0,0,0,0.55);
+    color: var(--text); font-weight: 700; font-size: 0.85rem; padding: 6px 11px 5px 12px;
+    border-radius: 10px 8px 8px 8px; backdrop-filter: blur(3px); z-index: 10;
+  }
+  .badge.network-badge {
+    /* Most TMDB network logos are dark marks meant for light backgrounds -
+       the dark scrim the plain "#N" badge uses would make those invisible,
+       so this one gets a light chip instead, regardless of the underlying
+       poster art. */
+    display: flex; align-items: center; justify-content: center;
+    padding: 6px 11px 5px 12px; max-width: 70%;
+    background: rgba(255,255,255,0.94); backdrop-filter: none;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+  }
+  .badge.year-corner-badge {
+    /* Mirror image of the base .badge corner-merge, flush into the
+       top-right corner instead of top-left - white/black instead of the
+       dark scrim, and flex-centered so the digits sit vertically centered
+       instead of riding on the (asymmetric, text-badge-tuned) padding. */
+    left: auto; right: -1px; padding: 0 12px 0 11px; min-height: 27px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 8px 10px 8px 8px;
+    background: #ffffff; color: #000000; backdrop-filter: none;
+  }
+  .year-badge-dash { position: relative; top: -2px; }
+  .badge.network-badge .network-badge-logo { height: 15px; width: auto; max-width: 100%; object-fit: contain; display: block; }
+  .badge.network-badge.logo-failed { background: rgba(0,0,0,0.55); backdrop-filter: blur(3px); }
+  .badge.network-badge.logo-failed .network-badge-logo { display: none; }
+  .badge.network-badge.logo-failed::before { content: "#" attr(data-idx); font-weight: 700; font-size: 0.85rem; color: var(--text); }
+  /* No hover lift on the image itself (removed - see commit history for
+     why native :hover here was flicker-prone). .card's background hover
+     still keys off the same JS-managed .hover-stable class, kept for that. */
+  .poster-wrap.cycleable, .list-thumb-wrap.cycleable {
+    cursor: pointer;
+  }
+  .poster.flip-out, .list-thumb.flip-out {
+    transition: transform 0.16s ease-in; transform: rotateY(90deg);
+  }
+  @keyframes poster-flip-in {
+    from { transform: rotateY(-90deg); }
+    to { transform: rotateY(0deg); }
+  }
+  .poster.flip-in, .list-thumb.flip-in { animation: poster-flip-in 0.16s ease-out; }
+  /* Mirrored pair used when cycling backwards (left-side click), so the
+     poster visibly turns left instead of right. */
+  .poster.flip-out-rev, .list-thumb.flip-out-rev {
+    transition: transform 0.16s ease-in; transform: rotateY(-90deg);
+  }
+  @keyframes poster-flip-in-rev {
+    from { transform: rotateY(90deg); }
+    to { transform: rotateY(0deg); }
+  }
+  .poster.flip-in-rev, .list-thumb.flip-in-rev { animation: poster-flip-in-rev 0.16s ease-out; }
+  /* Applied the instant a cycle click fires, while the replacement image is
+     still loading in the background - the current image stays fully
+     visible and recognizable (never rotated/hidden) so a slow real-world
+     network fetch never reads as "the banner disappeared". The flip
+     itself only starts once the new image is confirmed ready. */
+  .poster.img-pending, .list-thumb.img-pending {
+    transition: opacity 0.15s ease; opacity: 0.55;
+  }
+  .imdb-btn {
+    /* Flush into the bottom-left corner, square (see IMDB_LOGO_SVG and
+       .imdb-rating) rather than merged with the card's radius - matches
+       .remaining-badge's squared-off corner for consistency. */
+    position: absolute; bottom: 0; left: 0; z-index: 10; height: 22px;
+    border: none; background: transparent; padding: 0; margin: 0;
+    cursor: pointer; line-height: 0;
+    display: flex; align-items: center; gap: 0;
+    filter: drop-shadow(0 2px 5px rgba(0,0,0,0.55));
+    transition: transform 0.12s ease;
+  }
+  .imdb-btn:hover { transform: scale(1.06); }
+  .imdb-btn svg { display: block; height: 100%; width: auto; }
+  .imdb-rating {
+    background: #F5C518; color: #000000; font-weight: 800;
+    font-family: "Montserrat", sans-serif; text-transform: uppercase;
+    /* Matches the IMDb logo's own rendered text size - see .remaining-badge.
+       line-height:1 (not the old 1.3, a leftover from before the font
+       change) so the text sits truly centered in the flex box instead of
+       biased by extra leading on one side; padding-top nudges Montserrat's
+       own off-center glyph metrics the rest of the way - see .remaining-badge. */
+    font-size: 12.375px; padding: 1.5px 6px 0; border-radius: 0;
+    height: 100%; display: flex; align-items: center;
+    line-height: 1;
+  }
+  .poster-wrap {
+    position: relative; overflow: hidden; perspective: 900px;
+  }
+  .card .poster-wrap { border-radius: 0; }
+  /* A flat, static background here reads identically whether the image is
+     still loading (e.g. a slow TMDB response) or genuinely broken - the
+     pulse gives "still loading" its own visible identity, so a slow
+     fetch never looks like the poster/banner disappeared outright. Once
+     the real image loads, object-fit: cover paints over it completely,
+     so the animation itself is never actually visible - only its absence
+     (a static fill) once the image is there. */
+  @keyframes thumb-loading-pulse {
+    0%, 100% { background-color: #22303e; }
+    50% { background-color: #32485e; }
+  }
+  .poster { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; background: #22303e; display: block; animation: thumb-loading-pulse 1.6s ease-in-out infinite; }
+  .poster.banner-img { aspect-ratio: 16 / 9; }
+  .poster.placeholder {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.6rem; font-weight: 700; color: var(--muted);
+  }
+
+  /* Plain (non-link) IMDb pill - used in the Plan to Watch list rows. */
+  .imdb-pill {
+    background: var(--gold); color: #000; font-weight: 800; font-size: 10px;
+    padding: 2px 6px; border-radius: 4px; letter-spacing: 0.02em;
+  }
+  .imdb-pill-rating { color: var(--gold); font-weight: 800; font-size: 0.85rem; }
+  .imdb-pill-btn {
+    display: inline-flex; align-items: center; gap: 6px; background: transparent;
+    border: none; padding: 0; margin: 0; cursor: pointer;
+  }
+  .imdb-pill-btn:hover .imdb-pill { filter: brightness(1.1); }
+
+  .card-body {
+    padding: 10px 12px 11px;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    min-height: 126px;
+    /* Fills the full height of .card (which flex-stretches to match the
+       tallest card in the row), so .time-left's margin-top:auto below
+       always lands flush on the bottom edge - same row, same alignment,
+       regardless of how many text lines the cards above it show. */
+    flex: 1 1 auto;
+  }
+  .card-body h3 {
+    margin: 0;
+    padding: 0;
+    font-size: 1.08rem;
+    line-height: 1.2;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    letter-spacing: -0.01em;
+    height: auto;
+    min-height: 0;
+    max-height: 2.4em;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .card-body h3:hover { color: var(--accent2); }
+  .episode-title {
+    margin: 2px 0 0;
+    padding: 0;
+    font-size: 0.79rem;
+    line-height: 1.2;
+    height: auto;
+    min-height: 0;
+    max-height: 1.2em;
+    color: var(--accent2);
+    font-weight: 500;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+  }
+  .watch-progress { margin-top: 8px; margin-bottom: 10px; }
+  .watch-progress-track { height: 16px; border-radius: 8px; background: var(--border); overflow: hidden; position: relative; }
+  .watch-progress-fill { height: 100%; border-radius: 8px 0 0 8px; background: var(--gold); }
+  .watch-progress-text {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end;
+    padding: 0 8px; font-size: 0.66rem; font-weight: 800; color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .next-up {
+    margin: 2px 0 0;
+    padding: 0;
+    font-size: 0.82rem;
+    line-height: 1.2;
+    height: auto;
+    min-height: 0;
+    font-weight: 600;
+    overflow: hidden;
+    color: var(--accent2);
+  }
+  /* Wraps just the progress bar and absorbs the row's leftover height
+     (from being stretched to match a taller sibling card), so the flexible
+     gap lands between the episode title and the progress bar - not between
+     "Next:" and the title, which would otherwise vary with next-up-row's
+     own height (a badge chip is taller than plain text). */
+  .card-fill-spacer { margin-top: auto; }
+  .time-left {
+    font-size: 0.95rem;
+    color: var(--gold);
+    font-weight: 700;
+    line-height: 1.2;
+    padding-top: 10px;
+    border-top: 1px solid var(--divider);
+    display: flex; align-items: center; gap: 5px;
+    cursor: pointer;
+  }
+  .time-left:hover { color: #ffd873; }
+  .time-left .time-icon { color: #ffffff; flex: 0 0 auto; display: inline-flex; }
+  .air-date { margin-top: 8px; font-size: 1.05rem; color: var(--accent2); font-weight: 700;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.16);
+    
+  }
+  .section-note {
+    text-align: center; color: var(--muted); font-size: 0.85rem;
+    max-width: 700px; margin: 22px auto 0;
+  }
+  /* ===================== Recently Watched / Airing Next / Plan to Watch panels ===================== */
+  .bottom-panels-row {
+    display: flex; gap: 22px; margin: 26px auto 0; align-items: flex-start;
+  }
+  .bottom-panels-row .list-panel { flex: 1 1 0; min-width: 0; }
+  .list-panel {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px 20px;
+  }
+  .list-panel-header {
+    display: inline-flex; align-items: center; gap: 10px; color: var(--text);
+    font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
+    font-weight: 700; font-size: 1.3rem; letter-spacing: 0.02em; margin-bottom: 14px;
+    border-bottom: 3px solid var(--gold); padding-bottom: 8px;
+  }
+  /* Row wrapper for the three bottom panels only - .list-panel-header keeps
+     its own underline unchanged, the count just rides along to its right
+     via margin-left: auto (same trick as .series-panel-updated above). */
+  .list-panel-header-row { display: flex; align-items: center; }
+  /* Same font as .list-panel-header right next to it (Barlow Condensed,
+     1.3rem, 700, same letter-spacing) - not actually inherited since this
+     sits as .list-panel-header's sibling in .list-panel-header-row, not
+     its descendant, so every property needs restating here explicitly. */
+  .list-panel-count {
+    background: none; border: none; padding: 0;
+    font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
+    font-weight: 700; font-size: 1.3rem; letter-spacing: 0.02em;
+    color: #ffffff; margin-left: auto; cursor: pointer;
+  }
+  .list-panel-count:hover { color: var(--accent2); text-decoration: underline; }
+  /* Vertical carousel - all three panels show ~5 rows before scrolling
+     (5 * (76px banner thumb + 24px row padding + 1px border) = 505px). */
+  .list-rows-scroll {
+    max-height: 580px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+    padding-right: 14px; margin-right: -14px; cursor: grab;
+  }
+  .list-rows-scroll::-webkit-scrollbar { width: 6px; }
+  .list-rows-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  /* Click-and-drag vertical scrolling (enableListPanelsDragScroll) - same
+     treatment as .carousel-track.dragging for the horizontal carousel. */
+  .list-rows-scroll.dragging { cursor: grabbing; scroll-behavior: auto; user-select: none; }
+  .list-rows-scroll img { -webkit-user-drag: none; user-select: none; }
+  .list-row {
+    display: flex; align-items: center; gap: 14px; padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .list-row:last-child { border-bottom: none; }
+  .list-thumb {
+    width: 161px; height: 91px; border-radius: 6px; object-fit: cover;
+    background: #22303e; flex: 0 0 auto; display: block;
+    animation: thumb-loading-pulse 1.6s ease-in-out infinite;
+  }
+  .list-thumb.placeholder {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.9rem; font-weight: 700; color: var(--muted);
+  }
+  /* 161x91, +15% then +10% more (still ~16:9) - scoped to the three bottom
+     panels only, not the (differently-sized) new-episode notification
+     banner, which reuses the same .list-thumb/.list-row markup. */
+  .list-panel .list-thumb { width: 204px; height: 115px; }
+  .list-row-title-wrap { flex: 1 1 auto; min-width: 0; }
+  .list-row-title {
+    /* Matches the top card's title (.card-body h3) size/spacing, so the
+       two read as the same typographic treatment. */
+    flex: 1 1 auto; min-width: 0; font-weight: 600; font-size: 1.08rem;
+    color: var(--text); white-space: normal; line-height: 1.25;
+    text-transform: uppercase; letter-spacing: -0.01em;
+    cursor: pointer;
+  }
+  .list-row-title:hover { color: var(--accent2); }
+  .list-row-sub { font-size: 0.74rem; color: var(--muted); font-weight: 500; margin-top: 2px; }
+  .list-row-sub.network-sub { display: flex; align-items: center; min-height: 22px; }
+  .list-row-sub.episode-code-sub { color: var(--accent2); }
+  /* Light chip behind the logo - most TMDB network logos are dark marks
+     meant for light backgrounds, and disappear directly on this panel's
+     dark background otherwise. */
+  .network-logo {
+    height: 16px; width: auto; max-width: 90px; object-fit: contain; display: block;
+    background: rgba(255,255,255,0.94); border-radius: 3px; padding: 3px 6px;
+    box-sizing: content-box;
+  }
+  .list-row-airdate { color: var(--accent2); font-weight: 700; font-size: 0.8rem; margin-top: 4px; }
+  .premiere-badge {
+    display: inline-block; background: #2fa84f; color: #fff; font-weight: 800;
+    font-size: 0.64rem; letter-spacing: 0.01em; padding: 3px 6px; border-radius: 4px;
+    text-transform: uppercase; margin-top: 5px;
+  }
+  .premiere-badge.finale { background: #c1502e; }
+  .premiere-badge.year-badge { background: #3d6bb3; margin-top: 0; }
+  .premiere-badge.dropped { background: var(--muted); color: #111820; }
+  .title-with-year { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .title-with-year .list-row-title { flex: 0 1 auto; }
+  /* Pinned to the row's own top-right corner (same edge the star badge
+     sits on, further down) instead of living inside the title's flex
+     flow - that's the only way to sit at the row's true right edge while
+     staying up at the title's height, since the star already claims that
+     edge lower down and there's no room further right than the edge itself. */
+  .list-panel--plan .list-row { position: relative; }
+  .plan-menu-btn { position: absolute; top: 12px; right: 0; margin: 0; }
+  .next-up-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .next-up-row .next-up { margin: 2px 0 0; }
+  .next-up-row .premiere-badge { margin-top: 2px; }
+  .list-thumb-wrap { position: relative; flex: 0 0 auto; perspective: 900px; }
+  .list-check {
+    flex: 0 0 auto; width: 31px; height: 31px; border-radius: 50%;
+    border: 1.5px solid var(--accent); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .list-imdb { margin-top: 4px; display: flex; align-items: center; gap: 8px; }
+  /* Content-rating badge + genre list, same pairing TMDB itself shows right
+     under a show's title on its own page (bordered rating box + genre
+     text) - Plan to Watch only, right under the IMDb pill. */
+  .content-meta-row { margin-top: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .content-rating-badge {
+    flex: 0 0 auto; border: 1px solid var(--muted); border-radius: 3px;
+    padding: 1px 5px; font-size: 0.68rem; font-weight: 700; color: var(--text);
+  }
+  .genre-label { font-size: 0.74rem; color: #ffffff; font-weight: 500; }
+  .center-box {
+    max-width: 480px; margin: 60px auto; background: var(--card); border-radius: 14px;
+    padding: 30px; text-align: center; box-shadow: 0 6px 22px rgba(0,0,0,0.35);
+  }
+  .center-box input {
+    width: 100%; padding: 10px 12px; margin: 8px 0; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 0.9rem;
+  }
+  .center-box label { display: block; text-align: left; font-size: 0.8rem; color: var(--muted); margin-top: 10px; }
+  .center-box code { background: var(--bg); padding: 2px 6px; border-radius: 4px; }
+  .pin-code {
+    font-size: 2rem; letter-spacing: 6px; font-weight: 700; color: var(--accent);
+    margin: 16px 0; font-family: monospace;
+  }
+  .spinner {
+    width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.9s linear infinite; margin: 18px auto;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-box { color: var(--danger); font-size: 0.85rem; margin-top: 10px; white-space: pre-wrap; }
+  a { color: var(--accent2); }
+
+  .my-list-next {
+    color: #67e8f9;
+  }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
+    background: var(--card); color: var(--text); padding: 12px 20px; border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4); font-size: 0.9rem; font-weight: 600;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 200; max-width: 90vw;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.error { color: var(--danger); }
+
+  /* Persistent (no auto-dismiss) new-episode notification - sized like the
+     top card's banner mode, reusing the exact Recently Watched row markup
+     (.list-row/.list-thumb/.list-row-title/...) for its entries so it
+     reads as the same design language rather than a bespoke component. */
+  .new-episode-banner {
+    position: fixed; right: 20px; bottom: 20px; z-index: 250; width: 368px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45); padding: 14px 16px;
+  }
+  .new-episode-banner-header {
+    display: flex; align-items: center; gap: 8px; color: var(--gold);
+    font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
+    font-weight: 700; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.04em;
+    border-bottom: 2px solid var(--gold); padding-bottom: 8px; margin-bottom: 4px;
+  }
+  .new-episode-banner-close {
+    margin-left: auto; background: transparent; border: none; color: var(--muted);
+    font-size: 1.2rem; line-height: 1; cursor: pointer; padding: 0 2px;
+  }
+  .new-episode-banner-close:hover { color: var(--text); }
+  .new-episode-banner-list { max-height: 60vh; overflow-y: auto; }
+  .new-episode-banner-list .list-row:last-child { border-bottom: none; }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 20px; z-index: 150; overflow-y: auto; perspective: 1400px;
+  }
+  .modal-box {
+    width: 100%; max-width: 560px; background: var(--card); border-radius: 14px;
+    padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .modal-box h2 { margin: 0 0 14px; display: flex; align-items: center; justify-content: space-between; font-size: 1.3rem; }
+  /* Same 3D Y-axis flip language as .poster.flip-in when cycling a show's
+     image - just scaled up in duration for a bigger element. */
+  @keyframes episodes-modal-in {
+    from { transform: rotateY(-90deg); }
+    to { transform: rotateY(0deg); }
+  }
+  .episodes-modal, .cast-modal, .panel-shows-modal { animation: episodes-modal-in 0.8s ease-out; transform-origin: center; }
+  @media (prefers-reduced-motion: reduce) {
+    .episodes-modal, .cast-modal, .panel-shows-modal { animation: none; }
+  }
+  .modal-close-btn {
+    background: transparent; border: none; color: var(--muted); font-size: 1.4rem;
+    cursor: pointer; line-height: 1; padding: 0 4px;
+  }
+  .modal-close-btn:hover { color: var(--text); }
+  .episodes-modal { max-width: 620px; display: flex; flex-direction: column; max-height: 82vh; padding: 20px 0 0; }
+  .episodes-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin: 0 22px; }
+  .episodes-modal-head .list-panel-header { margin: 0; flex: 1 1 auto; }
+  .episodes-modal-subtitle { margin: 4px 22px 14px; font-size: 1rem; color: #ffffff; font-weight: 600; }
+  .episodes-list { overflow-y: auto; padding: 0 12px 8px; }
+  .episode-row { display: flex; align-items: flex-start; gap: 12px; padding: 9px 10px; border-radius: 8px; }
+  .episode-row:hover { background: var(--card-hover); }
+  .episode-row.is-next { background: rgba(251,191,36,0.06); }
+  .episode-code {
+    font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif; font-weight: 700; font-size: 0.95rem;
+    color: var(--accent2); flex: 0 0 auto; width: 52px; font-variant-numeric: tabular-nums;
+  }
+  .episode-name { flex: 1 1 auto; min-width: 0; font-size: 0.85rem; color: var(--text); font-weight: 500;
+    line-height: 1.3; word-break: break-word; }
+  .episode-row.is-next .episode-name { font-weight: 700; }
+  .episode-name-link { color: inherit; text-decoration: none; }
+  .episode-name-link:hover { text-decoration: underline; }
+  .episode-badge {
+    /* Same colors as .premiere-badge elsewhere in the app (green for a
+       premiere, red for a finale) instead of this modal's own accent-blue
+       treatment, so the badges read the same everywhere. */
+    flex: 0 0 auto; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase;
+    color: #fff; background: #2fa84f; padding: 2px 6px; border-radius: 4px;
+  }
+  .episode-badge.finale { background: #c1502e; }
+  .episode-runtime { flex: 0 0 auto; font-size: 0.82rem; color: var(--muted); font-weight: 600;
+    font-variant-numeric: tabular-nums; width: 54px; text-align: right; white-space: nowrap; }
+  .episode-row.is-next .episode-runtime { color: var(--gold); }
+  .episodes-modal-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 22px; border-top: 1px solid var(--border); margin-top: 4px;
+  }
+  .episodes-modal-foot .label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  .episodes-modal-foot .total {
+    font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif; font-weight: 700; font-size: 1.3rem;
+    color: var(--gold); font-variant-numeric: tabular-nums;
+  }
+  /* Cast modal - same head shape as .episodes-modal (list-panel-header +
+     subtitle), a card grid of cast members below: square headshot on top,
+     name + character centered underneath. */
+  .cast-modal { max-width: 760px; display: flex; flex-direction: column; max-height: 85vh; padding: 20px 0 4px; }
+  .cast-grid {
+    overflow-y: auto; padding: 4px 22px 20px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 20px;
+  }
+  .cast-item { display: flex; flex-direction: column; gap: 8px; padding: 6px; border-radius: 10px; }
+  .cast-item:hover { background: var(--card-hover); }
+  .cast-photo {
+    width: 100%; aspect-ratio: 1 / 1; border-radius: 10px; object-fit: cover; display: block;
+    background: var(--card-hover);
+  }
+  .cast-photo.placeholder {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.2rem; font-weight: 700; color: var(--muted);
+  }
+  .cast-info { min-width: 0; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 2px; }
+  .cast-name { font-size: 0.9rem; font-weight: 700; color: var(--text); }
+  .cast-name-link { color: inherit; text-decoration: none; }
+  .cast-name-link:hover { text-decoration: underline; color: var(--accent2); }
+  .cast-character { font-size: 0.78rem; color: var(--muted); font-weight: 500; }
+  .cast-episodes { font-size: 0.68rem; color: var(--muted); font-weight: 500; opacity: 0.75; }
+  /* "All shows" modal opened from a bottom panel's show-count link - same
+     head shape as .cast-modal. The grid still sits inside a .list-panel
+     wrapper (neutralized below) so its background/border/padding stays out
+     of the way; shows posters, not banners, at the real 2:3 poster ratio
+     (same ratio .poster uses in the top carousel) rather than a rotated
+     banner box, which cropped every poster's sides noticeably.
+     Fixed 8-column grid (8*150 + 7*20 gaps + 44 padding = 1384px, hence the
+     modal's own max-width below) so every row holds exactly 8 shows - a
+     true grid rather than flex-wrap, so a column's width never depends on
+     how much text a neighboring card happens to wrap. Tall enough (see
+     max-height) that 3 full rows (24 shows) fit before the grid itself
+     needs to scroll. */
+  .panel-shows-modal { max-width: 1400px; display: flex; flex-direction: column; max-height: 98vh; padding: 16px 0 4px; }
+  .panel-shows-grid-wrap.list-panel {
+    background: none; border: none; padding: 0; border-radius: 0;
+    display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0;
+  }
+  .panel-shows-grid {
+    overflow: auto; padding: 4px 22px 12px;
+    display: grid; grid-template-columns: repeat(8, 150px); justify-content: center; gap: 20px;
+  }
+  .panel-shows-grid .panel-shows-flip-front .list-thumb {
+    width: 100%; height: 100%; aspect-ratio: auto; border-radius: 0;
+  }
+  /* Flip card: click the poster (front) for a half-turn (rotateY 180deg)
+     into a wider, horizontal back face holding the show's own row info
+     (rowInfoWrapHtml, mode "flip" - see openPanelShowsModal), title
+     included as an IMDb link there. Spans 2 grid columns while flipped
+     (150+20+150=320px) rather than floating an absolute overlay, so a
+     flipped card enlarges in-flow - other cards simply reflow around it -
+     instead of getting clipped by the grid's own scroll boundary. */
+  .panel-shows-item { cursor: pointer; perspective: 1200px; }
+  .panel-shows-item.flipped { grid-column: span 2; }
+  .panel-shows-flip-inner {
+    position: relative; width: 150px; height: 225px;
+    transform-style: preserve-3d; transition: transform 0.5s ease, width 0.5s ease, height 0.5s ease;
+  }
+  .panel-shows-item.flipped .panel-shows-flip-inner {
+    width: 320px; height: 210px; transform: rotateY(180deg);
+  }
+  .panel-shows-flip-face {
+    position: absolute; inset: 0; backface-visibility: hidden;
+    border-radius: 6px; overflow: hidden;
+  }
+  /* Cinematic vignette + a gold rim-light glow that merges into the same
+     gold as the left accent bar, rather than the flat --card-hover fill -
+     picked from a set of mockups (see chat), option 11: the gold bar (04)
+     laid over the vignette + rim-light (09), rim recolored gold instead of
+     accent-blue so the two read as one border instead of two elements.
+     The vignette gradient below is now just the fallback for a show with
+     no banner/poster at all - .panel-shows-flip-back-bg (that show's own
+     banner, set inline per-card in openPanelShowsModal) sits on top of it
+     when there is one, only lightly blurred so the show stays recognizable
+     rather than reading as an abstract color field. */
+  .panel-shows-flip-back {
+    transform: rotateY(180deg);
+    background: radial-gradient(ellipse at center, #1c2836 0%, #0a121a 100%);
+    box-shadow: inset 0 0 0 2px rgba(251,191,36,0.5), inset 0 0 50px rgba(251,191,36,0.18);
+    border-left: 4px solid var(--gold);
+    padding: 10px 14px; display: flex; flex-direction: column; justify-content: center;
+    overflow-y: auto;
+  }
+  .panel-shows-flip-back-bg {
+    position: absolute; inset: -8px; z-index: 0;
+    background-size: cover; background-position: center;
+    filter: blur(4px) brightness(0.72) saturate(1.15);
+  }
+  /* Scrim between the (barely blurred) banner and the text, so the title
+     and badges stay legible over whatever part of the scene sits behind
+     them without needing to blur the banner itself any harder. */
+  .panel-shows-flip-back::before {
+    content: ""; position: absolute; inset: 0; z-index: 1;
+    background: linear-gradient(180deg, rgba(8,12,18,0.15) 0%, rgba(8,12,18,0.72) 100%);
+  }
+  .panel-shows-flip-back .list-row-title-wrap > :first-child { margin-top: 0; }
+  /* .list-row-title-wrap's flex:1 1 auto (base rule) is meant for a ROW
+     flex parent (.list-row - grow sideways next to the thumbnail); reused
+     unchanged here inside .panel-shows-flip-back's COLUMN flex layout, it
+     grows to fill the whole height instead, which defeats that parent's
+     justify-content:center - content ends up pinned to the top with empty
+     space below rather than centered. Overriding back to flex:none (its
+     natural content height) lets the centering actually take effect.
+     position/z-index lift it above the banner + scrim layers, which are
+     absolutely-positioned siblings that would otherwise paint on top of
+     this (position:static) content regardless of DOM order. */
+  .panel-shows-flip-back .list-row-title-wrap { flex: none; position: relative; z-index: 2; }
+  /* .episode-title truncates to one line with an ellipsis everywhere else
+     (the narrow 204px row, the top carousel card) - there's no need for
+     that here, the flip-back face is 320px wide with room to spare, so a
+     long episode title just wraps instead of getting cut off. */
+  .panel-shows-flip-back .episode-title {
+    white-space: normal; text-overflow: clip; max-height: none; overflow: visible;
+  }
+  /* Every row text size bumped up a bit (not just the title) since the
+     flip-back face has far more room than the narrow row it's copied from -
+     each needs restating individually since they're rem-based, not relative
+     to a parent font-size. */
+  .panel-shows-flip-back .list-row-title { font-size: 1.24rem; }
+  .panel-shows-flip-back .list-row-sub { font-size: 0.85rem; }
+  .panel-shows-flip-back .episode-title { font-size: 0.9rem; }
+  .panel-shows-flip-back .next-up { font-size: 0.94rem; }
+  .panel-shows-flip-back .list-row-airdate { font-size: 0.92rem; }
+  .panel-shows-flip-back .premiere-badge { font-size: 0.74rem; }
+  .panel-shows-flip-back .content-rating-badge { font-size: 0.78rem; }
+  .panel-shows-flip-back .genre-label { font-size: 0.85rem; }
+  .panel-shows-flip-back .imdb-pill { font-size: 11px; }
+  .panel-shows-flip-back .imdb-pill-rating { font-size: 0.98rem; }
+  /* Same font as the modal's own title (all inherited from .list-panel-header)
+     - just pinned to the right of that same row via the usual margin-left:auto
+     trick used everywhere else a count rides along a header. */
+  .panel-shows-modal-count { margin-left: auto; }
+  .search-input-row input {
+    width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text); font-size: 0.95rem; box-sizing: border-box;
+  }
+  .search-results { margin-top: 16px; max-height: 55vh; overflow-y: auto; }
+  .search-result-row {
+    display: flex; align-items: center; gap: 12px; padding: 8px 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    cursor: pointer; border-radius: 8px;
+  }
+  .search-result-row:hover { background: rgba(255,255,255,0.06); }
+  /* Keyboard-highlighted result (arrow keys, see wireSearchInput) - distinct
+     from :hover so it stays visible while navigating with the keyboard
+     alone, mouse nowhere near the list. */
+  .search-result-row.active { background: rgba(56,189,248,0.12); box-shadow: inset 3px 0 0 0 var(--accent); }
+  .search-result-poster {
+    width: 42px; height: 63px; border-radius: 5px; object-fit: cover;
+    background: var(--card-hover); flex: 0 0 auto;
+  }
+  .search-result-poster.placeholder {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; font-weight: 700; color: var(--muted);
+  }
+  .search-result-info { flex: 1 1 auto; min-width: 0; }
+  .search-result-title { font-weight: 700; font-size: 0.95rem; }
+  .search-result-year { color: var(--muted); font-size: 0.8rem; }
+  .modal-back-btn {
+    background: transparent; border: none; color: var(--accent2); font-size: 0.85rem;
+    font-weight: 700; cursor: pointer; padding: 0 0 14px; display: block;
+  }
+  .modal-back-btn:hover { text-decoration: underline; }
+  .detail-header { display: flex; gap: 16px; }
+  .detail-poster {
+    width: 90px; height: 135px; border-radius: 8px; object-fit: cover;
+    background: var(--card-hover); flex: 0 0 auto;
+  }
+  .detail-poster.placeholder {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem; font-weight: 700; color: var(--muted);
+  }
+  .detail-info { flex: 1 1 auto; min-width: 0; }
+  .detail-title { font-size: 1.15rem; font-weight: 800; }
+  /* Same title styling whether it's plain text (no known imdb id) or a
+     link - only a link gets the hover affordance. */
+  /* Underline stays on (not just on hover) - otherwise it's visually
+     identical to the plain-text version right above it and nothing
+     signals it's clickable. */
+  a.detail-title { display: block; color: var(--text); text-decoration: underline; text-decoration-color: var(--muted); text-underline-offset: 3px; }
+  a.detail-title:hover { color: var(--accent2); text-decoration-color: var(--accent2); }
+  .detail-year { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+  .detail-status { margin-top: 10px; font-size: 0.88rem; font-weight: 700; }
+  .detail-status.not-in-list { color: var(--muted); }
+  .detail-status.in-list { color: var(--accent); }
+  .detail-status-picker { margin-top: 20px; }
+  .detail-picker-label { color: var(--muted); font-size: 0.8rem; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+  .card-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
+  .card-title-row h3 { flex: 1 1 auto; min-width: 0; cursor: pointer; }
+  .card-title-row h3:hover { color: var(--accent2); }
+  .card-menu-btn {
+    flex: 0 0 auto; background: transparent; border: none; color: var(--muted);
+    font-size: 1.2rem; line-height: 1; padding: 0 2px; cursor: pointer;
+  }
+  .card-menu-btn:hover { color: var(--text); }
+  .card-menu-dropdown {
+    position: fixed; background: var(--card); border-radius: 10px; min-width: 170px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45); z-index: 160; overflow: hidden; padding: 6px;
+  }
+  .card-menu-item {
+    display: block; width: 100%; text-align: left; background: transparent; border: none;
+    color: var(--text); font-size: 0.86rem; padding: 8px 10px; border-radius: 6px; cursor: pointer;
+  }
+  .card-menu-item:hover { background: rgba(255,255,255,0.08); }
+  .card-menu-item.active { color: var(--accent); font-weight: 700; }
+  .card-menu-item.danger { color: var(--danger); }
+  .card-menu-item.watched-action {
+    color: #2fa84f; font-weight: 700;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-menu-item.watched-action svg { flex: 0 0 auto; }
+  .card-menu-item.watched-action:hover { background: rgba(47,168,79,0.14); }
+  .card-menu-item:disabled { opacity: 0.5; cursor: default; }
+  .card-menu-item:disabled:hover { background: transparent; }
+  .card-menu-sep { height: 1px; background: rgba(255,255,255,0.1); margin: 6px 4px; }
+
+  /* Light theme overrides - toggled via body.light-theme.
+     "Warm Ivory": a dimmed cream (~90% lightness), not stark white - and the
+     accent/gold/danger get their OWN light-tuned values instead of inheriting
+     the dark-theme ones (which were tuned to glow on navy, not read on cream). */
+  body.light-theme {
+    --bg: #e8e2d3;
+    --card: #f2ede0;
+    --card-hover: #ebe4d3;
+    --border: #d8cfb8;
+    --text: #2c2416;
+    --muted: #71674f;
+    --divider: rgba(0,0,0,0.15);
+    --accent: #9a5b1f;
+    --accent2: #b97a3d;
+    --gold: #7c5a12;
+    --danger: #a83a2c;
+  }
+  body.light-theme { background: var(--bg); }
+  body.light-theme .topbar { background: #0a0a0d; border-bottom-color: #0a0a0d; } /* top bar stays dark in both themes, per the reference design */
+  body.light-theme .card { box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
+  body.light-theme .center-box { box-shadow: 0 10px 30px rgba(0,0,0,0.10); }
+  /* The IMDb tag needs to stay bright regardless of theme - it's black text
+     ON TOP of this color. (.remaining-badge no longer needs an override
+     here - it's a fixed yellow-bg/black-text badge over the poster now,
+     unrelated to the page's own light/dark theme.) */
+  body.light-theme .imdb-pill { background: #f0b429; }
+  /* Network logo chips: an off-tone + border instead of literal white, so a
+     logo doesn't sit as a glaring white square on this already-light card. */
+  body.light-theme .network-logo { background: #e4dcc6; border: 1px solid #cabd9c; }
+  body.light-theme .badge.network-badge { background: rgba(228,220,198,0.96); border: 1px solid rgba(202,189,156,0.9); box-shadow: 0 1px 4px rgba(0,0,0,0.25); }
+
+  /* ===================== Mobile layout ===================== */
+  @media (max-width: 720px) {
+    /* Top bar wraps to two rows instead of becoming a bottom tab bar -
+       logo stays on its own row, controls take the full width below it. */
+    .topbar { display: flex; flex-wrap: wrap; padding: 10px 14px; gap: 8px; }
+    .topbar-slogan-sep, .topbar-slogan, .topbar-clock { display: none; }
+    .topbar-controls { width: 100%; justify-content: space-between; }
+    .navbar-nav { flex: 1 1 auto; gap: 6px; }
+    .nav-item {
+      flex: 1 1 0; min-width: 0; flex-direction: column; gap: 2px;
+      padding: 6px 2px; border-radius: 8px;
+      font-size: 0.56rem; line-height: 1.15; text-align: center; white-space: normal;
+      box-shadow: 0 2px 0 rgba(0,0,0,0.35), 0 3px 5px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.07);
+    }
+    .nav-item:hover:not(.active) {
+      box-shadow: 0 2px 0 rgba(0,0,0,0.35), 0 3px 5px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.07);
+      transform: none;
+    }
+    .nav-item .nav-icon svg { width: 20px; height: 20px; }
+    .nav-item.active { box-shadow: inset 0 -3px 0 0 var(--accent); }
+
+    .main-content { padding: 18px 14px 40px; }
+
+    .series-panel { padding: 14px; }
+    .series-panel-header { flex-wrap: wrap; row-gap: 10px; }
+    .series-panel-header-left {
+      max-width: 100%; overflow-x: auto; scrollbar-width: none;
+      padding-bottom: 8px; gap: 4px;
+    }
+    .series-panel-header-left::-webkit-scrollbar { display: none; }
+    .series-panel-header-left svg { flex-shrink: 0; }
+    .series-panel-stat-group { flex: 0 0 auto; gap: 4px; }
+    .series-panel-stat { flex: 0 0 auto; gap: 3px; }
+    .series-panel-stat .num { font-size: 0.95rem; }
+    .series-panel-stat .label { font-size: 0.62rem; }
+
+    /* Carousel: one card per swipe, no click-arrows - touch takes over. */
+    .carousel-arrow { display: none; }
+    .card.carousel-card, .card.carousel-card.banner-mode {
+      width: 80vw; max-width: 368px;
+    }
+    .carousel-track { scroll-snap-type: x mandatory; }
+    .card.carousel-card { scroll-snap-align: center; }
+
+    /* The three panels stack full-width instead of sitting side by side,
+       but each keeps its own row list scrolling horizontally (touch swipe)
+       rather than vertically, so rows become fixed-width cards. */
+    .bottom-panels-row { flex-direction: column; gap: 16px; }
+    .bottom-panels-row .list-panel { width: 100%; }
+    .list-panel { padding: 14px 16px; }
+    .list-rows-scroll {
+      display: flex; flex-direction: row; gap: 12px;
+      max-height: none; overflow-x: auto; overflow-y: hidden;
+      padding-right: 0; margin-right: 0; padding-bottom: 6px;
+    }
+    .list-row {
+      flex: 0 0 auto; width: 200px; flex-direction: column; align-items: stretch;
+      gap: 8px; padding: 0; border-bottom: none;
+    }
+    .list-thumb, .list-panel .list-thumb { width: 100%; height: auto; aspect-ratio: 16 / 9; }
+    .list-thumb-wrap { width: 100%; }
+    .title-with-year { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px; }
+    .title-with-year .premiere-badge.year-badge { flex-basis: 100%; margin-top: 0; }
+    /* Same top-right pin as desktop, just recomputed for the stacked mobile
+       card: the thumb (full width, 16:9) plus the row's own gap sits above
+       the title line here, instead of the title starting at the very top. */
+    .plan-menu-btn { top: 120px; }
+    /* Check/star/bell circle badge dropped on mobile across all three
+       panels (was watched-only before) - the stacked card is narrow enough
+       that it read as clutter next to the title. */
+    .list-check { display: none; }
+
+    .modal-overlay { padding: 12px; }
+    .cast-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    /* The 8-column grid only makes sense at desktop widths - on mobile the
+       modal falls back to the same horizontally-swiped row of fixed-width
+       cards as .list-rows-scroll, just with the same real 2:3 poster ratio
+       as desktop (scaled down to 132px wide). A flipped card here just
+       grows wider in place (flex reflows the row around it) rather than
+       spanning grid columns, since there's no fixed-column grid on mobile
+       to span. */
+    .panel-shows-grid {
+      display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
+      gap: 12px; justify-content: flex-start;
+    }
+    .panel-shows-item { flex: 0 0 auto; }
+    .panel-shows-item.flipped { grid-column: auto; }
+    .panel-shows-flip-inner { width: 132px; height: 198px; }
+    .panel-shows-item.flipped .panel-shows-flip-inner { width: 260px; height: 190px; }
+  }

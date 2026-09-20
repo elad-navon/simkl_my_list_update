@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractContentRating, extractGenreLabel, joinGenreNames } from "./metadata";
+import { extractContentRating, extractGenreLabel, joinGenreNames, yearRangeLabel } from "./metadata";
 
 describe("extractContentRating", () => {
   it("prefers the US rating", () => {
@@ -46,5 +46,25 @@ describe("extractGenreLabel", () => {
   it("returns null when there are no genres", () => {
     expect(extractGenreLabel([])).toBeNull();
     expect(extractGenreLabel(null)).toBeNull();
+  });
+});
+
+describe("yearRangeLabel", () => {
+  it("closes the range once the show has ended", () => {
+    expect(yearRangeLabel("2016-09-01", "2019-05-20", true)).toBe("2016-2019");
+  });
+
+  it("leaves it open while the show is still running", () => {
+    expect(yearRangeLabel("2016-09-01", "2026-05-20", false)).toBe("2016-");
+  });
+
+  it("still reads as finished when the final year is unknown", () => {
+    // Better than silently reading as ongoing.
+    expect(yearRangeLabel("2016-09-01", null, true)).toBe("2016-");
+  });
+
+  it("is null without a start year, rather than a bare dash", () => {
+    expect(yearRangeLabel(null, "2019-01-01", true)).toBeNull();
+    expect(yearRangeLabel("", null, false)).toBeNull();
   });
 });

@@ -51,6 +51,7 @@ export type TmdbShow = {
   name?: string | null;
   original_name?: string | null;
   first_air_date?: string | null;
+  last_air_date?: string | null;
   status?: string | null;
   episode_run_time?: number[] | undefined;
   last_episode_to_air?: { runtime?: number | null } | null | undefined;

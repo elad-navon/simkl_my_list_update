@@ -1,0 +1,98 @@
+/*
+ * What the settings screen adds on top of `.center-box` from the global sheet.
+ *
+ * The ported sheet already styles the box, its inputs, its labels and the theme
+ * toggle. Only the groupings the rewrite introduced are here - the source
+ * switch, the backup actions and the personalization fields, none of which
+ * existed to have styles.
+ */
+
+/*
+ * The old Save button carried `class="pill"`, and `style.css` has no rule for
+ * that name anywhere - so it has been rendering as a bare browser button since it
+ * was written (app.js:131 is its only use). Defined properly here rather than
+ * carrying a class that does nothing.
+ */
+.pill,
+.fileButton {
+  display: inline-flex;
+  align-items: center;
+  background: var(--card-hover);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--gold);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 7px 14px;
+  cursor: pointer;
+}
+
+.pill:hover,
+.fileButton:hover {
+  border-color: var(--gold);
+}
+
+.group {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin: 18px 0 0;
+  padding: 10px 14px 14px;
+  text-align: left;
+}
+
+.legend {
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0 6px;
+}
+
+.help {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  margin: 2px 0 10px;
+}
+
+.radio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 0.85rem;
+  margin-top: 6px;
+  cursor: pointer;
+}
+
+.warn {
+  color: var(--danger);
+  font-style: normal;
+  font-size: 0.78rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/*
+ * A file input cannot be styled, so the real one is hidden inside a label that
+ * looks like the buttons beside it. Hidden with clip rather than display:none so
+ * it stays focusable from the keyboard.
+ */
+.fileButton input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

@@ -32,3 +32,22 @@ export function extractGenreLabel(
   if (!genres || !genres.length) return null;
   return joinGenreNames(genres.map((g) => g.name).filter((n): n is string => Boolean(n)));
 }
+
+/**
+ * "2016-2019" once a show has ended, "2016-" while it is still running.
+ * Ported from app.js:1119-1120.
+ *
+ * The trailing dash is deliberate in both cases: an ended show whose final year
+ * the source never recorded still reads as finished-but-unknown rather than
+ * silently as ongoing.
+ */
+export function yearRangeLabel(
+  firstAirDate: string | null | undefined,
+  lastAirDate: string | null | undefined,
+  ended: boolean,
+): string | null {
+  const start = firstAirDate?.slice(0, 4);
+  if (!start) return null;
+  const end = ended ? (lastAirDate?.slice(0, 4) ?? "") : "";
+  return `${start}-${end}`;
+}
