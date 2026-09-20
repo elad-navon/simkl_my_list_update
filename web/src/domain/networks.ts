@@ -13,7 +13,11 @@ export type TmdbNetwork = { name?: string | null; logo_path?: string | null };
 export type LocalNetworkLogo = {
   /** Every name variant this network appears under, across languages/sources. */
   names: string[];
-  /** URL relative to the app base. */
+  /**
+   * Path relative to the app base, NOT to the origin. The app is served from
+   * a subdirectory on GitHub Pages, so a leading slash would point at the wrong
+   * place - `resolveNetworkLogoUrl` prepends the base.
+   */
   logo: string;
 };
 
@@ -51,11 +55,18 @@ export function findLocalNetworkLogo(networkName: string | null | undefined): st
   return entry ? entry.logo : null;
 }
 
+/**
+ * @param appBase Where the app is served from, since the local logos are files
+ *   under it. On GitHub Pages that is a subdirectory, so an absolute path would
+ *   404 - which is exactly the kind of thing that only shows up in production.
+ */
 export function resolveNetworkLogoUrl(
   networkName: string | null | undefined,
   tmdbLogoPath: string | null | undefined,
   tmdbLogoBase: string,
+  appBase = "/",
 ): string | null {
   if (tmdbLogoPath) return tmdbLogoBase + tmdbLogoPath;
-  return findLocalNetworkLogo(networkName);
+  const local = findLocalNetworkLogo(networkName);
+  return local === null ? null : appBase + local;
 }

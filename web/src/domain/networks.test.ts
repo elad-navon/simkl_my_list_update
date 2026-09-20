@@ -56,10 +56,30 @@ describe("resolveNetworkLogoUrl", () => {
   });
 
   it("falls back to the local override when TMDB has none", () => {
-    expect(resolveNetworkLogoUrl("Reshet 13", null, base)).toBe("networks/reshet.png");
+    expect(resolveNetworkLogoUrl("Reshet 13", null, base)).toBe("/networks/reshet.png");
   });
 
   it("returns null when neither source has a logo", () => {
     expect(resolveNetworkLogoUrl("Some Network", null, base)).toBeNull();
+  });
+});
+
+describe("resolveNetworkLogoUrl and the app base", () => {
+  it("prefixes a local logo with the base the app is served from", () => {
+    // GitHub Pages serves this from a subdirectory, so an absolute path 404s -
+    // the kind of thing that only shows up in production.
+    expect(resolveNetworkLogoUrl("Reshet", null, "https://img/", "/simkl_my_list_update/")).toBe(
+      "/simkl_my_list_update/networks/reshet.png",
+    );
+  });
+
+  it("leaves a TMDB logo alone, since it is already absolute", () => {
+    expect(resolveNetworkLogoUrl("HBO", "/hbo.png", "https://img/", "/sub/")).toBe(
+      "https://img//hbo.png",
+    );
+  });
+
+  it("returns null for a network with no logo anywhere", () => {
+    expect(resolveNetworkLogoUrl("Nobody", null, "https://img/", "/sub/")).toBeNull();
   });
 });

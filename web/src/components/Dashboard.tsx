@@ -14,7 +14,7 @@
  * 2595). The library is keyed, so there is one row and nothing to keep in step.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ApiClients } from "../api/clients";
 import { buildSeasonView, defaultOpenSeason } from "../domain/seasonView";
@@ -23,10 +23,14 @@ import { mostRecentWatchedAt } from "../domain/progress";
 import type { WatchedPatch } from "../domain/watchEdits";
 import type { LibraryBackend } from "../library/backend";
 import type { Library, LibraryShow } from "../library/schema";
+import type { Episode } from "../domain/types";
 import { queryKeys } from "../query/client";
 import { EpisodeBrowser } from "./EpisodeBrowser";
 import { ShowCardContainer } from "./ShowCardContainer";
 import { useShowData } from "../hooks/useShowData";
+import { useNewEpisodeCheck } from "../hooks/useNewEpisodeCheck";
+import { describeNewEpisode } from "../domain/newEpisodes";
+import { useQueryClient as useClient } from "@tanstack/react-query";
 
 export type DashboardProps = {
   library: Library;
@@ -128,6 +132,38 @@ export function Dashboard({
   );
 
   const recent = useMemo(() => recentlyWatched(shows), [shows]);
+  const newEpisodes = useNewEpisodeCheck();
+
+  /**
+   * Checks for new episodes once every card's data has arrived.
+   *
+   * Driven off the query cache rather than off its own fetch, because the cards
+   * have already worked out each show's latest aired episode - asking again would
+   * be a second round of requests for an answer already in hand. The old version
+   * did fetch separately, which is why it needed its own SIMKL episode cache
+   * (app.js:3369-3372).
+   */
+  const cache = useClient();
+  const checkForNew = newEpisodes.check;
+  useEffect(() => {
+    const inputs = myList.map((show) => {
+      const data = cache.getQueryData<{ progress: { latestAired: Episode | null } } | null>(
+        queryKeys.showData(show.key, backend.mode),
+      );
+      return {
+        key: show.key,
+        title: show.title,
+        latestAired: data?.progress.latestAired ?? null,
+      };
+    });
+
+    // Nothing is checked until every show has resolved. A partial pass would seed
+    // the snapshot for the shows that had loaded and then announce the rest on the
+    // next run as though they were new.
+    if (inputs.length > 0 && inputs.every((input) => input.latestAired !== null)) {
+      checkForNew(inputs);
+    }
+  }, [myList, cache, backend.mode, checkForNew]);
   const planToWatch = useMemo(() => shows.filter((s) => s.status === "plantowatch"), [shows]);
 
   const apply = async (show: LibraryShow, patch: WatchedPatch) => {
@@ -170,6 +206,36 @@ export function Dashboard({
         </div>
 
         {error ? <div className="error-box">{error}</div> : null}
+
+        {newEpisodes.fresh.length > 0 ? (
+          <aside className="new-episode-banner">
+            <div className="new-episode-banner-header">
+              <strong>
+                {newEpisodes.fresh.length === 1
+                  ? "A new episode aired"
+                  : `${newEpisodes.fresh.length} shows have new episodes`}
+              </strong>
+              <button
+                type="button"
+                className="new-episode-banner-close"
+                aria-label="Dismiss"
+                onClick={newEpisodes.dismiss}
+              >
+                &times;
+              </button>
+            </div>
+            <ul className="new-episode-banner-list">
+              {newEpisodes.fresh.map((entry) => (
+                <li className="list-row" key={entry.key}>
+                  <div className="list-row-title-wrap">
+                    <span className="list-row-title">{entry.title}</span>
+                    <div className="list-row-sub episode-code-sub">{describeNewEpisode(entry)}</div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </aside>
+        ) : null}
 
         <div className="carousel-wrap">
           <div className={`grid${imageMode === "banner" ? " banner-mode" : ""} carousel-track`}>

@@ -109,6 +109,7 @@ export function ShowCardContainer({
         network?.name,
         network?.logo_path,
         TMDB_IMAGE_BASES.logo,
+        import.meta.env.BASE_URL,
       )}
       yearRangeLabel={yearRangeLabel(
         tmdbShow?.first_air_date,
