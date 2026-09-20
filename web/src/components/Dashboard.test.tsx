@@ -140,7 +140,8 @@ describe("Dashboard", () => {
   it("renders the stats, the carousel and both panels", () => {
     mount(library([show()]), { "tmdb:1": showData(ep(1, 1)) });
 
-    expect(screen.getByText("Shows")).toBeInTheDocument();
+    expect(screen.getByText("To Watch")).toBeInTheDocument();
+    expect(screen.getByText("Watching")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Recently Watched" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Plan to Watch" })).toBeInTheDocument();
   });
@@ -214,8 +215,35 @@ describe("Dashboard", () => {
     );
   });
 
-  it("says so when there is nothing on the watching list", () => {
+  it("says so when there is nothing left to watch", () => {
     mount(library([show({ status: "completed" })]), {});
-    expect(screen.getByText(/Nothing on your watching list yet/)).toBeInTheDocument();
+    expect(screen.getByText(/Everything on your watching list is up to date/)).toBeInTheDocument();
+  });
+
+  it("leaves out a watching show with nothing left, which is the list's definition", () => {
+    // The old app listed a watching show only when SIMKL said it had a next
+    // episode (app.js:1157) - being caught up means it does not belong here.
+    mount(
+      library([
+        show({ summary: { remaining: 0, nextAirDate: null, checkedAt: "2026-09-20T00:00:00Z" } }),
+        show({
+          key: "tmdb:2",
+          ids: { tmdb: 2 },
+          title: "Still Going",
+          summary: { remaining: 3, nextAirDate: null, checkedAt: "2026-09-20T00:00:00Z" },
+        }),
+      ]),
+      {},
+    );
+
+    expect(screen.queryByRole("heading", { level: 3, name: "Test Show" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "Still Going" })).toBeInTheDocument();
+  });
+
+  it("includes a show whose progress is not known yet", () => {
+    // Hiding it would make a freshly imported library look empty; it drops out by
+    // itself once its data arrives.
+    mount(library([show()]), {});
+    expect(screen.getByRole("heading", { level: 3, name: "Test Show" })).toBeInTheDocument();
   });
 });

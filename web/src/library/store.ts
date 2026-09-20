@@ -71,6 +71,14 @@ export type LibraryState = {
    * removes one request per show from every subsequent load.
    */
   rememberIds: (key: ShowKey, ids: Partial<ShowIds>) => Promise<void>;
+  /**
+   * Records the derived progress so the next list can be built without fetching.
+   *
+   * Deliberately does NOT touch `updatedAt`: this is a cache, not a change the user
+   * made, and treating it as one would make every load look like an edit to the
+   * backup and push the whole library up again.
+   */
+  rememberSummary: (key: ShowKey, summary: NonNullable<LibraryShow["summary"]>) => Promise<void>;
 };
 
 /**
@@ -215,6 +223,28 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     if (!changed) return;
 
     const next = withShow(get().library, key, (show) => ({ ...show, ids: merged }));
+    set({ library: next });
+    set({ storageError: await persist(next) });
+  },
+
+  rememberSummary: async (key, summary) => {
+    const { library } = get();
+    const existing = library.shows[key];
+    if (!existing) return;
+
+    // Unchanged summaries are common - most loads come straight from the query
+    // cache - and writing one would be a pointless IndexedDB round trip.
+    if (
+      existing.summary?.remaining === summary.remaining &&
+      existing.summary.nextAirDate === summary.nextAirDate
+    ) {
+      return;
+    }
+
+    const next = {
+      ...library,
+      shows: { ...library.shows, [key]: { ...existing, summary } },
+    };
     set({ library: next });
     set({ storageError: await persist(next) });
   },

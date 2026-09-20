@@ -128,7 +128,7 @@ describe("App", () => {
     render(<App />);
 
     await waitFor(() =>
-      expect(screen.getByText(/Nothing on your watching list yet/)).toBeInTheDocument(),
+      expect(screen.getByText(/Everything on your watching list is up to date/)).toBeInTheDocument(),
     );
   });
 });

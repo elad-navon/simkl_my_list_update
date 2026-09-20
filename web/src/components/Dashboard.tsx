@@ -25,6 +25,7 @@ import type { LibraryBackend } from "../library/backend";
 import type { Library, LibraryShow } from "../library/schema";
 import type { Episode } from "../domain/types";
 import { queryKeys } from "../query/client";
+import { Carousel } from "./Carousel";
 import { EpisodeBrowser } from "./EpisodeBrowser";
 import { ShowCardContainer } from "./ShowCardContainer";
 import { useShowData } from "../hooks/useShowData";
@@ -122,19 +123,30 @@ export function Dashboard({
   const shows = useMemo(() => Object.values(library.shows), [library]);
 
   /**
-   * My List: shows you are watching, most recently relevant first.
+   * My List: the shows you are watching that have something left to watch.
    *
-   * Ordering needs each show's progress, which lives in a per-show query, so the
-   * rows are sorted by the signal the library itself holds - the last watch -
-   * and the air-date half of the key is applied once a card's data arrives. The
-   * old page could sort on both because it had already awaited every show before
-   * rendering anything, which is exactly the wait this avoids.
+   * That second half is not a refinement, it is the list's definition. The old app
+   * listed a watching show only when SIMKL said it had a next episode
+   * (app.js:1157), so a show you are caught up on does not appear - which is the
+   * difference between ten cards and a hundred and seven.
+   *
+   * It reads the cached summary rather than each show's live progress, because the
+   * live figure lives in a per-show query and needing all of them is what made a
+   * first load take minutes. A show with no summary yet is INCLUDED: the honest
+   * answer to "is there anything left" is not yet known, and hiding it would mean a
+   * freshly imported library looked empty. Each one drops out as its data arrives.
    */
   const myList = useMemo(
     () =>
       sortByKeyDescending(
-        shows.filter((s) => s.status === "watching"),
-        (s) => myListSortKey({ nextToWatch: null, lastWatchedAt: mostRecentWatchedAt(s.watched) }),
+        shows.filter((s) => s.status === "watching" && (s.summary?.remaining ?? 1) > 0),
+        (s) =>
+          myListSortKey({
+            nextToWatch: s.summary?.nextAirDate
+              ? { season: 0, episode: 0, airDate: s.summary.nextAirDate, title: null, runtime: null }
+              : null,
+            lastWatchedAt: mostRecentWatchedAt(s.watched),
+          }),
       ),
     [shows],
   );
@@ -197,7 +209,12 @@ export function Dashboard({
             <div className="series-panel-stat-group">
               <span className="series-panel-stat">
                 <span className="num">{myList.length}</span>
-                <span className="label">Shows</span>
+                <span className="label">To Watch</span>
+              </span>
+              <span className="stats-divider" />
+              <span className="series-panel-stat">
+                <span className="num">{shows.filter((s) => s.status === "watching").length}</span>
+                <span className="label">Watching</span>
               </span>
               <span className="stats-divider" />
               <span className="series-panel-stat">
@@ -245,15 +262,7 @@ export function Dashboard({
           </aside>
         ) : null}
 
-        <div className="carousel-wrap">
-          {/*
-            `carousel-track` ONLY. The old sheet uses `.grid` for a different
-            view's wrapped layout (app.js:3291) and `.carousel-track` for this
-            horizontal one (app.js:3195) - they were never on the same element, and
-            putting both here let `.grid`'s `display: grid` win on sheet order and
-            turn the carousel into a wrapping grid.
-          */}
-          <div className="carousel-track">
+        <Carousel label="Shows you are watching">
             {myList.map((show, i) => (
               <ShowCardContainer
                 key={show.key}
@@ -272,25 +281,24 @@ export function Dashboard({
                 eager={i < EAGER_CARDS}
               />
             ))}
-            {/* Fills whatever space is left when there are too few cards to
-                fill the row, and shrinks to nothing rather than forcing extra
-                scroll width when there are not (style.css:158-165). */}
-            {myList.length > 0 ? (
-              <div className="carousel-watermark" aria-hidden="true">
-                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="3" y="3" width="18" height="15" rx="3.5" fill="none" stroke="var(--accent)" strokeWidth="1.8" />
-                  <polygon points="10,7.8 10,13.2 14.6,10.5" fill="var(--accent)" />
-                  <line x1="9" y1="21" x2="15" y2="21" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" />
-                </svg>
-              </div>
-            ) : null}
-          </div>
-          {myList.length === 0 ? (
-            <p className="section-note">
-              Nothing on your watching list yet. Use Search Show to add one.
-            </p>
+          {/* Fills whatever space is left when there are too few cards to fill
+              the row, and shrinks to nothing rather than forcing extra scroll
+              width when there are not (style.css:158-165). */}
+          {myList.length > 0 ? (
+            <div className="carousel-watermark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <rect x="3" y="3" width="18" height="15" rx="3.5" fill="none" stroke="var(--accent)" strokeWidth="1.8" />
+                <polygon points="10,7.8 10,13.2 14.6,10.5" fill="var(--accent)" />
+                <line x1="9" y1="21" x2="15" y2="21" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+            </div>
           ) : null}
-        </div>
+        </Carousel>
+        {myList.length === 0 ? (
+          <p className="section-note">
+            Nothing left to watch. Everything on your watching list is up to date.
+          </p>
+        ) : null}
       </section>
 
       <div className="bottom-panels-row">

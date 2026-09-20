@@ -1,0 +1,13 @@
+/*
+ * The arrows' vertical position.
+ *
+ * `.carousel-arrow` in the global sheet positions them horizontally and gives them
+ * their chrome, but the old app set `top` inline per render by measuring the poster
+ * and halving it (app.js:3127). A percentage of the wrap does the same job without
+ * a measurement, and it keeps working when the cards change height between poster
+ * and banner mode - which the measured version had to be recomputed for.
+ */
+
+.arrow {
+  top: 30%;
+}

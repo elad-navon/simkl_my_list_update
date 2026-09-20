@@ -137,7 +137,17 @@ export function useShowData(
         ...(loaded.resolved.imdb !== null ? { imdb: loaded.resolved.imdb } : {}),
       });
 
-      return buildShowData(loaded, simklEpisodes, show);
+      const data = buildShowData(loaded, simklEpisodes, show);
+
+      // What lets the NEXT list be built without loading a hundred shows to find
+      // out which ten of them have anything left to watch.
+      void useLibrary.getState().rememberSummary(show.key, {
+        remaining: data.progress.remaining,
+        nextAirDate: data.progress.nextToWatch?.airDate ?? null,
+        checkedAt: new Date().toISOString(),
+      });
+
+      return data;
     },
   });
 }

@@ -57,6 +57,28 @@ export type LibraryShow = {
    * (app.js:866-889). Storage this shares a budget with nothing.
    */
   images?: { posterPath?: string | undefined; bannerPath?: string | undefined } | undefined;
+  /**
+   * The last derived progress for this show, CACHED.
+   *
+   * Not a second source of truth, and nothing computes anything from it: it is
+   * overwritten by the real derivation every time a show's data loads, and its only
+   * job is to let a list be built without the network. That distinction matters,
+   * because storing pre-computed counts and then trusting them is exactly what made
+   * SIMKL's numbers contradict its own episode lists.
+   *
+   * My List needs it. The old app listed a watching show only when SIMKL said it had
+   * a next episode (app.js:1157) - a show you are caught up on does not belong
+   * there - and answering that for a hundred shows means loading a hundred shows.
+   */
+  summary?:
+    | {
+        /** Aired and unwatched, from `computeProgress`. */
+        remaining: number;
+        /** The next unwatched episode's air date, for ordering. */
+        nextAirDate: string | null;
+        checkedAt: string;
+      }
+    | undefined;
   addedAt: string;
   /** Last local change. Drives last-writer-wins when merging a backup. */
   updatedAt: string;
