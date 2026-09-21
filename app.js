@@ -71,8 +71,35 @@ function safeSetItem(key, value) {
   try {
     localStorage.setItem(key, value);
   } catch (e) {
-    // quota full or storage unavailable - not critical enough to throw over
+    // Quota full: the persisted API cache is what fills it, and it's only a
+    // speed-up, so make room by dropping its oldest entries and try again -
+    // a setting or token must not be lost to make way for cached lookups.
+    // (If storage is unavailable altogether, this just fails quietly.)
+    dropOldCacheUntil(() => localStorage.setItem(key, value));
   }
+}
+
+// Removes persisted API-cache entries oldest-first, retrying `write` after
+// each one, until it goes through. Returns whether it did.
+function dropOldCacheUntil(write) {
+  try {
+    const entries = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith(API_CACHE_PREFIX)) continue;
+      let age = 0;
+      try { age = JSON.parse(localStorage.getItem(k)).t || 0; } catch (e) { /* corrupt: treat as oldest */ }
+      entries.push([age, k]);
+    }
+    entries.sort((a, b) => a[0] - b[0]);
+    for (const [, k] of entries) {
+      localStorage.removeItem(k);
+      try { write(); return true; } catch (e) { /* still full - drop the next one */ }
+    }
+  } catch (e) {
+    // localStorage unavailable
+  }
+  return false;
 }
 
 const app = document.getElementById("app");
@@ -164,7 +191,19 @@ function showSettings(afterSaveCallback) {
     safeSetItem(LS_CLIENT_ID_V2, clientIdV2);
     safeSetItem(LS_TMDB_KEY, tmdbKey);
     safeSetItem(LS_MDBLIST_KEY, mdblistKey);
-    if (mdblistKey !== cfg.mdblistKey) mdblistCache.disabled = false;
+    if (mdblistKey !== cfg.mdblistKey) {
+      mdblistCache.disabled = false;
+      if (mdblistKey) {
+        // safeSetItem swallows a full/blocked storage silently, so confirm the
+        // key really landed, then confirm MDBList accepts it - otherwise a bad
+        // key just looks like "nothing happened".
+        if (localStorage.getItem(LS_MDBLIST_KEY) !== mdblistKey) {
+          showToast("Couldn't store the MDBList key - this browser's storage is full or blocked.", true);
+        } else {
+          checkMdblistKey(mdblistKey);
+        }
+      }
+    }
     if (afterSaveCallback) afterSaveCallback();
   };
   document.getElementById("themeToggleBtn").onclick = () => {
@@ -599,11 +638,14 @@ function readPersistedCache(key, ttlMs) {
 }
 
 function writePersistedCache(key, value) {
+  const write = () => localStorage.setItem(API_CACHE_PREFIX + key, JSON.stringify({ t: Date.now(), v: value }));
   try {
-    localStorage.setItem(API_CACHE_PREFIX + key, JSON.stringify({ t: Date.now(), v: value }));
+    write();
   } catch (e) {
-    // localStorage full or unavailable - the in-memory cache for this
-    // session still works fine, just nothing persists across reloads.
+    // Full: drop the oldest cached entries to fit this newer one. If storage
+    // is unavailable or the entry is bigger than everything, the in-memory
+    // cache for this session still works, just nothing persists.
+    dropOldCacheUntil(write);
   }
 }
 
@@ -959,7 +1001,11 @@ class MdblistCache {
     await this.acquire();
     try {
       const res = await fetch(`https://api.mdblist.com/imdb/show/${imdbId}?apikey=${encodeURIComponent(key)}`);
-      if (res.status === 401 || res.status === 403) { this.disabled = true; return null; }
+      if (res.status === 401 || res.status === 403) {
+        if (!this.disabled) showToast("MDBList rejected the API key - check it in Settings.", true);
+        this.disabled = true;
+        return null;
+      }
       // Unknown to MDBList: remember "nothing" rather than re-asking every load.
       if (res.status === 404) return { imdb: null, tomatoes: null, popcorn: null, trakt: null };
       if (!res.ok) return null;
@@ -996,6 +1042,19 @@ class MdblistCache {
   }
 }
 const mdblistCache = new MdblistCache();
+
+// Called right after a key is saved in Settings: one small request that says
+// whether MDBList accepts it (any known show works for that).
+async function checkMdblistKey(key) {
+  try {
+    const res = await fetch(`https://api.mdblist.com/imdb/show/tt0903747?apikey=${encodeURIComponent(key)}`);
+    if (res.ok) showToast("MDBList key saved and accepted");
+    else if (res.status === 401 || res.status === 403) showToast("MDBList rejected this key - check that it was copied in full.", true);
+    else showToast(`MDBList key saved, but the check failed (${res.status}).`, true);
+  } catch (e) {
+    showToast("MDBList key saved, but MDBList couldn't be reached to check it.", true);
+  }
+}
 
 // One object per show: imdb / simkl / tmdb are out of 10; the RT scores and
 // Trakt are percentages. null = no score from that source.
