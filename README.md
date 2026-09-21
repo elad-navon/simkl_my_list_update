@@ -64,10 +64,13 @@ API; poster/backdrop artwork and episode runtimes come from
   Completed / Dropped), or remove the show from your list — with a
   toast on success or failure.
 - **Poster ↔ Banner** toggle (top bar) — the icon shown reflects what
-  you'll switch to. Click the **right half** of any poster/thumbnail
-  to cycle to the next available image of the current type, or the
-  **left half** to go back to the previous one, if TMDB has more than
-  one.
+  you'll switch to. Click any poster/thumbnail to open a window with
+  every image available for that show (posters or banners, matching
+  what you clicked) and pick one: the large image beside the grid previews
+  your selection, and it is applied to the card (and remembered on this
+  device) when you press Done - closing any other way discards it. Besides TMDB it lists extra images from TVMaze and Metahub
+  (free, no key needed) and, with a free API key in Settings, Fanart.tv,
+  each tagged with its source.
 - **Network logo** badge on the top-left corner of each poster/banner,
   using TMDB's logo when available (a show's *most recent* network,
   for shows that moved between networks over time), falling back to

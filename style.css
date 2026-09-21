@@ -982,6 +982,56 @@
   .rp-list .rt-val { font-size: 1.05rem; white-space: nowrap; }
   .rp-list .rt-label { display: none; }
   .ratings-popover .ratings-hint { border-top: 1px solid #334255; padding-top: 5px; margin-top: 6px; color: #93a4b8; font-size: 0.62rem; }
+  /* Image picker: opened by clicking a poster/banner. Show identity on the
+     left (fixed poster + name), the selectable images on the right. */
+  .modal-box.picker-box { max-width: 1060px; padding: 18px 18px 14px; }
+  .picker-head { display: flex; justify-content: space-between; align-items: center; }
+  .picker-title { font-weight: 800; font-size: 1.1rem; }
+  .picker-cols { display: flex; gap: 16px; margin-top: 12px; align-items: flex-start; }
+  /* The show's main image: big, and it stays in view while the grid scrolls. */
+  .picker-ident { flex: 0 0 clamp(150px, 31%, 320px); position: sticky; top: 0; align-self: flex-start; }
+  .picker-ident-img { aspect-ratio: 2 / 3; border-radius: 12px; overflow: hidden; background: var(--card-hover); box-shadow: 0 10px 28px rgba(0,0,0,0.5); }
+  .picker-ident-img.is-banner { aspect-ratio: 16 / 9; }
+  .picker-ident-img img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .picker-ident-placeholder { height: 100%; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; font-weight: 700; color: var(--muted); }
+  .picker-ident-name {
+    font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif; font-weight: 700; font-size: 1.6rem;
+    letter-spacing: 0.04em; text-transform: uppercase; text-align: center; margin-top: 12px; word-break: break-word;
+  }
+  .picker-ident-year { color: var(--muted); font-size: 0.95rem; text-align: center; }
+  .picker-main { flex: 1 1 auto; min-width: 0; }
+  .picker-count { color: var(--muted); font-size: 0.76rem; margin-bottom: 8px; }
+  .picker-grid { display: grid; gap: 8px; max-height: 68vh; overflow-y: auto; padding: 2px; }
+  .picker-grid.is-poster { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+  .picker-grid.is-banner { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .picker-th {
+    position: relative; padding: 0; border: 2px solid transparent; border-radius: 8px; overflow: hidden;
+    background: var(--card-hover); line-height: 0; cursor: pointer;
+  }
+  .picker-th img { width: 100%; display: block; object-fit: cover; }
+  .picker-grid.is-poster .picker-th img { aspect-ratio: 2 / 3; }
+  .picker-grid.is-banner .picker-th img { aspect-ratio: 16 / 9; }
+  .picker-th:hover { border-color: var(--accent2); }
+  .picker-th.cur { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+  .picker-tag {
+    position: absolute; left: 0; top: 0; background: var(--gold); color: #1b1300; font-size: 0.58rem; font-weight: 800;
+    letter-spacing: 0.05em; padding: 2px 6px; border-radius: 0 0 6px 0; line-height: 1.3; text-transform: uppercase;
+  }
+  /* Where an image came from - only shown on tiles from outside TMDB. */
+  .picker-src {
+    position: absolute; right: 0; bottom: 0; background: rgba(8,12,17,0.82); color: #eef3f8; font-size: 0.56rem;
+    font-weight: 800; letter-spacing: 0.05em; padding: 2px 6px; border-radius: 6px 0 0 0; line-height: 1.3; text-transform: uppercase;
+  }
+  .picker-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; color: var(--muted); font-size: 0.74rem; }
+  .picker-done {
+    background: var(--accent); color: var(--card); border: none; border-radius: 8px;
+    font-weight: 800; font-size: 0.82rem; padding: 7px 16px; cursor: pointer;
+  }
+  .picker-done:hover { filter: brightness(1.1); }
+  @media (max-width: 600px) {
+    .picker-ident { display: none; }
+    .picker-grid.is-banner { grid-template-columns: 1fr; }
+  }
   .detail-status-picker { margin-top: 20px; }
   .detail-picker-label { color: var(--muted); font-size: 0.8rem; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.06em; }
 

@@ -47,6 +47,7 @@ const LS_TOKEN = "simkl_access_token";
 // from the V1 PIN flow above; V1 stops working around April 2027.
 const LS_CLIENT_ID_V2 = "simkl_client_id_v2";
 const LS_MDBLIST_KEY = "mdblist_api_key"; // optional: Rotten Tomatoes + Trakt ratings
+const LS_FANART_KEY = "fanart_api_key";   // optional: extra posters/banners in the image picker
 const LS_AUTH_V2 = "simkl_auth_v2";
 const LS_IMAGE_MODE = "simkl_image_mode"; // "poster" | "banner"
 const LS_THEME = "simkl_theme"; // "light" | "dark"
@@ -118,6 +119,7 @@ function getConfig() {
     clientId: localStorage.getItem(LS_CLIENT_ID) || "",
     clientIdV2: localStorage.getItem(LS_CLIENT_ID_V2) || "",
     mdblistKey: localStorage.getItem(LS_MDBLIST_KEY) || "",
+    fanartKey: localStorage.getItem(LS_FANART_KEY) || "",
     tmdbKey: localStorage.getItem(LS_TMDB_KEY) || "",
   };
 }
@@ -163,6 +165,9 @@ function showSettings(afterSaveCallback) {
       <label>MDBList API Key &mdash; optional, adds Rotten Tomatoes and Trakt ratings
         (<a href="https://mdblist.com/preferences/" target="_blank">get a free key</a>)</label>
       <input type="text" id="mdblistKeyInput" value="${cfg.mdblistKey}">
+      <label>Fanart.tv API Key &mdash; optional, adds more posters and banners to the image picker
+        (<a href="https://fanart.tv/get-an-api-key/" target="_blank">get a free key</a>)</label>
+      <input type="text" id="fanartKeyInput" value="${cfg.fanartKey}">
       <div class="theme-toggle-wrap" style="margin-top:18px">
         <span class="nav-icon"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></span>
         <span style="flex:1 1 auto;text-align:left">Dark Mode</span>
@@ -180,6 +185,7 @@ function showSettings(afterSaveCallback) {
     const clientIdV2 = document.getElementById("clientIdV2Input").value.trim();
     const tmdbKey = document.getElementById("tmdbKeyInput").value.trim();
     const mdblistKey = document.getElementById("mdblistKeyInput").value.trim();
+    const fanartKey = document.getElementById("fanartKeyInput").value.trim();
     if ((!clientId && !clientIdV2) || !tmdbKey) {
       document.getElementById("settingsError").textContent = "A SIMKL Client ID (V2 or V1) and the TMDB key are required.";
       return;
@@ -191,6 +197,8 @@ function showSettings(afterSaveCallback) {
     safeSetItem(LS_CLIENT_ID_V2, clientIdV2);
     safeSetItem(LS_TMDB_KEY, tmdbKey);
     safeSetItem(LS_MDBLIST_KEY, mdblistKey);
+    safeSetItem(LS_FANART_KEY, fanartKey);
+    fanartKeyRejected = false;
     if (mdblistKey !== cfg.mdblistKey) {
       mdblistCache.disabled = false;
       if (mdblistKey) {
@@ -1273,7 +1281,7 @@ function getImageOverrides() {
 // the origin's whole localStorage quota, see prunePersistedCache) used to
 // bubble all the way up and abort the in-progress cycle before it ever
 // touched the DOM: the flip-out/flip-in classes would still get added and
-// stripped by cycleImageWithFlip's cleanup, so it visibly flashed through
+// stripped by the old cycling code's cleanup, so it visibly flashed through
 // the motion of changing, while the image itself silently never did.
 function saveImageOverride(tmdbId, mode, path) {
   if (!tmdbId) return;
@@ -1336,11 +1344,19 @@ function computeImages(showDetail, tmdbId) {
   if (tmdbId) {
     const saved = getImageOverrides()[tmdbId];
     if (saved) {
-      if (saved.posterPath && out.posterPaths.includes(saved.posterPath)) {
+      // A pick from another source (see fetchExtraImages) is saved as a full
+      // URL and isn't one of TMDB's candidates (index -1).
+      if (saved.posterPath && /^https?:/.test(saved.posterPath)) {
+        out.posterIndex = -1;
+        out.posterUrl = saved.posterPath;
+      } else if (saved.posterPath && out.posterPaths.includes(saved.posterPath)) {
         out.posterIndex = out.posterPaths.indexOf(saved.posterPath);
         out.posterUrl = TMDB_IMAGE_BASE + saved.posterPath;
       }
-      if (saved.bannerPath && out.backdropPaths.includes(saved.bannerPath)) {
+      if (saved.bannerPath && /^https?:/.test(saved.bannerPath)) {
+        out.bannerIndex = -1;
+        out.bannerUrl = saved.bannerPath;
+      } else if (saved.bannerPath && out.backdropPaths.includes(saved.bannerPath)) {
         out.bannerIndex = out.backdropPaths.indexOf(saved.bannerPath);
         out.bannerUrl = TMDB_BACKDROP_BASE + saved.bannerPath;
       }
@@ -2780,22 +2796,6 @@ function preloadImage(src) {
   });
 }
 
-// Same idea as preloadImage, but reports whether the image actually loaded
-// instead of resolving unconditionally - used where a failed load needs to
-// be treated differently from a successful one (see cycleImageWithFlip),
-// rather than just "eventually shows up or doesn't".
-function preloadImageOk(src) {
-  return new Promise(resolve => {
-    const img = new Image();
-    let settled = false;
-    const finish = (ok) => { if (!settled) { settled = true; resolve(ok); } };
-    img.onload = () => finish(true);
-    img.onerror = () => finish(false);
-    img.src = src;
-    setTimeout(() => finish(false), 5000);
-  });
-}
-
 let castModalOpenToken = 0;
 
 // Main cast for a show - opened by clicking its title in any of the four
@@ -3275,7 +3275,7 @@ function getCycleRows(source) {
 }
 
 // explicitIndex jumps straight to a known index (used by
-// cycleImageWithFlip once it's confirmed which candidate actually loads)
+// the picker when a thumbnail is chosen)
 // instead of stepping by `direction` from the current one - so skipping
 // past a broken image doesn't need one cycleImage()+patch per skip.
 function cycleImage(source, idx, modeOverride, direction, explicitIndex) {
@@ -3336,8 +3336,7 @@ function displaySrcFor(source, row) {
 // panel, not just the one being cycled, which was flashing every
 // thumbnail on screen blank on a single click while they all re-fetched
 // (even already-loaded, unrelated) images. The cycled image itself is
-// already confirmed loaded (cycleImageWithFlip only calls cycleImage
-// once preloadImageOk succeeds), so this swap is instant.
+// already shown as a thumbnail in the picker, so this swap is quick.
 function patchImagesForTmdbId(tmdbId) {
   if (tmdbId == null) return;
   const groups = [
@@ -3361,7 +3360,7 @@ function patchImagesForTmdbId(tmdbId) {
 
 // Wired as the onerror handler on every poster/banner <img> (both the top
 // carousel card and the three bottom-panel thumbnails) - covers the case
-// cycleImageWithFlip's own preload check can't: a show's *default*
+// the picker's own thumbnails can't: a show's *default*
 // (never-clicked) image path is itself a broken/stale TMDB URL, so the
 // very first render already 404s with nothing to fall back to. Walks
 // forward through that show's other paths directly on the live <img>
@@ -3624,9 +3623,9 @@ function cardImageBits(row, mode, arrIdx, extraOverlayHtml) {
     ? `<img class="${posterClass}" src="${imageUrl}" alt="${row.title}" onerror="handleThumbError(this, 'main', ${arrIdx}, '${mode}')">`
     : `<div class="${posterClass} placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
   const altCount = (row[cfg.pathsKey] || []).length;
-  const cycleable = altCount > 1;
+  const cycleable = altCount > 1 || !!row.imdbId;
   const cycleAttrs = cycleable
-    ? ` data-cycle-key="main-${arrIdx}" title="Click right half for next image, left half for previous" onclick="cycleImageWithFlip('main', ${arrIdx}, this, '${mode}', event)"`
+    ? ` data-cycle-key="main-${arrIdx}" title="Choose a different image" onclick="openImagePicker('main', ${arrIdx}, '${mode}')"`
     : "";
   // Network logo sits in the corner when known - the dark scrim keeps
   // colorful logos from blending into bright poster art underneath. Falls
@@ -3649,119 +3648,278 @@ function cardImageBits(row, mode, arrIdx, extraOverlayHtml) {
   return { wrapHtml };
 }
 
-// Shared by the top carousel card and the three bottom-panel thumbnails -
-// source identifies which cached row array to cycle (see getCycleRows),
-// idx is that show's position within it.
-function cycleImageWithFlip(source, idx, wrapEl, modeOverride, evt) {
-  const rows = getCycleRows(source);
-  const row = rows && rows[idx];
-  if (!row) return;
-  const cfg = IMAGE_MODE_CONFIG[modeOverride || getImageMode()];
-  const paths = row[cfg.pathsKey];
-  if (!paths || paths.length <= 1) return; // nothing else to switch to
+// Clicking a poster/banner opens this window with every image available for
+// the show, to pick one from. Which kind is decided by what was clicked: a
+// bottom-panel thumbnail and a top card in banner mode list banners only, a
+// top card in poster mode lists posters only (`mode`).
+//
+// TMDB's candidates are already in memory (row.posterPaths / row.backdropPaths,
+// from the same response that drew the card), so they cost no API request -
+// only the small thumbnails, loaded lazily as the grid scrolls. More images
+// from other free, keyless sources (see fetchExtraImages) are fetched when
+// the window opens and slot in below, each tagged with where it came from.
+// A pick is only applied when Done is pressed.
+const TMDB_PICKER_THUMB_POSTER = "https://image.tmdb.org/t/p/w185";
+const TMDB_PICKER_THUMB_BACKDROP = "https://image.tmdb.org/t/p/w300";
+const CACHE_TTL_EXTRA_IMAGES_MS = 7 * 24 * 60 * 60 * 1000;
 
-  // Right half of the poster advances to the next image, left half goes
-  // back - falls back to "next" when there's no click position to read.
-  const rect = wrapEl.getBoundingClientRect();
-  const clickX = evt ? evt.clientX - rect.left : rect.width;
-  const direction = clickX < rect.width / 2 ? -1 : 1;
-  const outClass = direction < 0 ? "flip-out-rev" : "flip-out";
-  const inClass = direction < 0 ? "flip-in-rev" : "flip-in";
-
-  // The rotate-away flip only ever runs once the replacement image is
-  // already confirmed loaded - never while it's still in flight. Doing it
-  // in the other order (rotate first, load after) is what caused the
-  // "banner disappears" bug: the flip-out leaves the image invisible
-  // (rotated edge-on) for however long the real network fetch takes,
-  // which on an actual connection to TMDB can be way past the ~160ms this
-  // was tuned for, so the invisible gap - not a loading glitch - was what
-  // read as a blank banner. Resolving the image first means the flip is
-  // always short and bounded; the current image just stays fully visible
-  // (only lightly dimmed via .img-pending) for as long as the fetch takes.
-  //
-  // Some individual poster/backdrop paths TMDB lists for a show also turn
-  // out to not actually resolve to a real image (stale metadata) - no
-  // amount of retrying that exact URL helps. So this walks forward past
-  // however many candidates in a row genuinely fail to load (bounded by
-  // paths.length, in case every one of them is broken) and lands on the
-  // first one that actually does, jumping straight there in one
-  // cycleImage() call rather than one call per skipped candidate.
-  const img = wrapEl.querySelector(".poster, .list-thumb");
-
-  // A real preload can take a real few seconds, and .img-pending is only
-  // a subtle dimming with no other feedback - a second, impatient click
-  // on the same image while the first is still resolving is completely
-  // normal. Without this guard, two overlapping cycles each only clean up
-  // their *own* flip-out/flip-out-rev variant, so one's leftover class
-  // could survive the other's cleanup - which is exactly how an image was
-  // found permanently stuck rotated away (invisible) with a stale
-  // flip-out class still on it, never touched by anything afterward since
-  // nothing else ever re-renders that element anymore (see
-  // patchImagesForTmdbId). Ignoring clicks while one is already in
-  // flight removes the race entirely.
-  if (img && img.dataset.cycling === "1") return;
-  if (img) img.dataset.cycling = "1";
-
-  (async () => {
-    try {
-      if (img) img.classList.add("img-pending");
-      let index = row[cfg.indexKey];
-      let attempts = 0;
-      let loaded = false;
-      while (attempts < paths.length) {
-        index = (index + direction + paths.length) % paths.length;
-        attempts++;
-        loaded = await preloadImageOk(cfg.base + paths[index]);
-        if (loaded) break;
-      }
-      if (!loaded) return; // every alternate failed - leave the current image as-is
-
-      if (img) {
-        img.classList.remove("img-pending");
-        img.classList.add(outClass);
-        await new Promise(r => setTimeout(r, 160));
-      }
-      // Patches every card showing this show in place - no full-panel
-      // rebuild, so every *other* thumbnail on screen stays untouched
-      // instead of flashing blank while it re-requests an already-loaded
-      // image. img is still the same live element (nothing tore it down).
-      cycleImage(source, idx, modeOverride, direction, index);
-      if (img) {
-        img.classList.remove(outClass);
-        requestAnimationFrame(() => img.classList.add(inClass));
-      }
-    } catch (e) {
-      console.error("cycleImageWithFlip failed:", e);
-    } finally {
-      // Whatever happened above - success, a skipped cycle, or an
-      // unexpected exception - the image must never be left dimmed or
-      // rotated away permanently; both are only ever meant to be
-      // transient mid-cycle states.
-      if (img) {
-        img.classList.remove("img-pending", "flip-out", "flip-out-rev");
-        delete img.dataset.cycling;
-      }
-    }
-  })();
+// wsrv.nl: a free, caching image resizer. Some sources only serve huge
+// originals (TVMaze backgrounds are 1920x1080, 400-500 KB each), which would
+// make a gallery of them slow and heavy - resized, a thumbnail is ~8 KB and
+// the banner actually shown ~45 KB.
+function resizedImage(url, width) {
+  return `https://wsrv.nl/?output=jpg&q=75&w=${width}&url=${encodeURIComponent(url)}`;
 }
 
-// Computes the click-to-cycle wrapper attributes for a bottom-panel
+// Extra posters/backgrounds for a show, from sources that need no API key.
+// Returns { poster, banner, tvdbId }; the lists hold { url, thumb, src }:
+// `url` is what's shown on the card once picked, `thumb` what the gallery shows.
+//   - TVMaze: many posters and 16:9 backgrounds (found by IMDb id).
+//   - Metahub: at most one poster and one background, and it doesn't have
+//     every show (a tile whose image fails to load is simply dropped).
+// Cached for a week per show; a network failure isn't cached.
+async function fetchKeylessImages(imdbId) {
+  const out = { poster: [], banner: [], tvdbId: null };
+  if (!imdbId) return out;
+  const cacheKey = `extraimages:${imdbId}`;
+  const cached = readPersistedCache(cacheKey, CACHE_TTL_EXTRA_IMAGES_MS);
+  if (cached !== undefined) return cached;
+  try {
+    const lookup = await fetch(`https://api.tvmaze.com/lookup/shows?imdb=${imdbId}`);
+    if (lookup.ok) {
+      const show = await lookup.json();
+      out.tvdbId = (show.externals && show.externals.thetvdb) || null; // lets Fanart.tv find the show too
+      const res = await fetch(`https://api.tvmaze.com/shows/${show.id}/images`);
+      if (res.ok) {
+        for (const img of await res.json()) {
+          const original = img.resolutions && img.resolutions.original && img.resolutions.original.url;
+          if (!original) continue;
+          if (img.type === "poster") {
+            const medium = img.resolutions.medium && img.resolutions.medium.url;
+            out.poster.push({ url: resizedImage(original, 342), thumb: medium || resizedImage(original, 200), src: "TVMaze" });
+          } else if (img.type === "background") {
+            out.banner.push({ url: resizedImage(original, 780), thumb: resizedImage(original, 300), src: "TVMaze" });
+          }
+        }
+      }
+    } else if (lookup.status !== 404) {
+      return out; // TVMaze hiccup: show what we have, try again next time
+    }
+  } catch (e) {
+    return out; // offline / blocked
+  }
+  const meta = `https://images.metahub.space`;
+  out.poster.push({ url: resizedImage(`${meta}/poster/medium/${imdbId}/img`, 342), thumb: `${meta}/poster/small/${imdbId}/img`, src: "Metahub" });
+  out.banner.push({ url: resizedImage(`${meta}/background/medium/${imdbId}/img`, 780), thumb: resizedImage(`${meta}/background/medium/${imdbId}/img`, 300), src: "Metahub" });
+  writePersistedCache(cacheKey, out);
+  return out;
+}
+
+// Fanart.tv: community-curated artwork, by far the richest of the extra
+// sources (Dexter: 12 posters, 36 backgrounds, 23 wide thumbs). Needs a free
+// key from fanart.tv (Settings) and the show's TheTVDB id; without either it
+// simply contributes nothing. It hands out full-size originals (a poster is
+// >1 MB) plus a small /preview/ variant for the gallery.
+const CACHE_TTL_FANART_MS = 7 * 24 * 60 * 60 * 1000;
+let fanartKeyRejected = false;
+async function fetchFanartImages(tvdbId) {
+  const out = { poster: [], banner: [] };
+  const key = getConfig().fanartKey;
+  if (!key || !tvdbId || fanartKeyRejected) return out;
+  const cacheKey = `fanart:${tvdbId}`;
+  const cached = readPersistedCache(cacheKey, CACHE_TTL_FANART_MS);
+  if (cached !== undefined) return cached;
+  try {
+    const res = await fetch(`https://webservice.fanart.tv/v3/tv/${tvdbId}?api_key=${encodeURIComponent(key)}`);
+    if (res.status === 401 || res.status === 403) {
+      fanartKeyRejected = true;
+      showToast("Fanart.tv rejected the API key - check it in Settings.", true);
+      return out;
+    }
+    if (res.status === 404) { writePersistedCache(cacheKey, out); return out; } // not in their database
+    if (!res.ok) return out;
+    const d = await res.json();
+    const usable = x => x && x.url;
+    const english = x => !x.lang || x.lang === "en" || x.lang === "00";
+    const byLikes = (a, b) => (Number(b.likes) || 0) - (Number(a.likes) || 0);
+    const preview = u => u.replace("/fanart/", "/preview/");
+    for (const img of (d.tvposter || []).filter(usable).filter(english).sort(byLikes)) {
+      out.poster.push({ url: resizedImage(img.url, 342), thumb: preview(img.url), src: "Fanart.tv" });
+    }
+    // Backgrounds and the 16:9 "thumbs" both work as banners.
+    for (const img of (d.showbackground || []).concat(d.tvthumb || []).filter(usable).sort(byLikes)) {
+      out.banner.push({ url: resizedImage(img.url, 780), thumb: preview(img.url), src: "Fanart.tv" });
+    }
+    writePersistedCache(cacheKey, out);
+  } catch (e) {
+    // offline / blocked: no Fanart.tv images this time
+  }
+  return out;
+}
+
+// All extra images for the picker: Fanart.tv first (curated), then TVMaze
+// and Metahub.
+async function fetchExtraImages(imdbId, tmdbId) {
+  const keyless = await fetchKeylessImages(imdbId);
+  let tvdbId = keyless.tvdbId;
+  if (!tvdbId && tmdbId && sharedCache && getConfig().fanartKey) {
+    const detail = await sharedCache.getShow(tmdbId); // already cached; carries external_ids
+    tvdbId = detail && detail.external_ids && detail.external_ids.tvdb_id;
+  }
+  const fanart = await fetchFanartImages(tvdbId);
+  return { poster: fanart.poster.concat(keyless.poster), banner: fanart.banner.concat(keyless.banner) };
+}
+
+// Applies a pick that isn't one of TMDB's numbered candidates: same effect as
+// cycleImage (every card showing the show updates, the choice is stored for
+// the next visit) but keyed by the picture's full URL instead of an index.
+function applyExternalImage(source, idx, mode, url) {
+  const row = (getCycleRows(source) || [])[idx];
+  if (!row) return;
+  const cfg = IMAGE_MODE_CONFIG[mode];
+  row[cfg.indexKey] = -1; // not one of the TMDB candidates
+  row[cfg.urlKey] = url;
+  saveImageOverride(row.tmdbId, mode, url);
+  syncImageAcrossCards(row.tmdbId, cfg, -1, url);
+  patchImagesForTmdbId(row.tmdbId);
+}
+
+function openImagePicker(source, idx, mode) {
+  const row = (getCycleRows(source) || [])[idx];
+  if (!row) return;
+  const cfg = IMAGE_MODE_CONFIG[mode];
+  const paths = row[cfg.pathsKey] || [];
+  if (paths.length < 2 && !row.imdbId) return; // nothing to choose between
+  closeImagePicker();
+
+  const thumbBase = mode === "banner" ? TMDB_PICKER_THUMB_BACKDROP : TMDB_PICKER_THUMB_POSTER;
+  const noun = mode === "banner" ? "banner" : "poster";
+  const year = row.year || (row.yearRangeLabel || "").slice(0, 4);
+  // Nothing is applied to the card until Done: clicking a tile only selects
+  // it (pendingUrl / pendingEntry), and the big image on the side previews
+  // that selection. Closing any other way discards it.
+  const originalUrl = row[cfg.urlKey];
+  let pendingUrl = originalUrl;
+  let pendingEntry = null;
+  const previewSrc = originalUrl || row.posterUrl;
+  const identityHtml = previewSrc
+    ? `<img id="imagePickerPreview" src="${previewSrc}" alt="${row.title}">`
+    : `<div class="picker-ident-placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
+  const tmdbEntries = paths.map((p, i) => ({ url: cfg.base + p, thumb: thumbBase + p, index: i }));
+  let extras = [];
+  let extrasState = row.imdbId ? "loading" : "done";
+
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.id = "imagePickerOverlay";
+  const headerEl = document.querySelector("header");
+  overlay.style.paddingTop = `${(headerEl ? headerEl.offsetHeight : 0) + 24}px`;
+  overlay.innerHTML = `
+    <div class="modal-box picker-box">
+      <div class="picker-head">
+        <span class="picker-title">Choose ${noun}</span>
+        <button class="modal-close-btn" id="imagePickerCloseBtn">&times;</button>
+      </div>
+      <div class="picker-cols">
+        <div class="picker-ident">
+          <div class="picker-ident-img is-${noun}">${identityHtml}</div>
+          <div class="picker-ident-name">${row.title}</div>
+          ${year ? `<div class="picker-ident-year">${year}</div>` : ""}
+        </div>
+        <div class="picker-main">
+          <div class="picker-count" id="imagePickerCount"></div>
+          <div class="picker-grid is-${noun}" id="imagePickerGrid"></div>
+        </div>
+      </div>
+      <div class="picker-foot">
+        <span>Your pick is applied when you press Done</span>
+        <button class="picker-done" id="imagePickerDoneBtn">Done</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const grid = document.getElementById("imagePickerGrid");
+  const countEl = document.getElementById("imagePickerCount");
+  const all = () => tmdbEntries.concat(extras);
+  function renderCount() {
+    const more = extrasState === "loading" ? " · loading more…"
+      : extras.length ? ` · ${extras.length} more from other sources` : "";
+    countEl.textContent = `${tmdbEntries.length} ${noun}s${more}`;
+  }
+  function renderGrid() {
+    const scroll = grid.scrollTop;
+    const current = pendingUrl;
+    grid.innerHTML = all().map((e, i) => `
+      <button class="picker-th${e.url === current ? " cur" : ""}" data-i="${i}" aria-label="${noun} ${i + 1}">
+        <img loading="lazy" alt="" src="${e.thumb}" onerror="this.closest('.picker-th').remove()">
+        ${e.url === current ? `<span class="picker-tag">${e.url === originalUrl ? "Current" : "Selected"}</span>` : ""}
+        ${e.src ? `<span class="picker-src">${e.src}</span>` : ""}
+      </button>`).join("");
+    grid.scrollTop = scroll;
+    renderCount();
+  }
+  renderGrid();
+
+  grid.onclick = e => {
+    const btn = e.target.closest(".picker-th");
+    if (!btn) return;
+    const entry = all()[Number(btn.dataset.i)];
+    if (!entry || entry.url === pendingUrl) return;
+    pendingEntry = entry;
+    pendingUrl = entry.url;
+    const preview = document.getElementById("imagePickerPreview");
+    if (preview) preview.src = entry.url;
+    renderGrid();
+  };
+
+  if (row.imdbId) {
+    fetchExtraImages(row.imdbId, row.tmdbId).then(found => {
+      if (!overlay.isConnected) return; // closed while loading
+      extras = found[mode] || [];
+      extrasState = "done";
+      renderGrid();
+    });
+  }
+
+  document.getElementById("imagePickerCloseBtn").onclick = closeImagePicker;
+  document.getElementById("imagePickerDoneBtn").onclick = () => {
+    if (pendingEntry && pendingUrl !== originalUrl) {
+      if (pendingEntry.index != null) cycleImage(source, idx, mode, 1, pendingEntry.index);
+      else applyExternalImage(source, idx, mode, pendingEntry.url);
+    }
+    closeImagePicker();
+  };
+  overlay.addEventListener("click", e => { if (e.target === overlay) closeImagePicker(); });
+  document.addEventListener("keydown", imagePickerEscHandler);
+}
+
+function imagePickerEscHandler(e) {
+  if (e.key === "Escape") closeImagePicker();
+}
+
+function closeImagePicker() {
+  const overlay = document.getElementById("imagePickerOverlay");
+  if (overlay) overlay.remove();
+  document.removeEventListener("keydown", imagePickerEscHandler);
+}
+
+// Computes the click-to-open-the-image-picker wrapper attributes for a bottom-panel
 // thumbnail (Recently Watched / Plan to Watch / Airing Next), matching the
 // same convention cardImageBits uses for the top carousel card.
 //
 // These thumbnails always show the banner if the show has one (falling
 // back to the poster) regardless of the sidebar's poster/banner toggle -
-// so cycling has to target whichever of the two is actually on screen,
+// so the picker has to list whichever of the two is actually on screen,
 // not blindly follow getImageMode() (which governs the top carousel and
 // may point at the other, unrelated image type).
 function thumbCycleAttrs(row, source, idx) {
   const mode = row.bannerUrl ? "banner" : "poster";
   const cfg = IMAGE_MODE_CONFIG[mode];
   const altCount = (row[cfg.pathsKey] || []).length;
-  if (altCount <= 1) return { cycleableClass: "", attrs: "", mode };
+  if (altCount <= 1 && !row.imdbId) return { cycleableClass: "", attrs: "", mode };
   return {
     cycleableClass: " cycleable",
-    attrs: ` data-cycle-key="${source}-${idx}" title="Click right half for next image, left half for previous" onclick="cycleImageWithFlip('${source}', ${idx}, this, '${mode}', event)"`,
+    attrs: ` data-cycle-key="${source}-${idx}" title="Choose a different image" onclick="openImagePicker('${source}', ${idx}, '${mode}')"`,
     mode,
   };
 }
