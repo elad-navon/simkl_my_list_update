@@ -41,6 +41,12 @@ const ICON_BANNER_SHAPE = `<svg viewBox="0 0 24 24" width="23" height="23" fill=
 const LS_CLIENT_ID = "simkl_client_id";
 const LS_TMDB_KEY = "tmdb_api_key";
 const LS_TOKEN = "simkl_access_token";
+// AUTH V2 (see the "SIMKL auth" section): its own client id, plus one JSON
+// blob {access, refresh, expiresAt, refreshExpiresAt} instead of a single
+// never-expiring token string. While a V2 client id is set it takes over
+// from the V1 PIN flow above; V1 stops working around April 2027.
+const LS_CLIENT_ID_V2 = "simkl_client_id_v2";
+const LS_AUTH_V2 = "simkl_auth_v2";
 const LS_IMAGE_MODE = "simkl_image_mode"; // "poster" | "banner"
 const LS_THEME = "simkl_theme"; // "light" | "dark"
 const LS_VIEW_MODE = "simkl_view_mode";   // "list" or "airing" (not restored on load - always starts on "list")
@@ -82,6 +88,7 @@ function nextImageMode(mode) {
 function getConfig() {
   return {
     clientId: localStorage.getItem(LS_CLIENT_ID) || "",
+    clientIdV2: localStorage.getItem(LS_CLIENT_ID_V2) || "",
     tmdbKey: localStorage.getItem(LS_TMDB_KEY) || "",
   };
 }
@@ -115,8 +122,11 @@ function showSettings(afterSaveCallback) {
         These are stored only in this browser's local storage - never written
         into this HTML file, so it's safe to keep this file in a public repo.
       </p>
-      <label>SIMKL Client ID
-        (<a href="https://simkl.com/settings/developer/" target="_blank">create an app</a>)</label>
+      <label>SIMKL Client ID &mdash; AUTH V2 (recommended)
+        (<a href="https://simkl.com/settings/developer/new/" target="_blank">create an app</a>,
+        type &ldquo;TV, devices &amp; command line&rdquo;)</label>
+      <input type="text" id="clientIdV2Input" value="${cfg.clientIdV2}">
+      <label>SIMKL Client ID &mdash; old AUTH V1 (stops working around April 2027)</label>
       <input type="text" id="clientIdInput" value="${cfg.clientId}">
       <label>TMDB API Key
         (<a href="https://www.themoviedb.org/settings/api" target="_blank">get a free key</a>)</label>
@@ -135,12 +145,17 @@ function showSettings(afterSaveCallback) {
   subtitle.textContent = "Setup required";
   document.getElementById("saveSettingsBtn").onclick = () => {
     const clientId = document.getElementById("clientIdInput").value.trim();
+    const clientIdV2 = document.getElementById("clientIdV2Input").value.trim();
     const tmdbKey = document.getElementById("tmdbKeyInput").value.trim();
-    if (!clientId || !tmdbKey) {
-      document.getElementById("settingsError").textContent = "Both fields are required.";
+    if ((!clientId && !clientIdV2) || !tmdbKey) {
+      document.getElementById("settingsError").textContent = "A SIMKL Client ID (V2 or V1) and the TMDB key are required.";
       return;
     }
+    // A different V2 id means a different app registration, so any stored
+    // V2 tokens belong to the old one and can't be reused.
+    if (clientIdV2 !== cfg.clientIdV2) localStorage.removeItem(LS_AUTH_V2);
     safeSetItem(LS_CLIENT_ID, clientId);
+    safeSetItem(LS_CLIENT_ID_V2, clientIdV2);
     safeSetItem(LS_TMDB_KEY, tmdbKey);
     if (afterSaveCallback) afterSaveCallback();
   };
@@ -156,7 +171,7 @@ function showSettings(afterSaveCallback) {
 }
 
 // ---------------------------------------------------------------------
-// SIMKL auth (PIN flow) + fetching
+// SIMKL auth (V2 device flow, or the older V1 PIN flow) + fetching
 // ---------------------------------------------------------------------
 async function simklRequest(url) {
   let res;
@@ -177,7 +192,172 @@ async function simklRequest(url) {
   return text ? JSON.parse(text) : null;
 }
 
+// Which sign-in is active: a V2 client id (set in Settings) switches the
+// whole app over to AUTH V2; otherwise the old V1 PIN flow keeps working.
+function authMode() {
+  return getConfig().clientIdV2 ? "v2" : "v1";
+}
+
+function activeClientId() {
+  const cfg = getConfig();
+  return cfg.clientIdV2 || cfg.clientId;
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// ---- AUTH V2 token storage + refresh --------------------------------------
+function readAuthV2() {
+  try {
+    const auth = JSON.parse(localStorage.getItem(LS_AUTH_V2) || "null");
+    return auth && auth.access ? auth : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Stores a token-endpoint response. SIMKL access tokens last 7 days and
+// refresh tokens 180 (renewed on every use); a refresh response that omits
+// a new refresh token keeps the previous one.
+function writeAuthV2(tok) {
+  const now = Date.now();
+  const prev = readAuthV2();
+  const auth = {
+    access: tok.access_token,
+    refresh: tok.refresh_token || (prev && prev.refresh) || null,
+    expiresAt: now + (tok.expires_in || 604800) * 1000,
+    refreshExpiresAt: now + 180 * 24 * 60 * 60 * 1000,
+  };
+  safeSetItem(LS_AUTH_V2, JSON.stringify(auth));
+  return auth;
+}
+
+// The OAuth endpoints answer with a JSON error body on 4xx (e.g.
+// authorization_pending), so unlike simklGet this hands back the status and
+// parsed body instead of throwing. Form-encoded is a "simple" CORS request,
+// so it needs no preflight.
+async function oauthPost(path, fields) {
+  let res;
+  try {
+    res = await fetch(`${SIMKL_BASE}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams(fields),
+    });
+  } catch (e) {
+    throw new Error("Network/CORS error reaching SIMKL: " + e.message);
+  }
+  const text = await res.text().catch(() => "");
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (e) { /* non-JSON body */ }
+  return { status: res.status, ok: res.ok, data };
+}
+
+// One refresh at a time: several requests can hit an expired token at once,
+// and a rotating refresh token would be invalidated by the second attempt.
+let refreshPromise = null;
+function refreshV2Token() {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const auth = readAuthV2();
+      if (!auth || !auth.refresh || auth.refreshExpiresAt < Date.now()) {
+        throw new Error("SIMKL session expired. Refresh the page to sign in again.");
+      }
+      const r = await oauthPost("/oauth2/token", {
+        grant_type: "refresh_token", refresh_token: auth.refresh, client_id: activeClientId(),
+      });
+      if (r.ok && r.data && r.data.access_token) return writeAuthV2(r.data);
+      // A definite rejection means the refresh token is dead; anything else
+      // (server hiccup) keeps the stored session for the next attempt.
+      if (r.status === 400 || r.status === 401) localStorage.removeItem(LS_AUTH_V2);
+      throw new Error("SIMKL session expired. Refresh the page to sign in again.");
+    })().finally(() => { refreshPromise = null; });
+  }
+  return refreshPromise;
+}
+
+// The token to use for a request right now. Under V2 it's looked up per
+// call (never captured once at page load) and refreshed ahead of time when
+// less than a day is left. Null when signed out.
+async function currentToken() {
+  if (authMode() === "v1") return localStorage.getItem(LS_TOKEN);
+  let auth = readAuthV2();
+  if (!auth) return null;
+  if (auth.expiresAt - Date.now() < 24 * 60 * 60 * 1000) {
+    try {
+      auth = await refreshV2Token();
+    } catch (e) {
+      if (auth.expiresAt <= Date.now()) return null; // truly expired
+    }
+  }
+  return auth.access;
+}
+
+function dropStoredToken() {
+  localStorage.removeItem(authMode() === "v2" ? LS_AUTH_V2 : LS_TOKEN);
+}
+
 async function getAccessToken() {
+  return authMode() === "v2" ? getAccessTokenV2() : getAccessTokenV1();
+}
+
+// AUTH V2 device flow (RFC 8628): same on-screen experience as the V1 PIN,
+// but with no redirect back to this page - so it also works from an
+// installed home-screen app, where a redirect could land in a browser with
+// separate storage.
+async function getAccessTokenV2() {
+  const existing = await currentToken();
+  if (existing) return existing;
+
+  const clientId = activeClientId();
+  const dev = await oauthPost("/oauth2/device", { client_id: clientId, scope: "media:read media:write" });
+  if (!dev.ok || !dev.data || !dev.data.device_code) {
+    throw new Error(`SIMKL sign-in could not start (${dev.status}): ${(dev.data && (dev.data.error_description || dev.data.error)) || "no details"}`);
+  }
+  const { device_code: deviceCode, user_code: userCode } = dev.data;
+  const verificationUrl = dev.data.verification_uri || "https://simkl.com/pin";
+  const openUrl = dev.data.verification_uri_complete || verificationUrl;
+  let intervalMs = (dev.data.interval || 5) * 1000;
+  const expiresIn = dev.data.expires_in || 900;
+
+  app.innerHTML = `
+    <div class="center-box">
+      <h2>One-time authorization</h2>
+      <p>1. Go to <a href="${openUrl}" target="_blank" rel="noopener">${verificationUrl}</a></p>
+      <p>2. Enter this code:</p>
+      <div class="pin-code">${userCode}</div>
+      <div class="spinner"></div>
+      <p style="color:var(--muted);font-size:0.85rem">Waiting for approval&hellip;</p>
+    </div>
+  `;
+  subtitle.textContent = "Waiting for authorization";
+
+  const deadline = Date.now() + expiresIn * 1000;
+  while (Date.now() < deadline) {
+    await sleep(intervalMs);
+    let r;
+    try {
+      r = await oauthPost("/oauth2/token", {
+        grant_type: "urn:ietf:params:oauth:grant-type:device_code", client_id: clientId, device_code: deviceCode,
+      });
+    } catch (e) {
+      continue; // keep polling through transient network errors
+    }
+    if (r.ok && r.data && r.data.access_token) {
+      writeAuthV2(r.data);
+      localStorage.removeItem(LS_TOKEN); // the old V1 token is dead weight now
+      return r.data.access_token;
+    }
+    const err = r.data && r.data.error;
+    if (err === "authorization_pending") continue;
+    if (err === "slow_down") { intervalMs += 5000; continue; }
+    if (err === "access_denied") throw new Error("Authorization was denied on simkl.com. Refresh the page to try again.");
+    if (err === "expired_token") break;
+    throw new Error(`SIMKL sign-in failed (${r.status}): ${(r.data && (r.data.error_description || r.data.error)) || "no details"}`);
+  }
+  throw new Error("Timed out waiting for approval. Refresh the page to try again.");
+}
+
+async function getAccessTokenV1() {
   const cached = localStorage.getItem(LS_TOKEN);
   if (cached) return cached;
 
@@ -223,24 +403,82 @@ async function getAccessToken() {
   throw new Error("Timed out waiting for PIN approval. Refresh the page to try again.");
 }
 
-async function simklGet(path, token, extraParams) {
-  const { clientId } = getConfig();
-  const params = new URLSearchParams({
-    client_id: clientId, "app-name": APP_NAME, "app-version": APP_VERSION,
-    ...(extraParams || {}),
+// ---- Request pacing ---------------------------------------------------------
+// On top of the daily allowance, SIMKL caps requests per second: 10 GETs and
+// 1 POST. A cold page load fires dozens of per-show lookups at once, and
+// saving several seasons posts back to back - both would trip that.
+// Stays a notch under each limit (9 GETs per rolling second, 1.1s between
+// POSTs); light use never waits.
+const recentGets = [];
+async function throttleGet() {
+  for (;;) {
+    const now = Date.now();
+    while (recentGets.length && now - recentGets[0] >= 1000) recentGets.shift();
+    if (recentGets.length < 9) { recentGets.push(now); return; }
+    await sleep(1000 - (now - recentGets[0]) + 5);
+  }
+}
+let nextPostAt = 0;
+async function throttlePost() {
+  const now = Date.now();
+  const at = Math.max(now, nextPostAt);
+  nextPostAt = at + 1100;
+  if (at > now) await sleep(at - now);
+}
+
+// Lists that findShowLibraryStatus fetched, kept briefly so opening several
+// shows from search doesn't re-download all five lists each time (each list
+// counts against the daily allowance). Any write to the library clears it.
+let libraryListsCache = null;
+
+// One authenticated call to SIMKL's API. Under V2 the token comes from
+// currentToken() per attempt, and a 401 gets one refresh-and-retry; a 429 is
+// either the daily allowance (reported as such) or a per-second burst
+// (waits it out once).
+async function simklApi(method, path, token, { params, body } = {}) {
+  const qs = new URLSearchParams({
+    client_id: activeClientId(), "app-name": APP_NAME, "app-version": APP_VERSION,
+    ...(params || {}),
   });
-  let res;
-  try {
-    res = await fetch(`${SIMKL_BASE}${path}?${params}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-  } catch (e) {
-    throw new Error("Network/CORS error reaching SIMKL: " + e.message);
+  let refreshed = false, waitedOnce = false;
+  for (;;) {
+    if (method === "GET") await throttleGet(); else await throttlePost();
+    const bearer = (await currentToken()) || token;
+    let res;
+    try {
+      res = await fetch(`${SIMKL_BASE}${path}?${qs}`, {
+        method,
+        headers: body !== undefined
+          ? { Authorization: `Bearer ${bearer}`, "Content-Type": "application/json" }
+          : { Authorization: `Bearer ${bearer}` },
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      });
+    } catch (e) {
+      throw new Error("Network/CORS error reaching SIMKL: " + e.message);
+    }
+    if (res.status === 401) {
+      if (!refreshed && authMode() === "v2") {
+        refreshed = true;
+        try { await refreshV2Token(); continue; } catch (e) { /* fall through to sign-out */ }
+      }
+      dropStoredToken();
+      throw new Error("SIMKL access token expired or revoked. Refresh the page to re-authenticate.");
+    }
+    if (res.status === 429) {
+      const info = await res.clone().json().catch(() => null);
+      const retryAfter = Number(res.headers.get("Retry-After")) || 0;
+      if (info && info.error === "user_limit_exceeded") {
+        const hours = Math.floor(retryAfter / 3600), mins = Math.ceil((retryAfter % 3600) / 60);
+        throw new Error(`SIMKL's daily request limit for your account is used up. It resets at midnight US Eastern${retryAfter ? ` (in about ${hours}h ${mins}m)` : ""}.`);
+      }
+      if (!waitedOnce) { waitedOnce = true; await sleep(Math.max(1, retryAfter) * 1000); continue; }
+    }
+    return res;
   }
-  if (res.status === 401) {
-    localStorage.removeItem(LS_TOKEN);
-    throw new Error("SIMKL access token expired or revoked. Refresh the page to re-authenticate.");
-  }
+}
+
+async function simklGet(path, token, extraParams) {
+  const res = await simklApi("GET", path, token, { params: extraParams });
   if (res.status === 404) return null;
   if (!res.ok) {
     const body = await res.text().catch(() => "");
@@ -251,28 +489,12 @@ async function simklGet(path, token, extraParams) {
 }
 
 async function simklPost(path, token, body) {
-  const { clientId } = getConfig();
-  const params = new URLSearchParams({
-    client_id: clientId, "app-name": APP_NAME, "app-version": APP_VERSION,
-  });
-  let res;
-  try {
-    res = await fetch(`${SIMKL_BASE}${path}?${params}`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-  } catch (e) {
-    throw new Error("Network/CORS error reaching SIMKL: " + e.message);
-  }
-  if (res.status === 401) {
-    localStorage.removeItem(LS_TOKEN);
-    throw new Error("SIMKL access token expired or revoked. Refresh the page to re-authenticate.");
-  }
+  const res = await simklApi("POST", path, token, { body });
   if (!res.ok) {
     const errBody = await res.text().catch(() => "");
     throw new Error(`SIMKL request failed (${res.status}): ${errBody.slice(0, 300)}`);
   }
+  libraryListsCache = null; // the library just changed
   const text = await res.text();
   return text ? JSON.parse(text) : null;
 }
@@ -1644,14 +1866,24 @@ async function findShowLibraryStatus(ids, token) {
   // No single SIMKL endpoint reports "what's the status of this one show",
   // so this checks each of the 5 possible lists (same endpoint shape as
   // getWatchingShows/getPlanToWatchShows) and returns the first match.
-  const lists = await Promise.all(
-    LIBRARY_STATUSES.map(status =>
-      // episode_watched_at is what makes SIMKL include each item's per-
-      // episode `seasons` list (same as getWatchingShows) - the episodes
-      // manager needs it to know which episodes are already watched.
-      simklGet(`/sync/all-items/shows/${status}`, token, { extended: "full", episode_watched_at: "yes" }).catch(() => null)
-    )
-  );
+  // Each of the 5 lists counts against SIMKL's daily allowance, so a recent
+  // fetch is reused (simklPost clears it on any library write).
+  let lists;
+  if (libraryListsCache && Date.now() - libraryListsCache.t < 3 * 60 * 1000) {
+    lists = libraryListsCache.lists;
+  } else {
+    let anyFailed = false;
+    lists = await Promise.all(
+      LIBRARY_STATUSES.map(status =>
+        // episode_watched_at is what makes SIMKL include each item's per-
+        // episode `seasons` list (same as getWatchingShows) - the episodes
+        // manager needs it to know which episodes are already watched.
+        simklGet(`/sync/all-items/shows/${status}`, token, { extended: "full", episode_watched_at: "yes" })
+          .catch(() => { anyFailed = true; return null; })
+      )
+    );
+    if (!anyFailed) libraryListsCache = { t: Date.now(), lists };
+  }
   for (let i = 0; i < LIBRARY_STATUSES.length; i++) {
     const data = lists[i];
     const items = Array.isArray(data) ? data : (data && data.shows) || [];
@@ -3770,8 +4002,8 @@ function showNewEpisodeNotification(entries) {
 // Main
 // ---------------------------------------------------------------------
 async function main() {
-  const { clientId, tmdbKey } = getConfig();
-  if (!clientId || !tmdbKey) {
+  const { clientId, clientIdV2, tmdbKey } = getConfig();
+  if ((!clientId && !clientIdV2) || !tmdbKey) {
     showSettings(main);
     return;
   }
