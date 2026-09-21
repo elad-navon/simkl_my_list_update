@@ -46,6 +46,7 @@ const LS_TOKEN = "simkl_access_token";
 // never-expiring token string. While a V2 client id is set it takes over
 // from the V1 PIN flow above; V1 stops working around April 2027.
 const LS_CLIENT_ID_V2 = "simkl_client_id_v2";
+const LS_MDBLIST_KEY = "mdblist_api_key"; // optional: Rotten Tomatoes + Trakt ratings
 const LS_AUTH_V2 = "simkl_auth_v2";
 const LS_IMAGE_MODE = "simkl_image_mode"; // "poster" | "banner"
 const LS_THEME = "simkl_theme"; // "light" | "dark"
@@ -89,6 +90,7 @@ function getConfig() {
   return {
     clientId: localStorage.getItem(LS_CLIENT_ID) || "",
     clientIdV2: localStorage.getItem(LS_CLIENT_ID_V2) || "",
+    mdblistKey: localStorage.getItem(LS_MDBLIST_KEY) || "",
     tmdbKey: localStorage.getItem(LS_TMDB_KEY) || "",
   };
 }
@@ -131,6 +133,9 @@ function showSettings(afterSaveCallback) {
       <label>TMDB API Key
         (<a href="https://www.themoviedb.org/settings/api" target="_blank">get a free key</a>)</label>
       <input type="text" id="tmdbKeyInput" value="${cfg.tmdbKey}">
+      <label>MDBList API Key &mdash; optional, adds Rotten Tomatoes and Trakt ratings
+        (<a href="https://mdblist.com/preferences/" target="_blank">get a free key</a>)</label>
+      <input type="text" id="mdblistKeyInput" value="${cfg.mdblistKey}">
       <div class="theme-toggle-wrap" style="margin-top:18px">
         <span class="nav-icon"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></span>
         <span style="flex:1 1 auto;text-align:left">Dark Mode</span>
@@ -147,6 +152,7 @@ function showSettings(afterSaveCallback) {
     const clientId = document.getElementById("clientIdInput").value.trim();
     const clientIdV2 = document.getElementById("clientIdV2Input").value.trim();
     const tmdbKey = document.getElementById("tmdbKeyInput").value.trim();
+    const mdblistKey = document.getElementById("mdblistKeyInput").value.trim();
     if ((!clientId && !clientIdV2) || !tmdbKey) {
       document.getElementById("settingsError").textContent = "A SIMKL Client ID (V2 or V1) and the TMDB key are required.";
       return;
@@ -157,6 +163,8 @@ function showSettings(afterSaveCallback) {
     safeSetItem(LS_CLIENT_ID, clientId);
     safeSetItem(LS_CLIENT_ID_V2, clientIdV2);
     safeSetItem(LS_TMDB_KEY, tmdbKey);
+    safeSetItem(LS_MDBLIST_KEY, mdblistKey);
+    if (mdblistKey !== cfg.mdblistKey) mdblistCache.disabled = false;
     if (afterSaveCallback) afterSaveCallback();
   };
   document.getElementById("themeToggleBtn").onclick = () => {
@@ -912,6 +920,105 @@ function extractImdbRating(showData) {
   return null;
 }
 
+// ---------------------------------------------------------------------
+// Ratings from several sources
+// ---------------------------------------------------------------------
+// SIMKL's own user rating - same /tv/{id} data (and same defensive
+// parsing) as the IMDb number above.
+function extractSimklRating(showData) {
+  const r = showData && showData.ratings;
+  if (!r || r.simkl == null) return null;
+  const v = typeof r.simkl === "object" ? r.simkl.rating : r.simkl;
+  const n = typeof v === "string" ? parseFloat(v) : v;
+  return typeof n === "number" && isFinite(n) && n > 0 ? n : null;
+}
+
+// Rotten Tomatoes (critics + audience) and Trakt come from MDBList, which
+// aggregates them behind one request per show. Needs a free API key from
+// mdblist.com (Settings); without one this quietly returns nothing and the
+// rest of the ratings still work. Its daily allowance is separate from
+// SIMKL's.
+const CACHE_TTL_MDBLIST_MS = 24 * 60 * 60 * 1000;
+class MdblistCache {
+  constructor() {
+    this.map = new Map();
+    this.active = 0;
+    this.waiting = [];
+    this.disabled = false; // set after the key is rejected, so a bad key isn't retried per show
+  }
+  async acquire() {
+    if (this.active >= 5) await new Promise(r => this.waiting.push(r));
+    this.active++;
+  }
+  release() {
+    this.active--;
+    const next = this.waiting.shift();
+    if (next) next();
+  }
+  async fetchOne(imdbId, key) {
+    await this.acquire();
+    try {
+      const res = await fetch(`https://api.mdblist.com/imdb/show/${imdbId}?apikey=${encodeURIComponent(key)}`);
+      if (res.status === 401 || res.status === 403) { this.disabled = true; return null; }
+      // Unknown to MDBList: remember "nothing" rather than re-asking every load.
+      if (res.status === 404) return { imdb: null, tomatoes: null, popcorn: null, trakt: null };
+      if (!res.ok) return null;
+      const d = await res.json();
+      const by = {};
+      for (const r of d.ratings || []) if (r && typeof r.value === "number") by[r.source] = r.value;
+      return {
+        imdb: by.imdb != null ? by.imdb : null,
+        tomatoes: by.tomatoes != null ? by.tomatoes : null,
+        popcorn: by.popcorn != null ? by.popcorn : null,
+        trakt: by.trakt != null ? by.trakt : null,
+      };
+    } finally {
+      this.release();
+    }
+  }
+  // `recent`: a show in its first month is re-read more often (see isRecentShow).
+  get(imdbId, recent) {
+    const key = getConfig().mdblistKey;
+    if (!key || !imdbId || this.disabled) return Promise.resolve(null);
+    if (!this.map.has(imdbId)) {
+      const cacheKey = `mdblist:${imdbId}`;
+      const cached = readPersistedCache(cacheKey, recent ? CACHE_TTL_SIMKL_SHOW_RECENT_MS : CACHE_TTL_MDBLIST_MS);
+      if (cached !== undefined) {
+        this.map.set(imdbId, Promise.resolve(cached));
+        return this.map.get(imdbId);
+      }
+      const promise = this.fetchOne(imdbId, key)
+        .then(data => { if (data) writePersistedCache(cacheKey, data); return data; })
+        .catch(() => null);
+      this.map.set(imdbId, promise);
+    }
+    return this.map.get(imdbId);
+  }
+}
+const mdblistCache = new MdblistCache();
+
+// One object per show: imdb / simkl / tmdb are out of 10; the RT scores and
+// Trakt are percentages. null = no score from that source.
+function buildRatings(simklShowData, tmdbVote, mdb) {
+  const pos = v => (typeof v === "number" && isFinite(v) && v > 0) ? v : null;
+  const imdb = extractImdbRating(simklShowData);
+  return {
+    // SIMKL's copy first (that's what the card always showed); MDBList's only
+    // fills in when SIMKL has none.
+    imdb: imdb != null ? imdb : pos(mdb && mdb.imdb),
+    simkl: extractSimklRating(simklShowData),
+    tmdb: pos(tmdbVote),
+    rtCritics: pos(mdb && mdb.tomatoes),
+    rtAudience: pos(mdb && mdb.popcorn),
+    trakt: pos(mdb && mdb.trakt),
+  };
+}
+
+async function loadRatings(simklShowData, tmdbVote, imdbId, recent) {
+  const mdb = await mdblistCache.get(imdbId, recent);
+  return buildRatings(simklShowData, tmdbVote, mdb);
+}
+
 function showAverageRuntime(showDetail) {
   if (!showDetail) return 0;
   const ert = showDetail.episode_run_time || [];
@@ -1327,6 +1434,7 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
     let tmdbLogoPath = null;
     let startYear = null;
     let firstAirDate = null;
+    let tmdbVote = null;
     let endYear = null;
     let contentRating = null;
     let genreLabel = null;
@@ -1342,6 +1450,7 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
           startYear = showDetail.first_air_date.slice(0, 4);
           firstAirDate = showDetail.first_air_date;
         }
+        tmdbVote = showDetail ? showDetail.vote_average : null;
         if (showDetail && showDetail.last_air_date) endYear = showDetail.last_air_date.slice(0, 4);
         contentRating = extractContentRating(showDetail);
         genreLabel = extractGenreLabel(showDetail);
@@ -1349,8 +1458,10 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
         images = computeImages(null);
       }
     }
-    const simklShowData = simklId ? await ratingsCache.get(simklId, token, isRecentShow(firstAirDate)) : null;
-    const imdbRating = extractImdbRating(simklShowData);
+    const recentShow = isRecentShow(firstAirDate);
+    const simklShowData = simklId ? await ratingsCache.get(simklId, token, recentShow) : null;
+    const ratings = await loadRatings(simklShowData, tmdbVote, imdbId, recentShow);
+    const imdbRating = ratings.imdb;
     if (!network) network = extractSimklNetwork(simklShowData);
     const networkLogoPath = resolveNetworkLogoUrl(network, tmdbLogoPath);
 
@@ -1364,7 +1475,7 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
     // "2016-2019" once ended, "2016-" (open-ended) while still airing.
     const yearRangeLabel = startYear ? `${startYear}-${ended ? (endYear || "") : ""}` : null;
 
-    return { title, imdbId, imdbRating, ...images, simklId, tmdbId, airedLabel, ended, network, networkLogoPath, yearRangeLabel, contentRating, genreLabel };
+    return { title, imdbId, imdbRating, ratings, ...images, simklId, tmdbId, airedLabel, ended, network, networkLogoPath, yearRangeLabel, contentRating, genreLabel };
   }));
 
   // Highest IMDb rating first; shows with no known rating sink to the end.
@@ -1491,12 +1602,14 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
 
     const [hours, mins] = formatTime(remainingMinutes);
     const [nextHours, nextMins] = formatTime(nextEpisodeMinutes);
-    const simklShowData = simklId ? await ratingsCache.get(simklId, token, isRecentShow(showDetail && showDetail.first_air_date)) : null;
-    const imdbRating = extractImdbRating(simklShowData);
+    const recentShow = isRecentShow(showDetail && showDetail.first_air_date);
+    const simklShowData = simklId ? await ratingsCache.get(simklId, token, recentShow) : null;
+    const ratings = await loadRatings(simklShowData, showDetail && showDetail.vote_average, imdbId, recentShow);
+    const imdbRating = ratings.imdb;
     if (!network) network = extractSimklNetwork(simklShowData);
     const networkLogoPath = resolveNetworkLogoUrl(network, tmdbLogoPath);
     const row = {
-      title, imdbId, imdbRating, simklId, tmdbId, year: show.year, ...images, network, networkLogoPath,
+      title, imdbId, imdbRating, ratings, simklId, tmdbId, year: show.year, ...images, network, networkLogoPath,
       totalEpisodes, available, watched, remaining,
       hours, mins, nextHours, nextMins, nextLabel, nextSeason, nextEpisode, episodeTitle, nextAirDate, badge,
       episodesLeft, lastWatchedAt: mostRecentWatchedAt(item), yearRangeLabel,
@@ -1698,8 +1811,10 @@ async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, re
     }
   }
 
-  const simklShowData = simklId ? await ratingsCache.get(simklId, token, isRecentShow(showDetail && showDetail.first_air_date)) : null;
-  const imdbRating = extractImdbRating(simklShowData);
+  const recentShow = isRecentShow(showDetail && showDetail.first_air_date);
+  const simklShowData = simklId ? await ratingsCache.get(simklId, token, recentShow) : null;
+  const ratings = await loadRatings(simklShowData, showDetail && showDetail.vote_average, imdbId, recentShow);
+  const imdbRating = ratings.imdb;
 
   // Premiere/finale badge, matching SIMKL's own "SEASON PREMIERE" labeling:
   // episode 1 of a season is a premiere (season 1 specifically is a series
@@ -1729,6 +1844,7 @@ async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, re
     imdbId,
     tmdbId,
     imdbRating,
+    ratings,
     ...images,
     nextLabel,
     nextEpisodeTitle,
@@ -2125,6 +2241,7 @@ function renderShowDetail(show, libraryMatch) {
         ${statusHtml}
       </div>
     </div>
+    <div class="detail-ratings" id="detailRatings"></div>
     <div class="detail-status-picker">
       <p class="detail-picker-label">Set status:</p>
       ${statusButtons}
@@ -2134,6 +2251,7 @@ function renderShowDetail(show, libraryMatch) {
   document.getElementById("detailBackBtn").onclick = renderSearchStep;
   const episodesBtn = document.getElementById("detailEpisodesBtn");
   if (episodesBtn) episodesBtn.onclick = () => openEpisodesManager(show, libraryMatch);
+  fillDetailRatings(show, libraryMatch);
   body.querySelectorAll("[data-status]").forEach(btn => {
     btn.onclick = () => setShowStatusFromDetail(show, btn.dataset.status, btn);
   });
@@ -3226,25 +3344,182 @@ const IMDB_LOGO_SVG_INVERTED = `<svg viewBox="0 0 64 32" width="34" height="17" 
   <text x="32" y="23" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="18" fill="#F5C518">IMDb</text>
 </svg>`;
 
-function imdbButtonHtml(imdbId, rating) {
+function imdbButtonHtml(imdbId, rating, ratings) {
   if (!imdbId) return "";
   const url = `https://www.imdb.com/title/${imdbId}/`;
   const ratingHtml = (typeof rating === "number" && !isNaN(rating))
     ? `<span class="imdb-rating">${rating.toFixed(1)}</span>`
     : "";
-  return `<button class="imdb-btn" title="Open on IMDb"
+  // With other ratings to show, hovering opens the popover instead of a
+  // plain tooltip (the two would stack).
+  const attr = ratingsAttr(ratings);
+  return `<button class="imdb-btn"${attr || ' title="Open on IMDb"'}
               onclick="event.stopPropagation(); window.open('${url}', '_blank')">${IMDB_LOGO_SVG_INVERTED}${ratingHtml}</button>`;
 }
 
 // Plain (non-link) IMDb pill used inline in the My List card scrim and the
 // Plan to Watch list rows - visually distinct from imdbButtonHtml's floating
 // corner button (still used by Airing Next).
-function imdbPillHtml(rating, imdbId) {
+function imdbPillHtml(rating, imdbId, ratings) {
   const text = (typeof rating === "number" && !isNaN(rating)) ? rating.toFixed(1) : "N/A";
   const inner = `<span class="imdb-pill">IMDb</span><span class="imdb-pill-rating">${text}</span>`;
   if (!imdbId) return inner;
   const url = `https://www.imdb.com/title/${imdbId}/`;
-  return `<button class="imdb-pill-btn" title="Open on IMDb" onclick="event.stopPropagation(); window.open('${url}', '_blank')">${inner}</button>`;
+  const attr = ratingsAttr(ratings);
+  return `<button class="imdb-pill-btn"${attr || ' title="Open on IMDb"'} onclick="event.stopPropagation(); window.open('${url}', '_blank')">${inner}</button>`;
+}
+
+// ---------------------------------------------------------------------
+// Ratings UI: source icons, the hover popover, and the tiles in the
+// show-detail window
+// ---------------------------------------------------------------------
+// Small hand-drawn marks, not the official logos.
+const RATING_ICON_SVG = {
+  imdb: `<svg viewBox="0 0 64 32" width="30" height="15" aria-hidden="true"><rect width="64" height="32" rx="3" fill="#000"/><text x="32" y="23" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="18" fill="#F5C518">IMDb</text></svg>`,
+  simkl: `<svg viewBox="0 0 44 16" width="34" height="12" aria-hidden="true"><rect width="44" height="16" rx="3" fill="#0f2a3d"/><text x="22" y="11.7" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="9" fill="#7dd3fc">SIMKL</text></svg>`,
+  tmdb: `<svg viewBox="0 0 38 16" width="32" height="13" aria-hidden="true"><rect width="38" height="16" rx="8" fill="#0d253f"/><text x="19" y="11.6" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="9" fill="#01b4e4">TMDB</text></svg>`,
+  trakt: `<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><circle cx="12" cy="12" r="10.5" fill="#ed1c24"/><path d="M6.6 12.4l3.1 3.1 7.7-7.7M9.7 15.5l-1.6-1.6" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`,
+  // Fresh tomato (60%+) and the green splat Rotten Tomatoes uses below that.
+  rtFresh: `<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><circle cx="12" cy="13.6" r="8.6" fill="#fa320a"/><path d="M12 5.2c1-1.9 2.6-2.5 4.3-2.1-.9.8-1.2 1.6-1.1 2.5 1.2-.4 2.3-.2 3 .6-1.5.2-2.4.8-2.9 1.6L12 8l-3.3.8c-.5-.8-1.4-1.4-2.9-1.6.7-.8 1.8-1 3-.6.1-.9-.2-1.7-1.1-2.5 1.7-.4 3.3.2 4.3 2.1z" fill="#3ea82a"/></svg>`,
+  rtRotten: `<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 3c1.6 0 2 1.6 3.2 2 1.3.4 3-.5 3.8.8.8 1.3-.5 2.4-.3 3.7.2 1.4 1.9 2.5 1.2 3.9-.7 1.3-2.4.7-3.5 1.5-1.1.9-1 2.7-2.5 3-1.5.3-2.1-1.3-3.4-1.6-1.4-.3-3 .6-3.8-.6-.9-1.3.4-2.5.3-3.8-.1-1.4-1.9-2.2-1.4-3.7.5-1.4 2.3-1 3.4-1.7C10.1 5.4 10.3 3 12 3z" fill="#5bbf3a"/></svg>`,
+  popcorn: `<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><circle cx="8" cy="8.4" r="3" fill="#ffd24a"/><circle cx="12.2" cy="6.6" r="3.3" fill="#ffe08a"/><circle cx="16.2" cy="8.4" r="3" fill="#ffd24a"/><path d="M5.6 10.4h12.8l-1.5 11H7.1z" fill="#fff"/><path d="M8.6 10.4h2.4l-.4 11H8.2zM13.2 10.4h2.4l.7 11h-2.4z" fill="#e63b2e"/></svg>`,
+};
+
+// One entry per source that has a score, in display order.
+function ratingEntries(r) {
+  if (!r) return [];
+  const out = [];
+  const tenth = v => v.toFixed(1);
+  const pct = v => `${Math.round(v)}%`;
+  // Same number with a small, tight % sign, so six tiles fit in a narrow row.
+  const pctHtml = v => `${Math.round(v)}<span class="unit">%</span>`;
+  if (r.imdb != null) out.push({ key: "imdb", label: "IMDb", icon: RATING_ICON_SVG.imdb, text: tenth(r.imdb), pct: r.imdb * 10, color: "#f5c518" });
+  if (r.simkl != null) out.push({ key: "simkl", label: "Simkl", icon: RATING_ICON_SVG.simkl, text: tenth(r.simkl), pct: r.simkl * 10, color: "#7dd3fc" });
+  if (r.rtCritics != null) out.push({ key: "rt", label: "Tomatometer", icon: r.rtCritics >= 60 ? RATING_ICON_SVG.rtFresh : RATING_ICON_SVG.rtRotten, text: pct(r.rtCritics), html: pctHtml(r.rtCritics), pct: r.rtCritics, color: "#fa5a3c" });
+  if (r.rtAudience != null) out.push({ key: "popcorn", label: "Audience", icon: RATING_ICON_SVG.popcorn, text: pct(r.rtAudience), html: pctHtml(r.rtAudience), pct: r.rtAudience, color: "#f2a93b" });
+  if (r.tmdb != null) out.push({ key: "tmdb", label: "TMDB", icon: RATING_ICON_SVG.tmdb, text: tenth(r.tmdb), pct: r.tmdb * 10, color: "#01b4e4" });
+  if (r.trakt != null) out.push({ key: "trakt", label: "Trakt", icon: RATING_ICON_SVG.trakt, text: pct(r.trakt), html: pctHtml(r.trakt), pct: r.trakt, color: "#ed4b55" });
+  return out;
+}
+
+// Shown at the bottom of both views while no MDBList key is set - that's
+// what Rotten Tomatoes and Trakt need.
+function ratingsKeyHintHtml(entries) {
+  if (getConfig().mdblistKey) return "";
+  if (entries.some(e => e.key === "rt" || e.key === "trakt")) return "";
+  return `<div class="ratings-hint">Add a free MDBList key in Settings for Rotten Tomatoes and Trakt.</div>`;
+}
+
+function ratingsAttr(ratings) {
+  if (!ratings || ratingEntries(ratings).length < 2) return "";
+  return ` data-ratings="${JSON.stringify(ratings).replace(/"/g, "&quot;")}"`;
+}
+
+// Same tiles as the show window, so both places read the same way.
+function ratingsPopoverHtml(r) {
+  return ratingTilesHtml(r);
+}
+
+// One shared popover, positioned with fixed coordinates: the poster wrappers
+// clip their own overflow, so a popover living inside one would be cut off.
+(function wireRatingsPopover() {
+  if (!window.matchMedia || !window.matchMedia("(hover: hover)").matches) return; // touch: ratings live in the show window
+  let pop = null, anchor = null, hideTimer = null;
+
+  function hide() {
+    clearTimeout(hideTimer);
+    if (pop) { pop.remove(); pop = null; }
+    anchor = null;
+  }
+  function show(el) {
+    clearTimeout(hideTimer);
+    if (anchor === el && pop) return;
+    let ratings;
+    try { ratings = JSON.parse(el.getAttribute("data-ratings")); } catch (e) { return; }
+    hide();
+    anchor = el;
+    pop = document.createElement("div");
+    pop.className = "ratings-popover";
+    pop.innerHTML = ratingsPopoverHtml(ratings);
+    // Laid out to fit whatever the pill sits on, so it never spills over the
+    // neighbouring card: a poster or banner gets one row of tiles across its
+    // full width, a Plan-to-Watch style row (thumbnail + text) three columns
+    // spread across the whole row.
+    const box = el.closest(".poster-wrap") || el.closest(".list-row") || el.closest(".card");
+    const b = (box || el).getBoundingClientRect();
+    const mode = box && box.classList.contains("list-row") ? "list" : "banner";
+    pop.className = `ratings-popover rp-${mode}`;
+    // In a thumbnail + text row the popover covers only the text side, so the
+    // picture stays visible.
+    const textBox = mode === "list" ? el.closest(".list-row-title-wrap") : null;
+    const tb = textBox ? textBox.getBoundingClientRect() : b;
+    pop.style.width = `${Math.max(150, mode === "list" ? tb.width : b.width - 16)}px`;
+    if (mode === "banner") {
+      const n = pop.querySelectorAll(".rating-tile").length;
+      pop.querySelector(".rating-tiles").style.gridTemplateColumns = `repeat(${n}, minmax(0, 1fr))`;
+    }
+    document.body.appendChild(pop);
+    const a = el.getBoundingClientRect(), p = pop.getBoundingClientRect();
+    let top = a.top - p.height - 6;
+    if (mode === "list") top = b.top + Math.max(0, (b.height - p.height) / 2); // centred on the row
+    else if (box && box.classList.contains("list-row")) top = Math.max(top, b.top + 4); // inside the row
+    else if (box && box.classList.contains("poster-wrap")) top = Math.max(top, b.top + 6); // on the image
+    else if (top < 8) top = a.bottom + 6;        // no room above: open below
+    const left = Math.max(8, Math.min(mode === "list" ? tb.left : b.left + 8, window.innerWidth - p.width - 8));
+    pop.style.top = `${top}px`;
+    pop.style.left = `${left}px`;
+  }
+  function scheduleHide() {
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(hide, 120);
+  }
+  document.addEventListener("mouseover", e => {
+    const el = e.target.closest && e.target.closest("[data-ratings]");
+    if (el) show(el);
+    else if (pop && !(e.target.closest && e.target.closest(".ratings-popover"))) scheduleHide();
+  });
+  document.addEventListener("focusin", e => {
+    const el = e.target.closest && e.target.closest("[data-ratings]");
+    if (el) show(el);
+  });
+  document.addEventListener("focusout", scheduleHide);
+  document.addEventListener("scroll", hide, true);
+})();
+
+function ratingTilesHtml(r) {
+  const entries = ratingEntries(r);
+  if (!entries.length) return "";
+  return `<div class="rating-tiles">${entries.map(e => `
+    <div class="rating-tile" style="--c:${e.color}">
+      <div class="rt-icon">${e.icon}</div>
+      <div class="rt-text">
+        <div class="rt-val">${e.html || e.text}</div>
+        <div class="rt-label">${e.label}</div>
+      </div>
+    </div>`).join("")}</div>${ratingsKeyHintHtml(entries)}`;
+}
+
+// Fills the ratings block under a show's header in the search window. Works
+// for any show (not just ones on the list): SIMKL id -> its rating, TMDB id
+// -> TMDB score, IMDb id -> MDBList. Whatever's missing is just left out.
+async function fillDetailRatings(show, libraryMatch) {
+  const el = document.getElementById("detailRatings");
+  if (!el) return;
+  const ids = show.ids || {};
+  const libIds = (libraryMatch && libraryMatch.item.show && libraryMatch.item.show.ids) || {};
+  const simklId = ids.simkl || libIds.simkl;
+  const tmdbId = ids.tmdb || libIds.tmdb;
+  const imdbId = ids.imdb || libIds.imdb;
+  try {
+    const showDetail = tmdbId && sharedCache ? await sharedCache.getShow(tmdbId) : null;
+    const recent = isRecentShow(showDetail && showDetail.first_air_date);
+    const simklData = simklId && sharedRatingsCache ? await sharedRatingsCache.get(simklId, simklToken, recent) : null;
+    const ratings = await loadRatings(simklData, showDetail && showDetail.vote_average, imdbId, recent);
+    if (!el.isConnected) return; // navigated away while loading
+    el.innerHTML = ratingTilesHtml(ratings);
+  } catch (e) {
+    if (el.isConnected) el.innerHTML = "";
+  }
 }
 
 const CLOCK_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`;
@@ -3503,7 +3778,7 @@ function rowInfoWrapHtml(row, idx, source, mode) {
       </div>
       ${networkSubHtml(row.network, row.networkLogoPath)}
       ${badgeHtml}
-      <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId)}</div>
+      <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId, row.ratings)}</div>
       ${contentMetaHtml}`;
   }
 
@@ -3525,7 +3800,7 @@ function rowInfoWrapHtml(row, idx, source, mode) {
       </div>
       ${episodeTitleHtml}
       <div class="list-row-sub">${remainingText}</div>
-      <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId)}</div>`;
+      <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId, row.ratings)}</div>`;
   }
 
   // source === "airing", or source === "main" while showing the Airing
@@ -3713,7 +3988,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
         </div>`
       : "";
     const remainingText = row.remaining === 1 ? "1 episode left" : `${row.remaining} episodes left`;
-    const overlayHtml = imdbButtonHtml(row.imdbId, row.imdbRating) + `<div class="remaining-badge">${STAT_STACK_ICON_BLACK_SVG}${remainingText}</div>`;
+    const overlayHtml = imdbButtonHtml(row.imdbId, row.imdbRating, row.ratings) + `<div class="remaining-badge">${STAT_STACK_ICON_BLACK_SVG}${remainingText}</div>`;
     const { wrapHtml } = cardImageBits(row, mode, arrIdx, overlayHtml);
 
     return `
@@ -3842,7 +4117,7 @@ function renderAiringRows(rows) {
   const isWide = mode === "banner";
 
   const cards = rows.map((row, arrIdx) => {
-    const { wrapHtml } = cardImageBits(row, mode, arrIdx, imdbButtonHtml(row.imdbId, row.imdbRating));
+    const { wrapHtml } = cardImageBits(row, mode, arrIdx, imdbButtonHtml(row.imdbId, row.imdbRating, row.ratings));
     return `
       <div class="card">
         ${wrapHtml}

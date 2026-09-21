@@ -930,6 +930,58 @@
   @container (min-width: 520px) {
     .ep-grid { grid-template-columns: 1fr 1fr; }
   }
+  /* Ratings from several sources: tiles in the show window, and the popover
+     that opens when hovering an IMDb pill/button on a card. */
+  .detail-ratings:empty { display: none; }
+  .detail-ratings { margin-top: 16px; }
+  .rating-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  /* Icon on the left, big enough to read; number and source name beside it. */
+  .rating-tile {
+    display: flex; align-items: center; gap: 11px;
+    background: var(--card-hover); border-radius: 10px; padding: 9px 11px 9px 10px;
+    border-left: 3px solid var(--c);
+  }
+  .rt-icon { flex: 0 0 46px; height: 40px; display: flex; align-items: center; justify-content: center; }
+  .rt-icon svg { width: 100%; height: 100%; }
+  .rt-text { min-width: 0; }
+  .rt-val {
+    font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif; font-weight: 700; font-size: 1.6rem;
+    line-height: 1.05; font-variant-numeric: tabular-nums;
+  }
+  .rt-val .unit { font-size: 0.6em; margin-left: 1px; letter-spacing: -0.02em; opacity: 0.85; }
+  .rt-label { font-size: 0.66rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-top: 1px; }
+  .ratings-hint { margin-top: 8px; color: var(--muted); font-size: 0.72rem; }
+  .ratings-popover {
+    position: fixed; z-index: 400; pointer-events: none; box-sizing: border-box;
+    background: #0f161e; color: #eef3f8; border: 1px solid #334255; border-radius: 10px; padding: 6px;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.55);
+  }
+  /* Compact versions of the show-window tiles, one per place the pill can be.
+     The popover is always dark, so the tiles pin their own colors.
+     rp-banner: one row across a poster or banner - icon over number, no source names
+     (the icon says which is which). Column count is set from script. */
+  .ratings-popover .rating-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+  .ratings-popover .rating-tile { min-width: 0; }
+  .ratings-popover .rating-tile { background: #1a2430; padding: 5px 9px 5px 7px; gap: 8px; border-left-width: 2px; }
+  .ratings-popover .rt-icon { flex: 0 0 40px; height: 30px; }
+  .ratings-popover .rt-val { font-size: 1.3rem; }
+  .ratings-popover .rt-label { color: #93a4b8; font-size: 0.6rem; margin-top: 0; }
+  .rp-banner .rating-tile {
+    flex-direction: column; justify-content: center; gap: 2px; padding: 6px 2px 5px; text-align: center;
+    border-left: none; border-top: 2px solid var(--c);
+  }
+  .rp-banner .rt-icon { flex: 0 0 auto; width: 100%; height: 30px; min-width: 0; }
+  .rp-banner .rt-val { font-size: 1.25rem; letter-spacing: -0.01em; white-space: nowrap; }
+  .rp-banner .rt-label { display: none; }
+  /* rp-list: over the text side of a thumbnail + text row only - three
+     columns, two rows, icon beside the number (no source names, no room). */
+  .rp-list { padding: 5px; }
+  .rp-list .rating-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+  .rp-list .rating-tile { padding: 3px 5px 3px 5px; gap: 5px; border-left-width: 2px; }
+  .rp-list .rt-icon { flex: 0 0 28px; height: 24px; min-width: 0; }
+  .rp-list .rt-val { font-size: 1.05rem; white-space: nowrap; }
+  .rp-list .rt-label { display: none; }
+  .ratings-popover .ratings-hint { border-top: 1px solid #334255; padding-top: 5px; margin-top: 6px; color: #93a4b8; font-size: 0.62rem; }
   .detail-status-picker { margin-top: 20px; }
   .detail-picker-label { color: var(--muted); font-size: 0.8rem; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.06em; }
 
