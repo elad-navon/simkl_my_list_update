@@ -564,6 +564,16 @@ const CACHE_TTL_TMDB_SHOW_MS = 24 * 60 * 60 * 1000;
 const CACHE_TTL_TMDB_SEASON_MS = 6 * 60 * 60 * 1000;
 const CACHE_TTL_SIMKL_EPISODES_MS = 6 * 60 * 60 * 1000;
 const CACHE_TTL_SIMKL_SHOW_MS = 24 * 60 * 60 * 1000;
+const CACHE_TTL_SIMKL_SHOW_RECENT_MS = 3 * 60 * 60 * 1000; // for shows in their first month, see isRecentShow
+const RECENT_SHOW_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+// True for a show whose first episode aired within the last 30 days (or is
+// still upcoming). `firstAirDate` is TMDB's "YYYY-MM-DD" first_air_date.
+function isRecentShow(firstAirDate) {
+  if (!firstAirDate) return false;
+  const t = new Date(firstAirDate + "T00:00:00").getTime();
+  return !isNaN(t) && Date.now() - t < RECENT_SHOW_WINDOW_MS;
+}
 const CACHE_TTL_TMDB_EPISODE_IDS_MS = 7 * 24 * 60 * 60 * 1000; // an episode's IMDb id never changes
 const CACHE_TTL_TMDB_CREDITS_MS = 24 * 60 * 60 * 1000;
 const CACHE_TTL_TMDB_PERSON_IDS_MS = 7 * 24 * 60 * 60 * 1000; // a person's IMDb id never changes
@@ -785,10 +795,14 @@ class SimklShowCache {
   // pass the token anyway since it's harmless). Used to read the show's
   // IMDb rating as shown on its simkl.com page, per user request.
   constructor() { this.map = new Map(); }
-  get(simklId, token) {
+  // `recent` marks a show that premiered within the last month: its IMDb
+  // rating still moves a lot, and SIMKL's copy of it catches up gradually,
+  // so it's re-read more often (an older show's rating barely changes, and
+  // re-reading every show that often would slow every refresh down).
+  get(simklId, token, recent) {
     if (!this.map.has(simklId)) {
       const cacheKey = `simklshow:${simklId}`;
-      const cached = readPersistedCache(cacheKey, CACHE_TTL_SIMKL_SHOW_MS);
+      const cached = readPersistedCache(cacheKey, recent ? CACHE_TTL_SIMKL_SHOW_RECENT_MS : CACHE_TTL_SIMKL_SHOW_MS);
       if (cached !== undefined) {
         this.map.set(simklId, Promise.resolve(cached));
         return this.map.get(simklId);
@@ -1238,15 +1252,20 @@ async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token, rat
     c.networkLogoPath = null;
     c.episodeTitle = null;
     let tmdbLogoPath = null;
+    let firstAirDate = null;
     if (c.tmdbId) {
       const showDetail = await cache.getShow(c.tmdbId); // cached, no extra request if already fetched
       Object.assign(c, computeImages(showDetail, c.tmdbId));
       const network = latestNetwork(showDetail);
       c.network = network ? network.name : null;
       tmdbLogoPath = network ? network.logo_path : null;
+      firstAirDate = showDetail ? showDetail.first_air_date : null;
     }
     if (!c.network && c.simklId && ratingsCache) {
-      c.network = extractSimklNetwork(await ratingsCache.get(c.simklId, token));
+      // Same freshness rule as the rating lookups: the cache remembers the
+      // first read per show for the whole session, so this one mustn't be
+      // the call that pins an older copy of a brand-new show.
+      c.network = extractSimklNetwork(await ratingsCache.get(c.simklId, token, isRecentShow(firstAirDate)));
     }
     c.networkLogoPath = resolveNetworkLogoUrl(c.network, tmdbLogoPath);
 
@@ -1307,6 +1326,7 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
     let network = null;
     let tmdbLogoPath = null;
     let startYear = null;
+    let firstAirDate = null;
     let endYear = null;
     let contentRating = null;
     let genreLabel = null;
@@ -1318,7 +1338,10 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
         const showNetwork = latestNetwork(showDetail);
         network = showNetwork ? showNetwork.name : null;
         tmdbLogoPath = showNetwork ? showNetwork.logo_path : null;
-        if (showDetail && showDetail.first_air_date) startYear = showDetail.first_air_date.slice(0, 4);
+        if (showDetail && showDetail.first_air_date) {
+          startYear = showDetail.first_air_date.slice(0, 4);
+          firstAirDate = showDetail.first_air_date;
+        }
         if (showDetail && showDetail.last_air_date) endYear = showDetail.last_air_date.slice(0, 4);
         contentRating = extractContentRating(showDetail);
         genreLabel = extractGenreLabel(showDetail);
@@ -1326,7 +1349,7 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
         images = computeImages(null);
       }
     }
-    const simklShowData = simklId ? await ratingsCache.get(simklId, token) : null;
+    const simklShowData = simklId ? await ratingsCache.get(simklId, token, isRecentShow(firstAirDate)) : null;
     const imdbRating = extractImdbRating(simklShowData);
     if (!network) network = extractSimklNetwork(simklShowData);
     const networkLogoPath = resolveNetworkLogoUrl(network, tmdbLogoPath);
@@ -1468,7 +1491,7 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
 
     const [hours, mins] = formatTime(remainingMinutes);
     const [nextHours, nextMins] = formatTime(nextEpisodeMinutes);
-    const simklShowData = simklId ? await ratingsCache.get(simklId, token) : null;
+    const simklShowData = simklId ? await ratingsCache.get(simklId, token, isRecentShow(showDetail && showDetail.first_air_date)) : null;
     const imdbRating = extractImdbRating(simklShowData);
     if (!network) network = extractSimklNetwork(simklShowData);
     const networkLogoPath = resolveNetworkLogoUrl(network, tmdbLogoPath);
@@ -1675,7 +1698,7 @@ async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, re
     }
   }
 
-  const simklShowData = simklId ? await ratingsCache.get(simklId, token) : null;
+  const simklShowData = simklId ? await ratingsCache.get(simklId, token, isRecentShow(showDetail && showDetail.first_air_date)) : null;
   const imdbRating = extractImdbRating(simklShowData);
 
   // Premiere/finale badge, matching SIMKL's own "SEASON PREMIERE" labeling:
