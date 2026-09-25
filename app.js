@@ -37,13 +37,6 @@ const APP_VERSION = "1.0";
 // the button's own label.
 const ICON_POSTER_SHAPE = `<svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"></rect></svg>`;
 const ICON_BANNER_SHAPE = `<svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect></svg>`;
-// A portrait rect <-> a landscape rect with a swap arrow between them - one
-// fixed icon (unlike the two above, which alternate per current mode) for
-// the bottom panels' own poster/banner toggle button. Both rects sized to
-// roughly the same area (a "device" pair, not a small poster + tiny banner)
-// with bold rounded corners, matching the reference icon the user supplied.
-const ICON_POSTER_BANNER_SWAP_SVG = `<svg viewBox="0 0 66 26" width="36" height="14.2" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="12" height="22" rx="4.5"></rect><line x1="20" y1="13" x2="40" y2="13"></line><polyline points="24,9 20,13 24,17"></polyline><polyline points="36,9 40,13 36,17"></polyline><rect x="46" y="6" width="18" height="14" rx="4"></rect></svg>`;
-
 const LS_CLIENT_ID = "simkl_client_id";
 const LS_TMDB_KEY = "tmdb_api_key";
 const LS_TOKEN = "simkl_access_token";
@@ -56,11 +49,6 @@ const LS_MDBLIST_KEY = "mdblist_api_key"; // optional: Rotten Tomatoes + Trakt r
 const LS_FANART_KEY = "fanart_api_key";   // optional: extra posters/banners in the image picker
 const LS_AUTH_V2 = "simkl_auth_v2";
 const LS_IMAGE_MODE = "simkl_image_mode"; // "poster" | "banner"
-// Independent of LS_IMAGE_MODE above - that one governs the top carousel,
-// this one governs the three bottom panels' thumbnails (Recently Watched /
-// Plan to Watch / Airing Next) as a single shared setting, so toggling it
-// changes all three panels together rather than one at a time.
-const LS_LIST_IMAGE_MODE = "simkl_list_image_mode"; // "poster" | "banner"
 const LS_THEME = "simkl_theme"; // "light" | "dark"
 const LS_VIEW_MODE = "simkl_view_mode";   // "list" or "airing" (not restored on load - always starts on "list")
 
@@ -115,12 +103,6 @@ function getImageMode() {
 
 function nextImageMode(mode) {
   return mode === "poster" ? "banner" : "poster";
-}
-
-// Defaults to "banner" - matches the bottom panels' original behavior
-// (banner-if-available) so existing users see no change until they toggle it.
-function getListImageMode() {
-  return localStorage.getItem(LS_LIST_IMAGE_MODE) === "poster" ? "poster" : "banner";
 }
 
 function getConfig() {
@@ -3242,28 +3224,6 @@ function updateImageModeButton() {
   btn.innerHTML = `<span class="nav-icon">${icon}</span>Switch to ${nextLabel}`;
 }
 
-// Icon-only toggle (getListImageMode()) rendered inline in each of the
-// three bottom panels' own header row, right of the "N shows" count -
-// identical markup in all three, sharing one localStorage key, so clicking
-// the icon in any one panel switches all three together via a full re-render
-// (toggleListImageMode below), never just the one it was clicked in.
-function listImageModeIconBtnHtml() {
-  const mode = getListImageMode();
-  const nextLabel = mode === "poster" ? "banners" : "posters";
-  return `<button type="button" class="list-image-mode-btn" title="Switch to ${nextLabel}" onclick="toggleListImageMode()">${ICON_POSTER_BANNER_SWAP_SVG}</button>`;
-}
-
-function toggleListImageMode() {
-  const current = getListImageMode();
-  safeSetItem(LS_LIST_IMAGE_MODE, current === "poster" ? "banner" : "poster");
-  // The bottom panels only ever show in the "list" view (renderRows) - if
-  // Airing Next is open there's nothing on screen to update; the choice is
-  // still persisted and will apply next time the list view renders.
-  if (currentView !== "airing" && lastRows) {
-    renderRows(lastRows, lastTotalEps, lastTotalMinutes); // instant, no re-fetch
-  }
-}
-
 function applyStoredTheme() {
   const isLight = localStorage.getItem(LS_THEME) === "light";
   document.body.classList.toggle("light-theme", isLight);
@@ -3934,30 +3894,24 @@ function closeImagePicker() {
   document.removeEventListener("keydown", imagePickerEscHandler);
 }
 
-// Computes the click-to-open-the-image-picker wrapper attributes (plus which
-// image to show) for a bottom-panel thumbnail (Recently Watched / Plan to
-// Watch / Airing Next), matching the same convention cardImageBits uses for
-// the top carousel card.
+// Computes the click-to-open-the-image-picker wrapper attributes for a bottom-panel
+// thumbnail (Recently Watched / Plan to Watch / Airing Next), matching the
+// same convention cardImageBits uses for the top carousel card.
 //
-// These thumbnails follow getListImageMode() - a toggle of their own,
-// separate from the sidebar's poster/banner toggle (getImageMode(), which
-// governs only the top carousel) - falling back to whichever of the two the
-// show actually has when the preferred type is missing. The picker always
-// lists whichever type ends up on screen.
+// These thumbnails always show the banner if the show has one (falling
+// back to the poster) regardless of the sidebar's poster/banner toggle -
+// so the picker has to list whichever of the two is actually on screen,
+// not blindly follow getImageMode() (which governs the top carousel and
+// may point at the other, unrelated image type).
 function thumbCycleAttrs(row, source, idx) {
-  const preferPoster = getListImageMode() === "poster";
-  const mode = preferPoster
-    ? (row.posterUrl ? "poster" : "banner")
-    : (row.bannerUrl ? "banner" : "poster");
-  const src = mode === "poster" ? row.posterUrl : row.bannerUrl;
+  const mode = row.bannerUrl ? "banner" : "poster";
   const cfg = IMAGE_MODE_CONFIG[mode];
   const altCount = (row[cfg.pathsKey] || []).length;
-  if (altCount <= 1 && !row.imdbId) return { cycleableClass: "", attrs: "", mode, src };
+  if (altCount <= 1 && !row.imdbId) return { cycleableClass: "", attrs: "", mode };
   return {
     cycleableClass: " cycleable",
     attrs: ` data-cycle-key="${source}-${idx}" title="Choose a different image" onclick="openImagePicker('${source}', ${idx}, '${mode}')"`,
     mode,
-    src,
   };
 }
 
@@ -4077,9 +4031,10 @@ function rowInfoWrapHtml(row, idx, source, mode) {
 function renderRecentlyWatchedHtml(list) {
   if (!list || !list.length) return "";
   const rowsHtml = list.map((ep, idx) => {
-    const { cycleableClass, attrs, mode, src } = thumbCycleAttrs(ep, "watched", idx);
-    const thumbHtml = src
-      ? `<img class="list-thumb${mode === "poster" ? " thumb-poster" : ""}" src="${src}" alt="${ep.title}" onerror="handleThumbError(this, 'watched', ${idx}, '${mode}')">`
+    const bannerSrc = ep.bannerUrl || ep.posterUrl;
+    const { cycleableClass, attrs, mode } = thumbCycleAttrs(ep, "watched", idx);
+    const thumbHtml = bannerSrc
+      ? `<img class="list-thumb" src="${bannerSrc}" alt="${ep.title}" onerror="handleThumbError(this, 'watched', ${idx}, '${mode}')">`
       : `<div class="list-thumb placeholder">${(ep.title[0] || "?").toUpperCase()}</div>`;
     return `
       <div class="list-row">
@@ -4093,10 +4048,7 @@ function renderRecentlyWatchedHtml(list) {
     <div class="list-panel list-panel--watched">
       <div class="list-panel-header-row">
         <div class="list-panel-header">${CLOCK_ICON_SOLID_SVG}<span>RECENTLY WATCHED</span></div>
-        <div class="list-panel-count-wrap">
-          ${listPanelCountHtml(list.length, "watched")}
-          ${listImageModeIconBtnHtml()}
-        </div>
+        ${listPanelCountHtml(list.length, "watched")}
       </div>
       <div class="list-rows-scroll">${rowsHtml}</div>
     </div>`;
@@ -4105,9 +4057,10 @@ function renderRecentlyWatchedHtml(list) {
 function renderPlanToWatchHtml(list) {
   if (!list || !list.length) return "";
   const rowsHtml = list.map((row, idx) => {
-    const { cycleableClass, attrs, mode, src } = thumbCycleAttrs(row, "plan", idx);
-    const thumbHtml = src
-      ? `<img class="list-thumb${mode === "poster" ? " thumb-poster" : ""}" src="${src}" alt="${row.title}" onerror="handleThumbError(this, 'plan', ${idx}, '${mode}')">`
+    const bannerSrc = row.bannerUrl || row.posterUrl;
+    const { cycleableClass, attrs, mode } = thumbCycleAttrs(row, "plan", idx);
+    const thumbHtml = bannerSrc
+      ? `<img class="list-thumb" src="${bannerSrc}" alt="${row.title}" onerror="handleThumbError(this, 'plan', ${idx}, '${mode}')">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
     return `
       <div class="list-row">
@@ -4122,10 +4075,7 @@ function renderPlanToWatchHtml(list) {
     <div class="list-panel list-panel--plan">
       <div class="list-panel-header-row">
         <div class="list-panel-header">${BOOKMARK_ICON_SVG}<span>PLAN TO WATCH</span></div>
-        <div class="list-panel-count-wrap">
-          ${listPanelCountHtml(list.length, "plan")}
-          ${listImageModeIconBtnHtml()}
-        </div>
+        ${listPanelCountHtml(list.length, "plan")}
       </div>
       <div class="list-rows-scroll">${rowsHtml}</div>
     </div>`;
@@ -4134,9 +4084,10 @@ function renderPlanToWatchHtml(list) {
 function renderAiringNextPreviewHtml(list) {
   if (!list || !list.length) return "";
   const rowsHtml = list.map((row, idx) => {
-    const { cycleableClass, attrs, mode, src } = thumbCycleAttrs(row, "airing", idx);
-    const thumbHtml = src
-      ? `<img class="list-thumb${mode === "poster" ? " thumb-poster" : ""}" src="${src}" alt="${row.title}" onerror="handleThumbError(this, 'airing', ${idx}, '${mode}')">`
+    const bannerSrc = row.bannerUrl || row.posterUrl;
+    const { cycleableClass, attrs, mode } = thumbCycleAttrs(row, "airing", idx);
+    const thumbHtml = bannerSrc
+      ? `<img class="list-thumb" src="${bannerSrc}" alt="${row.title}" onerror="handleThumbError(this, 'airing', ${idx}, '${mode}')">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
     return `
       <div class="list-row">
@@ -4150,10 +4101,7 @@ function renderAiringNextPreviewHtml(list) {
     <div class="list-panel list-panel--airing">
       <div class="list-panel-header-row">
         <div class="list-panel-header">${CALENDAR_ICON_SVG}<span>AIRING NEXT</span></div>
-        <div class="list-panel-count-wrap">
-          ${listPanelCountHtml(list.length, "airing")}
-          ${listImageModeIconBtnHtml()}
-        </div>
+        ${listPanelCountHtml(list.length, "airing")}
       </div>
       <div class="list-rows-scroll">${rowsHtml}</div>
     </div>`;
