@@ -37,6 +37,12 @@ const APP_VERSION = "1.0";
 // the button's own label.
 const ICON_POSTER_SHAPE = `<svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"></rect></svg>`;
 const ICON_BANNER_SHAPE = `<svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect></svg>`;
+// A portrait rect <-> a landscape rect with a swap arrow between them - one
+// fixed icon (unlike the two above, which alternate per current mode) for
+// the bottom panels' own poster/banner toggle button. Both rects sized to
+// roughly the same area (a "device" pair, not a small poster + tiny banner)
+// with bold rounded corners, matching the reference icon the user supplied.
+const ICON_POSTER_BANNER_SWAP_SVG = `<svg viewBox="0 0 66 26" width="36" height="14.2" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="12" height="22" rx="4.5"></rect><line x1="20" y1="13" x2="40" y2="13"></line><polyline points="24,9 20,13 24,17"></polyline><polyline points="36,9 40,13 36,17"></polyline><rect x="46" y="6" width="18" height="14" rx="4"></rect></svg>`;
 
 const LS_CLIENT_ID = "simkl_client_id";
 const LS_TMDB_KEY = "tmdb_api_key";
@@ -50,16 +56,13 @@ const LS_MDBLIST_KEY = "mdblist_api_key"; // optional: Rotten Tomatoes + Trakt r
 const LS_FANART_KEY = "fanart_api_key";   // optional: extra posters/banners in the image picker
 const LS_AUTH_V2 = "simkl_auth_v2";
 const LS_IMAGE_MODE = "simkl_image_mode"; // "poster" | "banner"
+// Independent of LS_IMAGE_MODE above - that one governs the top carousel,
+// this one governs the three bottom panels' thumbnails (Recently Watched /
+// Plan to Watch / Airing Next) as a single shared setting, so toggling it
+// changes all three panels together rather than one at a time.
+const LS_LIST_IMAGE_MODE = "simkl_list_image_mode"; // "poster" | "banner"
 const LS_THEME = "simkl_theme"; // "light" | "dark"
 const LS_VIEW_MODE = "simkl_view_mode";   // "list" or "airing" (not restored on load - always starts on "list")
-// v2: this used to store each show's available-episode *count*; now it
-// stores encodeSE(season, episode) of its latest aired episode instead -
-// a different, much larger number for the same show, which briefly made
-// every show look like it had a new episode right after that change
-// shipped (the old small count read as "less than" the new key). New key
-// name so that stale v1 data just reads as "never seen", reseeding
-// silently instead of misfiring, same as any other first-time show.
-const LS_EPISODE_AVAILABLE_SNAPSHOT = "simkl_latest_episode_snapshot_v2"; // { [simklId]: encodeSE(season, episode) of the latest aired episode as of the last check }
 
 // A plain localStorage.setItem() throws QuotaExceededError once the
 // origin's whole quota is full - which used to be able to abort renderRows
@@ -112,6 +115,12 @@ function getImageMode() {
 
 function nextImageMode(mode) {
   return mode === "poster" ? "banner" : "poster";
+}
+
+// Defaults to "banner" - matches the bottom panels' original behavior
+// (banner-if-available) so existing users see no change until they toggle it.
+function getListImageMode() {
+  return localStorage.getItem(LS_LIST_IMAGE_MODE) === "poster" ? "poster" : "banner";
 }
 
 function getConfig() {
@@ -3233,6 +3242,28 @@ function updateImageModeButton() {
   btn.innerHTML = `<span class="nav-icon">${icon}</span>Switch to ${nextLabel}`;
 }
 
+// Icon-only toggle (getListImageMode()) rendered inline in each of the
+// three bottom panels' own header row, right of the "N shows" count -
+// identical markup in all three, sharing one localStorage key, so clicking
+// the icon in any one panel switches all three together via a full re-render
+// (toggleListImageMode below), never just the one it was clicked in.
+function listImageModeIconBtnHtml() {
+  const mode = getListImageMode();
+  const nextLabel = mode === "poster" ? "banners" : "posters";
+  return `<button type="button" class="list-image-mode-btn" title="Switch to ${nextLabel}" onclick="toggleListImageMode()">${ICON_POSTER_BANNER_SWAP_SVG}</button>`;
+}
+
+function toggleListImageMode() {
+  const current = getListImageMode();
+  safeSetItem(LS_LIST_IMAGE_MODE, current === "poster" ? "banner" : "poster");
+  // The bottom panels only ever show in the "list" view (renderRows) - if
+  // Airing Next is open there's nothing on screen to update; the choice is
+  // still persisted and will apply next time the list view renders.
+  if (currentView !== "airing" && lastRows) {
+    renderRows(lastRows, lastTotalEps, lastTotalMinutes); // instant, no re-fetch
+  }
+}
+
 function applyStoredTheme() {
   const isLight = localStorage.getItem(LS_THEME) === "light";
   document.body.classList.toggle("light-theme", isLight);
@@ -3903,24 +3934,30 @@ function closeImagePicker() {
   document.removeEventListener("keydown", imagePickerEscHandler);
 }
 
-// Computes the click-to-open-the-image-picker wrapper attributes for a bottom-panel
-// thumbnail (Recently Watched / Plan to Watch / Airing Next), matching the
-// same convention cardImageBits uses for the top carousel card.
+// Computes the click-to-open-the-image-picker wrapper attributes (plus which
+// image to show) for a bottom-panel thumbnail (Recently Watched / Plan to
+// Watch / Airing Next), matching the same convention cardImageBits uses for
+// the top carousel card.
 //
-// These thumbnails always show the banner if the show has one (falling
-// back to the poster) regardless of the sidebar's poster/banner toggle -
-// so the picker has to list whichever of the two is actually on screen,
-// not blindly follow getImageMode() (which governs the top carousel and
-// may point at the other, unrelated image type).
+// These thumbnails follow getListImageMode() - a toggle of their own,
+// separate from the sidebar's poster/banner toggle (getImageMode(), which
+// governs only the top carousel) - falling back to whichever of the two the
+// show actually has when the preferred type is missing. The picker always
+// lists whichever type ends up on screen.
 function thumbCycleAttrs(row, source, idx) {
-  const mode = row.bannerUrl ? "banner" : "poster";
+  const preferPoster = getListImageMode() === "poster";
+  const mode = preferPoster
+    ? (row.posterUrl ? "poster" : "banner")
+    : (row.bannerUrl ? "banner" : "poster");
+  const src = mode === "poster" ? row.posterUrl : row.bannerUrl;
   const cfg = IMAGE_MODE_CONFIG[mode];
   const altCount = (row[cfg.pathsKey] || []).length;
-  if (altCount <= 1 && !row.imdbId) return { cycleableClass: "", attrs: "", mode };
+  if (altCount <= 1 && !row.imdbId) return { cycleableClass: "", attrs: "", mode, src };
   return {
     cycleableClass: " cycleable",
     attrs: ` data-cycle-key="${source}-${idx}" title="Choose a different image" onclick="openImagePicker('${source}', ${idx}, '${mode}')"`,
     mode,
+    src,
   };
 }
 
@@ -3943,7 +3980,7 @@ function networkSubHtml(name, logoPath) {
 // own header, just reused here instead of duplicated. Doubles as the
 // entry point into that panel's "all shows" modal (openPanelShowsModal).
 function listPanelCountHtml(count, source) {
-  return `<button type="button" class="list-panel-count" onclick="openPanelShowsModal('${source}')">${count} show${count === 1 ? "" : "s"}</button>`;
+  return `<button type="button" class="list-panel-count" onclick="openPanelShowsModal('${source}')"><span class="list-panel-count-num">${count}</span> SHOW${count === 1 ? "" : "S"}</button>`;
 }
 
 // Exact inner content of a row's .list-row-title-wrap, factored out of the
@@ -4040,10 +4077,9 @@ function rowInfoWrapHtml(row, idx, source, mode) {
 function renderRecentlyWatchedHtml(list) {
   if (!list || !list.length) return "";
   const rowsHtml = list.map((ep, idx) => {
-    const bannerSrc = ep.bannerUrl || ep.posterUrl;
-    const { cycleableClass, attrs, mode } = thumbCycleAttrs(ep, "watched", idx);
-    const thumbHtml = bannerSrc
-      ? `<img class="list-thumb" src="${bannerSrc}" alt="${ep.title}" onerror="handleThumbError(this, 'watched', ${idx}, '${mode}')">`
+    const { cycleableClass, attrs, mode, src } = thumbCycleAttrs(ep, "watched", idx);
+    const thumbHtml = src
+      ? `<img class="list-thumb${mode === "poster" ? " thumb-poster" : ""}" src="${src}" alt="${ep.title}" onerror="handleThumbError(this, 'watched', ${idx}, '${mode}')">`
       : `<div class="list-thumb placeholder">${(ep.title[0] || "?").toUpperCase()}</div>`;
     return `
       <div class="list-row">
@@ -4057,7 +4093,10 @@ function renderRecentlyWatchedHtml(list) {
     <div class="list-panel list-panel--watched">
       <div class="list-panel-header-row">
         <div class="list-panel-header">${CLOCK_ICON_SOLID_SVG}<span>RECENTLY WATCHED</span></div>
-        ${listPanelCountHtml(list.length, "watched")}
+        <div class="list-panel-count-wrap">
+          ${listPanelCountHtml(list.length, "watched")}
+          ${listImageModeIconBtnHtml()}
+        </div>
       </div>
       <div class="list-rows-scroll">${rowsHtml}</div>
     </div>`;
@@ -4066,10 +4105,9 @@ function renderRecentlyWatchedHtml(list) {
 function renderPlanToWatchHtml(list) {
   if (!list || !list.length) return "";
   const rowsHtml = list.map((row, idx) => {
-    const bannerSrc = row.bannerUrl || row.posterUrl;
-    const { cycleableClass, attrs, mode } = thumbCycleAttrs(row, "plan", idx);
-    const thumbHtml = bannerSrc
-      ? `<img class="list-thumb" src="${bannerSrc}" alt="${row.title}" onerror="handleThumbError(this, 'plan', ${idx}, '${mode}')">`
+    const { cycleableClass, attrs, mode, src } = thumbCycleAttrs(row, "plan", idx);
+    const thumbHtml = src
+      ? `<img class="list-thumb${mode === "poster" ? " thumb-poster" : ""}" src="${src}" alt="${row.title}" onerror="handleThumbError(this, 'plan', ${idx}, '${mode}')">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
     return `
       <div class="list-row">
@@ -4084,7 +4122,10 @@ function renderPlanToWatchHtml(list) {
     <div class="list-panel list-panel--plan">
       <div class="list-panel-header-row">
         <div class="list-panel-header">${BOOKMARK_ICON_SVG}<span>PLAN TO WATCH</span></div>
-        ${listPanelCountHtml(list.length, "plan")}
+        <div class="list-panel-count-wrap">
+          ${listPanelCountHtml(list.length, "plan")}
+          ${listImageModeIconBtnHtml()}
+        </div>
       </div>
       <div class="list-rows-scroll">${rowsHtml}</div>
     </div>`;
@@ -4093,10 +4134,9 @@ function renderPlanToWatchHtml(list) {
 function renderAiringNextPreviewHtml(list) {
   if (!list || !list.length) return "";
   const rowsHtml = list.map((row, idx) => {
-    const bannerSrc = row.bannerUrl || row.posterUrl;
-    const { cycleableClass, attrs, mode } = thumbCycleAttrs(row, "airing", idx);
-    const thumbHtml = bannerSrc
-      ? `<img class="list-thumb" src="${bannerSrc}" alt="${row.title}" onerror="handleThumbError(this, 'airing', ${idx}, '${mode}')">`
+    const { cycleableClass, attrs, mode, src } = thumbCycleAttrs(row, "airing", idx);
+    const thumbHtml = src
+      ? `<img class="list-thumb${mode === "poster" ? " thumb-poster" : ""}" src="${src}" alt="${row.title}" onerror="handleThumbError(this, 'airing', ${idx}, '${mode}')">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
     return `
       <div class="list-row">
@@ -4110,7 +4150,10 @@ function renderAiringNextPreviewHtml(list) {
     <div class="list-panel list-panel--airing">
       <div class="list-panel-header-row">
         <div class="list-panel-header">${CALENDAR_ICON_SVG}<span>AIRING NEXT</span></div>
-        ${listPanelCountHtml(list.length, "airing")}
+        <div class="list-panel-count-wrap">
+          ${listPanelCountHtml(list.length, "airing")}
+          ${listImageModeIconBtnHtml()}
+        </div>
       </div>
       <div class="list-rows-scroll">${rowsHtml}</div>
     </div>`;
@@ -4382,137 +4425,6 @@ function showToast(message, isError) {
   toastTimer = setTimeout(() => el.classList.remove("show"), 3000);
 }
 
-function readLatestEpisodeSnapshot() {
-  try {
-    return JSON.parse(localStorage.getItem(LS_EPISODE_AVAILABLE_SNAPSHOT) || "{}");
-  } catch (e) {
-    return {};
-  }
-}
-
-function writeLatestEpisodeSnapshot(snapshot) {
-  try {
-    localStorage.setItem(LS_EPISODE_AVAILABLE_SNAPSHOT, JSON.stringify(snapshot));
-  } catch (e) {
-    // localStorage full/unavailable - skip persisting, not critical
-  }
-}
-
-// The single most recently *aired* episode of a show (date <= now), by
-// season/episode order - not "next to watch", which SIMKL only sets once
-// there's something unwatched, and wouldn't exist yet for a show the user
-// is fully caught up on (exactly the show where a new episode matters
-// most). encodeSE turns (season, episode) into one comparable number.
-const encodeSE = (season, episode) => season * 1000 + episode;
-function latestAiredEpisode(episodes) {
-  const now = Date.now();
-  let best = null;
-  for (const ep of episodes || []) {
-    if (ep.season == null || ep.episode == null || !ep.date) continue;
-    const t = new Date(ep.date).getTime();
-    if (isNaN(t) || t > now) continue;
-    const key = encodeSE(ep.season, ep.episode);
-    if (!best || key > best.key) best = { key, season: ep.season, episode: ep.episode, title: ep.title };
-  }
-  return best;
-}
-
-// Checks every "watching" show's latest aired episode against the last
-// known one, persisted in localStorage so it survives a closed tab - shows
-// a notification (with thumbnail, episode code and episode title) for any
-// show where that's moved forward since the last check. Covers both "tab
-// already open" (called on an interval) and "tab was closed, just
-// reopened" (called once after main()'s own fetch) with the same
-// snapshot. A show seen for the first time ever just seeds the snapshot
-// without notifying, so the very first run after installing doesn't fire
-// a notification for the whole list.
-async function checkForNewEpisodes() {
-  if (!simklToken) return;
-  const cache = sharedCache || new TmdbCache();
-  const episodeCache = sharedEpisodeCache || new SimklEpisodeCache();
-  try {
-    const items = await getWatchingShows(simklToken);
-    const snapshot = readLatestEpisodeSnapshot();
-    const nextSnapshot = { ...snapshot };
-    const newEntries = [];
-    await Promise.all(items.filter(item => item.status === "watching").map(async item => {
-      const show = item.show || {};
-      const simklId = (show.ids || {}).simkl;
-      if (simklId == null) return;
-      const episodes = await episodeCache.get(simklId, simklToken);
-      const latest = latestAiredEpisode(episodes);
-      if (!latest) return;
-      const prevKey = snapshot[simklId];
-      if (prevKey != null && latest.key > prevKey) {
-        const tmdbId = (show.ids || {}).tmdb;
-        let thumbUrl = null;
-        if (tmdbId) {
-          try {
-            const images = computeImages(await cache.getShow(tmdbId), tmdbId);
-            thumbUrl = images.bannerUrl || images.posterUrl;
-          } catch (e) {
-            thumbUrl = null;
-          }
-        }
-        newEntries.push({
-          title: show.title || "Unknown",
-          code: `S${String(latest.season).padStart(2, "0")}E${String(latest.episode).padStart(2, "0")}`,
-          episodeTitle: latest.title,
-          thumbUrl,
-        });
-      }
-      nextSnapshot[simklId] = latest.key;
-    }));
-    writeLatestEpisodeSnapshot(nextSnapshot);
-    if (newEntries.length) showNewEpisodeNotification(newEntries);
-  } catch (e) {
-    // silent - this is a background convenience check, not core functionality
-  }
-}
-setInterval(checkForNewEpisodes, 3 * 60 * 60 * 1000); // every 3 hours
-
-// Unlike showToast (auto-dismisses after 3s - fine for a brief action
-// confirmation), this stays up until the user closes it themselves - the
-// whole point is that it might arrive while nobody's looking at the
-// screen. Sized and styled like the top card's banner mode, reusing the
-// exact same row markup/classes as a Recently Watched entry (thumbnail,
-// title, episode code, episode title) so it reads as the same design
-// language, not a bespoke component. Calling this again while one's
-// already showing (e.g. the periodic check fires before the last
-// notification was dismissed) replaces its contents instead of stacking a
-// second banner.
-function showNewEpisodeNotification(entries) {
-  let el = document.getElementById("newEpisodeBanner");
-  if (!el) {
-    el = document.createElement("div");
-    el.id = "newEpisodeBanner";
-    el.className = "new-episode-banner";
-    document.body.appendChild(el);
-  }
-  const headerLabel = entries.length === 1 ? "New Episode" : "New Episodes";
-  const rowsHtml = entries.map(e => {
-    const thumbHtml = e.thumbUrl
-      ? `<img class="list-thumb" src="${e.thumbUrl}" alt="${e.title}">`
-      : `<div class="list-thumb placeholder">${(e.title[0] || "?").toUpperCase()}</div>`;
-    return `
-      <div class="list-row">
-        <div class="list-thumb-wrap">${thumbHtml}</div>
-        <div class="list-row-title-wrap">
-          <div class="list-row-title">${e.title}</div>
-          <div class="list-row-sub episode-code-sub">${e.code}</div>
-          ${e.episodeTitle ? `<div class="episode-title">${e.episodeTitle}</div>` : ""}
-        </div>
-      </div>`;
-  }).join("\n");
-  el.innerHTML = `
-    <div class="new-episode-banner-header">
-      ${BELL_ICON_SVG}<span>${headerLabel}</span>
-      <button class="new-episode-banner-close" title="Dismiss" onclick="document.getElementById('newEpisodeBanner').remove()">&times;</button>
-    </div>
-    <div class="new-episode-banner-list">${rowsHtml}</div>
-  `;
-}
-
 // ---------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------
@@ -4541,13 +4453,6 @@ async function main() {
     ]);
     airingRows = airingNextRows; // also primes the separate Airing Next tab's cache, so opening it doesn't re-fetch
     renderRows(rows, totalEps, totalMinutes, recentlyWatched, planToWatchRows, airingNextRows);
-    // Covers "the tab was closed and a new episode came out meanwhile" -
-    // not awaited, so a slow check never delays the page actually
-    // rendering. Deliberately checks ALL watching shows independently
-    // rather than reusing `rows` here, since a show the user is fully
-    // caught up on (no next_to_watch yet) is excluded from `rows`
-    // entirely - exactly the show where a new episode matters most.
-    checkForNewEpisodes();
   } catch (err) {
     showError(err);
   }

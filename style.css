@@ -439,13 +439,36 @@
   .list-panel-header {
     display: inline-flex; align-items: center; gap: 10px; color: var(--text);
     font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
-    font-weight: 700; font-size: 1.3rem; letter-spacing: 0.02em; margin-bottom: 14px;
+    font-weight: 700; font-size: 1.3rem; line-height: 1; letter-spacing: 0.02em; margin-bottom: 14px;
     border-bottom: 3px solid var(--gold); padding-bottom: 8px;
   }
   /* Row wrapper for the three bottom panels only - .list-panel-header keeps
-     its own underline unchanged, the count just rides along to its right
-     via margin-left: auto (same trick as .series-panel-updated above). */
-  .list-panel-header-row { display: flex; align-items: center; }
+     its own underline unchanged, the count+icon group rides along to its
+     right via margin-left: auto on .list-panel-count-wrap (same trick as
+     .series-panel-updated above). flex-start (not center) lines that group
+     up with the top of the header's own text instead of the vertical center
+     of its taller box (the header is taller because of its own underline +
+     padding-bottom). */
+  .list-panel-header-row { display: flex; align-items: flex-start; }
+  /* Count + icon as their own group, centered on each other's line (not on
+     the taller header next to them) - otherwise the short icon would sit
+     flush against the row's top instead of level with the count's text. */
+  .list-panel-count-wrap { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+  /* Icon-only poster/banner toggle for the three bottom panels - identical
+     button in all three, see listImageModeIconBtnHtml(): one shared
+     localStorage key, so clicking it in any one panel re-renders and
+     switches all three together. */
+  .list-image-mode-btn {
+    background: none; border: none; padding: 4px; flex: 0 0 auto;
+    color: var(--gold); cursor: pointer; border-radius: 6px;
+    display: inline-flex; align-items: center;
+    /* Same font-size as .list-panel-count next to it, so the icon's own
+       height (set in em below) tracks the text's actual size/line-box
+       instead of a guessed fixed px nudge. */
+    font-size: 1.3rem;
+  }
+  .list-image-mode-btn:hover { color: var(--accent2); background: var(--card-hover); }
+  .list-image-mode-btn svg { height: 0.85em; width: auto; display: block; }
   /* Same font as .list-panel-header right next to it (Barlow Condensed,
      1.3rem, 700, same letter-spacing) - not actually inherited since this
      sits as .list-panel-header's sibling in .list-panel-header-row, not
@@ -453,10 +476,12 @@
   .list-panel-count {
     background: none; border: none; padding: 0;
     font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
-    font-weight: 700; font-size: 1.3rem; letter-spacing: 0.02em;
-    color: #ffffff; margin-left: auto; cursor: pointer;
+    font-weight: 700; font-size: 1.3rem; line-height: 1; letter-spacing: 0.02em;
+    color: #ffffff; cursor: pointer;
   }
   .list-panel-count:hover { color: var(--accent2); text-decoration: underline; }
+  .list-panel-count-num { color: var(--gold); }
+  .list-panel-count:hover .list-panel-count-num { color: inherit; }
   /* Vertical carousel - all three panels show ~5 rows before scrolling
      (5 * (76px banner thumb + 24px row padding + 1px border) = 505px). */
   .list-rows-scroll {
@@ -483,10 +508,12 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 1.9rem; font-weight: 700; color: var(--muted);
   }
-  /* 161x91, +15% then +10% more (still ~16:9) - scoped to the three bottom
-     panels only, not the (differently-sized) new-episode notification
-     banner, which reuses the same .list-thumb/.list-row markup. */
+  /* 161x91, +15% then +10% more (still ~16:9) - scoped to the three bottom panels only. */
   .list-panel .list-thumb { width: 204px; height: 115px; }
+  /* Poster-shaped variant (getListImageMode() === "poster") - same 115px
+     row height as the banner shape above, real 2:3 poster ratio instead of
+     a stretched/cropped banner box (115 * 2/3 ~= 77). */
+  .list-panel .list-thumb.thumb-poster { width: 77px; aspect-ratio: 2 / 3; }
   .list-row-title-wrap { flex: 1 1 auto; min-width: 0; }
   .list-row-title {
     /* Matches the top card's title (.card-body h3) size/spacing, so the
@@ -580,29 +607,6 @@
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .toast.error { color: var(--danger); }
-
-  /* Persistent (no auto-dismiss) new-episode notification - sized like the
-     top card's banner mode, reusing the exact Recently Watched row markup
-     (.list-row/.list-thumb/.list-row-title/...) for its entries so it
-     reads as the same design language rather than a bespoke component. */
-  .new-episode-banner {
-    position: fixed; right: 20px; bottom: 20px; z-index: 250; width: 368px;
-    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.45); padding: 14px 16px;
-  }
-  .new-episode-banner-header {
-    display: flex; align-items: center; gap: 8px; color: var(--gold);
-    font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
-    font-weight: 700; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.04em;
-    border-bottom: 2px solid var(--gold); padding-bottom: 8px; margin-bottom: 4px;
-  }
-  .new-episode-banner-close {
-    margin-left: auto; background: transparent; border: none; color: var(--muted);
-    font-size: 1.2rem; line-height: 1; cursor: pointer; padding: 0 2px;
-  }
-  .new-episode-banner-close:hover { color: var(--text); }
-  .new-episode-banner-list { max-height: 60vh; overflow-y: auto; }
-  .new-episode-banner-list .list-row:last-child { border-bottom: none; }
 
   .modal-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.6);
@@ -1103,6 +1107,10 @@
     .topbar-slogan-sep, .topbar-slogan, .topbar-clock { display: none; }
     .topbar-controls { width: 100%; justify-content: space-between; }
     .navbar-nav { flex: 1 1 auto; gap: 6px; }
+    /* Desktop-only toggle (bottom panels' poster/banner shape) - mobile rows
+       are locked to full-width banner cards regardless, see .thumb-poster
+       above, so this control would do nothing there. */
+    .list-image-mode-btn { display: none; }
     .nav-item {
       flex: 1 1 0; min-width: 0; flex-direction: column; gap: 2px;
       padding: 6px 2px; border-radius: 8px;
@@ -1154,7 +1162,12 @@
       flex: 0 0 auto; width: 200px; flex-direction: column; align-items: stretch;
       gap: 8px; padding: 0; border-bottom: none;
     }
-    .list-thumb, .list-panel .list-thumb { width: 100%; height: auto; aspect-ratio: 16 / 9; }
+    /* Mobile rows are already fixed-width, full-bleed banner cards - the
+       poster/banner toggle below is desktop-only, so .thumb-poster is
+       neutralized back to the same full-width 16:9 shape here. */
+    .list-thumb, .list-panel .list-thumb, .list-panel .list-thumb.thumb-poster {
+      width: 100%; height: auto; aspect-ratio: 16 / 9;
+    }
     .list-thumb-wrap { width: 100%; }
     .title-with-year { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px; }
     .title-with-year .premiere-badge.year-badge { flex-basis: 100%; margin-top: 0; }
@@ -1169,19 +1182,15 @@
 
     .modal-overlay { padding: 12px; }
     .cast-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
-    /* The 8-column grid only makes sense at desktop widths - on mobile the
-       modal falls back to the same horizontally-swiped row of fixed-width
-       cards as .list-rows-scroll, just with the same real 2:3 poster ratio
-       as desktop (scaled down to 132px wide). A flipped card here just
-       grows wider in place (flex reflows the row around it) rather than
-       spanning grid columns, since there's no fixed-column grid on mobile
-       to span. */
+    /* The 8-column grid only makes sense at desktop widths - on mobile it
+       drops to 2 columns, scrolling vertically like the rest of the page
+       instead of the fixed-width horizontally-swiped row used elsewhere,
+       since there's room for 2 real-ratio posters side by side. A flipped
+       card spans both columns and grows in place, same as desktop. */
     .panel-shows-grid {
-      display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
-      gap: 12px; justify-content: flex-start;
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
     }
-    .panel-shows-item { flex: 0 0 auto; }
-    .panel-shows-item.flipped { grid-column: auto; }
-    .panel-shows-flip-inner { width: 132px; height: 198px; }
-    .panel-shows-item.flipped .panel-shows-flip-inner { width: 260px; height: 190px; }
+    .panel-shows-item.flipped { grid-column: span 2; }
+    .panel-shows-flip-inner { width: 100%; height: 198px; }
+    .panel-shows-item.flipped .panel-shows-flip-inner { width: 100%; height: 190px; }
   }
