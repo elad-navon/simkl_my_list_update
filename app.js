@@ -2651,6 +2651,51 @@ async function openEpisodesManager(show, libraryMatch) {
   render();
 }
 
+// ---------------------------------------------------------------------
+// Modal back-button support
+// ---------------------------------------------------------------------
+// The app never otherwise touches browser history (it's a single static
+// page), so with nothing pushed, pressing the hardware/browser back button
+// while any modal overlay is open has nowhere to go but out of the app
+// entirely - on mobile that means the PWA just closes. Every open*Modal()
+// pushes one dummy history entry right after its overlay is actually shown
+// (pushModalHistoryState), and popstate below closes whatever's open
+// instead of letting the real navigation happen. A manual close (X /
+// Escape / backdrop click) calls consumeModalHistoryState() so it also
+// consumes that entry - otherwise it would sit there needing an extra,
+// confusing back press to get past later.
+//
+// Only one modal is ever open at a time in this app, so a single "current
+// close function" is enough - no stack needed.
+let activeModalClose = null;
+let poppingModalHistory = false;
+
+function pushModalHistoryState(closeFn) {
+  activeModalClose = closeFn;
+  history.pushState({ modal: true }, "");
+}
+
+// Called by a close*Modal() right after it actually removes its overlay -
+// skip the call entirely if that close turns out to be a no-op (nothing
+// was open), so an unrelated history entry never gets consumed by mistake.
+function consumeModalHistoryState() {
+  activeModalClose = null;
+  if (!poppingModalHistory) history.back();
+}
+
+window.addEventListener("popstate", () => {
+  if (!activeModalClose) return;
+  const closeFn = activeModalClose;
+  poppingModalHistory = true;
+  closeFn();
+  poppingModalHistory = false;
+  // Still set means the close was vetoed (e.g. closeSearchModal's unsaved-
+  // changes confirm) - the back navigation itself already went through
+  // regardless, so push a fresh entry or the *next* back press would exit
+  // the app instead of being trapped by the modal again.
+  if (activeModalClose) history.pushState({ modal: true }, "");
+});
+
 // Per-episode breakdown of a top-card show's remaining watch time -
 // opened by clicking the "Xh Ym left" line. episodesLeft was already
 // computed alongside the total (see estimateRemainingMinutes), so this
@@ -2695,6 +2740,7 @@ function openEpisodesModal(arrIdx) {
       </div>
     </div>`;
   document.body.appendChild(overlay);
+  pushModalHistoryState(closeEpisodesModal);
 
   document.getElementById("episodesModalCloseBtn").onclick = closeEpisodesModal;
   overlay.addEventListener("click", e => { if (e.target === overlay) closeEpisodesModal(); });
@@ -2738,8 +2784,10 @@ function episodesModalEscHandler(e) {
 
 function closeEpisodesModal() {
   const overlay = document.getElementById("episodesModalOverlay");
-  if (overlay) overlay.remove();
+  if (!overlay) return;
+  overlay.remove();
   document.removeEventListener("keydown", episodesModalEscHandler);
+  consumeModalHistoryState();
 }
 
 // Picks how many cast members count as "main cast": sorts by total episode
@@ -2850,6 +2898,7 @@ async function openCastModal(source, idx) {
       <div class="cast-grid" id="castGrid">${gridHtml}</div>
     </div>`;
   document.body.appendChild(overlay);
+  pushModalHistoryState(closeCastModal);
 
   document.getElementById("castModalCloseBtn").onclick = closeCastModal;
   overlay.addEventListener("click", e => { if (e.target === overlay) closeCastModal(); });
@@ -2883,8 +2932,10 @@ function castModalEscHandler(e) {
 
 function closeCastModal() {
   const overlay = document.getElementById("castModalOverlay");
-  if (overlay) overlay.remove();
+  if (!overlay) return;
+  overlay.remove();
   document.removeEventListener("keydown", castModalEscHandler);
+  consumeModalHistoryState();
 }
 
 // Icon/title for the "all shows" modal opened from a bottom panel's show-count
@@ -2966,6 +3017,7 @@ function openPanelShowsModal(source) {
       </div>
     </div>`;
   document.body.appendChild(overlay);
+  pushModalHistoryState(closePanelShowsModal);
 
   document.getElementById("panelShowsModalCloseBtn").onclick = closePanelShowsModal;
   overlay.addEventListener("click", e => { if (e.target === overlay) closePanelShowsModal(); });
@@ -2986,8 +3038,10 @@ function panelShowsModalEscHandler(e) {
 
 function closePanelShowsModal() {
   const overlay = document.getElementById("panelShowsModalOverlay");
-  if (overlay) overlay.remove();
+  if (!overlay) return;
+  overlay.remove();
   document.removeEventListener("keydown", panelShowsModalEscHandler);
+  consumeModalHistoryState();
 }
 
 function openSearchModal() {
@@ -3006,6 +3060,7 @@ function openSearchModal() {
       <div id="modalBody"></div>
     </div>`;
   document.body.appendChild(overlay);
+  pushModalHistoryState(closeSearchModal);
 
   renderSearchStep();
 
@@ -3021,10 +3076,12 @@ function searchModalEscHandler(e) {
 function closeSearchModal() {
   if (searchModalCloseGuard && !searchModalCloseGuard()) return;
   searchModalCloseGuard = null;
-  document.getElementById("addShowBtn").classList.remove("active");
   const overlay = document.getElementById("searchModalOverlay");
-  if (overlay) overlay.remove();
+  if (!overlay) return;
+  document.getElementById("addShowBtn").classList.remove("active");
+  overlay.remove();
   document.removeEventListener("keydown", searchModalEscHandler);
+  consumeModalHistoryState();
   // Watched marks changed in the episodes manager - the dashboard behind
   // the modal is stale until it re-fetches.
   if (watchedMarksChanged) {
@@ -3828,6 +3885,7 @@ function openImagePicker(source, idx, mode) {
       </div>
     </div>`;
   document.body.appendChild(overlay);
+  pushModalHistoryState(closeImagePicker);
 
   const grid = document.getElementById("imagePickerGrid");
   const countEl = document.getElementById("imagePickerCount");
@@ -3890,8 +3948,10 @@ function imagePickerEscHandler(e) {
 
 function closeImagePicker() {
   const overlay = document.getElementById("imagePickerOverlay");
-  if (overlay) overlay.remove();
+  if (!overlay) return;
+  overlay.remove();
   document.removeEventListener("keydown", imagePickerEscHandler);
+  consumeModalHistoryState();
 }
 
 // Computes the click-to-open-the-image-picker wrapper attributes for a bottom-panel
