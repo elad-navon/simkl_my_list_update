@@ -3457,9 +3457,11 @@ function imdbButtonHtml(imdbId, rating, ratings) {
     ? `<span class="imdb-rating">${rating.toFixed(1)}</span>`
     : "";
   // With other ratings to show, hovering opens the popover instead of a
-  // plain tooltip (the two would stack).
+  // plain tooltip (the two would stack) - title="" there stops the
+  // poster-wrap's own "Choose a different image" tooltip from bleeding
+  // through instead (an absent title falls back to the nearest ancestor's).
   const attr = ratingsAttr(ratings);
-  return `<button class="imdb-btn"${attr || ' title="Open on IMDb"'}
+  return `<button class="imdb-btn"${attr ? attr + ' title=""' : ' title="Open on IMDb"'}
               onclick="event.stopPropagation(); window.open('${url}', '_blank')">${IMDB_LOGO_SVG_INVERTED}${ratingHtml}</button>`;
 }
 
@@ -3680,8 +3682,12 @@ function cardImageBits(row, mode, arrIdx, extraOverlayHtml) {
   // back to "#N" live if the logo image itself 404s (data exists, just
   // failed to load); leaves the corner empty when there's no known network
   // at all, rather than showing a ranking number as a stand-in.
+  // title="" on every badge below suppresses the poster-wrap's own
+  // "Choose a different image" tooltip from bleeding through while
+  // hovering a badge that sits on top of it - without it, an empty title
+  // falls back to the nearest ancestor's title instead of showing nothing.
   const badgeHtml = row.networkLogoPath
-    ? `<div class="badge network-badge" data-idx="${row.index}">
+    ? `<div class="badge network-badge" data-idx="${row.index}" title="">
         <img class="network-badge-logo" src="${row.networkLogoPath}" alt="${row.network || ""}"
           onerror="this.parentElement.classList.add('logo-failed')">
       </div>`
@@ -3690,7 +3696,7 @@ function cardImageBits(row, mode, arrIdx, extraOverlayHtml) {
   // "has this ended" signal, since an open-ended show has no end year yet
   // ("2016-") while one that's wrapped up shows the full range.
   const yearBadgeHtml = row.yearRangeLabel
-    ? `<div class="badge year-corner-badge">${row.yearRangeLabel.replace("-", '<span class="year-badge-dash">-</span>')}</div>`
+    ? `<div class="badge year-corner-badge" title="">${row.yearRangeLabel.replace("-", '<span class="year-badge-dash">-</span>')}</div>`
     : "";
   const wrapHtml = `<div class="poster-wrap${cycleable ? " cycleable" : ""}"${cycleAttrs}>${badgeHtml}${yearBadgeHtml}${posterHtml}${extraOverlayHtml || ""}</div>`;
   return { wrapHtml };
@@ -4256,7 +4262,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
         </div>`
       : "";
     const remainingText = row.remaining === 1 ? "1 episode left" : `${row.remaining} episodes left`;
-    const overlayHtml = imdbButtonHtml(row.imdbId, row.imdbRating, row.ratings) + `<div class="remaining-badge">${STAT_STACK_ICON_BLACK_SVG}${remainingText}</div>`;
+    const overlayHtml = imdbButtonHtml(row.imdbId, row.imdbRating, row.ratings) + `<div class="remaining-badge" title="">${STAT_STACK_ICON_BLACK_SVG}${remainingText}</div>`;
     const { wrapHtml } = cardImageBits(row, mode, arrIdx, overlayHtml);
 
     return `
