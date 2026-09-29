@@ -3553,9 +3553,14 @@ function ratingsPopoverHtml(r) {
     // neighbouring card: a poster or banner gets one row of tiles across its
     // full width, a Plan-to-Watch style row (thumbnail + text) three columns
     // spread across the whole row.
-    const box = el.closest(".poster-wrap") || el.closest(".list-row") || el.closest(".card");
+    // .panel-shows-flip-back (the "all shows" grid's flipped-open, 2-column-
+    // wide card back) has no .list-row of its own but holds the exact same
+    // .list-row-title-wrap shape and just as much real width - without it
+    // here, box fell through to null and the popover sized itself off the
+    // tiny badge instead, squeezing every rating tile into a 150px sliver.
+    const box = el.closest(".poster-wrap") || el.closest(".list-row") || el.closest(".panel-shows-flip-back") || el.closest(".card");
     const b = (box || el).getBoundingClientRect();
-    const mode = box && box.classList.contains("list-row") ? "list" : "banner";
+    const mode = box && (box.classList.contains("list-row") || box.classList.contains("panel-shows-flip-back")) ? "list" : "banner";
     pop.className = `ratings-popover rp-${mode}`;
     // In a thumbnail + text row the popover covers only the text side, so the
     // picture stays visible.
@@ -4085,7 +4090,10 @@ function rowInfoWrapHtml(row, idx, source, mode) {
     : "";
   return `
     ${titleHtml}
-    ${networkSubHtml(row.network, row.networkLogoPath)}
+    <div class="network-imdb-row">
+      ${networkSubHtml(row.network, row.networkLogoPath)}
+      <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId, row.ratings)}</div>
+    </div>
     <div class="next-up-row">
       <span class="next-up">Next: ${row.nextLabel}</span>
       ${badgeHtml}

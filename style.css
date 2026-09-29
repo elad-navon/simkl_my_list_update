@@ -505,6 +505,10 @@
   .list-row-title:hover { color: var(--accent2); }
   .list-row-sub { font-size: 0.74rem; color: var(--muted); font-weight: 500; margin-top: 2px; }
   .list-row-sub.network-sub { display: flex; align-items: center; min-height: 22px; }
+  /* Airing Next row only - network badge and the IMDb pill share one line
+     instead of the IMDb pill getting its own row (Plan to Watch's layout). */
+  .network-imdb-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .network-imdb-row .list-imdb { margin-top: 0; }
   .list-row-sub.episode-code-sub { color: var(--accent2); }
   /* Light chip behind the logo - most TMDB network logos are dark marks
      meant for light backgrounds, and disappear directly on this panel's
