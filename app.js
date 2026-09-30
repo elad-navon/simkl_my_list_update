@@ -2108,7 +2108,7 @@ function renderSearchResults(results) {
   }
   container.innerHTML = results.map((r, i) => {
     const posterHtml = r.posterUrl
-      ? `<img class="search-result-poster" src="${r.posterUrl}" alt="${r.title || ""}">`
+      ? `<img class="search-result-poster" loading="lazy" src="${r.posterUrl}" alt="${r.title || ""}">`
       : `<div class="search-result-poster placeholder">${((r.title || "?")[0] || "?").toUpperCase()}</div>`;
     return `
       <div class="search-result-row" data-idx="${i}">
@@ -2872,7 +2872,7 @@ async function openCastModal(source, idx) {
   const gridHtml = top.length
     ? top.map((person, i) => {
         const photoHtml = person.profile_path
-          ? `<img class="cast-photo" src="${TMDB_PROFILE_BASE}${person.profile_path}" alt="${person.name}">`
+          ? `<img class="cast-photo" loading="lazy" src="${TMDB_PROFILE_BASE}${person.profile_path}" alt="${person.name}">`
           : `<div class="cast-photo placeholder">${(person.name[0] || "?").toUpperCase()}</div>`;
         const character = (person.roles && person.roles[0] && person.roles[0].character) || "";
         const epCount = person.epCount || person.total_episode_count || 0;
@@ -2980,7 +2980,7 @@ function openPanelShowsModal(source) {
   const itemsHtml = rows.map((row, idx) => {
     const posterSrc = row.posterUrl || row.bannerUrl;
     const thumbHtml = posterSrc
-      ? `<img class="list-thumb" src="${posterSrc}" alt="${row.title}">`
+      ? `<img class="list-thumb" loading="lazy" src="${posterSrc}" alt="${row.title}">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
     const infoHtml = rowInfoWrapHtml(row, idx, source, "flip");
     // Landscape banner (not the portrait poster - already used on the
@@ -3675,7 +3675,7 @@ function cardImageBits(row, mode, arrIdx, extraOverlayHtml) {
   const imageUrl = mode === "banner" ? (row.bannerUrl || row.posterUrl) : row[cfg.urlKey];
   const posterClass = "poster" + cfg.extraClass;
   const posterHtml = imageUrl
-    ? `<img class="${posterClass}" src="${imageUrl}" alt="${row.title}" onerror="handleThumbError(this, 'main', ${arrIdx}, '${mode}')">`
+    ? `<img class="${posterClass}" loading="lazy" src="${imageUrl}" alt="${row.title}" onerror="handleThumbError(this, 'main', ${arrIdx}, '${mode}')">`
     : `<div class="${posterClass} placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
   const altCount = (row[cfg.pathsKey] || []).length;
   const cycleable = altCount > 1 || !!row.imdbId;
@@ -3693,7 +3693,7 @@ function cardImageBits(row, mode, arrIdx, extraOverlayHtml) {
   // falls back to the nearest ancestor's title instead of showing nothing.
   const badgeHtml = row.networkLogoPath
     ? `<div class="badge network-badge" data-idx="${row.index}" title="">
-        <img class="network-badge-logo" src="${row.networkLogoPath}" alt="${row.network || ""}"
+        <img class="network-badge-logo" loading="lazy" src="${row.networkLogoPath}" alt="${row.network || ""}"
           onerror="this.parentElement.classList.add('logo-failed')">
       </div>`
     : "";
@@ -3992,7 +3992,7 @@ function thumbCycleAttrs(row, source, idx) {
 function networkSubHtml(name, logoPath) {
   if (logoPath) {
     return `<div class="list-row-sub network-sub">
-        <img class="network-logo" src="${logoPath}" alt="${name || ""}"
+        <img class="network-logo" loading="lazy" src="${logoPath}" alt="${name || ""}"
           onerror="this.style.display='none'; this.nextElementSibling.style.display='inline'">
         <span class="network-name-fallback" style="display:none">${name || ""}</span>
       </div>`;
@@ -4108,7 +4108,7 @@ function renderRecentlyWatchedHtml(list) {
     const bannerSrc = ep.bannerUrl || ep.posterUrl;
     const { cycleableClass, attrs, mode } = thumbCycleAttrs(ep, "watched", idx);
     const thumbHtml = bannerSrc
-      ? `<img class="list-thumb" src="${bannerSrc}" alt="${ep.title}" onerror="handleThumbError(this, 'watched', ${idx}, '${mode}')">`
+      ? `<img class="list-thumb" loading="lazy" src="${bannerSrc}" alt="${ep.title}" onerror="handleThumbError(this, 'watched', ${idx}, '${mode}')">`
       : `<div class="list-thumb placeholder">${(ep.title[0] || "?").toUpperCase()}</div>`;
     return `
       <div class="list-row">
@@ -4134,7 +4134,7 @@ function renderPlanToWatchHtml(list) {
     const bannerSrc = row.bannerUrl || row.posterUrl;
     const { cycleableClass, attrs, mode } = thumbCycleAttrs(row, "plan", idx);
     const thumbHtml = bannerSrc
-      ? `<img class="list-thumb" src="${bannerSrc}" alt="${row.title}" onerror="handleThumbError(this, 'plan', ${idx}, '${mode}')">`
+      ? `<img class="list-thumb" loading="lazy" src="${bannerSrc}" alt="${row.title}" onerror="handleThumbError(this, 'plan', ${idx}, '${mode}')">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
     return `
       <div class="list-row">
@@ -4161,7 +4161,7 @@ function renderAiringNextPreviewHtml(list) {
     const bannerSrc = row.bannerUrl || row.posterUrl;
     const { cycleableClass, attrs, mode } = thumbCycleAttrs(row, "airing", idx);
     const thumbHtml = bannerSrc
-      ? `<img class="list-thumb" src="${bannerSrc}" alt="${row.title}" onerror="handleThumbError(this, 'airing', ${idx}, '${mode}')">`
+      ? `<img class="list-thumb" loading="lazy" src="${bannerSrc}" alt="${row.title}" onerror="handleThumbError(this, 'airing', ${idx}, '${mode}')">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
     return `
       <div class="list-row">
