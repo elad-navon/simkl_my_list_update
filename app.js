@@ -55,9 +55,9 @@ const LS_VIEW_MODE = "simkl_view_mode";   // "list" or "airing" (not restored on
 // How much of the origin's localStorage the persisted API cache may take. A browser gives a whole address
 // (name.github.io - shared by every page of that user site) only about 5 million characters, so a cache that
 // grows until the quota is full leaves nothing for anything else: other apps on the same address then fail to
-// save even a tiny value (QuotaExceededError). Staying under this budget (about 30% of the quota) keeps the
+// save even a tiny value (QuotaExceededError). Staying under this budget (about 70% of the quota) keeps the
 // cache useful and the rest of the storage free.
-const API_CACHE_BUDGET_CHARS = 1500000;
+const API_CACHE_BUDGET_CHARS = 3500000;
 // key -> { t: when it was stored, size: characters in key + value }. Kept in memory so the budget check never
 // has to re-read (and re-parse) hundreds of kilobytes per entry.
 const persistedIndex = new Map();
