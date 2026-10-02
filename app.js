@@ -52,6 +52,42 @@ const LS_IMAGE_MODE = "simkl_image_mode"; // "poster" | "banner"
 const LS_THEME = "simkl_theme"; // "light" | "dark"
 const LS_VIEW_MODE = "simkl_view_mode";   // "list" or "airing" (not restored on load - always starts on "list")
 
+// How much of the origin's localStorage the persisted API cache may take. A browser gives a whole address
+// (name.github.io - shared by every page of that user site) only about 5 million characters, so a cache that
+// grows until the quota is full leaves nothing for anything else: other apps on the same address then fail to
+// save even a tiny value (QuotaExceededError). Staying under this budget (about 70% of the quota) keeps the
+// cache useful and the rest of the storage free.
+const API_CACHE_BUDGET_CHARS = 3500000;
+// key -> { t: when it was stored, size: characters in key + value }. Kept in memory so the budget check never
+// has to re-read (and re-parse) hundreds of kilobytes per entry.
+const persistedIndex = new Map();
+let persistedChars = 0;
+
+function indexPersisted(key, t, size) {
+  const previous = persistedIndex.get(key);
+  if (previous) persistedChars -= previous.size;
+  persistedIndex.set(key, { t, size });
+  persistedChars += size;
+}
+
+function unindexPersisted(key) {
+  const previous = persistedIndex.get(key);
+  if (!previous) return;
+  persistedChars -= previous.size;
+  persistedIndex.delete(key);
+}
+
+// Removes the oldest persisted entries until the cache is back under its budget.
+function enforceCacheBudget() {
+  if (persistedChars <= API_CACHE_BUDGET_CHARS) return;
+  const oldestFirst = [...persistedIndex.entries()].sort((a, b) => a[1].t - b[1].t);
+  for (const [key] of oldestFirst) {
+    if (persistedChars <= API_CACHE_BUDGET_CHARS) break;
+    try { localStorage.removeItem(key); } catch (e) { /* storage unavailable */ }
+    unindexPersisted(key);
+  }
+}
+
 // A plain localStorage.setItem() throws QuotaExceededError once the
 // origin's whole quota is full - which used to be able to abort renderRows
 // itself (it persists the current view mode partway through), and
@@ -86,6 +122,7 @@ function dropOldCacheUntil(write) {
     entries.sort((a, b) => a[0] - b[0]);
     for (const [, k] of entries) {
       localStorage.removeItem(k);
+      unindexPersisted(k);
       try { write(); return true; } catch (e) { /* still full - drop the next one */ }
     }
   } catch (e) {
@@ -637,14 +674,23 @@ function readPersistedCache(key, ttlMs) {
 }
 
 function writePersistedCache(key, value) {
-  const write = () => localStorage.setItem(API_CACHE_PREFIX + key, JSON.stringify({ t: Date.now(), v: value }));
+  const storageKey = API_CACHE_PREFIX + key;
+  const t = Date.now();
+  const json = JSON.stringify({ t, v: value });
+  const write = () => localStorage.setItem(storageKey, json);
+  let stored = false;
   try {
     write();
+    stored = true;
   } catch (e) {
     // Full: drop the oldest cached entries to fit this newer one. If storage
     // is unavailable or the entry is bigger than everything, the in-memory
     // cache for this session still works, just nothing persists.
-    dropOldCacheUntil(write);
+    stored = dropOldCacheUntil(write);
+  }
+  if (stored) {
+    indexPersisted(storageKey, t, storageKey.length + json.length);
+    enforceCacheBudget(); // never let the cache grow until the whole quota is full
   }
 }
 
@@ -666,14 +712,18 @@ function prunePersistedCache() {
       if (!key || !key.startsWith(API_CACHE_PREFIX)) continue;
       let stale = true;
       try {
-        const entry = JSON.parse(localStorage.getItem(key));
+        const raw = localStorage.getItem(key);
+        const entry = JSON.parse(raw);
         stale = !entry || typeof entry.t !== "number" || Date.now() - entry.t > MAX_PERSISTED_CACHE_AGE_MS;
+        if (!stale) indexPersisted(key, entry.t, key.length + raw.length);
       } catch (e) {
         stale = true; // corrupt entry - just as well gone
       }
       if (stale) toRemove.push(key);
     }
     toRemove.forEach(key => localStorage.removeItem(key));
+    // What is left may still be more than the budget allows (many shows, big responses): trim the oldest.
+    enforceCacheBudget();
   } catch (e) {
     // localStorage unavailable - nothing to prune anyway
   }
