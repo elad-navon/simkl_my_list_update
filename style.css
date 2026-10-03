@@ -188,6 +188,19 @@
   .card.hover-stable { background: var(--card-hover); }
   .card.carousel-card { width: 259px; flex: 0 0 auto; }
   .card.carousel-card.banner-mode { width: 368px; }
+  /* Corner ribbon on a My List poster (new show, season premiere, season finale).
+     Top-right, where the short year badge sits, so it never covers network names. */
+  .card-ribbon {
+    position: absolute; top: 30px; right: -46px; z-index: 12;
+    width: 200px; height: 22px; transform: rotate(40deg);
+    display: flex; align-items: center; justify-content: center;
+    background: #38bdf8;
+    color: #04121c; font-size: 10.5px; font-weight: 800;
+    letter-spacing: 0.03em; text-transform: uppercase; white-space: nowrap;
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,0.35), 0 3px 8px rgba(0,0,0,0.45);
+  }
+  .card-ribbon.tone-premiere { background: #2fa84f; color: #fff; }
+  .card-ribbon.tone-finale { background: #c1502e; color: #fff; }
   .remaining-badge {
     /* Flush into the bottom-right corner, square rather than merged with
        the card's own radius - at this small size a matching curve reads
@@ -525,6 +538,8 @@
     text-transform: uppercase; margin-top: 5px;
   }
   .premiere-badge.finale { background: #c1502e; }
+  .premiere-badge.tag-soon { background: #1f6f93; color: #fff; }
+  .premiere-badge.tag-unknown { background: #64748b; color: #fff; }
   .premiere-badge.year-badge { background: #3d6bb3; margin-top: 0; }
   .premiere-badge.dropped { background: var(--muted); color: #111820; }
   .title-with-year { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

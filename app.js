@@ -1306,6 +1306,7 @@ function parseNextEpisode(nextToWatch) {
 // Build rows (mirrors the Python core logic)
 // ---------------------------------------------------------------------
 const LS_IMAGE_OVERRIDES = "simkl_image_overrides"; // { [tmdbId]: { posterPath, bannerPath } }
+const LS_AUTO_STARTED = "simkl_auto_started"; // { [simklId]: firstAirDate of the premiere already moved to WATCHING }
 
 function getImageOverrides() {
   try {
@@ -1537,7 +1538,7 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
   ratingsCache = ratingsCache || new SimklShowCache();
   // Per-show TMDB/SIMKL lookups run concurrently instead of one-at-a-time -
   // order doesn't matter here since the list gets sorted afterward anyway.
-  const rows = await Promise.all(items.filter(item => item.status === "plantowatch").map(async item => {
+  const rows = await Promise.all(items.map(async item => {
     const show = item.show || {};
     const title = show.title || "Unknown";
     const tmdbId = (show.ids || {}).tmdb;
@@ -1585,13 +1586,23 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
     const notAired = item.not_aired_episodes_count || 0;
     const airedCount = Math.max(totalEpisodes - notAired, 0);
     const ended = showStatus === "Ended" || showStatus === "Canceled";
-    const airedLabel = totalEpisodes > 0
-      ? (ended ? `Series Ended - ${totalEpisodes} Episodes` : `${airedCount} Episodes Aired`)
+    // Nothing aired yet: say when it premieres if TMDB has a date ahead,
+    // otherwise say it hasn't aired. Blue for a known date, slate otherwise.
+    const premiereUpcoming = !!firstAirDate && new Date(firstAirDate + "T00:00:00").getTime() > Date.now();
+    const premiereShort = premiereUpcoming
+      ? new Date(firstAirDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
       : null;
+    const airedLabel = totalEpisodes > 0
+      ? (ended ? `Series Ended - ${totalEpisodes} Episodes`
+        : airedCount > 0 ? `${airedCount} Episodes Aired`
+        : premiereShort ? `Premieres ${premiereShort}` : "Not Aired Yet")
+      : null;
+    const airedTone = !ended && totalEpisodes > 0 && airedCount === 0
+      ? (premiereShort ? "soon" : "unknown") : "";
     // "2016-2019" once ended, "2016-" (open-ended) while still airing.
     const yearRangeLabel = startYear ? `${startYear}-${ended ? (endYear || "") : ""}` : null;
 
-    return { title, imdbId, imdbRating, ratings, ...images, simklId, tmdbId, airedLabel, ended, network, networkLogoPath, yearRangeLabel, contentRating, genreLabel };
+    return { title, imdbId, imdbRating, ratings, ...images, simklId, tmdbId, airedLabel, airedTone, ended, network, networkLogoPath, yearRangeLabel, contentRating, genreLabel, firstAirDate, watchedCount: item.watched_episodes_count || 0 };
   }));
 
   // Highest IMDb rating first; shows with no known rating sink to the end.
@@ -1729,6 +1740,7 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
       totalEpisodes, available, watched, remaining,
       hours, mins, nextHours, nextMins, nextLabel, nextSeason, nextEpisode, episodeTitle, nextAirDate, badge,
       episodesLeft, lastWatchedAt: mostRecentWatchedAt(item), yearRangeLabel,
+      firstAirDate: showDetail && showDetail.first_air_date ? showDetail.first_air_date : null,
     };
     return { row, remaining, remainingMinutes };
   }));
@@ -2002,7 +2014,6 @@ async function getAiringNextRows(token, cache, episodeCache, ratingsCache) {
   });
 
   const planEligible = planToWatchItems.filter(item => {
-    if (item.status !== "plantowatch") return false;
     const tmdbId = (item.show || {}).ids && item.show.ids.tmdb;
     return !(tmdbId && seenTmdbIds.has(tmdbId)); // already added from Watching
   });
@@ -2026,6 +2037,48 @@ async function getAiringNextRows(token, cache, episodeCache, ratingsCache) {
 async function simklAddToList(ids, toStatus, token, extra) {
   const show = { to: toStatus, ids, ...(extra || {}) };
   return simklPost("/sync/add-to-list", token, { shows: [show] });
+}
+
+// The corner ribbon on a My List card. It has no dismiss control: it shows
+// while the show's next episode is a series premiere, a season premiere, or
+// a season finale, and goes away on its own once that episode is watched.
+function activeCardBadge(row) {
+  if (row.badge === "SERIES PREMIERE") return { text: "SERIES PREMIERE", tone: "new" };
+  if (row.badge === "SEASON PREMIERE") return { text: row.nextSeason != null ? `SEASON ${row.nextSeason} PREMIERE` : "SEASON PREMIERE", tone: "premiere" };
+  if (row.badge === "SEASON FINALE") return { text: row.nextSeason != null ? `SEASON ${row.nextSeason} FINALE` : "SEASON FINALE", tone: "finale" };
+  return null;
+}
+
+// A PLAN TO WATCH show whose first episode has aired (and that's recent
+// enough to be a new premiere, not old backlog) moves to WATCHING, so it
+// shows up in My List. Each premiere is moved only once - remembered by
+// its first-air date - so a show sent back to PLAN TO WATCH by hand stays
+// there instead of bouncing back on the next load.
+async function autoStartAiredPremieres(planRows, token) {
+  let started = {};
+  try { started = JSON.parse(localStorage.getItem(LS_AUTO_STARTED) || "{}"); } catch (e) { started = {}; }
+  const now = Date.now();
+  const due = planRows.filter(r => r.simklId && r.firstAirDate
+    && new Date(r.firstAirDate + "T00:00:00").getTime() <= now
+    && isRecentShow(r.firstAirDate)
+    && r.watchedCount === 0
+    && started[r.simklId] !== r.firstAirDate);
+  if (!due.length) return;
+  let moved = 0;
+  for (const r of due) {
+    try {
+      await simklAddToList({ simkl: r.simklId, tmdb: r.tmdbId, imdb: r.imdbId }, "watching", token, { title: r.title });
+      started[r.simklId] = r.firstAirDate;
+      safeSetItem(LS_AUTO_STARTED, JSON.stringify(started));
+      moved++;
+    } catch (err) {
+      showToast(`Couldn't move "${r.title}" to Watching: ${err.message}`, true);
+    }
+  }
+  if (moved) {
+    showToast(`${moved} show${moved === 1 ? "" : "s"} started airing - moved to Watching`);
+    main();
+  }
 }
 
 async function removeShowFromList(simklId, token) {
@@ -4089,7 +4142,7 @@ function rowInfoWrapHtml(row, idx, source, mode) {
 
   if (source === "plan") {
     const badgeHtml = row.airedLabel
-      ? `<div class="premiere-badge${row.ended ? " finale" : ""}">${row.airedLabel}</div>`
+      ? `<div class="premiere-badge${row.ended ? " finale" : ""}${row.airedTone ? " tag-" + row.airedTone : ""}">${row.airedLabel}</div>`
       : "";
     const yearBadgeHtml = row.yearRangeLabel
       ? `<div class="premiere-badge year-badge">${row.yearRangeLabel}</div>`
@@ -4264,6 +4317,9 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   const prevTrack = document.getElementById("myListCarouselTrack");
   const prevCarouselScrollLeft = prevTrack ? prevTrack.scrollLeft : 0;
   const prevPanelScrollPositions = capturePanelScrollPositions();
+  // Shows that just started airing lead the carousel, so a new premiere is
+  // the first thing you see (stable sort keeps the rest in their own order).
+  rows = [...rows].sort((a, b) => (activeCardBadge(b)?.tone === "new" ? 1 : 0) - (activeCardBadge(a)?.tone === "new" ? 1 : 0));
   lastRows = rows;
   lastTotalEps = totalRemainingEps;
   lastTotalMinutes = totalRemainingMinutes;
@@ -4320,7 +4376,11 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
         </div>`
       : "";
     const remainingText = row.remaining === 1 ? "1 episode left" : `${row.remaining} episodes left`;
-    const overlayHtml = imdbButtonHtml(row.imdbId, row.imdbRating, row.ratings) + `<div class="remaining-badge" title="">${STAT_STACK_ICON_BLACK_SVG}${remainingText}</div>`;
+    const cardBadge = activeCardBadge(row);
+    const cardBadgeHtml = cardBadge
+      ? `<div class="card-ribbon tone-${cardBadge.tone}"><span>${cardBadge.text}</span></div>`
+      : "";
+    const overlayHtml = cardBadgeHtml + imdbButtonHtml(row.imdbId, row.imdbRating, row.ratings) + `<div class="remaining-badge" title="">${STAT_STACK_ICON_BLACK_SVG}${remainingText}</div>`;
     const { wrapHtml } = cardImageBits(row, mode, arrIdx, overlayHtml);
 
     return `
@@ -4333,7 +4393,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
           </div>
           <div class="next-up-row">
             <span class="next-up">Next: ${row.nextLabel}</span>
-            ${row.badge ? `<div class="premiere-badge${row.badge === "SEASON FINALE" ? " finale" : ""}">${row.badge}</div>` : ""}
+            ${row.badge && !cardBadge ? `<div class="premiere-badge${row.badge === "SEASON FINALE" ? " finale" : ""}">${row.badge}</div>` : ""}
           </div>
           ${episodeTitle}
           <div class="card-fill-spacer">
@@ -4525,6 +4585,7 @@ async function main() {
     ]);
     airingRows = airingNextRows; // also primes the separate Airing Next tab's cache, so opening it doesn't re-fetch
     renderRows(rows, totalEps, totalMinutes, recentlyWatched, planToWatchRows, airingNextRows);
+    autoStartAiredPremieres(planToWatchRows, token);
   } catch (err) {
     showError(err);
   }
