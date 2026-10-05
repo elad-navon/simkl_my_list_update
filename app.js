@@ -590,6 +590,14 @@ async function getWatchingShows(token) {
   return Array.isArray(data) ? data : (data.shows || []);
 }
 
+// My List and Airing Next both need the watching list, and they load in the
+// same pass, so it's requested once per page load and shared.
+let watchingListLoad = null;
+function getWatchingShowsOnce(token) {
+  if (!watchingListLoad) watchingListLoad = getWatchingShows(token);
+  return watchingListLoad;
+}
+
 // Same shape as getWatchingShows, for the "recently watched, then dropped"
 // case in Recently Watched below - a show you stopped following shouldn't
 // vanish from there instantly, since you did just watch something of it.
@@ -1616,7 +1624,7 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
 }
 
 async function getMyListRows(token, cache, episodeCache, ratingsCache) {
-  const [items, droppedItems] = await Promise.all([getWatchingShows(token), getDroppedShows(token)]);
+  const [items, droppedItems] = await Promise.all([getWatchingShowsOnce(token), getDroppedShows(token)]);
   cache = cache || new TmdbCache();
   episodeCache = episodeCache || new SimklEpisodeCache();
   ratingsCache = ratingsCache || new SimklShowCache();
@@ -1990,7 +1998,7 @@ async function getAiringNextRows(token, cache, episodeCache, ratingsCache) {
   ratingsCache = ratingsCache || new SimklShowCache();
 
   const [watchingItems, planToWatchItems] = await Promise.all([
-    getWatchingShows(token),
+    getWatchingShowsOnce(token),
     getPlanToWatchShows(token),
   ]);
 
@@ -4570,6 +4578,7 @@ async function main() {
   app.innerHTML = `<div class="spinner" style="margin-top:80px"></div>`;
   subtitle.textContent = "Fetching your My List\u2026";
 
+  watchingListLoad = null;
   try {
     const token = await getAccessToken();
     simklToken = token;
