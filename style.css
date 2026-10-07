@@ -620,14 +620,24 @@
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .toast.error { color: var(--danger); }
 
+  /* Dim pushed well past a plain scrim (60% -> 88% black) so the page
+     behind reads as properly out of focus instead of just darker - no
+     backdrop-filter, so this costs nothing extra to render. Paired with
+     the glow ring on .modal-box below so the open modal is unmistakably
+     the one thing in focus (mocked up as options B+E:
+     https://claude.ai/artifact/Dgpe4aTWw176gZhNti57eo). */
   .modal-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    position: fixed; inset: 0; background: rgba(0,0,0,0.88);
     display: flex; align-items: flex-start; justify-content: center;
     padding: 20px; z-index: 150; overflow-y: auto; perspective: 1400px;
   }
   .modal-box {
     width: 100%; max-width: 560px; background: var(--card); border-radius: 14px;
-    padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    padding: 24px;
+    /* Hairline + soft glow in --accent2/--accent (sky blue), then the
+       original drop shadow for lift off the page. */
+    border: 1px solid rgba(125,211,252,0.45);
+    box-shadow: 0 0 0 1px rgba(125,211,252,0.3), 0 0 48px 6px rgba(56,189,248,0.28), 0 20px 60px rgba(0,0,0,0.6);
   }
   .modal-box h2 { margin: 0 0 14px; display: flex; align-items: center; justify-content: space-between; font-size: 1.3rem; }
   /* Same 3D Y-axis flip language as .poster.flip-in when cycling a show's
@@ -712,20 +722,26 @@
      of the way; shows posters, not banners, at the real 2:3 poster ratio
      (same ratio .poster uses in the top carousel) rather than a rotated
      banner box, which cropped every poster's sides noticeably.
-     Fixed 8-column grid (8*150 + 7*20 gaps + 44 padding = 1384px, hence the
-     modal's own max-width below) so every row holds exactly 8 shows - a
-     true grid rather than flex-wrap, so a column's width never depends on
-     how much text a neighboring card happens to wrap. Tall enough (see
-     max-height) that 3 full rows (24 shows) fit before the grid itself
-     needs to scroll. */
-  .panel-shows-modal { max-width: 1400px; display: flex; flex-direction: column; max-height: 98vh; padding: 16px 0 4px; }
+     The modal's width tracks how many shows are actually in the list, not
+     just how wide the screen is: openPanelShowsModal (app.js) computes how
+     many fixed 150px columns the viewport can fit, caps that at the show
+     count, and sets both grid-template-columns and max-width inline, so a
+     short list opens as a compact few-wide window instead of one sparse
+     row stretched across a wide monitor, while a long list on a wide
+     screen still gets more columns per row (fewer rows to scroll through)
+     at the exact same poster size - the posters never shrink to force a
+     fixed column count. The auto-fill rule below is just the fallback
+     baseline before that JS runs (or if it can't).
+     A true grid, not flex-wrap, so a column's width never depends on how
+     much text a neighboring card happens to wrap. */
+  .panel-shows-modal { max-width: 96vw; display: flex; flex-direction: column; max-height: 98vh; padding: 16px 0 4px; }
   .panel-shows-grid-wrap.list-panel {
     background: none; border: none; padding: 0; border-radius: 0;
     display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0;
   }
   .panel-shows-grid {
     overflow: auto; padding: 4px 22px 12px;
-    display: grid; grid-template-columns: repeat(8, 150px); justify-content: center; gap: 20px;
+    display: grid; grid-template-columns: repeat(auto-fill, 150px); justify-content: center; gap: 20px;
   }
   .panel-shows-grid .panel-shows-flip-front .list-thumb {
     width: 100%; height: 100%; aspect-ratio: auto; border-radius: 0;

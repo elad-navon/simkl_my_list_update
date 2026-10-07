@@ -3128,6 +3128,29 @@ function openPanelShowsModal(source) {
       </div>
     </div>`;
   document.body.appendChild(overlay);
+
+  // Sized to exactly as many fixed 150px columns as this list needs, up to
+  // however many fit on screen - a short list gets a narrow window instead
+  // of one sparse row stretched across a wide monitor, while a long one
+  // still uses the full width available to cut down on scrolling. Skipped
+  // on the mobile layout, which has its own fixed 2-column grid (see the
+  // max-width: 720px rule below) that this would otherwise override, since
+  // an inline style always wins over an external stylesheet rule.
+  if (!window.matchMedia || !window.matchMedia("(max-width: 720px)").matches) {
+    const TILE = 150, GAP = 20, GRID_PAD = 44; // .panel-shows-grid's own left+right padding
+    const BOX_BORDER = 2; // .modal-box's 1px focus-ring border (both sides) - border-box, so it eats into content width and has to be budgeted for too, or the grid overflows by exactly that much and grows its own scrollbar
+    const CHROME = GRID_PAD + BOX_BORDER;
+    const available = Math.max(TILE, window.innerWidth - 40 - CHROME); // 40 = .modal-overlay's own padding
+    const columnsFit = Math.max(1, Math.floor((available + GAP) / (TILE + GAP)));
+    // At least 2 when there's more than one show, so a flipped card (spans
+    // 2 columns) always has a real second column to expand into.
+    const columns = Math.max(Math.min(rows.length, columnsFit), rows.length >= 2 ? 2 : 1);
+    const grid = overlay.querySelector(".panel-shows-grid");
+    const modalBox = overlay.querySelector(".panel-shows-modal");
+    grid.style.gridTemplateColumns = `repeat(${columns}, ${TILE}px)`;
+    modalBox.style.maxWidth = `${columns * TILE + (columns - 1) * GAP + CHROME}px`;
+  }
+
   pushModalHistoryState(closePanelShowsModal);
 
   document.getElementById("panelShowsModalCloseBtn").onclick = closePanelShowsModal;
