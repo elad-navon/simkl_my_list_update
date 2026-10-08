@@ -50,6 +50,7 @@ const LS_FANART_KEY = "fanart_api_key";   // optional: extra posters/banners in 
 const LS_AUTH_V2 = "simkl_auth_v2";
 const LS_IMAGE_MODE = "simkl_image_mode"; // "poster" | "banner"
 const LS_THEME = "simkl_theme"; // "light" | "dark"
+const LS_PANEL_LAYOUT = "simkl_panel_layout"; // "paged" (one-page, default) | "scroll" (older vertically scrolling panels)
 const LS_VIEW_MODE = "simkl_view_mode";   // "list" or "airing" (not restored on load - always starts on "list")
 
 // How much of the origin's localStorage the persisted API cache may take. A browser gives a whole address
@@ -201,6 +202,11 @@ function showSettings(afterSaveCallback) {
         <span style="flex:1 1 auto;text-align:left">Dark Mode</span>
         <button class="theme-toggle" id="themeToggleBtn" title="Toggle light/dark"></button>
       </div>
+      <div class="theme-toggle-wrap" style="margin-top:12px">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="3" y1="12" x2="21" y2="12"></line><line x1="12" y1="12" x2="12" y2="21"></line></svg></span>
+        <span style="flex:1 1 auto;text-align:left">One-Page Layout</span>
+        <button class="theme-toggle" id="layoutToggleBtn" title="Toggle one-page / scrolling bottom panels"></button>
+      </div>
       <div style="margin-top:18px">
         <button class="pill" id="saveSettingsBtn">Save</button>
       </div>
@@ -248,6 +254,13 @@ function showSettings(afterSaveCallback) {
     updateThemeToggleButton();
   };
   updateThemeToggleButton();
+  // Takes effect on the next render - closing Settings (returnToPreviousView)
+  // or saving (main) both re-render the panels.
+  document.getElementById("layoutToggleBtn").onclick = () => {
+    safeSetItem(LS_PANEL_LAYOUT, isScrollLayout() ? "paged" : "scroll");
+    applyPanelLayout();
+  };
+  updateLayoutToggleButton();
   if (canCancel) {
     document.getElementById("settingsCloseBtn").onclick = returnToPreviousView;
   }
@@ -1858,7 +1871,18 @@ function airDateToTimestamp(dateStr) {
   return d.getTime();
 }
 
+// Just the date, year always included ("Nov 8, 2026") - no "Today"/
+// "Tomorrow"/weekday name and no time of day, so this stays one short line
+// in the Airing Next row regardless of what else is on it.
 function formatAirDate(dateStr) {
+  const withTime = hasTimeComponent(dateStr);
+  const target = withTime ? new Date(dateStr) : new Date(dateStr + "T00:00:00");
+  return target.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+// The older scrolling layout's longer label: "Today"/"Tomorrow"/weekday
+// plus the time of day when SIMKL gives one.
+function formatAirDateLong(dateStr) {
   const withTime = hasTimeComponent(dateStr);
   const today = new Date();
   const target = withTime ? new Date(dateStr) : new Date(dateStr + "T00:00:00");
@@ -1892,6 +1916,10 @@ function formatAirDate(dateStr) {
   return target.toLocaleDateString(undefined, sameYear
     ? { weekday: "long", month: "short", day: "numeric" }
     : { weekday: "long", month: "short", day: "numeric", year: "numeric" });
+}
+
+function airDateText(row) {
+  return (isScrollLayout() && row.airDateLongLabel) || row.airDateLabel;
 }
 
 async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, requirePremiere) {
@@ -1984,9 +2012,11 @@ async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, re
     ...images,
     nextLabel,
     nextEpisodeTitle,
+    nextSeason: next.season,
     badge,
     airDate: next.airDate,
     airDateLabel: formatAirDate(next.airDate),
+    airDateLongLabel: formatAirDateLong(next.airDate),
     network,
     networkLogoPath: resolveNetworkLogoUrl(network, tmdbLogoPath),
   };
@@ -2050,11 +2080,29 @@ async function simklAddToList(ids, toStatus, token, extra) {
 // The corner ribbon on a My List card. It has no dismiss control: it shows
 // while the show's next episode is a series premiere, a season premiere, or
 // a season finale, and goes away on its own once that episode is watched.
+// Season comes from nextSeason on My List / Airing Next rows, and from the
+// watched episode's own season on Recently Watched rows.
 function activeCardBadge(row) {
+  const season = row.nextSeason ?? row.season;
   if (row.badge === "SERIES PREMIERE") return { text: "SERIES PREMIERE", tone: "new" };
-  if (row.badge === "SEASON PREMIERE") return { text: row.nextSeason != null ? `SEASON ${row.nextSeason} PREMIERE` : "SEASON PREMIERE", tone: "premiere" };
-  if (row.badge === "SEASON FINALE") return { text: row.nextSeason != null ? `SEASON ${row.nextSeason} FINALE` : "SEASON FINALE", tone: "finale" };
+  if (row.badge === "SEASON PREMIERE") return { text: season != null ? `SEASON ${season} PREMIERE` : "SEASON PREMIERE", tone: "premiere" };
+  if (row.badge === "SEASON FINALE") return { text: season != null ? `SEASON ${season} FINALE` : "SEASON FINALE", tone: "finale" };
   return null;
+}
+
+function badgeText(row) {
+  const badge = activeCardBadge(row);
+  return badge ? badge.text : row.badge;
+}
+
+// Recently Watched can also carry "DROPPED", which activeCardBadge doesn't
+// know (that's a My List-only badge set).
+// Bottom strip on a bottom-panel thumbnail: the IMDb badge, with the
+// premiere/finale/dropped tag (when `row` has one) right beside it.
+function thumbBarHtml(imdbHtml, row) {
+  const badge = !row ? null : row.badge === "DROPPED" ? { text: "DROPPED", tone: "dropped" } : activeCardBadge(row);
+  const tagHtml = badge ? `<span class="list-thumb-tag tone-${badge.tone}">${badge.text}</span>` : "";
+  return (imdbHtml || tagHtml) ? `<div class="list-thumb-bar">${imdbHtml}${tagHtml}</div>` : "";
 }
 
 // A PLAN TO WATCH show whose first episode has aired (and that's recent
@@ -3429,6 +3477,21 @@ function updateThemeToggleButton() {
   btn.classList.toggle("on", !isLight);
 }
 
+function isScrollLayout() {
+  return localStorage.getItem(LS_PANEL_LAYOUT) === "scroll";
+}
+
+function applyPanelLayout() {
+  document.body.classList.toggle("panels-scroll", isScrollLayout());
+  updateLayoutToggleButton();
+}
+
+function updateLayoutToggleButton() {
+  const btn = document.getElementById("layoutToggleBtn");
+  if (!btn) return; // only present while the Settings panel is open
+  btn.classList.toggle("on", !isScrollLayout());
+}
+
 function updatePageTitle() {
   document.title = currentView === "airing" ? "Airing Next" : "My Watch List";
 }
@@ -4155,12 +4218,16 @@ function rowInfoWrapHtml(row, idx, source, mode) {
         ? `<div class="list-row-title"><a href="https://www.imdb.com/title/${row.imdbId}/" target="_blank" rel="noopener" onclick="event.stopPropagation()">${row.title}</a></div>`
         : `<div class="list-row-title">${row.title}</div>`)
     : `<div class="list-row-title" title="View cast" onclick="event.stopPropagation(); openCastModal('${source}', ${idx})">${row.title}</div>`;
+  // In the one-page layout the badges and IMDb rating sit on the thumbnail
+  // (thumbBarHtml), so the row's text leaves them out; the flip-card back
+  // face and the older scrolling layout keep them as text.
+  const rich = mode === "flip" || isScrollLayout();
 
   if (source === "watched") {
     const episodeCode = `S${String(row.season).padStart(2, "0")}E${String(row.episode).padStart(2, "0")}`;
     const episodeTitleHtml = row.episodeTitle ? `<div class="episode-title">${row.episodeTitle}</div>` : "";
     const badgeModifier = row.badge === "SEASON FINALE" ? " finale" : row.badge === "DROPPED" ? " dropped" : "";
-    const badgeHtml = row.badge ? `<div class="premiere-badge${badgeModifier}">${row.badge}</div>` : "";
+    const badgeHtml = (rich && row.badge) ? `<div class="premiere-badge${badgeModifier}">${badgeText(row)}</div>` : "";
     return `
       ${titleHtml}
       ${networkSubHtml(row.network, row.networkLogoPath)}
@@ -4184,15 +4251,17 @@ function rowInfoWrapHtml(row, idx, source, mode) {
           ${row.genreLabel ? `<span class="genre-label">${row.genreLabel}</span>` : ""}
         </div>`
       : "";
+    const imdbHtml = rich ? `<div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId, row.ratings)}</div>` : "";
+    // The older scrolling layout keeps the year badge beside the title.
+    const titleBlockHtml = isScrollLayout()
+      ? `<div class="title-with-year">${titleHtml}${yearBadgeHtml}</div>`
+      : `${titleHtml}${yearBadgeHtml}`;
     return `
-      <div class="title-with-year">
-        ${titleHtml}
-        ${yearBadgeHtml}
-      </div>
+      ${titleBlockHtml}
       ${networkSubHtml(row.network, row.networkLogoPath)}
       ${badgeHtml}
-      <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId, row.ratings)}</div>
-      ${contentMetaHtml}`;
+      ${imdbHtml}
+      ${rich ? contentMetaHtml : ""}`;
   }
 
   if (source === "main" && currentView !== "airing") {
@@ -4201,7 +4270,7 @@ function rowInfoWrapHtml(row, idx, source, mode) {
     // genre/content-rating (that's Plan to Watch only).
     const episodeTitleHtml = row.episodeTitle ? `<div class="episode-title">${row.episodeTitle}</div>` : "";
     const badgeHtml = row.badge
-      ? `<div class="premiere-badge${row.badge === "SEASON FINALE" ? " finale" : ""}">${row.badge}</div>`
+      ? `<div class="premiere-badge${row.badge === "SEASON FINALE" ? " finale" : ""}">${badgeText(row)}</div>`
       : "";
     const remainingText = row.remaining === 1 ? "1 episode left" : `${row.remaining} episodes left`;
     return `
@@ -4219,26 +4288,111 @@ function rowInfoWrapHtml(row, idx, source, mode) {
   // source === "airing", or source === "main" while showing the Airing
   // Next view (renderAiringRows) - both share the exact same row shape.
   const episodeTitle = row.nextEpisodeTitle ? `<div class="episode-title">${row.nextEpisodeTitle}</div>` : "";
-  const badgeHtml = row.badge
-    ? `<div class="premiere-badge${row.badge === "SEASON FINALE" ? " finale" : ""}">${row.badge}</div>`
+  const badgeHtml = (rich && row.badge)
+    ? `<div class="premiere-badge${row.badge === "SEASON FINALE" ? " finale" : ""}">${badgeText(row)}</div>`
     : "";
+  const imdbRowHtml = rich ? `<div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId, row.ratings)}</div>` : "";
   return `
     ${titleHtml}
     <div class="network-imdb-row">
       ${networkSubHtml(row.network, row.networkLogoPath)}
-      <div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId, row.ratings)}</div>
+      ${imdbRowHtml}
     </div>
     <div class="next-up-row">
       <span class="next-up">Next: ${row.nextLabel}</span>
       ${badgeHtml}
     </div>
     ${episodeTitle}
-    <div class="list-row-airdate">&#128197; ${row.airDateLabel}</div>`;
+    ${row.airDateLabel ? `<div class="list-row-airdate">&#128197; ${airDateText(row)}</div>` : ""}`;
+}
+
+// Splits a list into fixed-size, possibly-overlapping windows for the
+// bottom panels' paged carousels: `pageSize` items per page, moving `step`
+// items at a time - Airing Next shows a 4-wide page but still steps by 2,
+// so 2 shows carry over into the next page instead of all 4 changing at
+// once. The last window always backs up to stay full rather than leaving a
+// short, sparse final page when the list doesn't divide evenly.
+function pagedWindows(list, pageSize, step) {
+  const n = list.length;
+  if (!n) return [];
+  if (n <= pageSize) return [{ start: 0, items: list }];
+  const starts = [0];
+  let s = 0;
+  while (s + pageSize < n) {
+    s += step;
+    starts.push(Math.min(s, n - pageSize));
+  }
+  const lastStart = n - pageSize;
+  if (starts[starts.length - 1] !== lastStart) starts.push(lastStart);
+  return starts.map(st => ({ start: st, items: list.slice(st, st + pageSize) }));
+}
+
+function pagedRangeLabel(start, end, total) {
+  return start + 1 === end ? `${end} of ${total}` : `${start + 1}–${end} of ${total}`;
+}
+
+function pagerControlsHtml(firstLabel, hasMore) {
+  return `
+    <div class="list-pager">
+      <button type="button" class="list-pager-arrow prev off" title="Previous" onclick="pagerArrowClick(this, -1)">&lsaquo;</button>
+      <span class="list-pager-range">${firstLabel}</span>
+      <button type="button" class="list-pager-arrow next${hasMore ? "" : " off"}" title="Next" onclick="pagerArrowClick(this, 1)">&rsaquo;</button>
+    </div>`;
+}
+
+// A page's rows no longer sit back to back - the leftover height that
+// equalizes this panel with its tallest sibling (.bottom-panels-row) all
+// lands in the one gap between them (.list-page's justify-content:
+// space-between), so a dedicated divider rides in the middle of that gap
+// instead of a border glued to the first row's own bottom edge.
+function stackedRowsHtml(items, start, rowHtmlFn) {
+  return items.map((item, i) =>
+    (i > 0 ? `<div class="list-row-divider"></div>` : "") + rowHtmlFn(item, start + i)
+  ).join("\n");
+}
+
+// Builds the paged, swipeable replacement for a bottom panel's row list:
+// `pageSize` stacked rows per page, `step` rows advanced per page. Row
+// markup itself comes from `rowHtmlFn(item, idx)`, idx being the item's
+// index in the FULL list (not the page), since row handlers like
+// openCastModal/openPlanCardMenu index into that full list.
+function pagedPanelHtml(list, pageSize, step, rowHtmlFn) {
+  const windows = pagedWindows(list, pageSize, step);
+  const n = list.length;
+  const pagesHtml = windows.map(({ start, items }) =>
+    `<div class="list-page" data-range="${pagedRangeLabel(start, start + items.length, n)}">${stackedRowsHtml(items, start, rowHtmlFn)}</div>`
+  ).join("\n");
+  const firstLabel = windows.length ? pagedRangeLabel(windows[0].start, windows[0].start + windows[0].items.length, n) : "";
+  return { pagerHtml: pagerControlsHtml(firstLabel, windows.length > 1), rowsWrapHtml: `<div class="list-rows-paged">${pagesHtml}</div>` };
+}
+
+// Airing Next's wider panel: 2-show columns, each half the panel wide, so a
+// drag or an arrow click can stop after any single column (2 shows) instead
+// of only every 4. Each column's range label covers the 4 shows visible
+// when that column sits on the left.
+function pagedColumnsHtml(list, rowHtmlFn) {
+  const n = list.length;
+  const starts = [];
+  for (let s = 0; s < n; s += 2) starts.push(s);
+  const colsHtml = starts.map(s =>
+    `<div class="list-page list-page--half" data-range="${pagedRangeLabel(s, Math.min(s + 4, n), n)}">${stackedRowsHtml(list.slice(s, s + 2), s, rowHtmlFn)}</div>`
+  ).join("\n");
+  return {
+    pagerHtml: pagerControlsHtml(n ? pagedRangeLabel(0, Math.min(4, n), n) : "", starts.length > 2),
+    rowsWrapHtml: `<div class="list-rows-paged list-rows-paged--cols">${colsHtml}</div>`,
+  };
+}
+
+// The older scrolling layout: every row in one vertically scrolling list,
+// no pager.
+function scrollPanelHtml(list, rowHtmlFn) {
+  return { pagerHtml: "", rowsWrapHtml: `<div class="list-rows-scroll">${list.map(rowHtmlFn).join("\n")}</div>` };
 }
 
 function renderRecentlyWatchedHtml(list) {
   if (!list || !list.length) return "";
-  const rowsHtml = list.map((ep, idx) => {
+  const scroll = isScrollLayout();
+  const rowHtmlFn = (ep, idx) => {
     const bannerSrc = ep.bannerUrl || ep.posterUrl;
     const { cycleableClass, attrs, mode } = thumbCycleAttrs(ep, "watched", idx);
     const thumbHtml = bannerSrc
@@ -4246,25 +4400,28 @@ function renderRecentlyWatchedHtml(list) {
       : `<div class="list-thumb placeholder">${(ep.title[0] || "?").toUpperCase()}</div>`;
     return `
       <div class="list-row">
-        <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
+        <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}${scroll ? "" : thumbBarHtml("", ep)}</div>
         <div class="list-row-title-wrap">${rowInfoWrapHtml(ep, idx, "watched", "row")}</div>
-        <span class="list-check">${CHECK_ICON_SVG}</span>
+        ${scroll ? `<span class="list-check">${CHECK_ICON_SVG}</span>` : ""}
       </div>`;
-  }).join("\n");
+  };
+  const { pagerHtml, rowsWrapHtml } = scroll ? scrollPanelHtml(list, rowHtmlFn) : pagedPanelHtml(list, 2, 2, rowHtmlFn);
 
   return `
     <div class="list-panel list-panel--watched">
       <div class="list-panel-header-row">
         <div class="list-panel-header">${CLOCK_ICON_SOLID_SVG}<span>RECENTLY WATCHED</span></div>
+        ${pagerHtml}
         ${listPanelCountHtml(list.length, "watched")}
       </div>
-      <div class="list-rows-scroll">${rowsHtml}</div>
+      ${rowsWrapHtml}
     </div>`;
 }
 
 function renderPlanToWatchHtml(list) {
   if (!list || !list.length) return "";
-  const rowsHtml = list.map((row, idx) => {
+  const scroll = isScrollLayout();
+  const rowHtmlFn = (row, idx) => {
     const bannerSrc = row.bannerUrl || row.posterUrl;
     const { cycleableClass, attrs, mode } = thumbCycleAttrs(row, "plan", idx);
     const thumbHtml = bannerSrc
@@ -4272,26 +4429,29 @@ function renderPlanToWatchHtml(list) {
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
     return `
       <div class="list-row">
-        <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
+        <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}${scroll ? "" : thumbBarHtml(imdbButtonHtml(row.imdbId, row.imdbRating, row.ratings))}</div>
         <div class="list-row-title-wrap">${rowInfoWrapHtml(row, idx, "plan", "row")}</div>
-        <span class="list-check">${STAR_ICON_SVG}</span>
+        ${scroll ? `<span class="list-check">${STAR_ICON_SVG}</span>` : ""}
         <button class="card-menu-btn plan-menu-btn" title="Manage" onclick="event.stopPropagation(); openPlanCardMenu(${idx}, this)">&#8942;</button>
       </div>`;
-  }).join("\n");
+  };
+  const { pagerHtml, rowsWrapHtml } = scroll ? scrollPanelHtml(list, rowHtmlFn) : pagedPanelHtml(list, 2, 2, rowHtmlFn);
 
   return `
     <div class="list-panel list-panel--plan">
       <div class="list-panel-header-row">
         <div class="list-panel-header">${BOOKMARK_ICON_SVG}<span>PLAN TO WATCH</span></div>
+        ${pagerHtml}
         ${listPanelCountHtml(list.length, "plan")}
       </div>
-      <div class="list-rows-scroll">${rowsHtml}</div>
+      ${rowsWrapHtml}
     </div>`;
 }
 
 function renderAiringNextPreviewHtml(list) {
   if (!list || !list.length) return "";
-  const rowsHtml = list.map((row, idx) => {
+  const scroll = isScrollLayout();
+  const rowHtmlFn = (row, idx) => {
     const bannerSrc = row.bannerUrl || row.posterUrl;
     const { cycleableClass, attrs, mode } = thumbCycleAttrs(row, "airing", idx);
     const thumbHtml = bannerSrc
@@ -4299,29 +4459,143 @@ function renderAiringNextPreviewHtml(list) {
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
     return `
       <div class="list-row">
-        <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}</div>
+        <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}${scroll ? "" : thumbBarHtml(imdbButtonHtml(row.imdbId, row.imdbRating, row.ratings), row)}</div>
         <div class="list-row-title-wrap">${rowInfoWrapHtml(row, idx, "airing", "row")}</div>
-        <span class="list-check">${BELL_ICON_SVG}</span>
+        ${scroll ? `<span class="list-check">${BELL_ICON_SVG}</span>` : ""}
       </div>`;
-  }).join("\n");
+  };
+  const { pagerHtml, rowsWrapHtml } = scroll ? scrollPanelHtml(list, rowHtmlFn) : pagedColumnsHtml(list, rowHtmlFn);
 
   return `
     <div class="list-panel list-panel--airing">
       <div class="list-panel-header-row">
         <div class="list-panel-header">${CALENDAR_ICON_SVG}<span>AIRING NEXT</span></div>
+        ${pagerHtml}
         ${listPanelCountHtml(list.length, "airing")}
       </div>
-      <div class="list-rows-scroll">${rowsHtml}</div>
+      ${rowsWrapHtml}
     </div>`;
 }
 
+function pagerArrowClick(btn, dir) {
+  if (btn.classList.contains("off")) return;
+  const track = btn.closest(".list-panel").querySelector(".list-rows-paged");
+  if (track) scrollTrackByPage(track, dir);
+}
+
+// One snap step's width (a full page, or one half-width column plus its gap
+// for Airing Next), the last reachable step, and the step nearest the
+// track's current position.
+function trackSnapMetrics(track) {
+  const kids = track.children;
+  if (!kids.length) return null;
+  const unit = kids.length > 1
+    ? kids[1].getBoundingClientRect().left - kids[0].getBoundingClientRect().left
+    : track.clientWidth;
+  if (!unit) return null;
+  const maxIdx = Math.max(0, Math.round((track.scrollWidth - track.clientWidth) / unit));
+  const idx = Math.max(0, Math.min(maxIdx, Math.round(track.scrollLeft / unit)));
+  return { unit, maxIdx, idx };
+}
+
+function scrollTrackByPage(track, dir) {
+  const m = trackSnapMetrics(track);
+  if (!m || !m.maxIdx) return;
+  const next = Math.max(0, Math.min(m.maxIdx, m.idx + dir));
+  track.scrollTo({ left: next * m.unit, behavior: "smooth" });
+}
+
+// Keeps a panel's header range text ("3-4 of 20") and arrow disabled-states
+// in sync with wherever the track actually is - needed because the track
+// can move via a direct drag or a trackpad/touch swipe, not just the arrow
+// buttons' own scrollTrackByPage calls.
+function updatePagerUiForTrack(track) {
+  const panel = track.closest(".list-panel");
+  const m = trackSnapMetrics(track);
+  if (!panel || !m) return;
+  const page = track.children[m.idx];
+  const rangeEl = panel.querySelector(".list-pager-range");
+  const prevBtn = panel.querySelector(".list-pager-arrow.prev");
+  const nextBtn = panel.querySelector(".list-pager-arrow.next");
+  if (rangeEl && page) rangeEl.textContent = page.dataset.range;
+  if (prevBtn) prevBtn.classList.toggle("off", m.idx === 0);
+  if (nextBtn) nextBtn.classList.toggle("off", m.idx === m.maxIdx);
+}
+
+// Every bottom-panel row gets up to 6 lines: each other line takes 1, and
+// the show name and episode name split the rest by how many lines each
+// actually needs (ties go to the show name), so neither is cut while room
+// is left. The split also never makes a row's text taller than the tallest
+// row at the default clamps (name 2, episode 1) or its thumbnail, so the
+// panels never grow - the show name's lines are taller than the others'.
+// Batched as clamp-1 reads, unclamped reads, then writes - 3 layouts total
+// instead of several per row.
+const ROW_LINE_BUDGET = 6;
+function fitPanelRowLines() {
+  const wraps = [...document.querySelectorAll(".list-rows-paged .list-row-title-wrap")];
+  const items = wraps.map(wrap => ({
+    wrap,
+    title: wrap.querySelector(":scope > .list-row-title"),
+    ep: wrap.querySelector(":scope > .episode-title"),
+  })).filter(it => it.title);
+  const flex = items.flatMap(it => it.ep ? [it.title, it.ep] : [it.title]);
+  if (window.matchMedia("(max-width: 720px)").matches) {
+    flex.forEach(el => el.style.removeProperty("-webkit-line-clamp"));
+    return;
+  }
+  flex.forEach(el => el.style.setProperty("-webkit-line-clamp", "1"));
+  const lineH = new Map(flex.map(el => [el, el.getBoundingClientRect().height]));
+  items.forEach(it => {
+    it.fixedH = it.wrap.getBoundingClientRect().height - lineH.get(it.title) - (it.ep ? lineH.get(it.ep) : 0);
+    it.fixedLines = [...it.wrap.children].filter(c => c !== it.title && c !== it.ep && c.offsetHeight > 0).length;
+    const thumb = it.wrap.parentElement.querySelector(".list-thumb-wrap");
+    it.thumbH = thumb ? thumb.getBoundingClientRect().height : 0;
+  });
+  flex.forEach(el => el.style.setProperty("-webkit-line-clamp", "none"));
+  const need = new Map(flex.map(el => [el, Math.max(1, Math.round(el.getBoundingClientRect().height / (lineH.get(el) || 1)))]));
+
+  const textH = (it, t, e) => it.fixedH + t * lineH.get(it.title) + (it.ep ? e * lineH.get(it.ep) : 0);
+  const maxH = Math.max(...items.map(it =>
+    Math.max(it.thumbH, textH(it, Math.min(2, need.get(it.title)), it.ep ? 1 : 0))));
+  items.forEach(it => {
+    let t = need.get(it.title);
+    let e = it.ep ? need.get(it.ep) : 0;
+    while ((t + e + it.fixedLines > ROW_LINE_BUDGET || textH(it, t, e) > maxH + 0.5) && (t > 1 || e > 1)) {
+      if (e >= t && e > 1) e--; else t--;
+    }
+    it.title.style.setProperty("-webkit-line-clamp", String(t));
+    if (it.ep) it.ep.style.setProperty("-webkit-line-clamp", String(e));
+  });
+}
+let fitRowLinesRaf = null;
+window.addEventListener("resize", () => {
+  if (fitRowLinesRaf) return;
+  fitRowLinesRaf = requestAnimationFrame(() => { fitRowLinesRaf = null; fitPanelRowLines(); });
+});
+
+// Re-wired after every renderRows() - the bottom panels' HTML (and so every
+// .list-rows-paged element) gets fully replaced each time, and the native
+// `scroll` event doesn't bubble, so a listener bound once up front wouldn't
+// survive the next render.
+function wirePanelPagerTracks() {
+  document.querySelectorAll(".list-rows-paged").forEach(track => {
+    let raf = null;
+    track.addEventListener("scroll", () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => { raf = null; updatePagerUiForTrack(track); });
+    });
+    updatePagerUiForTrack(track);
+  });
+}
+
 // Every panel whose scroll position needs to survive a full re-render -
-// the carousel track plus the three bottom-panel row lists (each scrolls
-// vertically on desktop, horizontally on mobile, so both axes are saved).
+// the three bottom panels' row tracks: paged (scrollLeft doubles as "which
+// page") or, in the older layout, scrolling (vertical on desktop,
+// horizontal on mobile - both axes are saved).
 const SCROLLABLE_PANEL_SELECTORS = {
-  watched: ".list-panel--watched .list-rows-scroll",
-  plan: ".list-panel--plan .list-rows-scroll",
-  airing: ".list-panel--airing .list-rows-scroll",
+  watched: ".list-panel--watched .list-rows-paged, .list-panel--watched .list-rows-scroll",
+  plan: ".list-panel--plan .list-rows-paged, .list-panel--plan .list-rows-scroll",
+  airing: ".list-panel--airing .list-rows-paged, .list-panel--airing .list-rows-scroll",
 };
 
 function capturePanelScrollPositions() {
@@ -4375,6 +4649,9 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
       <p style="color:var(--muted)">No shows with a new episode to watch right now.</p></div>
       ${bottomPanelsWrapped}`;
     subtitle.textContent = "Nothing to watch right now";
+    restorePanelScrollPositions(prevPanelScrollPositions);
+    wirePanelPagerTracks();
+    fitPanelRowLines();
     return;
   }
 
@@ -4476,6 +4753,8 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
     }
   }
   restorePanelScrollPositions(prevPanelScrollPositions);
+  wirePanelPagerTracks();
+  fitPanelRowLines();
   updateCarouselArrows();
   wireHoverStabilization();
 }
@@ -4548,7 +4827,7 @@ function renderAiringRows(rows) {
           <h3 title="View cast" onclick="event.stopPropagation(); openCastModal('main', ${arrIdx})">${row.title}</h3>
           <div class="next-up">Next: ${row.nextLabel}</div>
           ${row.nextEpisodeTitle ? `<div class="episode-title">${row.nextEpisodeTitle}</div>` : ""}
-          <div class="air-date">&#128197; ${row.airDateLabel}</div>
+          <div class="air-date">&#128197; ${airDateText(row)}</div>
         </div>
       </div>`;
   }).join("\n");
@@ -4650,6 +4929,7 @@ updateImageModeButton();
 updateViewModeButton();
 updatePageTitle();
 applyStoredTheme();
+applyPanelLayout();
 
 (function enableCarouselDragScroll() {
   let dragTrack = null;
@@ -4692,8 +4972,8 @@ applyStoredTheme();
 })();
 
 // Same click-and-drag pattern as enableCarouselDragScroll above, just
-// vertical and targeting the three bottom panels' row lists instead of the
-// horizontal top carousel - .list-rows-scroll gets replaced wholesale on
+// vertical and targeting the older scrolling layout's row lists instead of
+// the horizontal top carousel - .list-rows-scroll gets replaced wholesale on
 // every re-render, so this delegates from the stable `app` root rather
 // than binding to elements that won't exist after the next refresh.
 (function enableListPanelsDragScroll() {
@@ -4729,6 +5009,57 @@ applyStoredTheme();
 
   app.addEventListener("click", (e) => {
     if (dragged && e.target.closest(".list-rows-scroll")) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    dragged = false;
+  }, true);
+})();
+
+// Mouse drag across a bottom panel's paged row track - the one thing
+// native scroll-snap doesn't give a mouse user for free (touch/trackpad
+// swipes already scroll it natively, no JS needed there). Dragging follows
+// the pointer 1:1 like a real swipe; letting go snaps to whichever page
+// ends up closest, same as scrollTrackByPage's arrow-click snap.
+(function enablePanelPagerDragScroll() {
+  let dragTrack = null;
+  let startX = 0;
+  let startScrollLeft = 0;
+  let dragged = false;
+
+  app.addEventListener("mousedown", (e) => {
+    if (e.button !== 0) return;
+    const track = e.target.closest(".list-rows-paged");
+    if (!track) return;
+    dragTrack = track;
+    dragged = false;
+    startX = e.pageX;
+    startScrollLeft = track.scrollLeft;
+    track.classList.add("dragging");
+    e.preventDefault();
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (!dragTrack) return;
+    const dx = e.pageX - startX;
+    if (Math.abs(dx) > 4) dragged = true;
+    dragTrack.scrollLeft = startScrollLeft - dx;
+  });
+
+  document.addEventListener("mouseup", () => {
+    if (!dragTrack) return;
+    const track = dragTrack;
+    dragTrack = null;
+    // Snap explicitly to whichever step the drag ended closest to - measured
+    // BEFORE dropping .dragging, since that re-enables CSS scroll-snap,
+    // which can move the track on its own before this reads scrollLeft.
+    const m = trackSnapMetrics(track);
+    track.classList.remove("dragging");
+    if (m) track.scrollTo({ left: m.idx * m.unit, behavior: "smooth" });
+  });
+
+  app.addEventListener("click", (e) => {
+    if (dragged && e.target.closest(".list-rows-paged")) {
       e.stopPropagation();
       e.preventDefault();
     }

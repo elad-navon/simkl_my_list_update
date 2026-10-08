@@ -125,7 +125,7 @@
   .theme-toggle.on::after { left: 19px; }
 
   /* ===================== Main content ===================== */
-  .main-content { padding: 28px 40px 60px; }
+  .main-content { padding: 28px 40px 20px; }
   .page-header {
     margin-bottom: 22px; display: flex; align-items: baseline;
     justify-content: space-between; gap: 16px; flex-wrap: wrap;
@@ -455,19 +455,33 @@
     max-width: 700px; margin: 22px auto 0;
   }
   /* ===================== Recently Watched / Airing Next / Plan to Watch panels ===================== */
+  /* align-items: stretch (the flex default, stated explicitly) - all three
+     panels are always exactly as tall as the tallest one. See .list-row's
+     own flex: 1 1 0 below, which is what actually lets a shorter panel's
+     rows absorb that extra height instead of the panel just overflowing
+     its own border. */
   .bottom-panels-row {
-    display: flex; gap: 22px; margin: 26px auto 0; align-items: flex-start;
+    display: flex; gap: 22px; margin: 26px auto 0; align-items: stretch;
   }
   .bottom-panels-row .list-panel { flex: 1 1 0; min-width: 0; }
+  /* Airing Next shows two 2-show columns at once (see .list-page--half
+     below) vs. one for the other two, so it gets exactly twice the width. */
+  .bottom-panels-row .list-panel--airing { flex: 2 1 0; }
   .list-panel {
     background: var(--card); border: 1px solid var(--border); border-radius: 12px;
-    padding: 18px 20px;
+    padding: 18px 20px 9px;
+    display: flex; flex-direction: column;
   }
   .list-panel-header {
     display: inline-flex; align-items: center; gap: 10px; color: var(--text);
     font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
-    font-weight: 700; font-size: 1.3rem; line-height: 1; letter-spacing: 0.02em; margin-bottom: 14px;
+    font-weight: 700; font-size: 1.3rem; line-height: 1; letter-spacing: 0.02em; margin-bottom: 10px;
     border-bottom: 3px solid var(--gold); padding-bottom: 8px;
+    /* Shrinks and truncates with an ellipsis rather than wrapping to a
+       second line if it ever doesn't fit beside the pager + count in the
+       narrower Recently Watched / Plan to Watch panels (Airing Next runs
+       wider - see .list-panel--airing). */
+    min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   /* Row wrapper for the three bottom panels only - .list-panel-header keeps
      its own underline unchanged, the count rides along to its right via
@@ -478,7 +492,7 @@
      underline + padding-bottom) - together with line-height: 1 on both
      (below), this keeps the two text baselines genuinely level regardless
      of the fact that one is a <div> and the other a <button>. */
-  .list-panel-header-row { display: flex; align-items: flex-start; }
+  .list-panel-header-row { display: flex; align-items: flex-start; gap: 10px; }
   /* Same font as .list-panel-header right next to it (Barlow Condensed,
      1.3rem, 700, same letter-spacing) - not actually inherited since this
      sits as .list-panel-header's sibling in .list-panel-header-row, not
@@ -487,26 +501,130 @@
     background: none; border: none; padding: 0;
     font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
     font-weight: 700; font-size: 1.3rem; line-height: 1; letter-spacing: 0.02em;
-    color: #ffffff; margin-left: auto; cursor: pointer;
+    color: #ffffff; cursor: pointer; flex: 0 0 auto;
   }
   .list-panel-count:hover { color: var(--accent2); text-decoration: underline; }
   .list-panel-count-num { color: var(--gold); }
   .list-panel-count:hover .list-panel-count-num { color: inherit; }
-  /* Vertical carousel - all three panels show ~5 rows before scrolling
-     (5 * (76px banner thumb + 24px row padding + 1px border) = 505px). */
-  .list-rows-scroll {
-    max-height: 580px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent;
-    padding-right: 14px; margin-right: -14px; cursor: grab;
+  /* Next/previous arrows + "3-4 of 20" range (pagedPanelHtml in app.js) -
+     margin-left: auto here instead of on .list-panel-count above, so the
+     pager and the count ride together at the header's right edge. */
+  .list-pager { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+  .list-pager-arrow {
+    flex: 0 0 auto; width: 20px; height: 20px; border-radius: 50%;
+    border: 1px solid var(--border); background: var(--bg); color: var(--text);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 0.8rem; line-height: 1; padding: 0; cursor: pointer;
   }
-  .list-rows-scroll::-webkit-scrollbar { width: 6px; }
-  .list-rows-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-  /* Click-and-drag vertical scrolling (enableListPanelsDragScroll) - same
-     treatment as .carousel-track.dragging for the horizontal carousel. */
-  .list-rows-scroll.dragging { cursor: grabbing; scroll-behavior: auto; user-select: none; }
-  .list-rows-scroll img { -webkit-user-drag: none; user-select: none; }
+  .list-pager-arrow:hover:not(.off) { border-color: var(--accent2); color: var(--accent2); }
+  .list-pager-arrow.off { opacity: 0.35; cursor: default; pointer-events: none; }
+  .list-pager-range { font-size: 0.65rem; color: #ffffff; min-width: 52px; text-align: center; }
+  /* Paged carousel, replacing the old vertical scroll list - each panel
+     shows exactly one page at a time (2 rows, or Airing Next's two 2-row
+     columns, see .list-page--half) with no vertical scrolling at all. scroll-snap
+     plus each .list-page's scroll-snap-align gives touch/trackpad swiping
+     for free; mouse-drag is enablePanelPagerDragScroll in app.js, since a
+     plain scroll container doesn't support that on its own. */
+  .list-rows-paged {
+    display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
+    scrollbar-width: none; cursor: grab;
+    flex: 1 1 auto; min-height: 0;
+    /* A panel's width is often fractional (e.g. 413.5px) while scrolling
+       stops on whole pixels, so a page can land half a pixel off - the gap
+       makes whatever peeks in at the edge empty background instead of a
+       sliver of the next page's thumbnail. */
+    column-gap: 20px;
+  }
+  .list-rows-paged::-webkit-scrollbar { display: none; }
+  /* scroll-snap-type: none while actively dragging - the browser otherwise
+     keeps trying to pull the track back toward the nearest snap point in
+     real time as the mouse moves (fighting the 1:1 scrollLeft tracking
+     below, unlike the free-scrolling My List carousel above, which has no
+     scroll-snap to fight at all), making a drag feel sticky and unable to
+     cross more than one page at a time. enablePanelPagerDragScroll's own
+     mouseup handler still snaps to the nearest page once the drag ends. */
+  .list-rows-paged.dragging { cursor: grabbing; scroll-behavior: auto; scroll-snap-type: none; user-select: none; }
+  .list-rows-paged img { -webkit-user-drag: none; user-select: none; }
+  /* contain: paint isolates each page's own painting from the horizontal
+     scroll it sits in - without it, Chromium can leave stale, overlapping
+     glyphs behind on an ellipsis-truncated line (.episode-title) after the
+     track jumps to a new page via drag or an arrow click, since that scroll
+     doesn't go through the normal user-scroll repaint path. */
+  /* justify-content: space-between, not each row stretching individually -
+     a shorter panel's extra height (from matching its tallest sibling,
+     .bottom-panels-row's align-items: stretch) goes into ONE gap between
+     row 1 and row 2, so row 1 stays flush with the page's own top (text
+     starts right at the thumbnail's top edge) and row 2 stays flush with
+     the bottom (no trailing gap under it either). */
+  .list-page {
+    flex: 0 0 100%; min-width: 0; scroll-snap-align: start; contain: paint;
+    display: flex; flex-direction: column; justify-content: space-between;
+    overflow: hidden;
+  }
+  /* A stacked page's own dedicated divider (see pagedPanelHtml in app.js) -
+     .list-row's own border-bottom would otherwise still draw a second line
+     right at the first row's edge, immediately before the gap this one
+     rides in the middle of. */
+  .list-page > .list-row { border-bottom: none; }
+  .list-row-divider { flex: 0 0 auto; height: 1px; background: var(--border); }
+  /* Airing Next: half-width 2-show columns instead of full-width pages
+     (pagedColumnsHtml in app.js), two visible at a time, so a drag or an
+     arrow click can stop after any one column. */
+  .list-rows-paged--cols { column-gap: 16px; }
+  .list-page--half { flex-basis: calc(50% - 8px); }
+  /* The title wraps up to 2 lines (long titles stay fully readable) rather
+     than truncating with an ellipsis - every row in a page is already the
+     same height regardless of its own title length (.list-row's own
+     flex: 1 1 0 below splits a page's full height evenly across its rows),
+     so the title itself doesn't need to reserve a fixed 2-line height on
+     top of that; doing so left a dead gap under a 1-line title before
+     whatever line comes next. Every other line here truncates with an
+     ellipsis instead, same as the rest of the app already does for an
+     episode name. */
+  .list-rows-paged .list-row-title {
+    white-space: normal; display: -webkit-box; -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical; overflow: hidden;
+    /* The text's own line-height leaves a few px of leading above the
+       letters themselves even once the title's box is flush with the
+       thumbnail's (.list-row's align-items: flex-start) - pulled up to
+       cancel that out, so the first line of actual text, not just its
+       invisible box, starts level with the thumbnail's top edge. */
+    margin-top: -3px;
+  }
+  .list-rows-paged .list-row-sub,
+  .list-rows-paged .next-up,
+  .list-rows-paged .list-row-airdate {
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  /* This row's own flex-wrap: wrap (base rule below) exists for the
+     spacious flip-card back face - here it would still let the badge drop
+     to its own second line even with the text above truncating. min-width: 0
+     lets the text side actually shrink instead of forcing the wrap. */
+  .list-rows-paged .network-imdb-row,
+  .list-rows-paged .next-up-row {
+    flex-wrap: nowrap;
+  }
+  .list-rows-paged .next-up-row .next-up {
+    min-width: 0;
+  }
+  /* 1 line until fitPanelRowLines (app.js) hands it more of the row's
+     6-line budget. */
+  .list-rows-paged .episode-title {
+    white-space: normal; display: -webkit-box; -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical; max-height: none;
+  }
   .list-row {
-    display: flex; align-items: center; gap: 14px; padding: 12px 0;
+    /* align-items: flex-start, not center - the title starts level with the
+       thumbnail's own top edge. A row can be taller than its content needs
+       (.list-row's flex: 1 1 0 below, absorbing a shorter panel's share of
+       matching its tallest sibling - see .bottom-panels-row), and centering
+       would then float the text in the middle of that extra height instead
+       of anchoring it to the image. */
+    display: flex; align-items: flex-start; gap: 14px; padding: 12px 0;
     border-bottom: 1px solid var(--border);
+    /* Without this, a row's own nowrap text keeps it as wide as its
+       longest untruncated line instead of ellipsizing inside its column. */
+    min-width: 0;
   }
   .list-row:last-child { border-bottom: none; }
   .list-thumb {
@@ -545,6 +663,9 @@
     background: rgba(255,255,255,0.94); border-radius: 3px; padding: 3px 6px;
     box-sizing: content-box;
   }
+  /* Airing Next row only - its own line again now that the IMDb pill and
+     premiere/finale badge both moved onto the thumbnail (thumbBarHtml),
+     freeing up the line this used to be merged into. */
   .list-row-airdate { color: var(--accent2); font-weight: 700; font-size: 0.8rem; margin-top: 4px; }
   .premiere-badge {
     display: inline-block; background: #2fa84f; color: #fff; font-weight: 800;
@@ -554,10 +675,8 @@
   .premiere-badge.finale { background: #c1502e; }
   .premiere-badge.tag-soon { background: #1f6f93; color: #fff; }
   .premiere-badge.tag-unknown { background: #64748b; color: #fff; }
-  .premiere-badge.year-badge { background: #3d6bb3; margin-top: 0; }
+  .premiere-badge.year-badge { background: #3d6bb3; }
   .premiere-badge.dropped { background: var(--muted); color: #111820; }
-  .title-with-year { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .title-with-year .list-row-title { flex: 0 1 auto; }
   /* Pinned to the row's own top-right corner (same edge the star badge
      sits on, further down) instead of living inside the title's flex
      flow - that's the only way to sit at the row's true right edge while
@@ -565,10 +684,67 @@
      edge lower down and there's no room further right than the edge itself. */
   .list-panel--plan .list-row { position: relative; }
   .plan-menu-btn { position: absolute; top: 12px; right: 0; margin: 0; }
+  /* Reserves the "..." button's own width out of the title's wrapping box
+     (not just its visual spot) - the button sits outside the title's own
+     flex flow (absolute, so a long word could otherwise wrap right under
+     it instead of stopping short to clear it). */
+  .list-panel--plan .list-row-title { padding-right: 26px; }
   .next-up-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .next-up-row .next-up { margin: 2px 0 0; }
   .next-up-row .premiere-badge { margin-top: 2px; }
-  .list-thumb-wrap { position: relative; flex: 0 0 auto; perspective: 900px; }
+  .list-thumb-wrap { position: relative; flex: 0 0 auto; perspective: 900px; overflow: hidden; border-radius: 6px; contain: paint; }
+  /* One strip along the thumbnail's bottom edge: a slightly smaller IMDb
+     badge than the My List card's, with the premiere/finale/dropped tag
+     right beside it, so both fit on one line in a 204px thumbnail. */
+  .list-thumb-bar {
+    position: absolute; left: 0; bottom: 0; z-index: 10; height: 18px;
+    display: flex; align-items: stretch; gap: 4px; max-width: 100%;
+  }
+  .list-thumb-bar .imdb-btn { position: static; flex: 0 0 auto; height: 100%; }
+  .list-thumb-bar .imdb-rating { font-size: 10px; padding: 1.5px 5px 0; }
+  .list-thumb-tag {
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    padding: 1.5px 6px 0; line-height: 16.5px;
+    background: #38bdf8; color: #04121c;
+    font-family: "Montserrat", sans-serif; font-size: 9px; font-weight: 800;
+    letter-spacing: 0.02em; text-transform: uppercase;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.45);
+  }
+  .list-thumb-tag.tone-premiere { background: #2fa84f; color: #fff; }
+  .list-thumb-tag.tone-finale { background: #c1502e; color: #fff; }
+  .list-thumb-tag.tone-dropped { background: var(--muted); color: #111820; }
+  /* Airing Next: IMDb stays bottom-left, the tag moves to bottom-right. */
+  .list-panel--airing .list-thumb-bar { right: 0; }
+  .list-panel--airing .list-thumb-tag { margin-left: auto; }
+
+  /* ===== Older scrolling layout (Settings > One-Page Layout off) =====
+     body.panels-scroll (applyPanelLayout in app.js) puts back the bottom
+     panels as they were before the one-page layout: equal widths, each
+     panel its own height, rows in a vertically scrolling list. */
+  body.panels-scroll .main-content { padding-bottom: 60px; }
+  body.panels-scroll .bottom-panels-row { align-items: flex-start; }
+  body.panels-scroll .bottom-panels-row .list-panel--airing { flex: 1 1 0; }
+  body.panels-scroll .list-panel { display: block; padding-bottom: 18px; }
+  body.panels-scroll .list-panel-header { margin-bottom: 14px; }
+  body.panels-scroll .list-panel-count { margin-left: auto; }
+  body.panels-scroll .list-row { align-items: center; }
+  body.panels-scroll .list-panel--plan .list-row-title { padding-right: 0; }
+  body.panels-scroll .panel-shows-flip-back .list-row-airdate { font-size: 0.92rem; }
+  /* Vertical carousel - all three panels show ~5 rows before scrolling
+     (5 * (76px banner thumb + 24px row padding + 1px border) = 505px). */
+  .list-rows-scroll {
+    max-height: 580px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+    padding-right: 14px; margin-right: -14px; cursor: grab;
+  }
+  .list-rows-scroll::-webkit-scrollbar { width: 6px; }
+  .list-rows-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  /* Click-and-drag vertical scrolling (enableListPanelsDragScroll) - same
+     treatment as .carousel-track.dragging for the horizontal carousel. */
+  .list-rows-scroll.dragging { cursor: grabbing; scroll-behavior: auto; user-select: none; }
+  .list-rows-scroll img { -webkit-user-drag: none; user-select: none; }
+  .title-with-year { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .title-with-year .list-row-title { flex: 0 1 auto; }
+  .title-with-year .premiere-badge.year-badge { margin-top: 0; }
   .list-check {
     flex: 0 0 auto; width: 31px; height: 31px; border-radius: 50%;
     border: 1.5px solid var(--accent); color: var(--accent);
@@ -823,7 +999,6 @@
   .panel-shows-flip-back .list-row-sub { font-size: 0.85rem; }
   .panel-shows-flip-back .episode-title { font-size: 0.9rem; }
   .panel-shows-flip-back .next-up { font-size: 0.94rem; }
-  .panel-shows-flip-back .list-row-airdate { font-size: 0.92rem; }
   .panel-shows-flip-back .premiere-badge { font-size: 0.74rem; }
   .panel-shows-flip-back .content-rating-badge { font-size: 0.78rem; }
   .panel-shows-flip-back .genre-label { font-size: 0.85rem; }
@@ -1171,32 +1346,51 @@
     .carousel-track { scroll-snap-type: x mandatory; }
     .card.carousel-card { scroll-snap-align: center; }
 
-    /* The three panels stack full-width instead of sitting side by side,
-       but each keeps its own row list scrolling horizontally (touch swipe)
-       rather than vertically, so rows become fixed-width cards. */
+    /* The three panels stack full-width instead of sitting side by side.
+       The desktop one-page-at-a-time pager (.list-pager) is desktop-only
+       clutter here - on mobile every row stays in one native horizontally
+       swiped strip instead, same as before this panel got paged, so
+       .list-page is unwrapped back to nothing (display: contents) and
+       scroll-snap-type is reset so the strip free-scrolls rather than
+       stopping on page boundaries sized for the desktop 2-or-4-row pages. */
     .bottom-panels-row { flex-direction: column; gap: 16px; }
     .bottom-panels-row .list-panel { width: 100%; }
     .list-panel { padding: 14px 16px; }
-    .list-rows-scroll {
-      display: flex; flex-direction: row; gap: 12px;
-      max-height: none; overflow-x: auto; overflow-y: hidden;
+    .list-pager { display: none; }
+    .list-rows-paged {
+      display: flex; flex-direction: row; gap: 12px; scroll-snap-type: none;
+      overflow-x: auto; overflow-y: hidden;
       padding-right: 0; margin-right: 0; padding-bottom: 6px;
     }
+    .list-page { display: contents; }
+    /* .list-page's display: contents above flattens the divider (a sibling
+       of .list-row, not part of it) straight into the horizontally-swiped
+       strip otherwise - there's no "gap between two rows" concept to ride
+       on mobile, each row is just its own fixed-width card. */
+    .list-row-divider { display: none; }
     .list-row {
       flex: 0 0 auto; width: 200px; flex-direction: column; align-items: stretch;
       gap: 8px; padding: 0; border-bottom: none;
     }
     .list-thumb, .list-panel .list-thumb { width: 100%; height: auto; aspect-ratio: 16 / 9; }
     .list-thumb-wrap { width: 100%; }
-    .title-with-year { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px; }
-    .title-with-year .premiere-badge.year-badge { flex-basis: 100%; margin-top: 0; }
     /* Same top-right pin as desktop, just recomputed for the stacked mobile
        card: the thumb (full width, 16:9) plus the row's own gap sits above
        the title line here, instead of the title starting at the very top. */
     .plan-menu-btn { top: 120px; }
-    /* Check/star/bell circle badge dropped on mobile across all three
-       panels (was watched-only before) - the stacked card is narrow enough
-       that it read as clutter next to the title. */
+
+    /* Older scrolling layout on mobile: the same swiped strip of
+       fixed-width cards, undoing the desktop-only overrides above. */
+    body.panels-scroll .main-content { padding-bottom: 40px; }
+    body.panels-scroll .list-panel { padding-bottom: 14px; }
+    body.panels-scroll .list-row { align-items: stretch; }
+    .list-rows-scroll {
+      display: flex; flex-direction: row; gap: 12px;
+      max-height: none; overflow-x: auto; overflow-y: hidden;
+      padding-right: 0; margin-right: 0; padding-bottom: 6px;
+    }
+    .title-with-year { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px; }
+    .title-with-year .premiere-badge.year-badge { flex-basis: 100%; margin-top: 0; }
     .list-check { display: none; }
 
     .modal-overlay { padding: 12px; }
