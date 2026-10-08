@@ -1432,13 +1432,13 @@ function computeImages(showDetail, tmdbId) {
 async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token, ratingsCache, droppedItems) {
   // Scans every currently-"watching" show (even ones you've fully caught
   // up on, which wouldn't otherwise appear in My List) for watched
-  // episodes with a timestamp, and returns the 15 most recent - at most
+  // episodes with a timestamp, and returns the 10 most recent - at most
   // one entry per show (its single most recently watched episode), so
   // binge-watching several episodes of the same show in a row doesn't
   // crowd out everything else. Recently dropped shows are folded into the
   // same pool (flagged so the render side can badge them "DROPPED") rather
   // than disappearing the instant their status changes - they still
-  // compete on recency with everything else for one of the 15 slots.
+  // compete on recency with everything else for one of the 10 slots.
   const candidates = [];
   for (const item of items) {
     if (item.status !== "watching") continue;
@@ -1489,7 +1489,7 @@ async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token, rat
     seenShows.add(showKey);
     deduped.push(c);
   }
-  const top = deduped.slice(0, 15);
+  const top = deduped.slice(0, 10);
 
   await Promise.all(top.map(async c => {
     Object.assign(c, computeImages(null));
@@ -4306,27 +4306,6 @@ function rowInfoWrapHtml(row, idx, source, mode) {
     ${row.airDateLabel ? `<div class="list-row-airdate">&#128197; ${airDateText(row)}</div>` : ""}`;
 }
 
-// Splits a list into fixed-size, possibly-overlapping windows for the
-// bottom panels' paged carousels: `pageSize` items per page, moving `step`
-// items at a time - Airing Next shows a 4-wide page but still steps by 2,
-// so 2 shows carry over into the next page instead of all 4 changing at
-// once. The last window always backs up to stay full rather than leaving a
-// short, sparse final page when the list doesn't divide evenly.
-function pagedWindows(list, pageSize, step) {
-  const n = list.length;
-  if (!n) return [];
-  if (n <= pageSize) return [{ start: 0, items: list }];
-  const starts = [0];
-  let s = 0;
-  while (s + pageSize < n) {
-    s += step;
-    starts.push(Math.min(s, n - pageSize));
-  }
-  const lastStart = n - pageSize;
-  if (starts[starts.length - 1] !== lastStart) starts.push(lastStart);
-  return starts.map(st => ({ start: st, items: list.slice(st, st + pageSize) }));
-}
-
 function pagedRangeLabel(start, end, total) {
   return start + 1 === end ? `${end} of ${total}` : `${start + 1}–${end} of ${total}`;
 }
@@ -4352,13 +4331,15 @@ function stackedRowsHtml(items, start, rowHtmlFn) {
 }
 
 // Builds the paged, swipeable replacement for a bottom panel's row list:
-// `pageSize` stacked rows per page, `step` rows advanced per page. Row
-// markup itself comes from `rowHtmlFn(item, idx)`, idx being the item's
-// index in the FULL list (not the page), since row handlers like
-// openCastModal/openPlanCardMenu index into that full list.
-function pagedPanelHtml(list, pageSize, step, rowHtmlFn) {
-  const windows = pagedWindows(list, pageSize, step);
+// `pageSize` stacked rows per page, the last page holding whatever is left
+// (no show repeated across pages). Row markup itself comes from
+// `rowHtmlFn(item, idx)`, idx being the item's index in the FULL list (not
+// the page), since row handlers like openCastModal/openPlanCardMenu index
+// into that full list.
+function pagedPanelHtml(list, pageSize, rowHtmlFn) {
   const n = list.length;
+  const windows = [];
+  for (let s = 0; s < n; s += pageSize) windows.push({ start: s, items: list.slice(s, s + pageSize) });
   const pagesHtml = windows.map(({ start, items }) =>
     `<div class="list-page" data-range="${pagedRangeLabel(start, start + items.length, n)}">${stackedRowsHtml(items, start, rowHtmlFn)}</div>`
   ).join("\n");
@@ -4405,7 +4386,7 @@ function renderRecentlyWatchedHtml(list) {
         ${scroll ? `<span class="list-check">${CHECK_ICON_SVG}</span>` : ""}
       </div>`;
   };
-  const { pagerHtml, rowsWrapHtml } = scroll ? scrollPanelHtml(list, rowHtmlFn) : pagedPanelHtml(list, 2, 2, rowHtmlFn);
+  const { pagerHtml, rowsWrapHtml } = scroll ? scrollPanelHtml(list, rowHtmlFn) : pagedPanelHtml(list, 2, rowHtmlFn);
 
   return `
     <div class="list-panel list-panel--watched">
@@ -4435,7 +4416,7 @@ function renderPlanToWatchHtml(list) {
         <button class="card-menu-btn plan-menu-btn" title="Manage" onclick="event.stopPropagation(); openPlanCardMenu(${idx}, this)">&#8942;</button>
       </div>`;
   };
-  const { pagerHtml, rowsWrapHtml } = scroll ? scrollPanelHtml(list, rowHtmlFn) : pagedPanelHtml(list, 2, 2, rowHtmlFn);
+  const { pagerHtml, rowsWrapHtml } = scroll ? scrollPanelHtml(list, rowHtmlFn) : pagedPanelHtml(list, 2, rowHtmlFn);
 
   return `
     <div class="list-panel list-panel--plan">
