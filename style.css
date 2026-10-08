@@ -518,7 +518,7 @@
   }
   .list-pager-arrow:hover:not(.off) { border-color: var(--accent2); color: var(--accent2); }
   .list-pager-arrow.off { opacity: 0.35; cursor: default; pointer-events: none; }
-  .list-pager-range { font-size: 0.65rem; color: #ffffff; min-width: 52px; text-align: center; }
+  .list-pager-range { font-size: 0.65rem; font-weight: 700; color: #ffffff; min-width: 52px; text-align: center; }
   /* Paged carousel, replacing the old vertical scroll list - each panel
      shows exactly one page at a time (2 rows, or Airing Next's two 2-row
      columns, see .list-page--half) with no vertical scrolling at all. scroll-snap

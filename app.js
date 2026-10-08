@@ -4307,7 +4307,7 @@ function rowInfoWrapHtml(row, idx, source, mode) {
 }
 
 function pagedRangeLabel(start, end, total) {
-  return start + 1 === end ? `${end} of ${total}` : `${start + 1}–${end} of ${total}`;
+  return start + 1 === end ? `${end} of ${total}` : `${start + 1}-${end} of ${total}`;
 }
 
 function pagerControlsHtml(firstLabel, hasMore) {
