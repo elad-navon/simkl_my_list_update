@@ -4603,9 +4603,6 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   const prevTrack = document.getElementById("myListCarouselTrack");
   const prevCarouselScrollLeft = prevTrack ? prevTrack.scrollLeft : 0;
   const prevPanelScrollPositions = capturePanelScrollPositions();
-  // Shows that just started airing lead the carousel, so a new premiere is
-  // the first thing you see (stable sort keeps the rest in their own order).
-  rows = [...rows].sort((a, b) => (activeCardBadge(b)?.tone === "new" ? 1 : 0) - (activeCardBadge(a)?.tone === "new" ? 1 : 0));
   lastRows = rows;
   lastTotalEps = totalRemainingEps;
   lastTotalMinutes = totalRemainingMinutes;
