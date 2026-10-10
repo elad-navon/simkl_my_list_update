@@ -202,6 +202,74 @@
   .card.hover-stable { background: var(--card-hover); }
   .card.carousel-card { width: 259px; flex: 0 0 auto; }
   .card.carousel-card.banner-mode { width: 368px; }
+  /* Poster mode: two posters share one details column (posterPairsHtml in
+     app.js) - its top half belongs to the left poster, its bottom half to
+     the right one. Each poster + its half is one L-shaped tile (blue / brown),
+     rounded at every corner, the two tiles interlocking around a dark
+     groove. 232x348 posters keep the top panel exactly as tall as banner mode. */
+  .poster-pair {
+    --pp-w: 232px; --pp-h: 348px; --pp-text: 210px; --pp-gap: 12px; --pp-line: 2px; --pp-r: 10px;
+    --pp-half: calc((var(--pp-h) - var(--pp-gap)) / 2);
+    position: relative; flex: 0 0 auto; height: var(--pp-h);
+    width: calc(2 * var(--pp-w) + var(--pp-text) + var(--pp-gap));
+    background: #070b10; border-radius: var(--pp-r);
+  }
+  .poster-pair.single { width: calc(var(--pp-w) + var(--pp-text)); background: none; }
+  .poster-pair > .card { display: contents; }
+  .poster-pair > .card:nth-child(1) { --pp-frame: #309ccd; --pp-tint: #1b3a4e; }
+  .poster-pair > .card:nth-child(2) { --pp-frame: #cb9c23; --pp-tint: #3b3320; }
+  .poster-pair > .card:nth-child(1).hover-stable { --pp-tint: #22465c; }
+  .poster-pair > .card:nth-child(2).hover-stable { --pp-tint: #463c27; }
+  /* Banner mode in the one-page layout: each card framed in one of the
+     same two colors, its text area tinted to match. The frame is drawn on
+     top (::after) instead of thickening the border, so the card keeps its
+     exact size. */
+  .card.framed.tone-a { --pp-frame: #309ccd; --pp-tint: #1b3a4e; }
+  .card.framed.tone-b { --pp-frame: #cb9c23; --pp-tint: #3b3320; }
+  .card.framed.tone-a.hover-stable { --pp-tint: #22465c; }
+  .card.framed.tone-b.hover-stable { --pp-tint: #463c27; }
+  .card.framed { border-color: var(--pp-frame); }
+  .card.framed::after {
+    content: ""; position: absolute; inset: 0; border: 1px solid var(--pp-frame);
+    border-radius: 9px; pointer-events: none; z-index: 13;
+  }
+  .card.framed .card-body { background: var(--pp-tint); transition: background 0.15s ease; }
+  .poster-pair .poster-wrap, .poster-pair .card-body {
+    position: absolute; box-sizing: border-box; border: var(--pp-line) solid var(--pp-frame);
+  }
+  .poster-pair .poster-wrap { top: 0; width: var(--pp-w); height: var(--pp-h); }
+  .poster-pair .poster-wrap .poster { height: 100%; }
+  /* Each half reaches one frame-line into its poster, covering that
+     poster's own border along the joint so the two read as one shape. */
+  .poster-pair .card-body {
+    width: calc(var(--pp-text) + var(--pp-line)); height: var(--pp-half); min-height: 0;
+    background: var(--pp-tint); transition: background 0.15s ease;
+  }
+  /* The rounded inside corner where a half meets its poster: a small
+     square filled with the tile's tint, minus a quarter circle of the
+     groove, with the frame line running along the curve. */
+  .poster-pair .card-body::before {
+    content: ""; position: absolute; width: var(--pp-r); height: var(--pp-r); pointer-events: none;
+    --pp-curve: transparent calc(var(--pp-r) - var(--pp-line) - 0.5px), var(--pp-frame) calc(var(--pp-r) - var(--pp-line)),
+      var(--pp-frame) calc(var(--pp-r) - 0.5px), var(--pp-tint) var(--pp-r);
+  }
+  .poster-pair > .card:nth-child(1) .poster-wrap { left: 0; border-radius: var(--pp-r) 0 var(--pp-r) var(--pp-r); }
+  .poster-pair > .card:nth-child(1) .card-body {
+    left: calc(var(--pp-w) - var(--pp-line)); top: 0; border-left: 0; border-radius: 0 var(--pp-r) var(--pp-r) 0;
+  }
+  .poster-pair > .card:nth-child(1) .card-body::before {
+    left: 0; top: 100%; background: radial-gradient(circle at 100% 100%, var(--pp-curve));
+  }
+  .poster-pair > .card:nth-child(2) .poster-wrap {
+    left: calc(var(--pp-w) + var(--pp-text) + var(--pp-gap)); border-radius: var(--pp-r) var(--pp-r) var(--pp-r) 0;
+  }
+  .poster-pair > .card:nth-child(2) .card-body {
+    left: calc(var(--pp-w) + var(--pp-gap)); top: calc(var(--pp-half) + var(--pp-gap));
+    border-right: 0; border-radius: var(--pp-r) 0 0 var(--pp-r);
+  }
+  .poster-pair > .card:nth-child(2) .card-body::before {
+    right: 0; bottom: 100%; background: radial-gradient(circle at 0 0, var(--pp-curve));
+  }
   /* Corner ribbon on a My List poster (new show, season premiere, season finale).
      Top-right, where the short year badge sits, so it never covers network names. */
   .card-ribbon {
@@ -469,7 +537,7 @@
   .bottom-panels-row .list-panel--airing { flex: 2 1 0; }
   .list-panel {
     background: var(--card); border: 1px solid var(--border); border-radius: 12px;
-    padding: 18px 20px 9px;
+    padding: 18px 20px 16px;
     display: flex; flex-direction: column;
   }
   .list-panel-header {
@@ -570,7 +638,8 @@
   /* Airing Next: half-width 2-show columns instead of full-width pages
      (pagedColumnsHtml in app.js), two visible at a time, so a drag or an
      arrow click can stop after any one column. */
-  .list-rows-paged--cols { column-gap: 16px; }
+  /* Free scrolling, like the top carousel - no snapping to a column. */
+  .list-rows-paged--cols { column-gap: 16px; scroll-snap-type: none; }
   .list-page--half { flex-basis: calc(50% - 8px); }
   /* The title wraps up to 2 lines (long titles stay fully readable) rather
      than truncating with an ellipsis - every row in a page is already the
@@ -716,6 +785,18 @@
   /* Airing Next: IMDb stays bottom-left, the tag moves to bottom-right. */
   .list-panel--airing .list-thumb-bar { right: 0; }
   .list-panel--airing .list-thumb-tag { margin-left: auto; }
+  /* One-page layout: each bottom-panel row (thumbnail + its text) sits in
+     its own frame, in the top panel's two pair colors (rowToneClass in
+     app.js). Same total vertical padding + border as the old 12px row
+     padding, so the panels don't grow; the divider between rows gives way
+     to the frames. */
+  .list-rows-paged .list-row {
+    padding: 8px; border: 2px solid var(--row-frame); border-radius: 10px; background: var(--row-tint);
+  }
+  .list-rows-paged .list-row.tone-a { --row-frame: #309ccd; --row-tint: #1b3a4e; }
+  .list-rows-paged .list-row.tone-b { --row-frame: #cb9c23; --row-tint: #3b3320; }
+  .list-rows-paged .list-row-divider { background: transparent; }
+  .list-rows-paged .plan-menu-btn { top: 8px; right: 4px; }
 
   /* ===== Older scrolling layout (Settings > One-Page Layout off) =====
      body.panels-scroll (applyPanelLayout in app.js) puts back the bottom
@@ -1345,6 +1426,14 @@
     }
     .carousel-track { scroll-snap-type: x mandatory; }
     .card.carousel-card { scroll-snap-align: center; }
+    /* Poster pairs fall back to ordinary separate cards on a phone. */
+    .poster-pair { display: contents; }
+    .poster-pair > .card { display: flex; }
+    .poster-pair > .card:nth-child(n) .poster-wrap, .poster-pair > .card:nth-child(n) .card-body {
+      position: relative; left: auto; top: auto; width: auto; height: auto; border: 0; border-radius: 0;
+    }
+    .poster-pair > .card:nth-child(n) .card-body { background: none; min-height: 126px; }
+    .poster-pair > .card:nth-child(n) .card-body::before { display: none; }
 
     /* The three panels stack full-width instead of sitting side by side.
        The desktop one-page-at-a-time pager (.list-pager) is desktop-only
@@ -1378,6 +1467,7 @@
        card: the thumb (full width, 16:9) plus the row's own gap sits above
        the title line here, instead of the title starting at the very top. */
     .plan-menu-btn { top: 120px; }
+    .list-rows-paged .plan-menu-btn { top: 128px; right: 4px; }
 
     /* Older scrolling layout on mobile: the same swiped strip of
        fixed-width cards, undoing the desktop-only overrides above. */

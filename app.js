@@ -4364,6 +4364,13 @@ function pagedColumnsHtml(list, rowHtmlFn) {
   };
 }
 
+// Bottom-panel row frames alternate between the top panel's two pair colors
+// (blue / brown) - Airing Next's two visible columns as a checkerboard.
+function rowToneClass(idx, checker) {
+  const n = checker ? idx + Math.floor(idx / 2) : idx;
+  return n % 2 ? "tone-b" : "tone-a";
+}
+
 // The older scrolling layout: every row in one vertically scrolling list,
 // no pager.
 function scrollPanelHtml(list, rowHtmlFn) {
@@ -4380,7 +4387,7 @@ function renderRecentlyWatchedHtml(list) {
       ? `<img class="list-thumb" loading="lazy" src="${bannerSrc}" alt="${ep.title}" onerror="handleThumbError(this, 'watched', ${idx}, '${mode}')">`
       : `<div class="list-thumb placeholder">${(ep.title[0] || "?").toUpperCase()}</div>`;
     return `
-      <div class="list-row">
+      <div class="list-row ${rowToneClass(idx)}">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}${scroll ? "" : thumbBarHtml("", ep)}</div>
         <div class="list-row-title-wrap">${rowInfoWrapHtml(ep, idx, "watched", "row")}</div>
         ${scroll ? `<span class="list-check">${CHECK_ICON_SVG}</span>` : ""}
@@ -4409,7 +4416,7 @@ function renderPlanToWatchHtml(list) {
       ? `<img class="list-thumb" loading="lazy" src="${bannerSrc}" alt="${row.title}" onerror="handleThumbError(this, 'plan', ${idx}, '${mode}')">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
     return `
-      <div class="list-row">
+      <div class="list-row ${rowToneClass(idx)}">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}${scroll ? "" : thumbBarHtml(imdbButtonHtml(row.imdbId, row.imdbRating, row.ratings))}</div>
         <div class="list-row-title-wrap">${rowInfoWrapHtml(row, idx, "plan", "row")}</div>
         ${scroll ? `<span class="list-check">${STAR_ICON_SVG}</span>` : ""}
@@ -4439,7 +4446,7 @@ function renderAiringNextPreviewHtml(list) {
       ? `<img class="list-thumb" loading="lazy" src="${bannerSrc}" alt="${row.title}" onerror="handleThumbError(this, 'airing', ${idx}, '${mode}')">`
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
     return `
-      <div class="list-row">
+      <div class="list-row ${rowToneClass(idx, true)}">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}${scroll ? "" : thumbBarHtml(imdbButtonHtml(row.imdbId, row.imdbRating, row.ratings), row)}</div>
         <div class="list-row-title-wrap">${rowInfoWrapHtml(row, idx, "airing", "row")}</div>
         ${scroll ? `<span class="list-check">${BELL_ICON_SVG}</span>` : ""}
@@ -4599,6 +4606,18 @@ function restorePanelScrollPositions(positions) {
   }
 }
 
+// Poster mode: every two cards share one details column between their
+// posters - its top half belongs to the left poster, its bottom half to the
+// right one (see .poster-pair). An odd last card gets a pair of its own.
+function posterPairsHtml(cardHtmls) {
+  const pairs = [];
+  for (let i = 0; i < cardHtmls.length; i += 2) {
+    const single = i + 1 >= cardHtmls.length;
+    pairs.push(`<div class="poster-pair${single ? " single" : ""}">${cardHtmls[i]}${single ? "" : cardHtmls[i + 1]}</div>`);
+  }
+  return pairs.join("\n");
+}
+
 function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatched, planToWatch, airingPreview) {
   const prevTrack = document.getElementById("myListCarouselTrack");
   const prevCarouselScrollLeft = prevTrack ? prevTrack.scrollLeft : 0;
@@ -4639,12 +4658,16 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   // Carousel arrows sit centered on the poster/banner image itself, not the
   // whole card (which also has the info panel below it) - compute that
   // image's height from the known card width + aspect ratio for the
-  // current mode, matching .card.carousel-card / .poster's CSS exactly.
-  const carouselCardWidth = isWide ? 368 : 259;
+  // current mode, matching .card.carousel-card / .poster-pair's CSS exactly.
+  // The one-page layout pairs posters up (posterPairsHtml) and frames
+  // banners in the two pair colors; the older scrolling layout keeps plain cards.
+  const onePage = !isScrollLayout();
+  const pairPosters = !isWide && onePage;
+  const carouselCardWidth = isWide ? 368 : pairPosters ? 232 : 259;
   const carouselImageHeight = isWide ? (carouselCardWidth * 9 / 16) : (carouselCardWidth * 3 / 2);
   const carouselArrowTop = Math.round(carouselImageHeight / 2);
 
-  const cards = rows.map((row, arrIdx) => {
+  const cardHtmls = rows.map((row, arrIdx) => {
     const timeText = row.remaining > 1
       ? `${row.nextHours}h ${row.nextMins}m / ${row.hours}h ${row.mins}m left`
       : `${row.hours}h ${row.mins}m left`;
@@ -4670,7 +4693,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
     const { wrapHtml } = cardImageBits(row, mode, arrIdx, overlayHtml);
 
     return `
-      <div class="card carousel-card${isWide ? " banner-mode" : ""}">
+      <div class="card carousel-card${isWide ? " banner-mode" : ""}${isWide && onePage ? " framed " + rowToneClass(arrIdx) : ""}">
         ${wrapHtml}
         <div class="card-body">
           <div class="card-title-row">
@@ -4688,7 +4711,8 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
           <div class="time-left" title="See every remaining episode" onclick="event.stopPropagation(); openEpisodesModal(${arrIdx})"><span class="time-icon">${CLOCK_ICON_SVG}</span>${timeText}</div>
         </div>
       </div>`;
-  }).join("\n");
+  });
+  const cards = pairPosters ? posterPairsHtml(cardHtmls) : cardHtmls.join("\n");
 
   app.innerHTML = `
     <div class="series-panel">
@@ -5033,6 +5057,8 @@ applyPanelLayout();
     // which can move the track on its own before this reads scrollLeft.
     const m = trackSnapMetrics(track);
     track.classList.remove("dragging");
+    // Airing Next's columns scroll freely - the drag stops wherever it ends.
+    if (track.classList.contains("list-rows-paged--cols")) return;
     if (m) track.scrollTo({ left: m.idx * m.unit, behavior: "smooth" });
   });
 
