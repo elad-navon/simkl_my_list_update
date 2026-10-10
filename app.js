@@ -1327,7 +1327,7 @@ function parseNextEpisode(nextToWatch) {
 // Build rows (mirrors the Python core logic)
 // ---------------------------------------------------------------------
 const LS_IMAGE_OVERRIDES = "simkl_image_overrides"; // { [tmdbId]: { posterPath, bannerPath } }
-const LS_AUTO_STARTED = "simkl_auto_started"; // { [simklId]: firstAirDate of the premiere already moved to WATCHING }
+const LS_AUTO_STARTED = "simkl_auto_started"; // { [simklId]: firstAirDate of the premiere already moved to WATCHING, or "manual" once sent back to PLAN TO WATCH by hand }
 
 function getImageOverrides() {
   try {
@@ -2118,7 +2118,8 @@ async function autoStartAiredPremieres(planRows, token) {
     && new Date(r.firstAirDate + "T00:00:00").getTime() <= now
     && isRecentShow(r.firstAirDate)
     && r.watchedCount === 0
-    && started[r.simklId] !== r.firstAirDate);
+    && started[r.simklId] !== r.firstAirDate
+    && started[r.simklId] !== "manual");
   if (!due.length) return;
   let moved = 0;
   for (const r of due) {
@@ -3275,13 +3276,6 @@ function closeSearchModal() {
 // ---------------------------------------------------------------------
 // Per-card status/remove menu
 // ---------------------------------------------------------------------
-const STATUS_OPTIONS = [
-  { value: "watching", label: "Watching" },
-  { value: "hold", label: "On Hold" },
-  { value: "completed", label: "Completed" },
-  { value: "dropped", label: "Dropped" },
-];
-
 let cardMenuOpenerBtn = null;
 
 function closeCardMenu() {
@@ -3329,7 +3323,7 @@ function openCardMenu(arrIdx, btnEl) {
   menu.style.top = `${rect.bottom + 6}px`;
   menu.style.left = `${Math.min(rect.left, window.innerWidth - 190)}px`;
 
-  const statusButtons = STATUS_OPTIONS.map(opt => `
+  const statusButtons = ALL_STATUS_OPTIONS.map(opt => `
     <button class="card-menu-item${opt.value === "watching" ? " active" : ""}" data-status="${opt.value}">
       ${opt.label}${opt.value === "watching" ? " ✓" : ""}
     </button>`).join("");
@@ -3367,7 +3361,16 @@ async function changeShowStatus(row, status) {
       { simkl: row.simklId, tmdb: row.tmdbId, imdb: row.imdbId },
       status, simklToken, { title: row.title, year: row.year }
     );
-    showToast(`Moved "${row.title}" to ${status}`);
+    // Sent to PLAN TO WATCH by hand: keep autoStartAiredPremieres from
+    // moving a just-premiered show straight back to WATCHING.
+    if (status === "plantowatch") {
+      let started = {};
+      try { started = JSON.parse(localStorage.getItem(LS_AUTO_STARTED) || "{}"); } catch (e) { started = {}; }
+      started[row.simklId] = "manual";
+      safeSetItem(LS_AUTO_STARTED, JSON.stringify(started));
+    }
+    const label = (ALL_STATUS_OPTIONS.find(o => o.value === status) || {}).label || status;
+    showToast(`Moved "${row.title}" to ${label}`);
     main();
   } catch (err) {
     showToast(err.message, true);
