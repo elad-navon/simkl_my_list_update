@@ -2074,7 +2074,15 @@ async function getAiringNextRows(token, cache, episodeCache, ratingsCache) {
 // ---------------------------------------------------------------------
 async function simklAddToList(ids, toStatus, token, extra) {
   const show = { to: toStatus, ids, ...(extra || {}) };
-  return simklPost("/sync/add-to-list", token, { shows: [show] });
+  const result = await simklPost("/sync/add-to-list", token, { shows: [show] });
+  // SIMKL answers a show it doesn't know with a success status but lists it
+  // under not_found - common for a brand-new show TMDB already has (search
+  // results also come from TMDB) that SIMKL hasn't added yet.
+  const notFound = result && result.not_found && result.not_found.shows;
+  if (Array.isArray(notFound) && notFound.length) {
+    throw new Error(`SIMKL doesn't have "${(extra && extra.title) || "this show"}" in its database yet - nothing was added. New shows usually appear on SIMKL within a few days.`);
+  }
+  return result;
 }
 
 // The corner ribbon on a My List card. It has no dismiss control: it shows
