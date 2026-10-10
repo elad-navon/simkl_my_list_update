@@ -4515,53 +4515,95 @@ function updatePagerUiForTrack(track) {
 
 // Every bottom-panel row gets up to 6 lines: each other line takes 1, and
 // the show name and episode name split the rest by how many lines each
-// actually needs (ties go to the show name), so neither is cut while room
-// is left. The split also never makes a row's text taller than the tallest
-// row at the default clamps (name 2, episode 1) or its thumbnail, so the
-// panels never grow - the show name's lines are taller than the others'.
-// Batched as clamp-1 reads, unclamped reads, then writes - 3 layouts total
-// instead of several per row.
+// actually needs (ties go to the show name). The text also never grows
+// taller than the row's thumbnail, so every framed row is exactly the same
+// height: a row that doesn't fit first gets a smaller show-name font (two
+// steps, ROW_TITLE_SIZES), and only at the smallest size are lines cut.
+// Each size step is batched as clamp-1 reads, unclamped reads, then writes.
 const ROW_LINE_BUDGET = 6;
+const ROW_TITLE_SIZES = ["", "title-fs-1", "title-fs-2"];
 function fitPanelRowLines() {
-  const wraps = [...document.querySelectorAll(".list-rows-paged .list-row-title-wrap")];
-  const items = wraps.map(wrap => ({
+  const items = [...document.querySelectorAll(".list-rows-paged .list-row-title-wrap")].map(wrap => ({
     wrap,
     title: wrap.querySelector(":scope > .list-row-title"),
     ep: wrap.querySelector(":scope > .episode-title"),
   })).filter(it => it.title);
-  const flex = items.flatMap(it => it.ep ? [it.title, it.ep] : [it.title]);
+  const flexOf = list => list.flatMap(it => it.ep ? [it.title, it.ep] : [it.title]);
+  const sizeClasses = ROW_TITLE_SIZES.filter(Boolean);
   if (window.matchMedia("(max-width: 720px)").matches) {
-    flex.forEach(el => el.style.removeProperty("-webkit-line-clamp"));
+    flexOf(items).forEach(el => el.style.removeProperty("-webkit-line-clamp"));
+    items.forEach(it => it.title.classList.remove(...sizeClasses));
     return;
   }
-  flex.forEach(el => el.style.setProperty("-webkit-line-clamp", "1"));
-  const lineH = new Map(flex.map(el => [el, el.getBoundingClientRect().height]));
-  items.forEach(it => {
-    it.fixedH = it.wrap.getBoundingClientRect().height - lineH.get(it.title) - (it.ep ? lineH.get(it.ep) : 0);
-    it.fixedLines = [...it.wrap.children].filter(c => c !== it.title && c !== it.ep && c.offsetHeight > 0).length;
-    const thumb = it.wrap.parentElement.querySelector(".list-thumb-wrap");
-    it.thumbH = thumb ? thumb.getBoundingClientRect().height : 0;
-  });
-  flex.forEach(el => el.style.setProperty("-webkit-line-clamp", "none"));
-  const need = new Map(flex.map(el => [el, Math.max(1, Math.round(el.getBoundingClientRect().height / (lineH.get(el) || 1)))]));
+  let pending = items;
+  ROW_TITLE_SIZES.forEach((cls, level) => {
+    if (!pending.length) return;
+    const smallest = level === ROW_TITLE_SIZES.length - 1;
+    pending.forEach(it => {
+      it.title.classList.remove(...sizeClasses);
+      if (cls) it.title.classList.add(cls);
+    });
+    const flex = flexOf(pending);
+    flex.forEach(el => el.style.setProperty("-webkit-line-clamp", "1"));
+    const lineH = new Map(flex.map(el => [el, el.getBoundingClientRect().height]));
+    pending.forEach(it => {
+      it.fixedH = it.wrap.getBoundingClientRect().height - lineH.get(it.title) - (it.ep ? lineH.get(it.ep) : 0);
+      it.fixedLines = [...it.wrap.children].filter(c => c !== it.title && c !== it.ep && c.offsetHeight > 0).length;
+      const thumb = it.wrap.parentElement.querySelector(".list-thumb-wrap");
+      it.maxH = (thumb ? thumb.getBoundingClientRect().height : 0) + 0.5;
+    });
+    flex.forEach(el => el.style.setProperty("-webkit-line-clamp", "none"));
+    const need = new Map(flex.map(el => [el, Math.max(1, Math.round(el.getBoundingClientRect().height / (lineH.get(el) || 1)))]));
+    const textH = (it, t, e) => it.fixedH + t * lineH.get(it.title) + (it.ep ? e * lineH.get(it.ep) : 0);
+    const shrink = (t, e) => (e >= t && e > 1) ? [t, e - 1] : [t - 1, e];
 
-  const textH = (it, t, e) => it.fixedH + t * lineH.get(it.title) + (it.ep ? e * lineH.get(it.ep) : 0);
-  const maxH = Math.max(...items.map(it =>
-    Math.max(it.thumbH, textH(it, Math.min(2, need.get(it.title)), it.ep ? 1 : 0))));
-  items.forEach(it => {
-    let t = need.get(it.title);
-    let e = it.ep ? need.get(it.ep) : 0;
-    while ((t + e + it.fixedLines > ROW_LINE_BUDGET || textH(it, t, e) > maxH + 0.5) && (t > 1 || e > 1)) {
-      if (e >= t && e > 1) e--; else t--;
-    }
-    it.title.style.setProperty("-webkit-line-clamp", String(t));
-    if (it.ep) it.ep.style.setProperty("-webkit-line-clamp", String(e));
+    const next = [];
+    pending.forEach(it => {
+      let t = need.get(it.title);
+      let e = it.ep ? need.get(it.ep) : 0;
+      while (t + e + it.fixedLines > ROW_LINE_BUDGET && (t > 1 || e > 1)) [t, e] = shrink(t, e);
+      if (textH(it, t, e) > it.maxH) {
+        let [ct, ce] = [t, e];
+        while (textH(it, ct, ce) > it.maxH && (ct > 1 || ce > 1)) [ct, ce] = shrink(ct, ce);
+        // Something has to be cut at every size: cut at the normal size.
+        if (level === 0) it.fallback = [ct, ce];
+        if (!smallest) { next.push(it); return; }
+        it.title.classList.remove(...sizeClasses);
+        [t, e] = it.fallback;
+      }
+      it.title.style.setProperty("-webkit-line-clamp", String(t));
+      if (it.ep) it.ep.style.setProperty("-webkit-line-clamp", String(e));
+    });
+    pending = next;
   });
 }
+// One-page layout on desktop: grows or shrinks the top panel's posters /
+// banners (--top-img-h) so the page fills the window exactly - no scrolling,
+// whatever the screen height. A few passes, since a banner's width follows
+// its height and can rewrap the card text under it.
+const TOP_IMG_MIN = { banner: 120, poster: 300 };
+function fitTopPanelToWindow() {
+  const root = document.documentElement;
+  const track = document.getElementById("myListCarouselTrack");
+  const main = document.querySelector(".main-content");
+  const img = track && track.querySelector(".poster-wrap");
+  if (!img || !main || currentView !== "list" || isScrollLayout() || window.matchMedia("(max-width: 720px)").matches) {
+    root.style.removeProperty("--top-img-h");
+    return;
+  }
+  const min = TOP_IMG_MIN[getImageMode() === "banner" ? "banner" : "poster"];
+  for (let pass = 0; pass < 3; pass++) {
+    const slack = window.innerHeight - (main.getBoundingClientRect().bottom + window.scrollY) - 1;
+    if (Math.abs(slack) < 1) break;
+    root.style.setProperty("--top-img-h", Math.max(min, Math.floor(img.getBoundingClientRect().height + slack)) + "px");
+  }
+}
+if (document.fonts) document.fonts.ready.then(() => fitTopPanelToWindow());
+
 let fitRowLinesRaf = null;
 window.addEventListener("resize", () => {
   if (fitRowLinesRaf) return;
-  fitRowLinesRaf = requestAnimationFrame(() => { fitRowLinesRaf = null; fitPanelRowLines(); });
+  fitRowLinesRaf = requestAnimationFrame(() => { fitRowLinesRaf = null; fitPanelRowLines(); fitTopPanelToWindow(); });
 });
 
 // Re-wired after every renderRows() - the bottom panels' HTML (and so every
@@ -4652,6 +4694,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
     restorePanelScrollPositions(prevPanelScrollPositions);
     wirePanelPagerTracks();
     fitPanelRowLines();
+    fitTopPanelToWindow();
     return;
   }
 
@@ -4668,7 +4711,9 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   const pairPosters = !isWide && onePage;
   const carouselCardWidth = isWide ? 368 : pairPosters ? 232 : 259;
   const carouselImageHeight = isWide ? (carouselCardWidth * 9 / 16) : (carouselCardWidth * 3 / 2);
-  const carouselArrowTop = Math.round(carouselImageHeight / 2);
+  const carouselArrowTop = onePage
+    ? `calc(var(--top-img-h, ${carouselImageHeight}px) / 2)`
+    : `${Math.round(carouselImageHeight / 2)}px`;
 
   const cardHtmls = rows.map((row, arrIdx) => {
     const timeText = row.remaining > 1
@@ -4739,10 +4784,10 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
         <span class="series-panel-updated">Updated ${new Date().toLocaleString()}</span>
       </div>
       <div class="carousel-wrap">
-        <button class="carousel-arrow left" title="Scroll left" style="top:${carouselArrowTop}px"
+        <button class="carousel-arrow left" title="Scroll left" style="top:${carouselArrowTop}"
           onclick="document.getElementById('myListCarouselTrack').scrollBy({left:-420,behavior:'smooth'})">${CAROUSEL_ARROW_LEFT_ICON_SVG}</button>
         <div class="carousel-track" id="myListCarouselTrack">${cards}<div class="carousel-watermark"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="15" rx="3.5" fill="none" stroke="var(--accent)" stroke-width="1.8"/><polygon points="10,7.8 10,13.2 14.6,10.5" fill="var(--accent)"/><line x1="9" y1="21" x2="15" y2="21" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"/></svg></div></div>
-        <button class="carousel-arrow" title="Scroll right" style="top:${carouselArrowTop}px"
+        <button class="carousel-arrow" title="Scroll right" style="top:${carouselArrowTop}"
           onclick="document.getElementById('myListCarouselTrack').scrollBy({left:420,behavior:'smooth'})">${CAROUSEL_ARROW_ICON_SVG}</button>
       </div>
     </div>
@@ -4760,6 +4805,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   restorePanelScrollPositions(prevPanelScrollPositions);
   wirePanelPagerTracks();
   fitPanelRowLines();
+  fitTopPanelToWindow();
   updateCarouselArrows();
   wireHoverStabilization();
 }
@@ -4812,6 +4858,7 @@ function renderAiringRows(rows) {
   currentView = "airing";
   safeSetItem(LS_VIEW_MODE, "airing");
   updateViewModeButton();
+  fitTopPanelToWindow(); // clears the list view's top-panel size
 
   if (!rows.length) {
     app.innerHTML = `<div class="center-box"><h2>Nothing airing soon</h2>
@@ -5021,11 +5068,9 @@ applyPanelLayout();
   }, true);
 })();
 
-// Mouse drag across a bottom panel's paged row track - the one thing
-// native scroll-snap doesn't give a mouse user for free (touch/trackpad
-// swipes already scroll it natively, no JS needed there). Dragging follows
-// the pointer 1:1 like a real swipe; letting go snaps to whichever page
-// ends up closest, same as scrollTrackByPage's arrow-click snap.
+// Mouse drag across a bottom panel's paged row track (touch/trackpad swipes
+// already scroll it natively). Free scrolling, same as the top carousel:
+// the track follows the pointer 1:1 and stays wherever the drag ends.
 (function enablePanelPagerDragScroll() {
   let dragTrack = null;
   let startX = 0;
@@ -5053,16 +5098,8 @@ applyPanelLayout();
 
   document.addEventListener("mouseup", () => {
     if (!dragTrack) return;
-    const track = dragTrack;
+    dragTrack.classList.remove("dragging");
     dragTrack = null;
-    // Snap explicitly to whichever step the drag ended closest to - measured
-    // BEFORE dropping .dragging, since that re-enables CSS scroll-snap,
-    // which can move the track on its own before this reads scrollLeft.
-    const m = trackSnapMetrics(track);
-    track.classList.remove("dragging");
-    // Airing Next's columns scroll freely - the drag stops wherever it ends.
-    if (track.classList.contains("list-rows-paged--cols")) return;
-    if (m) track.scrollTo({ left: m.idx * m.unit, behavior: "smooth" });
   });
 
   app.addEventListener("click", (e) => {

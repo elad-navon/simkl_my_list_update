@@ -208,7 +208,8 @@
      rounded at every corner, the two tiles interlocking around a dark
      groove. 232x348 posters keep the top panel exactly as tall as banner mode. */
   .poster-pair {
-    --pp-w: 232px; --pp-h: 348px; --pp-text: 210px; --pp-gap: 12px; --pp-line: 2px; --pp-r: 10px;
+    --pp-h: var(--top-img-h, 348px); --pp-w: calc(var(--pp-h) * 2 / 3);
+    --pp-text: 210px; --pp-gap: 12px; --pp-line: 2px; --pp-r: 10px;
     --pp-half: calc((var(--pp-h) - var(--pp-gap)) / 2);
     position: relative; flex: 0 0 auto; height: var(--pp-h);
     width: calc(2 * var(--pp-w) + var(--pp-text) + var(--pp-gap));
@@ -588,13 +589,12 @@
   .list-pager-arrow.off { opacity: 0.35; cursor: default; pointer-events: none; }
   .list-pager-range { font-size: 0.65rem; font-weight: 700; color: #ffffff; min-width: 52px; text-align: center; }
   /* Paged carousel, replacing the old vertical scroll list - each panel
-     shows exactly one page at a time (2 rows, or Airing Next's two 2-row
-     columns, see .list-page--half) with no vertical scrolling at all. scroll-snap
-     plus each .list-page's scroll-snap-align gives touch/trackpad swiping
-     for free; mouse-drag is enablePanelPagerDragScroll in app.js, since a
-     plain scroll container doesn't support that on its own. */
+     shows one page's width at a time (2 rows, or Airing Next's two 2-row
+     columns, see .list-page--half) with no vertical scrolling at all. It
+     scrolls freely, like the top carousel: touch/trackpad natively, mouse
+     drag via enablePanelPagerDragScroll in app.js. */
   .list-rows-paged {
-    display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
+    display: flex; overflow-x: auto;
     scrollbar-width: none; cursor: grab;
     flex: 1 1 auto; min-height: 0;
     /* A panel's width is often fractional (e.g. 413.5px) while scrolling
@@ -604,14 +604,7 @@
     column-gap: 20px;
   }
   .list-rows-paged::-webkit-scrollbar { display: none; }
-  /* scroll-snap-type: none while actively dragging - the browser otherwise
-     keeps trying to pull the track back toward the nearest snap point in
-     real time as the mouse moves (fighting the 1:1 scrollLeft tracking
-     below, unlike the free-scrolling My List carousel above, which has no
-     scroll-snap to fight at all), making a drag feel sticky and unable to
-     cross more than one page at a time. enablePanelPagerDragScroll's own
-     mouseup handler still snaps to the nearest page once the drag ends. */
-  .list-rows-paged.dragging { cursor: grabbing; scroll-behavior: auto; scroll-snap-type: none; user-select: none; }
+  .list-rows-paged.dragging { cursor: grabbing; scroll-behavior: auto; user-select: none; }
   .list-rows-paged img { -webkit-user-drag: none; user-select: none; }
   /* contain: paint isolates each page's own painting from the horizontal
      scroll it sits in - without it, Chromium can leave stale, overlapping
@@ -625,7 +618,7 @@
      starts right at the thumbnail's top edge) and row 2 stays flush with
      the bottom (no trailing gap under it either). */
   .list-page {
-    flex: 0 0 100%; min-width: 0; scroll-snap-align: start; contain: paint;
+    flex: 0 0 100%; min-width: 0; contain: paint;
     display: flex; flex-direction: column; justify-content: space-between;
     overflow: hidden;
   }
@@ -636,10 +629,9 @@
   .list-page > .list-row { border-bottom: none; }
   .list-row-divider { flex: 0 0 auto; height: 1px; background: var(--border); }
   /* Airing Next: half-width 2-show columns instead of full-width pages
-     (pagedColumnsHtml in app.js), two visible at a time, so a drag or an
-     arrow click can stop after any one column. */
-  /* Free scrolling, like the top carousel - no snapping to a column. */
-  .list-rows-paged--cols { column-gap: 16px; scroll-snap-type: none; }
+     (pagedColumnsHtml in app.js), two visible at a time, so an arrow click
+     moves one column. */
+  .list-rows-paged--cols { column-gap: 16px; }
   .list-page--half { flex-basis: calc(50% - 8px); }
   /* The title wraps up to 2 lines (long titles stay fully readable) rather
      than truncating with an ellipsis - every row in a page is already the
@@ -758,6 +750,10 @@
      flex flow (absolute, so a long word could otherwise wrap right under
      it instead of stopping short to clear it). */
   .list-panel--plan .list-row-title { padding-right: 26px; }
+  /* Smaller show-name steps for a row whose text wouldn't otherwise fit
+     its thumbnail's height (fitPanelRowLines in app.js). */
+  .list-rows-paged .list-row-title.title-fs-1 { font-size: 0.97rem; }
+  .list-rows-paged .list-row-title.title-fs-2 { font-size: 0.88rem; }
   .next-up-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .next-up-row .next-up { margin: 2px 0 0; }
   .next-up-row .premiere-badge { margin-top: 2px; }
@@ -802,6 +798,27 @@
      body.panels-scroll (applyPanelLayout in app.js) puts back the bottom
      panels as they were before the one-page layout: equal widths, each
      panel its own height, rows in a vertically scrolling list. */
+  /* One-page layout: a thin gold frame around each panel's title (the top
+     panel's stats, each bottom panel's name) instead of the gold underline
+     under it, and a gap between the framed bottom-panel rows (the page-fit
+     in app.js takes the extra height out of the top panel). */
+  body:not(.panels-scroll) .series-panel-header-left,
+  body:not(.panels-scroll) .list-panel .list-panel-header {
+    border: 1px solid var(--gold); border-radius: 8px; padding: 7px 12px;
+  }
+  body:not(.panels-scroll) .list-panel .list-panel-header { margin-bottom: 0; }
+  body:not(.panels-scroll) .list-panel .list-panel-header-row { align-items: center; margin-bottom: 10px; }
+  body:not(.panels-scroll) .list-rows-paged .list-row-divider { flex-basis: 10px; height: 10px; }
+  /* One-page layout on desktop: tighter page margins, and the top panel's
+     image height (--top-img-h) set by fitTopPanelToWindow in app.js so the
+     whole page always fills the window exactly, with no scrolling. */
+  @media (min-width: 721px) {
+    body:not(.panels-scroll) .main-content { padding: 14px 22px 12px; }
+    body:not(.panels-scroll) .series-panel { padding: 14px 16px 16px; }
+    body:not(.panels-scroll) .series-panel-header { margin-bottom: 12px; }
+    body:not(.panels-scroll) .bottom-panels-row { margin-top: 16px; }
+    body:not(.panels-scroll) .card.carousel-card.banner-mode { width: calc(var(--top-img-h, 206px) * 16 / 9 + 2px); }
+  }
   body.panels-scroll .main-content { padding-bottom: 60px; }
   body.panels-scroll .bottom-panels-row { align-items: flex-start; }
   body.panels-scroll .bottom-panels-row .list-panel--airing { flex: 1 1 0; }
