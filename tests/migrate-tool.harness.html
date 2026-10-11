@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head><meta charset="UTF-8"><title>migrate tool harness</title></head>
+<body>
+<!-- Runs tools/migrate.js against fake SIMKL / TMDB / TVMaze answers (no
+     network) and prints the report summary into #result for the test. -->
+<button id="runBtn">run</button><button id="backupBtn" disabled></button><button id="reportBtn" disabled></button>
+<p id="progress"></p><p id="error"></p><div id="report"></div>
+<pre id="result"></pre>
+<script>
+const iso = d => new Date(Date.now() + d * 86400000).toISOString();
+const date = d => iso(d).slice(0, 10);
+const calls = [];
+const SIMKL_LISTS = {
+  watching: [
+    // Alpha: same numbering everywhere; next airing S01E04 in 2 days.
+    { show: { title: "Alpha", year: 2024, ids: { simkl: 1, tmdb: "100", imdb: "tt100" } }, status: "watching",
+      user_rating: 8, user_rated_at: iso(-3), added_to_watchlist_at: iso(-100), memo: { text: "great", is_private: true },
+      seasons: [{ number: 1, episodes: [{ number: 1, watched_at: iso(-5), ids: { tvdb_id: 9001 } }, { number: 2, watched_at: iso(-4) }] }],
+      watched_episodes_count: 2, total_episodes_count: 4, not_aired_episodes_count: 1, next_to_watch: "S01E03" },
+    // Epsilon: SIMKL numbers season 2 continuously (S02E11..), TVMaze restarts at 1.
+    { show: { title: "Epsilon", year: 2020, ids: { simkl: 5, tmdb: "500", imdb: "tt500" } }, status: "watching",
+      added_to_watchlist_at: iso(-50), memo: {},
+      seasons: [{ number: 2, episodes: [{ number: 11, watched_at: iso(-9) }, { number: 12, watched_at: iso(-8) }] }],
+      watched_episodes_count: 2, total_episodes_count: 3, not_aired_episodes_count: 0, next_to_watch: "S02E13" },
+    // Eta: the outside sources know only its first episode -> SIMKL's own list is kept as a snapshot.
+    { show: { title: "Eta", year: 2022, ids: { simkl: 7, tmdb: "700", imdb: "tt700" } }, status: "watching",
+      seasons: [{ number: 1, episodes: [1, 2, 3].map(n => ({ number: n, watched_at: iso(-30 + n) })) }],
+      watched_episodes_count: 3, total_episodes_count: 4, not_aired_episodes_count: 0, next_to_watch: "S01E04" },
+  ],
+  plantowatch: [],
+  hold: [],
+  // Completed: with include_all_episodes=original its episodes come back too.
+  completed: [{ show: { title: "Zeta", year: 2019, ids: { simkl: 6, tmdb: "600", imdb: "tt600" } }, status: "completed",
+    seasons: [{ number: 1, episodes: [{ number: 1, watched_at: iso(-400) }, { number: 2, watched_at: null }] }],
+    watched_episodes_count: 3, total_episodes_count: 3, not_aired_episodes_count: 0, last_watched: "S01E02", last_watched_at: iso(-399) }],
+  dropped: [{ show: { title: "Delta", year: 2020, ids: { simkl: 4, tmdb: "400", imdb: "tt400" } }, status: "dropped",
+    last_watched: "S01E02", last_watched_at: iso(-30), watched_episodes_count: 2, total_episodes_count: 4, not_aired_episodes_count: 0 }],
+};
+const SIMKL_EPISODES = {
+  1: [1, 2, 3].map(n => ({ season: 1, episode: n, date: iso(-20 + n), title: "E" + n })).concat([{ season: 1, episode: 4, date: iso(2), title: "E4" }]),
+  5: [11, 12, 13].map((n, i) => ({ season: 2, episode: n, date: iso(-10 + i), title: null })),
+  6: [1, 2, 3].map(n => ({ season: 1, episode: n, date: iso(-500 + n) })),
+  7: [1, 2, 3, 4].map(n => ({ season: 1, episode: n, date: iso(-40 + n), title: "Eta " + n })),
+};
+const TMDB = {
+  "/tv/100": { name: "Alpha", first_air_date: "2024-01-01", seasons: [{ season_number: 1 }] },
+  "/tv/100/season/1": { episodes: [1, 2, 3, 4].map(n => ({ id: 1000 + n, episode_number: n, air_date: n < 4 ? date(-20 + n) : date(2), name: "E" + n })) },
+  "/tv/500": { name: "Epsilon", first_air_date: "2020-01-01", seasons: [{ season_number: 2 }] },
+  "/tv/500/season/2": { episodes: [1, 2, 3].map((n, i) => ({ id: 5000 + n, episode_number: n, air_date: date(-10 + i) })) },
+  "/tv/600": { name: "Zeta", first_air_date: "2019-01-01", seasons: [{ season_number: 1 }] },
+  "/tv/600/season/1": { episodes: [1, 2, 3].map(n => ({ id: 6000 + n, episode_number: n, air_date: date(-500 + n) })) },
+  "/tv/700": { name: "Eta", first_air_date: "2022-01-01", seasons: [{ season_number: 1 }] },
+  "/tv/700/season/1": { episodes: [{ id: 7001, episode_number: 1, air_date: date(-39) }] },
+  "/tv/400": { name: "Delta", first_air_date: "2020-01-01", seasons: [{ season_number: 1 }] },
+  "/tv/400/season/1": { episodes: [1, 2, 3, 4].map(n => ({ id: 4000 + n, episode_number: n, air_date: date(-100 + n) })) },
+};
+const TVMAZE = {
+  "/lookup/shows?imdb=tt100": { id: 10 },
+  "/shows/10/episodes": [1, 2, 3, 4].map(n => ({ id: 100 + n, season: 1, number: n, name: "E" + n, airdate: n < 4 ? date(-20 + n) : date(2), airtime: "21:00", airstamp: n < 4 ? iso(-20 + n) : iso(2) })),
+  "/lookup/shows?imdb=tt500": { id: 50 },
+  "/shows/50/episodes": [1, 2, 3].map((n, i) => ({ id: 500 + n, season: 2, number: n, airdate: date(-10 + i), airtime: "20:00", airstamp: iso(-10 + i) })),
+  "/lookup/shows?imdb=tt600": { id: 60 },
+  "/shows/60/episodes": [1, 2, 3].map(n => ({ id: 600 + n, season: 1, number: n, airdate: date(-500 + n), airtime: "", airstamp: iso(-500 + n) })),
+  "/lookup/shows?imdb=tt400": { id: 40 },
+  "/shows/40/episodes": [1, 2, 3, 4].map(n => ({ id: 400 + n, season: 1, number: n, airdate: date(-100 + n), airtime: "", airstamp: iso(-100 + n) })),
+};
+const json = (body, status = 200) => new Response(body == null ? "" : JSON.stringify(body), { status });
+window.fetch = async (url, opts = {}) => {
+  const u = new URL(url);
+  calls.push(`${opts.method || "GET"} ${u.host}${u.pathname}`);
+  if (u.host === "api.simkl.com") {
+    let m = /\/sync\/all-items\/shows\/(\w+)/.exec(u.pathname);
+    if (m) {
+      // The dropped list is "too big" when asked for every episode at once.
+      if (m[1] === "dropped" && u.searchParams.get("include_all_episodes")) return json({ error: "max_items", code: 400 }, 400);
+      return json(SIMKL_LISTS[m[1]]);
+    }
+    m = /\/tv\/episodes\/(\d+)/.exec(u.pathname);
+    if (m) return json(SIMKL_EPISODES[m[1]] || []);
+    if (u.pathname === "/sync/watched" && opts.method === "POST") {
+      const body = JSON.parse(opts.body);
+      return json(body.map(b => b.ids.simkl === 4 ? { simkl: 4, result: true, seasons: [{ number: 1, episodes: [1, 2, 3, 4].map(n => ({ number: n, watched: n <= 2, aired: true, last_watched_at: n === 2 ? iso(-30) : null })) }] } : { simkl: b.ids.simkl, result: false }));
+    }
+    return json(null, 404);
+  }
+  if (u.host === "api.themoviedb.org") {
+    const p = u.pathname.replace("/3", "");
+    return TMDB[p] ? json(TMDB[p]) : json(null, 404);
+  }
+  if (u.host === "api.tvmaze.com") {
+    const key = u.pathname + u.search;
+    return TVMAZE[key] ? json(TVMAZE[key]) : json(null, 404);
+  }
+  return json(null, 404);
+};
+localStorage.setItem("simkl_client_id_v2", "test-client");
+localStorage.setItem("simkl_auth_v2", JSON.stringify({ access: "test-token", expiresAt: Date.now() + 86400000 }));
+localStorage.setItem("tmdb_api_key", "test-key");
+// The tool must not write to localStorage: record any write after this point.
+const lsWrites = [];
+const origSet = Storage.prototype.setItem;
+Storage.prototype.setItem = function (k, v) { lsWrites.push(k); return origSet.call(this, k, v); };
+</script>
+<script src="../library-core.js"></script>
+<script src="../episode-source.js"></script>
+<script src="../tools/migrate.js"></script>
+<script>
+// Capture the report object by intercepting the JSON download.
+let capturedReport = null;
+const origCreate = URL.createObjectURL;
+URL.createObjectURL = blob => { blob.text().then(t => { capturedReport = JSON.parse(t); }); return "blob:test"; };
+HTMLAnchorElement.prototype.click = function () {};
+document.getElementById("runBtn").click();
+const poll = setInterval(() => {
+  const done = document.getElementById("progress").textContent.startsWith("הבדיקה הסתיימה") || document.getElementById("error").textContent;
+  if (!done) return;
+  if (!document.getElementById("error").textContent && !capturedReport) {
+    if (!poll.clicked) { poll.clicked = true; document.getElementById("reportBtn").click(); }
+    return;
+  }
+  clearInterval(poll);
+  document.getElementById("result").textContent = JSON.stringify({
+    error: document.getElementById("error").textContent,
+    lsWrites,
+    simklCalls: calls.filter(c => c.includes("simkl")),
+    summary: capturedReport && capturedReport.summary,
+    shows: capturedReport && capturedReport.shows.map(r => ({ title: r.title, source: r.source, methods: r.methods, unmapped: r.unmapped, checks: r.checks, airing: r.airing, personal: r.personal, bulkMarked: r.bulkMarked, partial: r.partial, issues: r.issues })),
+  });
+}, 200);
+</script>
+</body>
+</html>
