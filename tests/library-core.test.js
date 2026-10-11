@@ -299,6 +299,48 @@ test("titlesAgree / dayDiff", () => {
   assert.equal(core.dayDiff(null, "2026-01-01"), null);
 });
 
+test("showDocId: TMDB first, then a prefixed IMDb / TheTVDB id", () => {
+  assert.equal(core.showDocId({ tmdb: 42, imdb: "tt1" }), "42");
+  assert.equal(core.showDocId({ tmdb: null, imdb: "tt1" }), "imdb:tt1");
+  assert.equal(core.showDocId({ tvdb: 99 }), "tvdb:99");
+  assert.equal(core.showDocId({}), null);
+  const s = core.createShow({ ids: { imdb: "tt5" }, title: "No TMDB", status: "completed", now: NOW });
+  assert.equal(s.ids.tmdb, null);
+});
+
+test("applyOp: create adds a new show, or only sets the status of an existing one", () => {
+  const fresh = core.createShow({ ids: { tmdb: 9 }, title: "New", status: "plantowatch", now: NOW });
+  const r1 = core.applyOp(null, { id: "c1", type: "create", show: fresh });
+  assert.equal(r1.changed, true);
+  assert.equal(r1.show.rev, 1);
+  assert.deepEqual(r1.show.appliedOps, ["c1"]);
+  const existing = show({ status: "watching" });
+  const r2 = core.applyOp(existing, { id: "c2", type: "create", show: fresh, at: iso(NOW) });
+  assert.equal(r2.show.status, "plantowatch");
+  assert.equal(Object.keys(r2.show.watched).length, Object.keys(existing.watched).length, "history untouched");
+});
+
+test("applyOp: an operation already applied (same id) is never applied twice", () => {
+  const target = [{ key: "tvmaze:101", season: 1, episode: 1 }];
+  const r1 = core.applyOp(show(), { id: "same", type: "setWatched", watched: true, at: iso(NOW), episodes: target });
+  // Another device unmarks it, then the first device's retry of "same" arrives.
+  const r2 = core.applyOp(r1.show, { id: "other", type: "setWatched", watched: false, at: iso(NOW), episodes: target });
+  const retry = core.applyOp(r2.show, { id: "same", type: "setWatched", watched: true, at: iso(NOW), episodes: target });
+  assert.equal(retry.changed, false);
+  assert.deepEqual(retry.show.watched, {});
+  assert.ok(r2.show.appliedOps.includes("same") && r2.show.appliedOps.includes("other"));
+});
+
+test("checkConflict: create and already-applied operations", () => {
+  const fresh = core.createShow({ ids: { tmdb: 9 }, status: "plantowatch", now: NOW });
+  const elsewhereSame = Object.assign(core.createShow({ ids: { tmdb: 9 }, status: "plantowatch", now: NOW }), { rev: 1 });
+  const elsewhereOther = Object.assign(core.createShow({ ids: { tmdb: 9 }, status: "watching", now: NOW }), { rev: 1 });
+  assert.equal(core.checkConflict(null, elsewhereSame, { type: "create", show: fresh }).ok, true);
+  assert.equal(core.checkConflict(null, elsewhereOther, { type: "create", show: fresh }).ok, false);
+  const applied = Object.assign(show(), { rev: 3, appliedOps: ["x"] });
+  assert.equal(core.checkConflict(show(), applied, { id: "x", type: "remove" }).ok, true);
+});
+
 test("createShow validates its input", () => {
   assert.throws(() => core.createShow({ ids: {}, status: "watching", now: NOW }));
   assert.throws(() => core.createShow({ ids: { tmdb: 1 }, status: "bad", now: NOW }));

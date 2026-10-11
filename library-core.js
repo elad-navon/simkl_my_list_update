@@ -172,13 +172,23 @@
   // inferred from it about the other episodes; watchedCountHint keeps the
   // aggregate count the source reported alongside it.
 
+  // A show's document id: its TMDB id, or - for the few shows TMDB doesn't
+  // know - a prefixed IMDb / TheTVDB id, so no show is ever dropped.
+  function showDocId(ids) {
+    if (!ids) return null;
+    if (ids.tmdb != null) return String(ids.tmdb);
+    if (ids.imdb) return `imdb:${ids.imdb}`;
+    if (ids.tvdb) return `tvdb:${ids.tvdb}`;
+    return null;
+  }
+
   function createShow({ ids, title, year, status, now }) {
-    if (!ids || ids.tmdb == null) throw new Error("A library show needs a TMDB id");
+    if (!showDocId(ids)) throw new Error("A library show needs a TMDB, IMDb or TheTVDB id");
     if (!STATUSES.includes(status)) throw new Error(`Unknown status: ${status}`);
     const at = new Date(now).toISOString();
     return {
       schemaVersion: SCHEMA_VERSION, rev: 0, updatedAt: at,
-      ids: { tmdb: ids.tmdb, imdb: ids.imdb || null, tvdb: ids.tvdb || null, tvmaze: ids.tvmaze || null, simklLegacy: ids.simklLegacy || null },
+      ids: { tmdb: ids.tmdb ?? null, imdb: ids.imdb || null, tvdb: ids.tvdb || null, tvmaze: ids.tvmaze || null, simklLegacy: ids.simklLegacy || null },
       idsVerified: true,
       title: title || "Unknown", year: year || null,
       status, addedAt: at, statusChangedAt: at,
@@ -291,9 +301,15 @@
   //   { id, type: "setWatched", watched: true|false, at,
   //     episodes: [{ key, keys?, season, episode }] }
   //   { id, type: "remove" }
+  //   { id, type: "create", show }   (adding a show; on a show that already
+  //                                    exists it just sets op.show.status)
   // `id` makes an operation recognisable when it is retried, so it is never
-  // applied twice. Applying the same operation again changes nothing.
+  // applied twice: a changed show remembers the ids of its last
+  // APPLIED_OPS_KEPT operations (appliedOps), and an operation whose id is
+  // already there changes nothing. Applying the same operation again
+  // changes nothing either way.
   // Returns { show, changed } - `show` is a new object, null after remove.
+  const APPLIED_OPS_KEPT = 50;
 
   function cloneShow(show) {
     return JSON.parse(JSON.stringify(show));
@@ -301,7 +317,17 @@
 
   function applyOp(show, op) {
     if (op.type === "remove") return { show: null, changed: !!show };
+    if (op.type === "create") {
+      if (!show) {
+        const created = cloneShow(op.show);
+        created.rev = 1;
+        created.appliedOps = op.id ? [op.id] : [];
+        return { show: created, changed: true };
+      }
+      return applyOp(show, { id: op.id, type: "setStatus", status: op.show.status, at: op.at || op.show.statusChangedAt });
+    }
     if (!show) throw new Error(`Cannot apply ${op.type} to a show that isn't in the library`);
+    if (op.id && (show.appliedOps || []).includes(op.id)) return { show: cloneShow(show), changed: false };
     const next = cloneShow(show);
     let changed = false;
     if (op.type === "setStatus") {
@@ -332,6 +358,7 @@
     if (changed) {
       next.rev = (show.rev || 0) + 1;
       next.updatedAt = op.at || new Date().toISOString();
+      if (op.id) next.appliedOps = [...(show.appliedOps || []), op.id].slice(-APPLIED_OPS_KEPT);
     }
     return { show: next, changed };
   }
@@ -356,6 +383,13 @@
 
   function checkConflict(base, remote, op) {
     if ((base ? base.rev : null) === (remote ? remote.rev : null)) return { ok: true };
+    if (op.id && remote && (remote.appliedOps || []).includes(op.id)) return { ok: true }; // already applied
+    if (op.type === "create") {
+      // Added on another device meanwhile: fine if it's in the same list.
+      if (!remote || remote.status === op.show.status) return { ok: true };
+      if (base && remote.status === base.status) return { ok: true };
+      return { ok: false, reason: `It was added on another device as "${remote.status}"` };
+    }
     if (op.type === "remove") {
       // Already gone elsewhere is fine; removing a copy that another device
       // has since changed would silently discard that change.
@@ -384,7 +418,7 @@
     SCHEMA_VERSION, STATUSES,
     hasTime, localDateStr, isAired, isRegular, episodeCode,
     dayDiff, titlesAgree, nextUpcoming, mapWatched,
-    createShow, findEpisodeForRecord, toSimklShape,
+    showDocId, createShow, findEpisodeForRecord, toSimklShape,
     applyOp, checkConflict,
   };
 });
