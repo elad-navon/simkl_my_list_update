@@ -349,3 +349,16 @@ test("createShow validates its input", () => {
   assert.equal(s.ids.simklLegacy, 99);
   assert.deepEqual(s.watched, {});
 });
+
+test("setStatus can carry the premiere auto-start mark, alone or with a status change", () => {
+  const s = core.createShow({ ids: { tmdb: 1 }, title: "A", status: "plantowatch", now: Date.parse("2026-10-01T00:00:00Z") });
+  let r = core.applyOp(s, { id: "a", type: "setStatus", status: "watching", at: "2026-10-02T00:00:00Z", autoStarted: "2026-10-01" });
+  assert.equal(r.show.status, "watching");
+  assert.equal(r.show.autoStarted, "2026-10-01");
+  r = core.applyOp(r.show, { id: "b", type: "setStatus", status: "watching", at: "2026-10-03T00:00:00Z", autoStarted: "manual" });
+  assert.equal(r.changed, true, "only the mark changed");
+  assert.equal(r.show.autoStarted, "manual");
+  r = core.applyOp(r.show, { id: "c", type: "setStatus", status: "watching", at: "2026-10-03T00:00:00Z" });
+  assert.equal(r.changed, false);
+  assert.equal(r.show.autoStarted, "manual", "left alone when not given");
+});

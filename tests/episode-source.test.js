@@ -187,3 +187,61 @@ test("Simultaneous requests for one show share a single fetch; the cache serves 
   await src.getEpisodes({ imdb: "tt1" });
   assert.equal(fetch.calls.length, 2, "one lookup + one episode list");
 });
+
+test("A known TVMaze id skips the lookup", async () => {
+  const fetch = fakeFetch({ "/shows/5/episodes": TVM_EPISODES });
+  const src = createEpisodeSource({ fetch, tmdbGet: fakeTmdb({}), minGapMs: 0 });
+  const r = await src.getEpisodes({ imdb: "tt1", tvmaze: 5 });
+  assert.equal(r.episodes.length, 2);
+  assert.deepEqual(fetch.calls, ["/shows/5/episodes"]);
+});
+
+// A cache whose answers are promises (like IndexedDB) and whose entries can
+// be aged by hand.
+function asyncCache() {
+  const map = new Map();
+  return {
+    map,
+    async get(key, ttl) { const h = map.get(key); return h && Date.now() - h.t < ttl ? h.v : undefined; },
+    async set(key, v) { map.set(key, { t: Date.now(), v }); },
+    age(key, ms) { const h = map.get(key); h.t -= ms; if (h.v && h.v.fetchedAt) h.v.fetchedAt -= ms; },
+  };
+}
+
+test("With TVMaze's update list, a cached episode list is kept until TVMaze reports the show changed", async () => {
+  const cache = asyncCache();
+  const nowSec = Math.floor(Date.now() / 1000);
+  let updates = {};
+  const fetch = fakeFetch({
+    "/lookup/shows?imdb=tt1": { id: 5 }, "/shows/5/episodes": TVM_EPISODES,
+    "/updates/shows?since=week": () => jsonRes(200, updates),
+  });
+  const make = () => createEpisodeSource({ fetch, tmdbGet: fakeTmdb({}), cache, minGapMs: 0, useUpdates: true });
+
+  await make().getEpisodes({ imdb: "tt1" });
+  assert.equal(fetch.calls.filter(c => c === "/shows/5/episodes").length, 1);
+
+  // A day later (past the plain 6-hour expiry), nothing changed on TVMaze:
+  // the next page load keeps the copy.
+  cache.age("tvmaze-episodes:5", 24 * 3600 * 1000);
+  await make().getEpisodes({ imdb: "tt1" });
+  assert.equal(fetch.calls.filter(c => c === "/shows/5/episodes").length, 1);
+
+  // TVMaze reports the show updated after the copy was taken: fetched again.
+  updates = { 5: nowSec };
+  await make().getEpisodes({ imdb: "tt1" });
+  assert.equal(fetch.calls.filter(c => c === "/shows/5/episodes").length, 2);
+  assert.equal(fetch.calls.filter(c => c.startsWith("/updates")).length, 2, "asked once per session, only when there is a cached copy to check");
+});
+
+test("If TVMaze's update list can't be had, the plain expiry applies", async () => {
+  const cache = asyncCache();
+  const fetch = fakeFetch({ "/lookup/shows?imdb=tt1": { id: 5 }, "/shows/5/episodes": TVM_EPISODES, "/updates/shows?since=week": () => jsonRes(500, null) });
+  const make = () => createEpisodeSource({ fetch, tmdbGet: fakeTmdb({}), cache, minGapMs: 0, useUpdates: true });
+  await make().getEpisodes({ imdb: "tt1" });
+  await make().getEpisodes({ imdb: "tt1" });
+  assert.equal(fetch.calls.filter(c => c === "/shows/5/episodes").length, 1, "fresh copy kept");
+  cache.age("tvmaze-episodes:5", 7 * 3600 * 1000);
+  await make().getEpisodes({ imdb: "tt1" });
+  assert.equal(fetch.calls.filter(c => c === "/shows/5/episodes").length, 2, "older than 6 hours: fetched again");
+});

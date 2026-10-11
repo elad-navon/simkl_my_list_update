@@ -81,26 +81,39 @@
     };
   }
 
-  // createEpisodeSource({ fetch, tmdbGet, cache, ttlMs, minGapMs })
+  // How long a show's TVMaze id (from a lookup) is trusted - it never
+  // changes, the long expiry only bounds the cache.
+  const LOOKUP_TTL_MS = 30 * DAY_MS;
+  // With useUpdates, an episode list stays valid until TVMaze reports the
+  // show as updated - TVMaze's update list covers the past week, so a copy
+  // older than that is fetched again regardless.
+  const UPDATES_WINDOW_MS = 6 * DAY_MS;
+
+  // createEpisodeSource({ fetch, tmdbGet, cache, ttlMs, minGapMs, useUpdates })
   // - fetch: window.fetch (or a stand-in in tests)
   // - tmdbGet(path, params): resolves to TMDB JSON or null (404)
-  // - cache: optional { get(key, ttlMs) -> value|undefined, set(key, value) }
-  function createEpisodeSource({ fetch: fetchFn, tmdbGet, cache, ttlMs = 6 * 3600 * 1000, minGapMs = 520 }) {
+  // - cache: optional { get(key, ttlMs) -> value|undefined, set(key, value) };
+  //   either may return a promise
+  // - useUpdates: ask TVMaze once per session which shows changed this week
+  //   (one request), and keep every other cached episode list - so a reload
+  //   refetches only the shows that actually changed, not all of them.
+  function createEpisodeSource({ fetch: fetchFn, tmdbGet, cache, ttlMs = 6 * 3600 * 1000, minGapMs = 520, useUpdates = false }) {
     const inFlight = new Map();
     let nextTvmazeAt = 0;
+    let updatesPromise = null;
 
     function once(key, fn) {
       if (!inFlight.has(key)) inFlight.set(key, fn().finally(() => inFlight.delete(key)));
       return inFlight.get(key);
     }
 
-    async function cached(key, fn) {
+    async function cached(key, fn, ttl = ttlMs) {
       if (cache) {
-        const hit = cache.get(key, ttlMs);
+        const hit = await cache.get(key, ttl);
         if (hit !== undefined) return hit;
       }
       const value = await fn();
-      if (cache && value !== undefined) cache.set(key, value);
+      if (cache && value !== undefined) await cache.set(key, value);
       return value;
     }
 
@@ -134,15 +147,41 @@
         if (ids.imdb) show = await tvmazeGet(`/lookup/shows?imdb=${encodeURIComponent(ids.imdb)}`);
         if (!show && ids.tvdb) show = await tvmazeGet(`/lookup/shows?thetvdb=${encodeURIComponent(ids.tvdb)}`);
         return show ? { id: show.id, name: show.name, premiered: show.premiered || null } : null;
-      }));
+      }, LOOKUP_TTL_MS));
+    }
+
+    // { tvmazeId: last update, in seconds } for the past week, or null if
+    // TVMaze couldn't say (then the plain ttlMs expiry applies).
+    function recentUpdates() {
+      if (!updatesPromise) {
+        updatesPromise = tvmazeGet("/updates/shows?since=week").catch(() => null);
+      }
+      return updatesPromise;
     }
 
     function tvmazeEpisodes(tvmazeId) {
       const key = `tvmaze-episodes:${tvmazeId}`;
-      return once(key, () => cached(key, async () => {
+      const fetchList = async () => {
         const list = await tvmazeGet(`/shows/${tvmazeId}/episodes`);
-        return (list || []).map(fromTvmaze).filter(Boolean);
-      }));
+        return { fetchedAt: Date.now(), episodes: (list || []).map(fromTvmaze).filter(Boolean) };
+      };
+      return once(key, async () => {
+        if (useUpdates && cache) {
+          const hit = await cache.get(key, UPDATES_WINDOW_MS);
+          if (hit && hit.episodes) {
+            const updates = await recentUpdates();
+            const changedAt = updates ? updates[tvmazeId] : undefined;
+            const fresh = updates
+              ? !(changedAt && changedAt * 1000 > hit.fetchedAt)
+              : Date.now() - hit.fetchedAt < ttlMs;
+            if (fresh) return hit.episodes;
+          }
+          const value = await fetchList();
+          await cache.set(key, value);
+          return value.episodes;
+        }
+        return (await cached(key, fetchList)).episodes;
+      });
     }
 
     function tmdbEpisodes(tmdbId) {
@@ -191,7 +230,8 @@
       await Promise.all([
         (async () => {
           try {
-            tvmazeShow = (ids.imdb || ids.tvdb) ? await lookupTvmaze(ids) : null;
+            tvmazeShow = ids.tvmaze ? { id: ids.tvmaze }
+              : (ids.imdb || ids.tvdb) ? await lookupTvmaze(ids) : null;
             if (tvmazeShow) tvm = await tvmazeEpisodes(tvmazeShow.id);
           } catch (e) { errors.push(e.message); }
         })(),

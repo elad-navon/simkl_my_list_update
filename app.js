@@ -197,6 +197,7 @@ function showSettings(afterSaveCallback) {
       <label>Fanart.tv API Key &mdash; optional, adds more posters and banners to the image picker
         (<a href="https://fanart.tv/get-an-api-key/" target="_blank">get a free key</a>)</label>
       <input type="text" id="fanartKeyInput" value="${cfg.fanartKey}">
+      ${librarySettingsHtml()}
       <div class="theme-toggle-wrap" style="margin-top:18px">
         <span class="nav-icon"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></span>
         <span style="flex:1 1 auto;text-align:left">Dark Mode</span>
@@ -220,8 +221,10 @@ function showSettings(afterSaveCallback) {
     const tmdbKey = document.getElementById("tmdbKeyInput").value.trim();
     const mdblistKey = document.getElementById("mdblistKeyInput").value.trim();
     const fanartKey = document.getElementById("fanartKeyInput").value.trim();
-    if ((!clientId && !clientIdV2) || !tmdbKey) {
-      document.getElementById("settingsError").textContent = "A SIMKL Client ID (V2 or V1) and the TMDB key are required.";
+    if (LIBRARY_MODE ? !tmdbKey : ((!clientId && !clientIdV2) || !tmdbKey)) {
+      document.getElementById("settingsError").textContent = LIBRARY_MODE
+        ? "The TMDB key is required."
+        : "A SIMKL Client ID (V2 or V1) and the TMDB key are required.";
       return;
     }
     // A different V2 id means a different app registration, so any stored
@@ -261,6 +264,7 @@ function showSettings(afterSaveCallback) {
     applyPanelLayout();
   };
   updateLayoutToggleButton();
+  wireLibrarySettings();
   if (canCancel) {
     document.getElementById("settingsCloseBtn").onclick = returnToPreviousView;
   }
@@ -595,7 +599,276 @@ async function simklPost(path, token, body) {
   return text ? JSON.parse(text) : null;
 }
 
+// ---------------------------------------------------------------------
+// Data source switch (temporary, while moving off SIMKL)
+// ---------------------------------------------------------------------
+// "simkl" (the default) reads and writes SIMKL exactly as before. "library"
+// uses the app's own library instead - Firestore behind a Google sign-in
+// (library-store.js, firebase-backend.js) plus outside episode lists
+// (episode-source.js) - through library-adapter.js, which answers in
+// SIMKL's own shapes so everything below keeps working unchanged. Hidden:
+// ?source=library / ?source=simkl in the address switches it, and this
+// browser remembers the choice.
+const LS_DATA_SOURCE = "data_source";
+const LIBRARY_MODE = (() => {
+  try {
+    const asked = new URLSearchParams(location.search).get("source");
+    if (asked === "library" || asked === "simkl") localStorage.setItem(LS_DATA_SOURCE, asked);
+    return localStorage.getItem(LS_DATA_SOURCE) === "library" && typeof LibraryAdapter !== "undefined";
+  } catch (e) {
+    return false;
+  }
+})();
+// { backend, store, source, adapter } - the store and adapter exist once
+// signed in and loaded (library mode only).
+let library = null;
+
+// Only the TVMaze parts of the episode source go to disk (IndexedDB): the
+// TMDB requests it makes go through the app's own TmdbCache (see
+// libraryTmdbGet), which already persists them.
+function libraryEpisodeSource() {
+  return EpisodeSource.createEpisodeSource({
+    fetch: (...args) => fetch(...args),
+    tmdbGet: libraryTmdbGet,
+    cache: LibraryAdapter.idbCache({ persist: key => key.startsWith("tvmaze-") }),
+    useUpdates: true,
+  });
+}
+
+// The episode source asks TMDB for a show and its seasons - the same two
+// requests TmdbCache already makes (and keeps) for the cards, so they're
+// shared instead of repeated.
+function libraryTmdbGet(path, params) {
+  const cache = sharedCache || (sharedCache = new TmdbCache());
+  let m = /^\/tv\/(\d+)$/.exec(path);
+  if (m && !params) return cache.getShow(m[1]);
+  m = /^\/tv\/(\d+)\/season\/(\d+)$/.exec(path);
+  if (m && !params) return cache.getSeason(m[1], Number(m[2]));
+  return tmdbGet(path, params);
+}
+
+// English title, year and outside ids of a show being added (search
+// results come from TMDB, partly in Hebrew, with only a TMDB id).
+async function libraryShowMeta(tmdbId) {
+  const cache = sharedCache || (sharedCache = new TmdbCache());
+  const d = await cache.getShow(tmdbId);
+  if (!d) return null;
+  const ext = d.external_ids || {};
+  return {
+    title: d.name || d.original_name || null,
+    year: d.first_air_date ? d.first_air_date.slice(0, 4) : null,
+    imdb: ext.imdb_id || null,
+    tvdb: ext.tvdb_id || null,
+  };
+}
+
+// Signs in and loads the library once per page load (every later change
+// goes through the store, which keeps its copy current). Resolves to false
+// while the sign-in screen is showing instead.
+async function openLibrary() {
+  if (!library) {
+    const backend = FirebaseBackend.create();
+    library = { backend, store: null, source: libraryEpisodeSource(), adapter: null };
+    window.addEventListener("online", () => {
+      if (library.store && library.store.status().pending) library.store.retry().then(afterLibraryRetry);
+    });
+  }
+  subtitle.textContent = "Signing in…";
+  await library.backend.ready();
+  if (!library.backend.currentUser()) {
+    showLibrarySignIn();
+    return false;
+  }
+  if (!library.store) {
+    const store = LibraryStore.createLibraryStore({
+      core: LibraryCore, backend: library.backend, storage: localStorage, onChange: renderSaveStatus,
+    });
+    subtitle.textContent = "Loading your library…";
+    await store.load();
+    library.store = store;
+    library.adapter = LibraryAdapter.createLibraryAdapter({
+      core: LibraryCore, store, source: library.source, appendUpcoming: EpisodeSource.appendUpcoming,
+      showMeta: libraryShowMeta,
+      onProgress: (done, total) => {
+        if (total > 5 && done < total) subtitle.textContent = `Loading episode lists… ${done}/${total}`;
+      },
+    });
+  }
+  library.adapter.reset();
+  return true;
+}
+
+function showLibrarySignIn() {
+  app.innerHTML = `
+    <div class="center-box">
+      <h2>Sign in</h2>
+      <p style="color:var(--muted);font-size:0.85rem">
+        Your list is kept in your own private database. Sign in with the
+        Google account it belongs to.
+      </p>
+      <div style="margin-top:18px">
+        <button class="pill" id="librarySignInBtn">Sign in with Google</button>
+      </div>
+      <div class="error-box" id="librarySignInError"></div>
+    </div>
+  `;
+  subtitle.textContent = "Sign in required";
+  document.getElementById("librarySignInBtn").onclick = async () => {
+    try {
+      await library.backend.signIn();
+      main();
+    } catch (err) {
+      document.getElementById("librarySignInError").textContent = `Sign-in failed: ${err.message}`;
+    }
+  };
+}
+
+// The topbar's save state (library mode only): nothing while all is saved,
+// otherwise saving / waiting for the connection / failed / a conflict to
+// decide - clicking it retries or opens the conflict choice.
+function renderSaveStatus(s) {
+  let el = document.getElementById("saveStatus");
+  if (!el) {
+    const host = document.querySelector(".topbar-controls");
+    if (!host) return;
+    el = document.createElement("button");
+    el.id = "saveStatus";
+    el.className = "save-status";
+    host.prepend(el);
+    el.onclick = () => {
+      const st = library && library.store && library.store.status();
+      if (!st) return;
+      if (st.state === "conflict") promptLibraryConflict();
+      else if (st.pending) library.store.retry().then(afterLibraryRetry);
+    };
+  }
+  const text = s.state === "saving" ? "Saving…"
+    : s.state === "offline" ? `Offline – ${s.pending} waiting`
+    : s.state === "error" ? "Not saved – retry"
+    : s.state === "conflict" ? "Conflict – choose"
+    : "";
+  el.textContent = text;
+  el.hidden = !text;
+  el.dataset.state = s.state;
+  el.title = s.error || (s.conflict && s.conflict.reason) || "";
+}
+
+function afterLibraryRetry() {
+  const st = library.store.status();
+  if (st.state === "saved") {
+    showToast("Waiting changes saved");
+    main();
+  }
+}
+
+// A change that collided with one made on another device: nothing was
+// written - the user picks which version stays.
+async function promptLibraryConflict() {
+  const c = library.store.status().conflict;
+  if (!c) return;
+  const show = library.store.view().get(c.docId);
+  const name = show ? show.title : "A show";
+  const keepMine = confirm(`"${name}" was changed on another device: ${c.reason}.\n\nOK - apply your change on top of it.\nCancel - keep the other device's version.`);
+  const result = await library.store.resolveConflict(keepMine ? "mine" : "theirs");
+  if (result === "saved") showToast("Your change was saved");
+  else if (result === "dropped") showToast("Kept the other device's version");
+  else showToast(library.store.status().error || "Not saved yet", true);
+  main();
+}
+
+// Every write's failure goes through here. In library mode a change that is
+// waiting for the connection is still shown (marked by the topbar status),
+// and a conflict asks which version to keep.
+function reportWriteError(err) {
+  showToast(err.message, true);
+  if (err.outcome === "queued") main();
+  if (err.outcome === "conflict") setTimeout(promptLibraryConflict, 300);
+}
+
+function downloadJson(name, data) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function backupFileName(prefix) {
+  return `${prefix}-${new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-")}.json`;
+}
+
+// Settings section (library mode): who's signed in, sign out, and backups.
+function librarySettingsHtml() {
+  if (!LIBRARY_MODE || !library || !library.store) return "";
+  const user = library.backend.currentUser();
+  return `
+      <div class="library-settings">
+        <p style="color:var(--muted);font-size:0.85rem;margin:0 0 8px">Library: signed in as ${user ? user.email : "?"}</p>
+        <button class="pill" id="libraryBackupBtn">Download backup</button>
+        <button class="pill" id="libraryRestoreBtn">Restore from backup</button>
+        <button class="pill" id="librarySignOutBtn">Sign out</button>
+        <input type="file" id="libraryRestoreInput" accept="application/json,.json" hidden>
+      </div>`;
+}
+
+function wireLibrarySettings() {
+  const backupBtn = document.getElementById("libraryBackupBtn");
+  if (!backupBtn) return;
+  backupBtn.onclick = () => downloadJson(backupFileName("tv-library-backup"), library.store.exportBackup());
+  const input = document.getElementById("libraryRestoreInput");
+  document.getElementById("libraryRestoreBtn").onclick = () => input.click();
+  input.onchange = async () => {
+    const file = input.files && input.files[0];
+    input.value = "";
+    if (!file) return;
+    try {
+      const backup = JSON.parse(await file.text());
+      const count = backup && backup.shows ? Object.keys(backup.shows).length : 0;
+      if (!confirm(`Replace your whole library with this backup (${count} shows)? A backup of the current library is downloaded first.`)) return;
+      downloadJson(backupFileName("tv-library-before-restore"), library.store.exportBackup());
+      await library.store.restoreBackup(backup);
+      showToast(`Restored ${count} shows from the backup`);
+      main();
+    } catch (err) {
+      showToast(`Restore failed: ${err.message}`, true);
+    }
+  };
+  document.getElementById("librarySignOutBtn").onclick = async () => {
+    if (library.store.status().pending && !confirm("Some changes aren't saved yet and will be lost. Sign out anyway?")) return;
+    await library.backend.signOut();
+    library.store = null;
+    library.adapter = null;
+    main();
+  };
+}
+
+// The episode and ratings caches the row builders use: SIMKL's, or the
+// library's stand-ins (episode lists from the library adapter; no SIMKL
+// ratings - IMDb's comes from MDBList instead).
+function newEpisodeCache() {
+  return LIBRARY_MODE ? { get: id => library.adapter.simklEpisodes(id) } : new SimklEpisodeCache();
+}
+function newRatingsCache() {
+  return LIBRARY_MODE ? { get: () => Promise.resolve(null) } : new SimklShowCache();
+}
+
+// Has an episode (from the episode cache) aired by `now`? SIMKL's dates
+// always carry a time; the library's can be date-only, which count as
+// aired from the next local day (LibraryCore.isAired).
+function episodeHasAired(ep, now) {
+  if (LIBRARY_MODE) return LibraryCore.isAired(ep, now);
+  const ts = ep.date ? new Date(ep.date).getTime() : NaN;
+  return !isNaN(ts) && ts <= now;
+}
+function episodeTimestamp(dateStr) {
+  return LIBRARY_MODE ? airDateToTimestamp(dateStr) : new Date(dateStr).getTime();
+}
+
 async function getWatchingShows(token) {
+  if (LIBRARY_MODE) return library.adapter.items("watching");
   const data = await simklGet("/sync/all-items/shows/watching", token, {
     extended: "full", episode_watched_at: "yes",
   });
@@ -615,6 +888,7 @@ function getWatchingShowsOnce(token) {
 // case in Recently Watched below - a show you stopped following shouldn't
 // vanish from there instantly, since you did just watch something of it.
 async function getDroppedShows(token) {
+  if (LIBRARY_MODE) return library.adapter.items("dropped", { withEpisodes: false });
   const data = await simklGet("/sync/all-items/shows/dropped", token, {
     extended: "full", episode_watched_at: "yes",
   });
@@ -623,6 +897,7 @@ async function getDroppedShows(token) {
 }
 
 async function getPlanToWatchShows(token) {
+  if (LIBRARY_MODE) return library.adapter.items("plantowatch");
   const data = await simklGet("/sync/all-items/shows/plantowatch", token, {
     extended: "full",
   });
@@ -1237,8 +1512,9 @@ async function estimateRemainingMinutes(item, tmdbId, simklId, token, cache, epi
       const now = Date.now();
       identifiedEpisodes = simklEpisodes
         .filter(ep => ep.season != null && ep.season !== 0 && ep.episode != null && ep.date)
-        .map(ep => ({ season: ep.season, episode: ep.episode, ts: new Date(ep.date).getTime() }))
-        .filter(ep => !isNaN(ep.ts) && ep.ts <= now)
+        .filter(ep => episodeHasAired(ep, now))
+        .map(ep => ({ season: ep.season, episode: ep.episode, ts: episodeTimestamp(ep.date) }))
+        .filter(ep => !isNaN(ep.ts))
         .filter(ep => !(watchedBySeason[ep.season] || new Set()).has(ep.episode))
         .sort((a, b) => a.ts - b.ts);
     }
@@ -1556,7 +1832,7 @@ async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token, rat
 async function getPlanToWatchRows(token, cache, ratingsCache) {
   const items = await getPlanToWatchShows(token);
   cache = cache || new TmdbCache();
-  ratingsCache = ratingsCache || new SimklShowCache();
+  ratingsCache = ratingsCache || newRatingsCache();
   // Per-show TMDB/SIMKL lookups run concurrently instead of one-at-a-time -
   // order doesn't matter here since the list gets sorted afterward anyway.
   const rows = await Promise.all(items.map(async item => {
@@ -1623,7 +1899,8 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
     // "2016-2019" once ended, "2016-" (open-ended) while still airing.
     const yearRangeLabel = startYear ? `${startYear}-${ended ? (endYear || "") : ""}` : null;
 
-    return { title, imdbId, imdbRating, ratings, ...images, simklId, tmdbId, airedLabel, airedTone, ended, network, networkLogoPath, yearRangeLabel, contentRating, genreLabel, firstAirDate, watchedCount: item.watched_episodes_count || 0 };
+    return { title, imdbId, imdbRating, ratings, ...images, simklId, tmdbId, airedLabel, airedTone, ended, network, networkLogoPath, yearRangeLabel, contentRating, genreLabel, firstAirDate, watchedCount: item.watched_episodes_count || 0,
+      ...(LIBRARY_MODE ? { autoStarted: item.autoStarted } : {}) };
   }));
 
   // Highest IMDb rating first; shows with no known rating sink to the end.
@@ -1639,8 +1916,8 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
 async function getMyListRows(token, cache, episodeCache, ratingsCache) {
   const [items, droppedItems] = await Promise.all([getWatchingShowsOnce(token), getDroppedShows(token)]);
   cache = cache || new TmdbCache();
-  episodeCache = episodeCache || new SimklEpisodeCache();
-  ratingsCache = ratingsCache || new SimklShowCache();
+  episodeCache = episodeCache || newEpisodeCache();
+  ratingsCache = ratingsCache || newRatingsCache();
   // Per-show TMDB/SIMKL lookups run concurrently instead of one-at-a-time;
   // each task returns its own remaining/minutes contribution so the totals
   // below can be summed after everything resolves, rather than mutating a
@@ -1851,8 +2128,9 @@ async function nextAiringEpisodeSimkl(simklId, token, episodeCache) {
   for (const ep of episodes) {
     if (ep.season == null || ep.season === 0) continue; // skip specials
     if (ep.episode == null || !ep.date) continue;
-    const ts = new Date(ep.date).getTime();
-    if (isNaN(ts) || ts <= now) continue; // strictly in the future
+    if (episodeHasAired(ep, now)) continue; // strictly in the future
+    const ts = episodeTimestamp(ep.date);
+    if (isNaN(ts)) continue;
     if (!best || ts < best.ts) {
       best = { ts, airDate: ep.date, season: ep.season, episode: ep.episode };
     }
@@ -2024,8 +2302,8 @@ async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, re
 
 async function getAiringNextRows(token, cache, episodeCache, ratingsCache) {
   cache = cache || new TmdbCache();
-  episodeCache = episodeCache || new SimklEpisodeCache();
-  ratingsCache = ratingsCache || new SimklShowCache();
+  episodeCache = episodeCache || newEpisodeCache();
+  ratingsCache = ratingsCache || newRatingsCache();
 
   const [watchingItems, planToWatchItems] = await Promise.all([
     getWatchingShowsOnce(token),
@@ -2073,6 +2351,7 @@ async function getAiringNextRows(token, cache, episodeCache, ratingsCache) {
 // SIMKL write operations - search, add-to-list, status change, remove
 // ---------------------------------------------------------------------
 async function simklAddToList(ids, toStatus, token, extra) {
+  if (LIBRARY_MODE) return library.adapter.setStatus(ids, toStatus, extra);
   const show = { to: toStatus, ids, ...(extra || {}) };
   const result = await simklPost("/sync/add-to-list", token, { shows: [show] });
   // SIMKL answers a show it doesn't know with a success status but lists it
@@ -2122,19 +2401,25 @@ async function autoStartAiredPremieres(planRows, token) {
   let started = {};
   try { started = JSON.parse(localStorage.getItem(LS_AUTO_STARTED) || "{}"); } catch (e) { started = {}; }
   const now = Date.now();
+  // The library keeps this mark on the show itself (synced across devices);
+  // with SIMKL it's this browser's own record.
+  const mark = r => (LIBRARY_MODE ? r.autoStarted : started[r.simklId]);
   const due = planRows.filter(r => r.simklId && r.firstAirDate
     && new Date(r.firstAirDate + "T00:00:00").getTime() <= now
     && isRecentShow(r.firstAirDate)
     && r.watchedCount === 0
-    && started[r.simklId] !== r.firstAirDate
-    && started[r.simklId] !== "manual");
+    && mark(r) !== r.firstAirDate
+    && mark(r) !== "manual");
   if (!due.length) return;
   let moved = 0;
   for (const r of due) {
     try {
-      await simklAddToList({ simkl: r.simklId, tmdb: r.tmdbId, imdb: r.imdbId }, "watching", token, { title: r.title });
-      started[r.simklId] = r.firstAirDate;
-      safeSetItem(LS_AUTO_STARTED, JSON.stringify(started));
+      await simklAddToList({ simkl: r.simklId, tmdb: r.tmdbId, imdb: r.imdbId }, "watching", token,
+        LIBRARY_MODE ? { title: r.title, autoStarted: r.firstAirDate } : { title: r.title });
+      if (!LIBRARY_MODE) {
+        started[r.simklId] = r.firstAirDate;
+        safeSetItem(LS_AUTO_STARTED, JSON.stringify(started));
+      }
       moved++;
     } catch (err) {
       showToast(`Couldn't move "${r.title}" to Watching: ${err.message}`, true);
@@ -2147,6 +2432,7 @@ async function autoStartAiredPremieres(planRows, token) {
 }
 
 async function removeShowFromList(simklId, token) {
+  if (LIBRARY_MODE) return library.adapter.remove(simklId);
   // POST /sync/history/remove with just an ids object (no seasons/episodes)
   // removes the show from the user's library entirely - equivalent to
   // clicking "Remove from list" on simkl.com.
@@ -2154,6 +2440,7 @@ async function removeShowFromList(simklId, token) {
 }
 
 async function markEpisodeWatched(simklId, season, episode, token) {
+  if (LIBRARY_MODE) return library.adapter.setWatched(simklId, season, [episode], true);
   return simklPost("/sync/history", token, {
     shows: [{ ids: { simkl: simklId }, seasons: [{ number: season, episodes: [{ number: episode }] }] }],
   });
@@ -2162,6 +2449,7 @@ async function markEpisodeWatched(simklId, season, episode, token) {
 // Marks a batch of one season's episodes watched or not watched - the
 // history-remove endpoint takes the exact same body shape as the add one.
 async function setEpisodesWatched(simklId, season, episodeNumbers, watched, token) {
+  if (LIBRARY_MODE) return library.adapter.setWatched(simklId, season, episodeNumbers, watched);
   return simklPost(watched ? "/sync/history" : "/sync/history/remove", token, {
     shows: [{
       ids: { simkl: simklId },
@@ -2174,6 +2462,9 @@ async function setEpisodesWatched(simklId, season, episodeNumbers, watched, toke
 // use below, so the rest of the search UI (render, add-to-list, status
 // lookup) never needs to branch on which source a result came from.
 async function searchTvShows(query, token) {
+  // Library mode: TMDB's English titles take the place of SIMKL's results
+  // (the Hebrew search below still runs alongside, as before).
+  if (LIBRARY_MODE) return searchTvShowsTmdb(query, "en-US");
   const data = await simklGet("/search/tv", token, { q: query });
   const results = Array.isArray(data) ? data : [];
   return results.map(r => ({
@@ -2192,8 +2483,8 @@ async function searchTvShows(query, token) {
 // Results only ever carry a tmdb id (no simkl id) - simklAddToList and
 // findShowLibraryStatus already accept any subset of simkl/tmdb/imdb ids,
 // so nothing downstream needs to know the difference.
-async function searchTvShowsTmdb(query) {
-  const data = await tmdbGet("/search/tv", { query, language: "he-IL" }).catch(() => null);
+async function searchTvShowsTmdb(query, language = "he-IL") {
+  const data = await tmdbGet("/search/tv", { query, language }).catch(() => null);
   const results = (data && data.results) || [];
   return results.map(r => ({
     title: r.name || r.original_name || "Unknown",
@@ -2236,6 +2527,7 @@ function idsMatch(a, b) {
 }
 
 async function findShowLibraryStatus(ids, token) {
+  if (LIBRARY_MODE) return library.adapter.findStatus(ids);
   // No single SIMKL endpoint reports "what's the status of this one show",
   // so this checks each of the 5 possible lists (same endpoint shape as
   // getWatchingShows/getPlanToWatchShows) and returns the first match.
@@ -2501,7 +2793,7 @@ async function removeShowFromDetail(show, libraryMatch, btnEl) {
     showToast("This result has no usable ID.", true);
     return;
   }
-  if (!confirm(`Remove "${show.title}" from your SIMKL list entirely?`)) return;
+  if (!confirm(`Remove "${show.title}" from your ${LIBRARY_MODE ? "" : "SIMKL "}list entirely?`)) return;
   const buttons = btnEl.parentElement.querySelectorAll("button");
   buttons.forEach(b => { b.disabled = true; });
   try {
@@ -2511,7 +2803,7 @@ async function removeShowFromDetail(show, libraryMatch, btnEl) {
     main();
   } catch (err) {
     buttons.forEach(b => { b.disabled = false; });
-    showToast(err.message, true);
+    reportWriteError(err);
   }
 }
 
@@ -2530,7 +2822,7 @@ async function setShowStatusFromDetail(show, status, btnEl) {
     main();
   } catch (err) {
     buttons.forEach(b => { b.disabled = false; });
-    showToast(err.message, true);
+    reportWriteError(err);
   }
 }
 
@@ -2569,12 +2861,12 @@ async function openEpisodesManager(show, libraryMatch) {
     <div class="spinner" style="margin:30px auto"></div>`;
   document.getElementById("detailBackBtn").onclick = backToDetail;
 
-  const episodeCache = sharedEpisodeCache || new SimklEpisodeCache();
+  const episodeCache = sharedEpisodeCache || newEpisodeCache();
   const all = await episodeCache.get(simklId, simklToken);
   if (!all || !all.length) {
     body.innerHTML = `
       <button class="modal-back-btn" id="detailBackBtn">&larr; Back</button>
-      <div class="error-box">SIMKL has no episode list for this show.</div>`;
+      <div class="error-box">${LIBRARY_MODE ? "No episode list is available for this show." : "SIMKL has no episode list for this show."}</div>`;
     document.getElementById("detailBackBtn").onclick = backToDetail;
     return;
   }
@@ -2586,9 +2878,8 @@ async function openEpisodesManager(show, libraryMatch) {
   for (const ep of all) {
     if (ep.season == null || ep.season === 0 || ep.episode == null) continue;
     if (!seasons.has(ep.season)) seasons.set(ep.season, []);
-    const ts = ep.date ? new Date(ep.date).getTime() : NaN;
     seasons.get(ep.season).push({
-      episode: ep.episode, title: ep.title || "", aired: !isNaN(ts) && ts <= now,
+      episode: ep.episode, title: ep.title || "", aired: episodeHasAired(ep, now),
     });
   }
   const seasonNums = [...seasons.keys()].sort((a, b) => a - b);
@@ -2804,7 +3095,7 @@ async function openEpisodesManager(show, libraryMatch) {
       }
       showToast(`Saved ${savedCount} change${savedCount === 1 ? "" : "s"}`);
     } catch (err) {
-      showToast(err.message, true);
+      reportWriteError(err);
     } finally {
       if (savedCount) watchedMarksChanged = true;
       item.watched_episodes_count = seasonNums.reduce((s, n) => s + saved[n].size, 0);
@@ -3365,13 +3656,15 @@ function openCardMenu(arrIdx, btnEl) {
 async function changeShowStatus(row, status) {
   closeCardMenu();
   try {
+    // Sent to PLAN TO WATCH by hand: keep autoStartAiredPremieres from
+    // moving a just-premiered show straight back to WATCHING (the library
+    // keeps that mark on the show, saved with the status itself).
     await simklAddToList(
       { simkl: row.simklId, tmdb: row.tmdbId, imdb: row.imdbId },
-      status, simklToken, { title: row.title, year: row.year }
+      status, simklToken,
+      LIBRARY_MODE && status === "plantowatch" ? { title: row.title, year: row.year, autoStarted: "manual" } : { title: row.title, year: row.year }
     );
-    // Sent to PLAN TO WATCH by hand: keep autoStartAiredPremieres from
-    // moving a just-premiered show straight back to WATCHING.
-    if (status === "plantowatch") {
+    if (status === "plantowatch" && !LIBRARY_MODE) {
       let started = {};
       try { started = JSON.parse(localStorage.getItem(LS_AUTO_STARTED) || "{}"); } catch (e) { started = {}; }
       started[row.simklId] = "manual";
@@ -3381,7 +3674,7 @@ async function changeShowStatus(row, status) {
     showToast(`Moved "${row.title}" to ${label}`);
     main();
   } catch (err) {
-    showToast(err.message, true);
+    reportWriteError(err);
   }
 }
 
@@ -3392,19 +3685,19 @@ async function markNextEpisodeWatched(row) {
     showToast(`Marked "${row.title}" ${row.nextLabel} as watched`);
     main();
   } catch (err) {
-    showToast(err.message, true);
+    reportWriteError(err);
   }
 }
 
 async function removeShowFromMyList(row) {
   closeCardMenu();
-  if (!confirm(`Remove "${row.title}" from your SIMKL list entirely?`)) return;
+  if (!confirm(`Remove "${row.title}" from your ${LIBRARY_MODE ? "" : "SIMKL "}list entirely?`)) return;
   try {
     await removeShowFromList(row.simklId, simklToken);
     showToast(`Removed "${row.title}"`);
     main();
   } catch (err) {
-    showToast(err.message, true);
+    reportWriteError(err);
   }
 }
 
@@ -4906,11 +5199,11 @@ function showError(err) {
     <div class="center-box">
       <h2>Something went wrong</h2>
       <div class="error-box">${(err && err.message) || err}</div>
-      <p style="color:var(--muted);font-size:0.8rem;margin-top:14px">
+      ${LIBRARY_MODE ? "" : `<p style="color:var(--muted);font-size:0.8rem;margin-top:14px">
         If this mentions CORS/network errors reaching api.simkl.com, your
         browser may be blocking direct requests to SIMKL from this page -
         in that case you'll need the local-server version instead.
-      </p>
+      </p>`}
     </div>
   `;
   subtitle.textContent = "Error";
@@ -4932,7 +5225,7 @@ function showToast(message, isError) {
 // ---------------------------------------------------------------------
 async function main() {
   const { clientId, clientIdV2, tmdbKey } = getConfig();
-  if ((!clientId && !clientIdV2) || !tmdbKey) {
+  if (LIBRARY_MODE ? !tmdbKey : ((!clientId && !clientIdV2) || !tmdbKey)) {
     showSettings(main);
     return;
   }
@@ -4942,11 +5235,19 @@ async function main() {
 
   watchingListLoad = null;
   try {
-    const token = await getAccessToken();
-    simklToken = token;
     sharedCache = new TmdbCache();
-    sharedEpisodeCache = new SimklEpisodeCache();
-    sharedRatingsCache = new SimklShowCache();
+    // Library mode has no SIMKL token; the placeholder only tells the code
+    // that checks for one (e.g. openSearchModal) that the user is signed in.
+    let token;
+    if (LIBRARY_MODE) {
+      if (!(await openLibrary())) return; // the sign-in screen is showing
+      token = "library";
+    } else {
+      token = await getAccessToken();
+    }
+    simklToken = token;
+    sharedEpisodeCache = newEpisodeCache();
+    sharedRatingsCache = newRatingsCache();
     app.innerHTML = `<div class="spinner" style="margin-top:80px"></div>`;
     subtitle.textContent = "Fetching your My List\u2026";
     const [[rows, totalEps, totalMinutes, recentlyWatched], planToWatchRows, airingNextRows] = await Promise.all([
@@ -4956,6 +5257,10 @@ async function main() {
     ]);
     airingRows = airingNextRows; // also primes the separate Airing Next tab's cache, so opening it doesn't re-fetch
     renderRows(rows, totalEps, totalMinutes, recentlyWatched, planToWatchRows, airingNextRows);
+    if (LIBRARY_MODE) {
+      const missing = library.adapter.failures();
+      if (missing.length) showToast(`Couldn't load the episode list of ${missing.length} show${missing.length === 1 ? "" : "s"} (${missing.slice(0, 3).join(", ")}${missing.length > 3 ? "…" : ""}) - try Refresh later.`, true);
+    }
     autoStartAiredPremieres(planToWatchRows, token);
   } catch (err) {
     showError(err);

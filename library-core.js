@@ -297,7 +297,7 @@
   // ---------------------------------------------------------------------
   // Every change to the library is an operation, applied the same way
   // everywhere (locally, on retry, after a conflict re-read):
-  //   { id, type: "setStatus", status, at }
+  //   { id, type: "setStatus", status, at, autoStarted? }
   //   { id, type: "setWatched", watched: true|false, at,
   //     episodes: [{ key, keys?, season, episode }] }
   //   { id, type: "remove" }
@@ -335,6 +335,13 @@
       if (next.status !== op.status) {
         next.status = op.status;
         next.statusChangedAt = op.at;
+        changed = true;
+      }
+      // Premiere auto-start bookkeeping (see autoStartAiredPremieres in
+      // app.js): the first-air date already moved to Watching, or "manual"
+      // once the show was sent back to Plan to Watch by hand.
+      if (op.autoStarted !== undefined && next.autoStarted !== op.autoStarted) {
+        next.autoStarted = op.autoStarted;
         changed = true;
       }
     } else if (op.type === "setWatched") {
