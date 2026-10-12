@@ -908,10 +908,11 @@ function newEpisodeCache() {
 }
 
 // Has an episode (from the episode cache) aired by `now`? An exact air time
-// counts once it has passed; a date-only one from the next local day
+// counts once the broadcast has ended (its runtime, else fallbackMinutes -
+// the show's average); a date-only one from the next local day
 // (LibraryCore.isAired).
-function episodeHasAired(ep, now) {
-  return LibraryCore.isAired(ep, now);
+function episodeHasAired(ep, now, fallbackMinutes) {
+  return LibraryCore.isAired(ep, now, fallbackMinutes);
 }
 function episodeTimestamp(dateStr) {
   return airDateToTimestamp(dateStr);
@@ -1436,7 +1437,7 @@ async function estimateRemainingMinutes(item, tmdbId, showId, cache, episodeCach
       const now = Date.now();
       identifiedEpisodes = showEpisodes
         .filter(ep => ep.season != null && ep.season !== 0 && ep.episode != null && ep.date)
-        .filter(ep => episodeHasAired(ep, now))
+        .filter(ep => episodeHasAired(ep, now, fallbackRuntime))
         .map(ep => ({ season: ep.season, episode: ep.episode, ts: episodeTimestamp(ep.date) }))
         .filter(ep => !isNaN(ep.ts))
         .filter(ep => !(watchedBySeason[ep.season] || new Set()).has(ep.episode))
@@ -2020,12 +2021,14 @@ async function nextAiringEpisode(tmdbId, showDetail, cache) {
   return best;
 }
 
-async function nextAiringEpisodeFromList(showId, episodeCache) {
+async function nextAiringEpisodeFromList(showId, episodeCache, fallbackMinutes) {
   // Preferred path: the show's episode list, with an exact date+time per
   // episode where the source has one. Uses the same aired rule as My List's
-  // remaining count (episodeHasAired: an exact time once it has passed, a
-  // date-only episode from the next day), so an episode is never in both
-  // places at once.
+  // remaining count (episodeHasAired: an exact time once its broadcast has
+  // ended, a date-only episode from the next day), so an episode is never in
+  // both places at once: while on the air it's here (marked onAir, shown
+  // first), and moves to My List as it ends.
+  // airEnd: when an exact-time episode ends (null for a date-only one).
   const episodes = await episodeCache.get(showId);
   if (!episodes) return null;
 
@@ -2035,14 +2038,50 @@ async function nextAiringEpisodeFromList(showId, episodeCache) {
   for (const ep of episodes) {
     if (ep.season == null || ep.season === 0) continue; // skip specials
     if (ep.episode == null || !ep.date) continue;
-    if (episodeHasAired(ep, now)) continue; // strictly in the future
+    const win = episodeAirWindow(ep, fallbackMinutes);
+    if (win && win.start <= now && now < win.end) {
+      if (!best || !best.onAir || win.start < best.ts) {
+        best = { ts: win.start, airDate: ep.date, season: ep.season, episode: ep.episode, onAir: true, airEnd: win.end };
+      }
+      continue;
+    }
+    if (best && best.onAir) continue;
+    if (episodeHasAired(ep, now, fallbackMinutes)) continue; // strictly in the future
     const ts = episodeTimestamp(ep.date);
     if (isNaN(ts)) continue;
     if (!best || ts < best.ts) {
-      best = { ts, airDate: ep.date, season: ep.season, episode: ep.episode };
+      best = { ts, airDate: ep.date, season: ep.season, episode: ep.episode, airEnd: win ? win.end : null };
     }
   }
   return best;
+}
+
+// ---- On the air now / countdown -------------------------------------------
+// When an episode with an exact air time is on the air: { start, end } in ms,
+// or null for a date-only (or undated) one - its time isn't known. Its
+// length: its own runtime, else the show's average (fallbackMinutes), else
+// 30 minutes.
+function episodeAirWindow(ep, fallbackMinutes) {
+  if (!ep || typeof ep.date !== "string" || ep.date.length <= 10) return null;
+  const start = new Date(ep.date).getTime();
+  if (isNaN(start)) return null;
+  const minutes = ep.runtime > 0 ? ep.runtime : fallbackMinutes > 0 ? fallbackMinutes : 30;
+  return { start, end: start + minutes * 60000 };
+}
+
+// What an Airing Next corner counter shows for an episode starting at
+// `start` (on the air until `end`): { live: true } while it airs; within
+// the 24 hours before it, { n, unit } - minutes under an hour ("12 MIN"),
+// whole hours from there ("5 HOURS"); otherwise null (no counter).
+function airCountdown(start, end, now) {
+  if (start == null || isNaN(start)) return null;
+  if (now >= start) return end != null && now < end ? { live: true } : null;
+  const left = start - now;
+  if (left > 24 * 60 * 60 * 1000) return null;
+  const minutes = Math.ceil(left / 60000);
+  if (minutes < 60) return { n: minutes, unit: "MIN" };
+  const hours = Math.floor(minutes / 60);
+  return { n: hours, unit: hours === 1 ? "HOUR" : "HOURS" };
 }
 
 function hasTimeComponent(dateStr) {
@@ -2105,18 +2144,18 @@ function airDateText(row) {
 }
 
 async function buildAiringRow(item, cache, episodeCache, requirePremiere) {
-  // Fast-path guard: with zero not-yet-aired episodes in the list there is
-  // nothing upcoming - skip immediately rather than going episode-by-episode.
-  if (item.not_aired_episodes_count === 0) return null;
-
   const show = item.show || {};
   const tmdbId = (show.ids || {}).tmdb;
   const showId = (show.ids || {}).library;
   const imdbId = (show.ids || {}).imdb;
 
-  // Prefer the episode list (exact date+time where known); fall back to
-  // TMDB's season data (date only) if it has nothing upcoming.
-  let next = showId ? await nextAiringEpisodeFromList(showId, episodeCache) : null;
+  // Prefer the episode list (exact date+time where known, and an episode on
+  // the air right now); fall back to TMDB's season data (date only) if it
+  // has nothing upcoming.
+  let next = showId ? await nextAiringEpisodeFromList(showId, episodeCache, show.runtime) : null;
+  // Nothing on the air and zero not-yet-aired episodes in the list: nothing
+  // upcoming, whatever TMDB's dates say.
+  if (!next && item.not_aired_episodes_count === 0) return null;
 
   const showDetail = tmdbId ? await cache.getShow(tmdbId) : null;
   if (!next && tmdbId) {
@@ -2193,6 +2232,9 @@ async function buildAiringRow(item, cache, episodeCache, requirePremiere) {
     airDate: next.airDate,
     airDateLabel: formatAirDate(next.airDate),
     airDateLongLabel: formatAirDateLong(next.airDate),
+    // The corner counter (airCountHtml): exact air times only.
+    airStart: hasTimeComponent(next.airDate) ? airDateToTimestamp(next.airDate) : null,
+    airEnd: next.airEnd != null ? next.airEnd : null,
     network,
     networkLogoPath: resolveNetworkLogoUrl(network, tmdbLogoPath),
   };
@@ -2695,7 +2737,7 @@ async function openEpisodesManager(show, libraryMatch) {
     if (ep.season == null || ep.season === 0 || ep.episode == null) continue;
     if (!seasons.has(ep.season)) seasons.set(ep.season, []);
     seasons.get(ep.season).push({
-      episode: ep.episode, title: ep.title || "", aired: episodeHasAired(ep, now),
+      episode: ep.episode, title: ep.title || "", aired: episodeHasAired(ep, now, item.show && item.show.runtime),
     });
   }
   const seasonNums = [...seasons.keys()].sort((a, b) => a - b);
@@ -4542,6 +4584,76 @@ function renderPlanToWatchHtml(list) {
     </div>`;
 }
 
+// The corner counter on an Airing Next thumbnail: empty here, filled in (and
+// kept current) by tickAirCountdowns from the times it carries.
+function airCountHtml(row) {
+  if (row.airStart == null) return "";
+  return `<div class="air-count" data-air-start="${row.airStart}"${row.airEnd != null ? ` data-air-end="${row.airEnd}"` : ""} hidden></div>`;
+}
+
+function paintAirCount(el, now) {
+  const start = Number(el.dataset.airStart);
+  const end = el.dataset.airEnd ? Number(el.dataset.airEnd) : null;
+  const c = airCountdown(start, end, now);
+  el.hidden = !c;
+  el.classList.toggle("live", !!(c && c.live));
+  if (!c) return;
+  const ends = c.live ? new Date(end).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }) : "";
+  el.innerHTML = c.live
+    ? `<span class="air-count-n"><span class="air-dot"></span>NOW</span><span class="air-count-u">ends ${ends}</span>`
+    : `<span class="air-count-n">${c.n}</span><span class="air-count-u">${c.unit}</span>`;
+}
+
+function tickAirCountdowns() {
+  const now = Date.now();
+  document.querySelectorAll(".air-count").forEach(el => paintAirCount(el, now));
+}
+
+// At the next moment something changes state - an episode starting (NOW in
+// Airing Next) or ending (it moves to My List) - the panels refresh quietly.
+// A moment that already passed since the panels were drawn (the page was
+// in the background, its timers held back) refreshes right away.
+let airBoundaryTimer = null;
+let panelsRenderedAt = 0;
+function scheduleAirRefresh() {
+  clearTimeout(airBoundaryTimer);
+  const now = Date.now();
+  const moments = [];
+  for (const r of lastAiringPreview || []) moments.push(r.airStart, r.airEnd);
+  let next = Infinity;
+  for (const t of moments) {
+    if (t == null) continue;
+    if (t > panelsRenderedAt && t <= now) { next = now; break; }
+    if (t > now) next = Math.min(next, t);
+  }
+  if (next - now > 24 * 60 * 60 * 1000) return; // also Infinity; a later render reschedules
+  airBoundaryTimer = setTimeout(refreshPanelsQuietly, Math.max(0, next - now) + 2000);
+}
+
+// The panels again from what's already loaded and cached - no loading
+// screen, scroll positions kept. Skipped while another screen (Settings,
+// sign-in, an error, a load already under way) is showing.
+async function refreshPanelsQuietly() {
+  const showingPanels = () => !!document.querySelector(".bottom-panels-row, .series-panel")
+    && !app.querySelector(".spinner") && currentView === "list";
+  if (!library || !library.adapter || !showingPanels()) return;
+  try {
+    library.adapter.reset();
+    watchingListLoad = null;
+    sharedEpisodeCache = newEpisodeCache();
+    const [[rows, totalEps, totalMinutes, recentlyWatched], planToWatchRows, airingNextRows] = await Promise.all([
+      getMyListRows(sharedCache, sharedEpisodeCache),
+      getPlanToWatchRows(sharedCache),
+      getAiringNextRows(sharedCache, sharedEpisodeCache),
+    ]);
+    if (!showingPanels()) return; // the user moved on meanwhile
+    airingRows = airingNextRows;
+    renderRows(rows, totalEps, totalMinutes, recentlyWatched, planToWatchRows, airingNextRows);
+  } catch (err) {
+    console.warn("Quiet refresh skipped:", err.message);
+  }
+}
+
 function renderAiringNextPreviewHtml(list) {
   if (!list || !list.length) return "";
   const scroll = isScrollLayout();
@@ -4553,7 +4665,7 @@ function renderAiringNextPreviewHtml(list) {
       : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
     return `
       <div class="list-row ${rowToneClass(idx, true)}">
-        <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}${scroll ? "" : thumbBarHtml(imdbButtonHtml(row.imdbId, row.imdbRating, row.ratings), row)}</div>
+        <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}${scroll ? "" : thumbBarHtml(imdbButtonHtml(row.imdbId, row.imdbRating, row.ratings), row)}${airCountHtml(row)}</div>
         <div class="list-row-title-wrap">${rowInfoWrapHtml(row, idx, "airing", "row")}</div>
         ${scroll ? `<span class="list-check">${BELL_ICON_SVG}</span>` : ""}
       </div>`;
@@ -4771,6 +4883,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   const prevCarouselScrollLeft = prevTrack ? prevTrack.scrollLeft : 0;
   const prevPanelScrollPositions = capturePanelScrollPositions();
   lastRows = rows;
+  panelsRenderedAt = Date.now();
   lastTotalEps = totalRemainingEps;
   lastTotalMinutes = totalRemainingMinutes;
   if (recentlyWatched !== undefined) lastRecentlyWatched = recentlyWatched;
@@ -4798,6 +4911,8 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
     wirePanelPagerTracks();
     fitPanelRowLines();
     fitTopPanelToWindow();
+    tickAirCountdowns();
+    scheduleAirRefresh();
     return;
   }
 
@@ -4911,6 +5026,8 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   fitTopPanelToWindow();
   updateCarouselArrows();
   wireHoverStabilization();
+  tickAirCountdowns();
+  scheduleAirRefresh();
 }
 
 // Debounces hover state for cards/rows whose visual hover effects (the
@@ -4974,7 +5091,7 @@ function renderAiringRows(rows) {
   const isWide = mode === "banner";
 
   const cards = rows.map((row, arrIdx) => {
-    const { wrapHtml } = cardImageBits(row, mode, arrIdx, imdbButtonHtml(row.imdbId, row.imdbRating, row.ratings));
+    const { wrapHtml } = cardImageBits(row, mode, arrIdx, imdbButtonHtml(row.imdbId, row.imdbRating, row.ratings) + airCountHtml(row));
     return `
       <div class="card">
         ${wrapHtml}
@@ -4994,6 +5111,7 @@ function renderAiringRows(rows) {
   subtitle.textContent = "Updated " + new Date().toLocaleString();
   updateImageModeButton();
   wireHoverStabilization();
+  tickAirCountdowns();
 }
 
 function showError(err) {
@@ -5062,6 +5180,12 @@ function updateTopbarClock() {
 }
 updateTopbarClock();
 setInterval(updateTopbarClock, 1000);
+setInterval(tickAirCountdowns, 30000);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  tickAirCountdowns();
+  scheduleAirRefresh(); // a background tab's timer may have been held back
+});
 
 document.getElementById("settingsBtn").onclick = () => showSettings(main);
 document.getElementById("addShowBtn").onclick = openSearchModal;

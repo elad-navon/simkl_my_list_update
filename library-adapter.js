@@ -82,8 +82,7 @@
       item.show.ids.library = docId;
       // SIMKL's show runtime was only a fallback for TMDB's per-episode
       // runtimes; the episode list's own average plays the same part.
-      const runtimes = episodes.filter(core.isRegular).map(e => e.runtime).filter(r => r > 0);
-      item.show.runtime = runtimes.length ? Math.round(runtimes.reduce((a, b) => a + b, 0) / runtimes.length) : null;
+      item.show.runtime = core.averageRuntime(episodes);
       item.autoStarted = show.autoStarted == null ? null : show.autoStarted;
       return item;
     }
@@ -146,13 +145,13 @@
           itemFor(docId, show, withEpisodes ? await episodesFor(docId, show) : [])));
       },
 
-      // Like GET /tv/episodes/{id}: [{ season, episode, date, title }], or
+      // Like GET /tv/episodes/{id}: [{ season, episode, date, title, runtime }], or
       // null for a show that isn't in the library or has no list.
       async showEpisodes(docId) {
         const show = store.view().get(String(docId));
         if (!show) return null;
         const eps = await episodesFor(String(docId), show);
-        return eps.length ? eps.map(e => ({ season: e.season, episode: e.episode, date: e.date || null, title: e.title || null })) : null;
+        return eps.length ? eps.map(e => ({ season: e.season, episode: e.episode, date: e.date || null, title: e.title || null, runtime: e.runtime || null })) : null;
       },
 
       // Like findShowLibraryStatus: { status, item } or null.

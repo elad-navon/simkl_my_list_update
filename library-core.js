@@ -37,17 +37,28 @@
   }
 
   // Has this episode aired by `now`?
-  // - exact date + time: once that moment has passed;
+  // - exact date + time: once it has finished airing - its start plus its
+  //   runtime (else fallbackMinutes, the show's average, else 30 minutes).
+  //   While it's on the air it isn't available yet;
   // - date only: from the following local day - on the day itself the time
   //   is unknown, so it isn't counted as aired yet;
   // - no date: never (unknown is not aired).
-  function isAired(ep, now) {
+  function isAired(ep, now, fallbackMinutes) {
     if (!ep || !ep.date) return false;
     if (hasTime(ep.date)) {
       const ts = new Date(ep.date).getTime();
-      return !isNaN(ts) && ts <= now;
+      if (isNaN(ts)) return false;
+      const minutes = ep.runtime > 0 ? ep.runtime : fallbackMinutes > 0 ? fallbackMinutes : 30;
+      return ts + minutes * 60000 <= now;
     }
     return ep.date < localDateStr(now);
+  }
+
+  // The average runtime (minutes, rounded) of a list's regular episodes that
+  // have one, or null.
+  function averageRuntime(episodes) {
+    const runtimes = (episodes || []).filter(isRegular).map(e => e.runtime).filter(r => r > 0);
+    return runtimes.length ? Math.round(runtimes.reduce((a, b) => a + b, 0) / runtimes.length) : null;
   }
 
   // ---------------------------------------------------------------------
@@ -267,7 +278,8 @@
       next = ep;
       break;
     }
-    const nextToWatch = next && isAired(next, now) ? episodeCode(next.season, next.episode) : null;
+    const avgRuntime = averageRuntime(regular);
+    const nextToWatch = next && isAired(next, now, avgRuntime) ? episodeCode(next.season, next.episode) : null;
 
     return {
       status: show.status,
@@ -285,7 +297,7 @@
       total_episodes_count: regular.length,
       // A watched episode has aired, whatever its date says (many older
       // episodes simply have no date in any source).
-      not_aired_episodes_count: regular.filter(ep => !isAired(ep, now) && !watchedEps.has(`${ep.season}-${ep.episode}`)).length,
+      not_aired_episodes_count: regular.filter(ep => !isAired(ep, now, avgRuntime) && !watchedEps.has(`${ep.season}-${ep.episode}`)).length,
       next_to_watch: nextToWatch,
       last_watched_at: lastByTime ? lastByTime.at : null,
       last_watched: lastByTime ? episodeCode(lastByTime.season, lastByTime.episode) : null,
@@ -425,7 +437,7 @@
 
   return {
     SCHEMA_VERSION, STATUSES,
-    hasTime, localDateStr, isAired, isRegular, episodeCode,
+    hasTime, localDateStr, isAired, averageRuntime, isRegular, episodeCode,
     dayDiff, titlesAgree, nextUpcoming, mapWatched,
     showDocId, createShow, findEpisodeForRecord, toSimklShape,
     applyOp, checkConflict,
