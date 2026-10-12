@@ -301,6 +301,11 @@ async function runOnAir() {
   check("as an episode ends, the page refreshes by itself: in My List, no longer NOW",
     ended && !/^NOW/.test(airRow("Kilo").count || ""),
     { inMyList: !!card("Kilo"), next: card("Kilo") && card("Kilo").querySelector(".next-up").textContent, airing: airRow("Kilo") });
+  const order = () => [...doc.querySelectorAll(".carousel-card h3")].map(h => h.textContent.trim());
+  check("the show whose episode just ended comes first in My List", order()[0] === "Kilo", order());
+  const limaIn = await waitFor(() => order()[0] === "Lima", 120000);
+  check("the next one to end takes first place, the previous moves one along",
+    limaIn && order()[1] === "Kilo", order());
   check("no loading screen during those refreshes", !doc.querySelector("#app .spinner"));
   return results;
 }
