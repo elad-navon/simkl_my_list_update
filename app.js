@@ -863,6 +863,7 @@ function librarySettingsHtml() {
   return `
       <div class="library-settings">
         <p style="color:var(--muted);font-size:0.85rem;margin:0 0 8px">Library: signed in as ${user ? user.email : "?"}</p>
+        <button class="pill" id="libraryCleanupBtn">Clean up Watching</button>
         <button class="pill" id="libraryBackupBtn">Download backup</button>
         <button class="pill" id="libraryRestoreBtn">Restore from backup</button>
         <button class="pill" id="librarySignOutBtn">Sign out</button>
@@ -897,6 +898,139 @@ function wireLibrarySettings() {
     await library.backend.signOut();
     library.store = null;
     library.adapter = null;
+    main();
+  };
+  document.getElementById("libraryCleanupBtn").onclick = showWatchingCleanup;
+}
+
+// ---------------------------------------------------------------------
+// Watching clean-up (from Settings)
+// ---------------------------------------------------------------------
+// Suggests moving shows that no longer belong in Watching, for the user to
+// confirm one by one: a show that has ended and is fully watched, or fully
+// watched with nothing new announced and untouched for over a year
+// (-> Completed); one with episodes left but untouched for over a year
+// (-> On Hold). Nothing moves until "Move" is pressed.
+const CLEANUP_IDLE_DAYS = 365;
+
+function idleText(days) {
+  if (days == null) return "never watched";
+  if (days >= 365) { const y = Math.round(days / 365); return `last watched ${y} year${y === 1 ? "" : "s"} ago`; }
+  const m = Math.max(1, Math.round(days / 30));
+  return `last watched ${m} month${m === 1 ? "" : "s"} ago`;
+}
+
+async function watchingCleanupSuggestions() {
+  const items = await library.adapter.items("watching");
+  const now = Date.now();
+  const cache = sharedCache || (sharedCache = new TmdbCache());
+  const out = [];
+  await Promise.all(items.map(async item => {
+    const show = item.show || {};
+    const ids = show.ids || {};
+    const left = airedMinusWatchedCount(item);
+    const lastTs = mostRecentWatchedAt(item) || (item.last_watched_at ? Date.parse(item.last_watched_at) : null);
+    const idleDays = lastTs ? Math.floor((now - lastTs) / 86400000) : null;
+    // Never watched: idle only if it started airing over a year ago (a show
+    // that just premiered isn't stale).
+    let idle = idleDays != null && idleDays > CLEANUP_IDLE_DAYS;
+    if (idleDays == null) {
+      const dates = ((await library.adapter.showEpisodes(ids.library)) || [])
+        .filter(e => e.season && e.date).map(e => airDateToTimestamp(e.date)).filter(t => !isNaN(t));
+      idle = dates.length > 0 && now - Math.min(...dates) > CLEANUP_IDLE_DAYS * 86400000;
+    }
+    const detail = ids.tmdb ? await cache.getShow(ids.tmdb) : null;
+    const ended = !!detail && (detail.status === "Ended" || detail.status === "Canceled");
+    let status = null, reason = "";
+    if (left === 0 && ended) {
+      status = "completed";
+      reason = "The series has ended and you've watched it all";
+    } else if (left === 0 && item.not_aired_episodes_count === 0 && idle) {
+      status = "completed";
+      reason = `All watched, nothing new announced, ${idleText(idleDays)}`;
+    } else if (left > 0 && idle) {
+      status = "hold";
+      reason = `${left} episode${left === 1 ? "" : "s"} left, ${idleText(idleDays)}`;
+    }
+    if (status) out.push({ id: ids.library, tmdbId: ids.tmdb, imdbId: ids.imdb, title: show.title || "Unknown", status, reason });
+  }));
+  const order = { completed: 0, hold: 1 };
+  return out.sort((a, b) => (order[a.status] - order[b.status]) || a.title.localeCompare(b.title));
+}
+
+async function showWatchingCleanup() {
+  document.getElementById("settingsBtn").classList.add("active");
+  app.innerHTML = `<div class="spinner" style="margin-top:80px"></div>`;
+  subtitle.textContent = "Looking through your Watching list…";
+  let list;
+  try {
+    list = await watchingCleanupSuggestions();
+  } catch (err) {
+    showError(err);
+    return;
+  }
+  subtitle.textContent = "Clean up Watching";
+  const options = ALL_STATUS_OPTIONS.filter(o => o.value !== "watching");
+  const rowsHtml = list.map((s, i) => `
+    <label class="cleanup-row">
+      <input type="checkbox" class="cleanup-check" data-idx="${i}" checked>
+      <span class="cleanup-text">
+        <span class="cleanup-title">${s.title}</span>
+        <span class="cleanup-reason">${s.reason}</span>
+      </span>
+      <select class="cleanup-status" data-idx="${i}" aria-label="Move ${s.title} to">
+        ${options.map(o => `<option value="${o.value}"${o.value === s.status ? " selected" : ""}>${o.label}</option>`).join("")}
+      </select>
+    </label>`).join("");
+  app.innerHTML = `
+    <div class="center-box cleanup-box" style="position:relative">
+      <button class="modal-close-btn" id="cleanupCloseBtn" style="position:absolute;top:14px;right:14px" title="Back">&times;</button>
+      <h2>Clean up Watching</h2>
+      ${list.length ? `
+        <p style="color:var(--muted);font-size:0.85rem">
+          Shows that look like they no longer belong in Watching. Untick any to keep,
+          change where one goes, then press Move.
+        </p>
+        <div class="cleanup-list">${rowsHtml}</div>
+        <div style="margin-top:16px"><button class="pill" id="cleanupMoveBtn"></button></div>
+        <p id="cleanupProgress" style="color:var(--muted);font-size:0.85rem"></p>`
+      : `<p style="color:var(--muted)">Nothing to clean up: every show in Watching has something to watch or is still airing.</p>`}
+    </div>`;
+  document.getElementById("cleanupCloseBtn").onclick = () => showSettings(main);
+  if (!list.length) return;
+
+  const moveBtn = document.getElementById("cleanupMoveBtn");
+  const chosen = () => [...app.querySelectorAll(".cleanup-check")].filter(c => c.checked).map(c => Number(c.dataset.idx));
+  const updateButton = () => {
+    const n = chosen().length;
+    moveBtn.textContent = n ? `Move ${n} show${n === 1 ? "" : "s"}` : "Nothing selected";
+    moveBtn.disabled = !n;
+  };
+  app.querySelectorAll(".cleanup-check").forEach(c => { c.onchange = updateButton; });
+  updateButton();
+
+  moveBtn.onclick = async () => {
+    const picks = chosen();
+    app.querySelectorAll("input, select, button").forEach(el => { el.disabled = true; });
+    const progress = document.getElementById("cleanupProgress");
+    let moved = 0, waiting = 0;
+    const failed = [];
+    for (const i of picks) {
+      const s = list[i];
+      const status = app.querySelector(`.cleanup-status[data-idx="${i}"]`).value;
+      progress.textContent = `Moving ${moved + waiting + failed.length + 1} of ${picks.length}…`;
+      try {
+        await saveShowStatus({ library: s.id, tmdb: s.tmdbId, imdb: s.imdbId }, status, { title: s.title });
+        moved++;
+      } catch (err) {
+        if (err.outcome === "queued") waiting++;
+        else failed.push(`${s.title}: ${err.message}`);
+      }
+    }
+    const parts = [`Moved ${moved} show${moved === 1 ? "" : "s"}`];
+    if (waiting) parts.push(`${waiting} waiting for the connection`);
+    if (failed.length) parts.push(`${failed.length} not moved (${failed[0]})`);
+    showToast(parts.join(", "), failed.length > 0);
     main();
   };
 }

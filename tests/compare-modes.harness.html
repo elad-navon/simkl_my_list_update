@@ -224,7 +224,25 @@ async function runUi() {
   check("settings: account, backup, restore, sign out", /signed in as test@example.com/.test(settingsText)
     && $("#libraryRestoreBtn") && $("#librarySignOutBtn"), settingsText && settingsText.replace(/\s+/g, " ").trim());
   const backup = w.eval("library").store.exportBackup();
-  check("backup holds every show", backup.kind === "tv-library-backup" && Object.keys(backup.shows).length === 9, Object.keys(backup.shows).length);
+  check("backup holds every show", backup.kind === "tv-library-backup" && Object.keys(backup.shows).length === 11, Object.keys(backup.shows).length);
+
+  // Clean up Watching: suggests only Papa (ended, all watched) and Quebec
+  // (episodes left, untouched for two years); Move applies them.
+  $("#libraryCleanupBtn").click();
+  await waitFor(() => $(".cleanup-row") || /Nothing to clean up/.test(w.document.getElementById("app").textContent));
+  const suggestions = [...w.document.querySelectorAll(".cleanup-row")].map(r => ({
+    title: r.querySelector(".cleanup-title").textContent, to: r.querySelector("select").value, why: r.querySelector(".cleanup-reason").textContent,
+  }));
+  check("clean-up: suggests only the shows that no longer belong in Watching",
+    suggestions.length === 2 && suggestions[0].title === "Papa" && suggestions[0].to === "completed"
+      && suggestions[1].title === "Quebec" && suggestions[1].to === "hold", suggestions);
+  const doc = id => w.eval("library").backend.docs.get(id);
+  $("#cleanupMoveBtn").click();
+  await waitFor(() => doc("115").status === "completed" && doc("116").status === "hold" && w.document.querySelector(".series-panel-updated"));
+  check("clean-up: Move applies the choices", doc("115").status === "completed" && doc("116").status === "hold" && doc("101").status === "watching",
+    { papa: doc("115").status, quebec: doc("116").status, alpha: doc("101").status });
+  fn("showSettings")(fn("main"));
+  await waitFor(() => $("#librarySignOutBtn"));
 
   $("#librarySignOutBtn").click();
   await waitFor(() => $("#librarySignInBtn"));
@@ -301,7 +319,7 @@ async function runOnAir() {
       out.textContent = JSON.stringify({ writes: results }, null, 1);
       return;
     }
-    if (params.get("scenario") === "ui") {
+    if (params.get("scenario") === "ui" && !params.get("show")) {
       const results = await runUi();
       out.dataset.done = "1";
       out.textContent = JSON.stringify({ writes: results }, null, 1);
@@ -319,6 +337,12 @@ async function runOnAir() {
       const { frame } = await loadMode(params.get("show"), true, params.get("scenario") || "");
       // ?w=&h=: the page at another size (e.g. a phone's 390 x 844).
       if (params.get("w")) { frame.style.width = `${params.get("w")}px`; frame.style.height = `${params.get("h") || 844}px`; }
+      // ?open=cleanup: the Clean up Watching screen instead of the panels.
+      if (params.get("open") === "cleanup") {
+        const w = frame.contentWindow;
+        await waitFor(() => w.document.querySelector(".series-panel-updated"));
+        w.eval("showWatchingCleanup")();
+      }
       return;
     }
     // ?golden=<mode>: just what that mode shows (to write tests/golden/panels.json).
