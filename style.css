@@ -781,29 +781,31 @@
   /* Airing Next: IMDb stays bottom-left, the tag moves to bottom-right. */
   .list-panel--airing .list-thumb-bar { right: 0; }
   .list-panel--airing .list-thumb-tag { margin-left: auto; }
-  /* Airing Next: the countdown to an episode with a known air time (the 24
-     hours before it) or NOW while it airs, in the thumbnail's top-right
-     corner - clear of the IMDb badge and premiere tag along the bottom. */
+  /* Airing Next: a small chip in the thumbnail's top-right corner with the
+     time until the episode airs (minutes, hours, days), NOW while it airs,
+     or days only for an episode known just by its date - clear of the IMDb
+     badge and premiere tag along the bottom. */
   .air-count {
     position: absolute; top: 0; right: 0; z-index: 11;
-    background: rgba(8, 12, 17, 0.84); border-bottom-left-radius: 8px;
-    padding: 4px 9px 4px; text-align: center; line-height: 1;
+    background: rgba(8, 12, 17, 0.84); border-bottom-left-radius: 6px;
+    padding: 3px 7px; min-width: 38px; text-align: center; line-height: 1;
     font-variant-numeric: tabular-nums; pointer-events: none;
   }
   .air-count[hidden] { display: none; }
   .air-count-n {
-    display: flex; align-items: center; justify-content: center; gap: 5px;
+    display: flex; align-items: center; justify-content: center; gap: 3px;
     font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
-    font-weight: 700; font-size: 1.75rem; color: var(--gold);
+    font-weight: 700; font-size: 1.05rem; color: var(--gold);
   }
   .air-count-u {
-    display: block; margin-top: 2px;
-    font-family: "Montserrat", sans-serif; font-weight: 800; font-size: 8.5px;
-    letter-spacing: 0.05em; text-transform: uppercase; color: #ffffff;
+    display: block; margin-top: 1px;
+    font-family: "Montserrat", sans-serif; font-weight: 800; font-size: 7px;
+    letter-spacing: 0.06em; text-transform: uppercase; color: #ffffff;
   }
-  .air-count.live .air-count-n { color: #ef4444; font-size: 1.3rem; }
+  .air-count.live .air-count-n { color: #ef4444; font-size: 0.95rem; }
+  .air-count.day .air-count-n { color: var(--accent2); }
   .air-dot {
-    width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: 0 0 auto;
+    width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex: 0 0 auto;
     display: inline-block; animation: air-dot-pulse 1.2s ease-in-out infinite;
   }
   @keyframes air-dot-pulse { 50% { opacity: 0.25; } }
@@ -1478,9 +1480,6 @@
     .series-panel-header-left > .series-panel-stat-group:last-child { flex-basis: 100%; }
     .series-panel-stat-group { flex: 0 0 auto; gap: 6px; }
     .series-panel-stat { flex: 0 0 auto; gap: 5px; }
-    .air-count { padding: 3px 7px; }
-    .air-count-n { font-size: 1.4rem; }
-    .air-count.live .air-count-n { font-size: 1.1rem; }
     .series-panel-stat .num, .series-panel-stat .label {
       font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
       font-size: 1.3rem; line-height: 1; letter-spacing: 0.02em;
