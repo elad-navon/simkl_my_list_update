@@ -10,3 +10,10 @@ dist/
 /coverage-*.json
 /parity-*.json
 /tvmaze-coverage-*.json
+
+# Downloads from tools/migrate.html, tools/import.html and Settings (backups,
+# reports) - the same personal data.
+/simkl-backup*.json
+/import-report-*.json
+/migration-report-*.json
+/tv-library-*.json
