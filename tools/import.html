@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ייבוא הספרייה מסימקל</title>
+<style>
+  :root { --bg: #111820; --card: #1a2430; --border: #334255; --text: #eef3f8; --muted: #93a4b8; --accent: #7dd3fc; --ok: #6ee7b7; --warn: #fbbf24; --bad: #fca5a5; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: "Segoe UI", system-ui, sans-serif; line-height: 1.6; }
+  main { max-width: 900px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 1.5rem; margin: 0 0 6px; }
+  h2 { font-size: 1.1rem; margin: 0 0 8px; }
+  p.lead { color: var(--muted); margin: 0 0 18px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 14px; }
+  .card.off { opacity: .55; }
+  button { background: var(--accent); color: #04121c; border: 0; border-radius: 8px; padding: 10px 18px; font-weight: 700; font-size: 1rem; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  .muted { color: var(--muted); }
+  .ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+  ul { margin: 6px 0; padding-inline-start: 20px; }
+  .ltr { direction: ltr; unicode-bidi: isolate; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>ייבוא הספרייה מסימקל</h1>
+  <p class="lead">הכלי קורא את כל הספרייה מסימקל, בודק אותה כמו הבדיקה המקדימה, ומעתיק אותה לספרייה הפרטית שלך.
+    בסימקל עצמו לא משתנה דבר. לפני כל כתיבה יורד גיבוי, והייבוא נבדק מחדש אחרי הכתיבה.
+    צריך לפתוח אותו באותו שרת מקומי שבו האתר פועל ומחובר לסימקל.</p>
+
+  <div class="card" id="step1">
+    <h2>1. קריאה מסימקל ובדיקה</h2>
+    <p class="muted">גיבוי מלא מסימקל יורד אוטומטית ברגע שהרשימות נקראו.</p>
+    <button id="analyzeBtn">קריאה ובדיקה</button>
+    <p id="analyzeProgress" class="muted"></p>
+    <div id="analyzeResult"></div>
+  </div>
+
+  <div class="card off" id="step2">
+    <h2>2. התחברות לספרייה</h2>
+    <p id="who" class="muted">בודק התחברות…</p>
+    <button id="signInBtn" hidden>התחברות עם גוגל</button>
+  </div>
+
+  <div class="card off" id="step3">
+    <h2>3. ייבוא</h2>
+    <p class="muted">אם כבר יש משהו בספרייה, יורד קודם גיבוי שלה, ותופיע בקשת אישור עם מה שישתנה.</p>
+    <button id="importBtn" disabled>ייבוא לספרייה</button>
+    <p id="importProgress" class="muted"></p>
+    <div id="importResult"></div>
+  </div>
+</main>
+<script src="../library-core.js"></script>
+<script src="../episode-source.js"></script>
+<script src="../library-store.js"></script>
+<script src="../firebase-backend.js"></script>
+<script src="migrate-engine.js"></script>
+<script src="import.js"></script>
+</body>
+</html>

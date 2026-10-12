@@ -267,10 +267,11 @@
           return { doc: docs.has(id) ? clone(docs.get(id)) : null };
         }
       },
-      async replaceAll(map) {
+      async replaceAll(map, onProgress) {
         if (offline) throw transientError();
         docs.clear();
         for (const [k, v] of Object.entries(map)) docs.set(k, clone(v));
+        if (onProgress) onProgress(docs.size, docs.size);
       },
     };
   }

@@ -30,7 +30,16 @@
     return e;
   }
 
-  function create(config = FIREBASE_CONFIG) {
+  // Every value in a document, nested ones included - roughly how many
+  // index entries Firestore makes for it.
+  function countFields(v) {
+    if (Array.isArray(v)) return 1 + v.reduce((n, x) => n + countFields(x), 0);
+    if (v && typeof v === "object") return Object.values(v).reduce((n, x) => n + countFields(x), 0);
+    return 1;
+  }
+
+  // `sdk` (tests only) stands in for the Firebase modules.
+  function create(config = FIREBASE_CONFIG, { sdk: testSdk } = {}) {
     let sdk = null;
     let auth = null, db = null, user = null;
     let readyPromise = null;
@@ -38,12 +47,12 @@
     function ready() {
       if (!readyPromise) {
         readyPromise = (async () => {
-          const [appMod, authMod, fsMod] = await Promise.all([
+          const mods = testSdk ? [testSdk] : await Promise.all([
             import(`${SDK}/firebase-app.js`),
             import(`${SDK}/firebase-auth.js`),
             import(`${SDK}/firebase-firestore.js`),
           ]);
-          sdk = { ...appMod, ...authMod, ...fsMod };
+          sdk = Object.assign({}, ...mods);
           const app = sdk.initializeApp(config);
           auth = sdk.getAuth(app);
           db = sdk.initializeFirestore(app, {
@@ -113,21 +122,56 @@
         }
       },
 
-      // Replaces the whole library (restore from a backup), in batches of at
-      // most 400 writes.
-      async replaceAll(map) {
+      // Replaces the whole library (restore from a backup, or the import),
+      // a few documents per commit. Firestore limits a commit by its writes,
+      // its bytes, and the index entries it creates - one or more per field,
+      // and a viewing history has thousands of fields - and rejects a whole
+      // commit that's over ("Transaction too big"). So batches stay small by
+      // field count too, and a batch that's still refused is split in half
+      // and retried. onProgress(done, total) after each commit. Not atomic
+      // across commits: running it again finishes an interrupted run (every
+      // write sets a whole document).
+      async replaceAll(map, onProgress) {
         await ready();
-        try {
-          const existing = await sdk.getDocs(showsCol());
-          const ops = [];
-          existing.forEach(d => { if (!(d.id in map)) ops.push(b => b.delete(d.ref)); });
-          for (const [id, data] of Object.entries(map)) ops.push(b => b.set(showRef(id), data));
-          for (let i = 0; i < ops.length; i += 400) {
-            const batch = sdk.writeBatch(db);
-            ops.slice(i, i + 400).forEach(op => op(batch));
+        const existing = await sdk.getDocs(showsCol()).catch(e => { throw classify(e); });
+        const ops = [];
+        existing.forEach(d => { if (!(d.id in map)) ops.push({ id: d.id, size: 100, fields: 1, run: b => b.delete(d.ref) }); });
+        for (const [id, data] of Object.entries(map)) {
+          ops.push({ id, size: JSON.stringify(data).length + id.length, fields: countFields(data), run: b => b.set(showRef(id), data) });
+        }
+        let done = 0;
+        const commit = async list => {
+          const batch = sdk.writeBatch(db);
+          list.forEach(op => op.run(batch));
+          try {
             await batch.commit();
+          } catch (e) {
+            if (!/too big|too large|exceeds/i.test(String(e && e.message))) throw classify(e);
+            if (list.length === 1) {
+              e.message = `The show "${list[0].id}" is too big to save in one piece (${list[0].fields} fields).`;
+              throw e;
+            }
+            const half = Math.ceil(list.length / 2);
+            await commit(list.slice(0, half));
+            await commit(list.slice(half));
+            return;
           }
-        } catch (e) { throw classify(e); }
+          done += list.length;
+          if (onProgress) onProgress(done, ops.length);
+          await new Promise(r => setTimeout(r, 0)); // let the page breathe
+        };
+        let i = 0;
+        while (i < ops.length) {
+          const list = [];
+          let bytes = 0, fields = 0;
+          while (i < ops.length && list.length < 100 &&
+            (!list.length || (bytes + ops[i].size < 1000000 && fields + ops[i].fields < 8000))) {
+            bytes += ops[i].size;
+            fields += ops[i].fields;
+            list.push(ops[i++]);
+          }
+          await commit(list);
+        }
       },
 
       // For the self-check page only: whether another user's data is
