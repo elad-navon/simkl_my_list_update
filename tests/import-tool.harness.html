@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head><meta charset="UTF-8"><title>import tool harness</title></head>
+<body>
+<!-- Runs tools/import.js against the fake SIMKL / TMDB / TVMaze answers of
+     migrate-fixture.js and an in-memory database in place of Firebase, and
+     prints what was downloaded, asked and written into #result.
+     ?existing=1 starts with a library that already has shows. -->
+<pre id="result"></pre>
+<div id="tool"></div>
+<script src="migrate-fixture.js"></script>
+<script src="../library-core.js"></script>
+<script src="../episode-source.js"></script>
+<script src="../library-store.js"></script>
+<script>
+// The tool's own page markup, without its script tags.
+const params = new URLSearchParams(location.search);
+const existing = params.get("existing") ? {
+  "100": { ...LibraryCore.createShow({ ids: { tmdb: 100 }, title: "Alpha (old copy)", status: "hold", now: Date.now() }), rev: 3 },
+  "999": LibraryCore.createShow({ ids: { tmdb: 999 }, title: "Only in the library", status: "watching", now: Date.now() }),
+} : {};
+const db = LibraryStore.memoryBackend(existing);
+window.FirebaseBackend = { create: () => Object.assign(db, {
+  ready: async () => {},
+  currentUser: () => ({ uid: "test", email: "test@example.com" }),
+  signIn: async () => ({ uid: "test", email: "test@example.com" }),
+}) };
+// ?corrupt=1: the database loses a watched episode while writing - the
+// check after the import must catch it.
+if (params.get("corrupt")) {
+  const replaceAll = db.replaceAll;
+  db.replaceAll = async (map, onProgress) => {
+    await replaceAll(map, onProgress);
+    const alpha = db.docs.get("100");
+    delete alpha.watched[Object.keys(alpha.watched)[0]];
+  };
+}
+// ?duplicate=1: the same show twice in SIMKL (two lists) - must stop the import.
+if (params.get("duplicate")) {
+  SIMKL_LISTS.hold.push({ show: { title: "Alpha again", year: 2024, ids: { simkl: 99, tmdb: "100", imdb: "tt100" } }, status: "hold",
+    watched_episodes_count: 0, total_episodes_count: 4, not_aired_episodes_count: 1 });
+}
+const downloads = [];
+const blobs = new Map();
+URL.createObjectURL = blob => { const url = `blob:test-${blobs.size}`; blobs.set(url, blob); return url; };
+URL.revokeObjectURL = () => {};
+HTMLAnchorElement.prototype.click = function () { downloads.push({ name: this.download, blob: blobs.get(this.href) }); };
+const confirms = [];
+window.confirm = msg => { confirms.push(msg); return true; };
+</script>
+<script>
+(async () => {
+  const html = await (await fetch("../tools/import.html")).text();
+  const main = /<main>([\s\S]*)<\/main>/.exec(html)[1];
+  document.getElementById("tool").innerHTML = main;
+  for (const src of ["../tools/migrate-engine.js", "../tools/import.js"]) {
+    await new Promise((resolve, reject) => { const s = document.createElement("script"); s.src = src; s.onload = resolve; s.onerror = reject; document.body.appendChild(s); });
+  }
+  const $ = id => document.getElementById(id);
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const until = async fn => { for (let i = 0; i < 1200 && !fn(); i++) await sleep(100); };
+  await until(() => !$("signInBtn").hidden || /מחובר/.test($("who").textContent));
+  $("analyzeBtn").click();
+  await until(() => $("analyzeResult").innerHTML);
+  const analyzeText = $("analyzeResult").innerText;
+  const importEnabled = !$("importBtn").disabled;
+  if (importEnabled) {
+    $("importBtn").click();
+    await until(() => $("importResult").innerHTML);
+  }
+  const files = await Promise.all(downloads.map(async d => ({ name: d.name, data: JSON.parse(await d.blob.text()) })));
+  const doc = id => db.docs.get(id);
+  $("result").textContent = JSON.stringify({
+    analyzeText, importEnabled,
+    importText: $("importResult").innerText,
+    downloads: files.map(f => f.name.replace(/-\d{4}-.*$/, "")),
+    report: (files.find(f => f.name.startsWith("import-report")) || {}).data,
+    beforeImportBackup: (files.find(f => f.name.startsWith("tv-library-before-import")) || {}).data,
+    confirms,
+    docIds: [...db.docs.keys()].sort(),
+    docs: Object.fromEntries([...db.docs].map(([id, d]) => [id, {
+      title: d.title, status: d.status, ids: d.ids, episodeSource: d.episodeSource || null, snapshot: (d.snapshotEpisodes || []).length,
+      watched: Object.fromEntries(Object.entries(d.watched).map(([k, r]) => [k, `${r.s}x${r.e} ${r.at ? "dated" : "no-date"}${r.inferred ? " inferred" : ""}${r.partial ? " partial" : ""} [${(r.keys || []).join(",")}]`])),
+      unmapped: d.unmappedWatched, hint: d.watchedCountHint ?? null, personal: d.personal || null, addedAt: !!d.addedAt, autoStarted: d.autoStarted || null,
+    }])),
+    simklCalls: calls.filter(c => c.includes("simkl")),
+    lsWrites,
+  });
+})().catch(e => { document.getElementById("result").textContent = JSON.stringify({ harnessError: String(e.stack || e) }); });
+</script>
+</body>
+</html>

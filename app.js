@@ -11,9 +11,9 @@ const TMDB_BACKDROP_BASE = "https://image.tmdb.org/t/p/w780";
 const TMDB_LOGO_BASE = "https://image.tmdb.org/t/p/w92";
 const TMDB_PROFILE_BASE = "https://image.tmdb.org/t/p/w185";
 // Manual fallback for networks that have no logo in TMDB (or aren't in TMDB
-// at all) and none in SIMKL either - mainly small/regional broadcasters,
+// at all) - mainly small/regional broadcasters,
 // e.g. Israeli channels. `names` lists every name variant this network
-// shows up under across TMDB/SIMKL (different language/script, with or
+// shows up under (different language/script, with or
 // without a trailing channel number - see findLocalNetworkLogo). `logo` is
 // a ready-to-use image src (a data URI), not a path - these aren't fetched
 // from anywhere at runtime.
@@ -21,7 +21,7 @@ const LOCAL_NETWORK_LOGOS = [
   { names: ["רשת", "Reshet"], logo: "data:image/png;base64,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" },
   { names: ["כאן", "כאן 11", "Kan", "Kan 11"], logo: "data:image/png;base64,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" },
   { names: ["HOT", "הוט"], logo: "data:image/png;base64,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" },
-  // Cropped from a real Keshet 12 brand mark supplied by the user (12.jpg) - TMDB/SIMKL have no logo for this network either, same gap as the three above.
+  // Cropped from a real Keshet 12 brand mark supplied by the user (12.jpg) - TMDB has no logo for this network either, same gap as the three above.
   { names: ["קשת", "קשת 12", "Keshet", "Keshet 12"], logo: "data:image/png;base64,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" },
 ];
 const APP_NAME = "my-list-summary-web";
@@ -37,7 +37,9 @@ const APP_VERSION = "1.0";
 // the button's own label.
 const ICON_POSTER_SHAPE = `<svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"></rect></svg>`;
 const ICON_BANNER_SHAPE = `<svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect></svg>`;
-const LS_CLIENT_ID = "simkl_client_id";
+// The "simkl_" prefix on several keys below is historical; they're kept so
+// existing settings and preferences carry over.
+const LS_CLIENT_ID = "simkl_client_id"; // SIMKL sign-in: only for the auto-marking bridge
 const LS_TMDB_KEY = "tmdb_api_key";
 const LS_TOKEN = "simkl_access_token";
 // AUTH V2 (see the "SIMKL auth" section): its own client id, plus one JSON
@@ -182,12 +184,17 @@ function showSettings(afterSaveCallback) {
         These are stored only in this browser's local storage - never written
         into this HTML file, so it's safe to keep this file in a public repo.
       </p>
-      <label>SIMKL Client ID &mdash; AUTH V2 (recommended)
+      <label>SIMKL Client ID &mdash; optional, only to copy episodes marked watched on SIMKL
+        (e.g. by the Emby plugin) into your list &mdash; AUTH V2
         (<a href="https://simkl.com/settings/developer/new/" target="_blank">create an app</a>,
         type &ldquo;TV, devices &amp; command line&rdquo;)</label>
       <input type="text" id="clientIdV2Input" value="${cfg.clientIdV2}">
       <label>SIMKL Client ID &mdash; old AUTH V1 (stops working around April 2027)</label>
       <input type="text" id="clientIdInput" value="${cfg.clientId}">
+      <div class="simkl-connect">
+        <span id="simklStatus" style="color:var(--muted);font-size:0.85rem">${simklConnected() ? "SIMKL: connected" : "SIMKL: not connected"}</span>
+        <button class="pill" id="simklConnectBtn">${simklConnected() ? "Disconnect SIMKL" : "Connect SIMKL"}</button>
+      </div>
       <label>TMDB API Key
         (<a href="https://www.themoviedb.org/settings/api" target="_blank">get a free key</a>)</label>
       <input type="text" id="tmdbKeyInput" value="${cfg.tmdbKey}">
@@ -197,6 +204,7 @@ function showSettings(afterSaveCallback) {
       <label>Fanart.tv API Key &mdash; optional, adds more posters and banners to the image picker
         (<a href="https://fanart.tv/get-an-api-key/" target="_blank">get a free key</a>)</label>
       <input type="text" id="fanartKeyInput" value="${cfg.fanartKey}">
+      ${librarySettingsHtml()}
       <div class="theme-toggle-wrap" style="margin-top:18px">
         <span class="nav-icon"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></span>
         <span style="flex:1 1 auto;text-align:left">Dark Mode</span>
@@ -220,8 +228,8 @@ function showSettings(afterSaveCallback) {
     const tmdbKey = document.getElementById("tmdbKeyInput").value.trim();
     const mdblistKey = document.getElementById("mdblistKeyInput").value.trim();
     const fanartKey = document.getElementById("fanartKeyInput").value.trim();
-    if ((!clientId && !clientIdV2) || !tmdbKey) {
-      document.getElementById("settingsError").textContent = "A SIMKL Client ID (V2 or V1) and the TMDB key are required.";
+    if (!tmdbKey) {
+      document.getElementById("settingsError").textContent = "The TMDB key is required.";
       return;
     }
     // A different V2 id means a different app registration, so any stored
@@ -261,13 +269,44 @@ function showSettings(afterSaveCallback) {
     applyPanelLayout();
   };
   updateLayoutToggleButton();
+  wireLibrarySettings();
+  // Connecting asks SIMKL for a one-time approval (the code screen), using
+  // the Client ID typed above; it's only needed on one device - what it
+  // copies goes into the shared library.
+  document.getElementById("simklConnectBtn").onclick = async () => {
+    if (simklConnected()) {
+      localStorage.removeItem(LS_AUTH_V2);
+      localStorage.removeItem(LS_TOKEN);
+      showToast("Disconnected from SIMKL");
+      showSettings(afterSaveCallback);
+      return;
+    }
+    const v2 = document.getElementById("clientIdV2Input").value.trim();
+    const v1 = document.getElementById("clientIdInput").value.trim();
+    if (!v2 && !v1) {
+      document.getElementById("settingsError").textContent = "Enter a SIMKL Client ID first.";
+      return;
+    }
+    safeSetItem(LS_CLIENT_ID_V2, v2);
+    safeSetItem(LS_CLIENT_ID, v1);
+    try {
+      await getAccessToken();
+      showToast("Connected to SIMKL - episodes marked there will be copied into your list");
+      main();
+    } catch (err) {
+      showToast(`SIMKL: ${err.message}`, true);
+      showSettings(afterSaveCallback);
+    }
+  };
   if (canCancel) {
     document.getElementById("settingsCloseBtn").onclick = returnToPreviousView;
   }
 }
 
 // ---------------------------------------------------------------------
-// SIMKL auth (V2 device flow, or the older V1 PIN flow) + fetching
+// SIMKL auth (V2 device flow, or the older V1 PIN flow) + reading - used
+// only by the auto-marking bridge (simkl-bridge.js), which copies episodes
+// marked watched on SIMKL into the library. Nothing is written to SIMKL.
 // ---------------------------------------------------------------------
 async function simklRequest(url) {
   let res;
@@ -388,6 +427,10 @@ async function currentToken() {
   return auth.access;
 }
 
+// Whether this browser holds a SIMKL sign-in (for the auto-marking).
+function simklConnected() {
+  return authMode() === "v2" ? !!readAuthV2() : !!localStorage.getItem(LS_TOKEN);
+}
 function dropStoredToken() {
   localStorage.removeItem(authMode() === "v2" ? LS_AUTH_V2 : LS_TOKEN);
 }
@@ -522,11 +565,6 @@ async function throttlePost() {
   if (at > now) await sleep(at - now);
 }
 
-// Lists that findShowLibraryStatus fetched, kept briefly so opening several
-// shows from search doesn't re-download all five lists each time (each list
-// counts against the daily allowance). Any write to the library clears it.
-let libraryListsCache = null;
-
 // One authenticated call to SIMKL's API. Under V2 the token comes from
 // currentToken() per attempt, and a 401 gets one refresh-and-retry; a 429 is
 // either the daily allowance (reported as such) or a per-second burst
@@ -558,7 +596,7 @@ async function simklApi(method, path, token, { params, body } = {}) {
         try { await refreshV2Token(); continue; } catch (e) { /* fall through to sign-out */ }
       }
       dropStoredToken();
-      throw new Error("SIMKL access token expired or revoked. Refresh the page to re-authenticate.");
+      throw new Error("SIMKL access expired or was revoked - connect again in Settings (only needed to copy episodes marked on SIMKL).");
     }
     if (res.status === 429) {
       const info = await res.clone().json().catch(() => null);
@@ -584,50 +622,323 @@ async function simklGet(path, token, extraParams) {
   return text ? JSON.parse(text) : null;
 }
 
-async function simklPost(path, token, body) {
-  const res = await simklApi("POST", path, token, { body });
-  if (!res.ok) {
-    const errBody = await res.text().catch(() => "");
-    throw new Error(`SIMKL request failed (${res.status}): ${errBody.slice(0, 300)}`);
-  }
-  libraryListsCache = null; // the library just changed
-  const text = await res.text();
-  return text ? JSON.parse(text) : null;
+// ---------------------------------------------------------------------
+// The library
+// ---------------------------------------------------------------------
+// The user's own library - Firestore behind a Google sign-in
+// (library-store.js, firebase-backend.js) - with episode lists from TVMaze /
+// TMDB (episode-source.js). library-adapter.js answers in the item shape
+// the row builders below were written against (SIMKL's /sync/all-items
+// format, from before the move off SIMKL).
+// { backend, store, source, adapter, bridge } - the store, adapter and
+// bridge exist once signed in and loaded.
+let library = null;
+
+// Only the TVMaze parts of the episode source go to disk (IndexedDB): the
+// TMDB requests it makes go through the app's own TmdbCache (see
+// libraryTmdbGet), which already persists them.
+function libraryEpisodeSource() {
+  return EpisodeSource.createEpisodeSource({
+    fetch: (...args) => fetch(...args),
+    tmdbGet: libraryTmdbGet,
+    cache: LibraryAdapter.idbCache({ persist: key => key.startsWith("tvmaze-") }),
+    useUpdates: true,
+  });
 }
 
-async function getWatchingShows(token) {
-  const data = await simklGet("/sync/all-items/shows/watching", token, {
-    extended: "full", episode_watched_at: "yes",
-  });
-  if (!data) return [];
-  return Array.isArray(data) ? data : (data.shows || []);
+// The episode source asks TMDB for a show and its seasons - the same two
+// requests TmdbCache already makes (and keeps) for the cards, so they're
+// shared instead of repeated.
+function libraryTmdbGet(path, params) {
+  const cache = sharedCache || (sharedCache = new TmdbCache());
+  let m = /^\/tv\/(\d+)$/.exec(path);
+  if (m && !params) return cache.getShow(m[1]);
+  m = /^\/tv\/(\d+)\/season\/(\d+)$/.exec(path);
+  if (m && !params) return cache.getSeason(m[1], Number(m[2]));
+  return tmdbGet(path, params);
+}
+
+// English title, year and outside ids of a show being added (search
+// results come from TMDB, partly in Hebrew, with only a TMDB id).
+async function libraryShowMeta(tmdbId) {
+  const cache = sharedCache || (sharedCache = new TmdbCache());
+  const d = await cache.getShow(tmdbId);
+  if (!d) return null;
+  const ext = d.external_ids || {};
+  return {
+    title: d.name || d.original_name || null,
+    year: d.first_air_date ? d.first_air_date.slice(0, 4) : null,
+    imdb: ext.imdb_id || null,
+    tvdb: ext.tvdb_id || null,
+  };
+}
+
+// Signs in and loads the library once per page load (every later change
+// goes through the store, which keeps its copy current). Resolves to false
+// while the sign-in screen is showing instead.
+async function openLibrary() {
+  if (!library) {
+    const backend = FirebaseBackend.create();
+    library = { backend, store: null, source: libraryEpisodeSource(), adapter: null };
+    window.addEventListener("online", () => {
+      if (library.store && library.store.status().pending) library.store.retry().then(afterLibraryRetry);
+    });
+    // SIMKL auto-marking (see runSimklBridge): every 15 minutes while open,
+    // and whenever the page comes back to the foreground.
+    setInterval(() => runSimklBridge(), 15 * 60 * 1000);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") runSimklBridge();
+    });
+  }
+  subtitle.textContent = "Signing in…";
+  await library.backend.ready();
+  if (!library.backend.currentUser()) {
+    showLibrarySignIn();
+    return false;
+  }
+  if (!library.store) {
+    const store = LibraryStore.createLibraryStore({
+      core: LibraryCore, backend: library.backend, storage: localStorage, onChange: renderSaveStatus,
+    });
+    subtitle.textContent = "Loading your library…";
+    await store.load();
+    library.store = store;
+    library.adapter = LibraryAdapter.createLibraryAdapter({
+      core: LibraryCore, store, source: library.source, appendUpcoming: EpisodeSource.appendUpcoming,
+      showMeta: libraryShowMeta,
+      onProgress: (done, total) => {
+        if (total > 5 && done < total) subtitle.textContent = `Loading episode lists… ${done}/${total}`;
+      },
+    });
+    library.bridge = SimklBridge.createSimklBridge({
+      core: LibraryCore, store, adapter: library.adapter, backend: library.backend,
+      simkl: { get: (path, params) => simklGet(path, null, params) },
+    });
+  }
+  library.adapter.reset();
+  return true;
+}
+
+// SIMKL as an inbox only: whatever marks episodes watched on SIMKL (the Emby
+// plugin) is copied into the library - see simkl-bridge.js for the rules.
+// Runs only while this browser is still connected to SIMKL; without that the
+// library simply works on its own. At most one pass at a time, and not more
+// than once every 30 seconds (each refresh starts one).
+let simklBridgeRunning = false;
+let simklBridgeLastRun = 0;
+async function runSimklBridge() {
+  if (!library || !library.bridge || simklBridgeRunning) return;
+  if (Date.now() - simklBridgeLastRun < 30000) return;
+  simklBridgeRunning = true;
+  simklBridgeLastRun = Date.now();
+  try {
+    if (!(await currentToken())) return;
+    const r = await library.bridge.run();
+    const changes = r.added + r.created.length + r.moved.length;
+    if (r.problems.length) showToast(`SIMKL auto-marking: ${r.problems[0]}`, true);
+    if (changes) {
+      const parts = [];
+      if (r.added) parts.push(`${r.added} episode${r.added === 1 ? "" : "s"} marked watched`);
+      if (r.created.length) parts.push(`${r.created.length} show${r.created.length === 1 ? "" : "s"} added`);
+      if (r.moved.length) parts.push(`${r.moved.length} moved to Watching`);
+      showToast(`From SIMKL: ${parts.join(", ")}`);
+      main();
+    }
+  } catch (err) {
+    // SIMKL unreachable or the daily limit reached: the next pass tries again.
+    // A sign-in that expired needs the user, so that one is shown.
+    if (!simklConnected()) showToast(err.message, true);
+    else console.warn("SIMKL auto-marking skipped:", err.message);
+  } finally {
+    simklBridgeRunning = false;
+  }
+}
+
+function showLibrarySignIn() {
+  app.innerHTML = `
+    <div class="center-box">
+      <h2>Sign in</h2>
+      <p style="color:var(--muted);font-size:0.85rem">
+        Your list is kept in your own private database. Sign in with the
+        Google account it belongs to.
+      </p>
+      <div style="margin-top:18px">
+        <button class="pill" id="librarySignInBtn">Sign in with Google</button>
+      </div>
+      <div class="error-box" id="librarySignInError"></div>
+    </div>
+  `;
+  subtitle.textContent = "Sign in required";
+  document.getElementById("librarySignInBtn").onclick = async () => {
+    try {
+      await library.backend.signIn();
+      main();
+    } catch (err) {
+      document.getElementById("librarySignInError").textContent = `Sign-in failed: ${err.message}`;
+    }
+  };
+}
+
+// The topbar's save state (library mode only): nothing while all is saved,
+// otherwise saving / waiting for the connection / failed / a conflict to
+// decide - clicking it retries or opens the conflict choice.
+function renderSaveStatus(s) {
+  let el = document.getElementById("saveStatus");
+  if (!el) {
+    const host = document.querySelector(".topbar-controls");
+    if (!host) return;
+    el = document.createElement("button");
+    el.id = "saveStatus";
+    el.className = "save-status";
+    host.prepend(el);
+    el.onclick = () => {
+      const st = library && library.store && library.store.status();
+      if (!st) return;
+      if (st.state === "conflict") promptLibraryConflict();
+      else if (st.pending) library.store.retry().then(afterLibraryRetry);
+    };
+  }
+  const text = s.state === "saving" ? "Saving…"
+    : s.state === "offline" ? `Offline – ${s.pending} waiting`
+    : s.state === "error" ? "Not saved – retry"
+    : s.state === "conflict" ? "Conflict – choose"
+    : "";
+  el.textContent = text;
+  el.hidden = !text;
+  el.dataset.state = s.state;
+  el.title = s.error || (s.conflict && s.conflict.reason) || "";
+}
+
+function afterLibraryRetry() {
+  const st = library.store.status();
+  if (st.state === "saved") {
+    showToast("Waiting changes saved");
+    main();
+  }
+}
+
+// A change that collided with one made on another device: nothing was
+// written - the user picks which version stays.
+async function promptLibraryConflict() {
+  const c = library.store.status().conflict;
+  if (!c) return;
+  const show = library.store.view().get(c.docId);
+  const name = show ? show.title : "A show";
+  const keepMine = confirm(`"${name}" was changed on another device: ${c.reason}.\n\nOK - apply your change on top of it.\nCancel - keep the other device's version.`);
+  const result = await library.store.resolveConflict(keepMine ? "mine" : "theirs");
+  if (result === "saved") showToast("Your change was saved");
+  else if (result === "dropped") showToast("Kept the other device's version");
+  else showToast(library.store.status().error || "Not saved yet", true);
+  main();
+}
+
+// Every write's failure goes through here. In library mode a change that is
+// waiting for the connection is still shown (marked by the topbar status),
+// and a conflict asks which version to keep.
+function reportWriteError(err) {
+  showToast(err.message, true);
+  if (err.outcome === "queued") main();
+  if (err.outcome === "conflict") setTimeout(promptLibraryConflict, 300);
+}
+
+function downloadJson(name, data) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function backupFileName(prefix) {
+  return `${prefix}-${new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-")}.json`;
+}
+
+// Settings section (library mode): who's signed in, sign out, and backups.
+function librarySettingsHtml() {
+  if (!library || !library.store) return "";
+  const user = library.backend.currentUser();
+  return `
+      <div class="library-settings">
+        <p style="color:var(--muted);font-size:0.85rem;margin:0 0 8px">Library: signed in as ${user ? user.email : "?"}</p>
+        <button class="pill" id="libraryBackupBtn">Download backup</button>
+        <button class="pill" id="libraryRestoreBtn">Restore from backup</button>
+        <button class="pill" id="librarySignOutBtn">Sign out</button>
+        <input type="file" id="libraryRestoreInput" accept="application/json,.json" hidden>
+      </div>`;
+}
+
+function wireLibrarySettings() {
+  const backupBtn = document.getElementById("libraryBackupBtn");
+  if (!backupBtn) return;
+  backupBtn.onclick = () => downloadJson(backupFileName("tv-library-backup"), library.store.exportBackup());
+  const input = document.getElementById("libraryRestoreInput");
+  document.getElementById("libraryRestoreBtn").onclick = () => input.click();
+  input.onchange = async () => {
+    const file = input.files && input.files[0];
+    input.value = "";
+    if (!file) return;
+    try {
+      const backup = JSON.parse(await file.text());
+      const count = backup && backup.shows ? Object.keys(backup.shows).length : 0;
+      if (!confirm(`Replace your whole library with this backup (${count} shows)? A backup of the current library is downloaded first.`)) return;
+      downloadJson(backupFileName("tv-library-before-restore"), library.store.exportBackup());
+      await library.store.restoreBackup(backup);
+      showToast(`Restored ${count} shows from the backup`);
+      main();
+    } catch (err) {
+      showToast(`Restore failed: ${err.message}`, true);
+    }
+  };
+  document.getElementById("librarySignOutBtn").onclick = async () => {
+    if (library.store.status().pending && !confirm("Some changes aren't saved yet and will be lost. Sign out anyway?")) return;
+    await library.backend.signOut();
+    library.store = null;
+    library.adapter = null;
+    main();
+  };
+}
+
+// The episode lists the row builders read: { get(showId) } resolving to
+// [{ season, episode, date, title }] (or null), from the library adapter.
+function newEpisodeCache() {
+  return { get: id => library.adapter.showEpisodes(id) };
+}
+
+// Has an episode (from the episode cache) aired by `now`? An exact air time
+// counts once it has passed; a date-only one from the next local day
+// (LibraryCore.isAired).
+function episodeHasAired(ep, now) {
+  return LibraryCore.isAired(ep, now);
+}
+function episodeTimestamp(dateStr) {
+  return airDateToTimestamp(dateStr);
+}
+
+async function getWatchingShows() {
+  return library.adapter.items("watching");
 }
 
 // My List and Airing Next both need the watching list, and they load in the
 // same pass, so it's requested once per page load and shared.
 let watchingListLoad = null;
-function getWatchingShowsOnce(token) {
-  if (!watchingListLoad) watchingListLoad = getWatchingShows(token);
+function getWatchingShowsOnce() {
+  if (!watchingListLoad) watchingListLoad = getWatchingShows();
   return watchingListLoad;
 }
 
-// Same shape as getWatchingShows, for the "recently watched, then dropped"
-// case in Recently Watched below - a show you stopped following shouldn't
-// vanish from there instantly, since you did just watch something of it.
-async function getDroppedShows(token) {
-  const data = await simklGet("/sync/all-items/shows/dropped", token, {
-    extended: "full", episode_watched_at: "yes",
-  });
-  if (!data) return [];
-  return Array.isArray(data) ? data : (data.shows || []);
+// Same shape as getWatchingShows (only the last watched episode matters), for
+// the "recently watched, then dropped" case in Recently Watched below - a
+// show you stopped following shouldn't vanish from there instantly, since
+// you did just watch something of it.
+async function getDroppedShows() {
+  return library.adapter.items("dropped", { withEpisodes: false });
 }
 
-async function getPlanToWatchShows(token) {
-  const data = await simklGet("/sync/all-items/shows/plantowatch", token, {
-    extended: "full",
-  });
-  if (!data) return [];
-  return Array.isArray(data) ? data : (data.shows || []);
+async function getPlanToWatchShows() {
+  return library.adapter.items("plantowatch");
 }
 
 // ---------------------------------------------------------------------
@@ -666,9 +977,7 @@ async function tmdbGet(path, params) {
 const API_CACHE_PREFIX = "simkl_apicache:";
 const CACHE_TTL_TMDB_SHOW_MS = 24 * 60 * 60 * 1000;
 const CACHE_TTL_TMDB_SEASON_MS = 6 * 60 * 60 * 1000;
-const CACHE_TTL_SIMKL_EPISODES_MS = 6 * 60 * 60 * 1000;
-const CACHE_TTL_SIMKL_SHOW_MS = 24 * 60 * 60 * 1000;
-const CACHE_TTL_SIMKL_SHOW_RECENT_MS = 3 * 60 * 60 * 1000; // for shows in their first month, see isRecentShow
+const CACHE_TTL_RECENT_SHOW_MS = 3 * 60 * 60 * 1000; // ratings of shows in their first month, see isRecentShow
 const RECENT_SHOW_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
 // True for a show whose first episode aired within the last 30 days (or is
@@ -878,77 +1187,6 @@ class TmdbCache {
   }
 }
 
-class SimklEpisodeCache {
-  // Caches GET /tv/episodes/{simkl_id} per show. This is SIMKL's OWN
-  // episode data (via TheTVDB), including a full date+time WITH timezone
-  // offset for each episode - unlike TMDB, which only gives a bare date
-  // (no time), anchored to the show's origin country. Using SIMKL's own
-  // data here is what keeps this page in sync with what simkl.com itself
-  // shows for "airing next" / next-episode dates.
-  constructor() { this.map = new Map(); }
-  get(simklId, token) {
-    if (!this.map.has(simklId)) {
-      const cacheKey = `simklepisodes:${simklId}`;
-      const cached = readPersistedCache(cacheKey, CACHE_TTL_SIMKL_EPISODES_MS);
-      if (cached !== undefined) {
-        this.map.set(simklId, Promise.resolve(cached));
-        return this.map.get(simklId);
-      }
-      // Stores the in-flight promise itself (see TmdbCache) so concurrent
-      // requests for the same show reuse one fetch instead of duplicating it.
-      const promise = simklGet(`/tv/episodes/${simklId}`, token, { extended: "full" })
-        .then(data => Array.isArray(data) ? data : null)
-        .then(data => {
-          if (data) writePersistedCache(cacheKey, data);
-          return data;
-        })
-        .catch(() => null); // fall back to TMDB dates for this show
-      this.map.set(simklId, promise);
-    }
-    return this.map.get(simklId);
-  }
-}
-
-class SimklShowCache {
-  // Caches GET /tv/{simkl_id} (SIMKL's own public catalog/summary
-  // endpoint - client_id only, no user token strictly required, but we
-  // pass the token anyway since it's harmless). Used to read the show's
-  // IMDb rating as shown on its simkl.com page, per user request.
-  constructor() { this.map = new Map(); }
-  // `recent` marks a show that premiered within the last month: its IMDb
-  // rating still moves a lot, and SIMKL's copy of it catches up gradually,
-  // so it's re-read more often (an older show's rating barely changes, and
-  // re-reading every show that often would slow every refresh down).
-  get(simklId, token, recent) {
-    if (!this.map.has(simklId)) {
-      const cacheKey = `simklshow:${simklId}`;
-      const cached = readPersistedCache(cacheKey, recent ? CACHE_TTL_SIMKL_SHOW_RECENT_MS : CACHE_TTL_SIMKL_SHOW_MS);
-      if (cached !== undefined) {
-        this.map.set(simklId, Promise.resolve(cached));
-        return this.map.get(simklId);
-      }
-      const promise = simklGet(`/tv/${simklId}`, token, {}).then(data => {
-        if (data) writePersistedCache(cacheKey, data);
-        return data;
-      }).catch(() => null);
-      this.map.set(simklId, promise);
-    }
-    return this.map.get(simklId);
-  }
-}
-
-function extractSimklNetwork(showData) {
-  // Same defensive spirit as extractImdbRating - SIMKL's /tv/{id} shape for
-  // this isn't documented, so try the plausible field names and return the
-  // first usable string.
-  if (!showData) return null;
-  const candidates = [showData.network, showData.channel];
-  for (const c of candidates) {
-    if (typeof c === "string" && c.trim()) return c.trim();
-  }
-  return null;
-}
-
 function latestNetwork(showDetail) {
   // TMDB lists ALL networks a show has ever aired on when it moved between
   // them over the years, not just the current one - e.g. an Israeli show
@@ -998,7 +1236,7 @@ function normalizeNetworkName(name) {
 function findLocalNetworkLogo(networkName) {
   // A single network can also show up under different names entirely
   // depending on the source - e.g. "Reshet" (TMDB, English) vs "רשת"
-  // (SIMKL/Hebrew) - so each entry lists every name variant it should
+  // (Hebrew) - so each entry lists every name variant it should
   // match, not just one.
   const key = normalizeNetworkName(networkName);
   if (!key) return null;
@@ -1011,45 +1249,10 @@ function resolveNetworkLogoUrl(networkName, tmdbLogoPath) {
   return findLocalNetworkLogo(networkName);
 }
 
-function extractImdbRating(showData) {
-  // Defensive parsing: the exact shape of SIMKL's "ratings" field isn't
-  // fully documented, so this tries a few plausible layouts and returns
-  // null (meaning: just show the plain IMDb logo, no number) rather than
-  // guessing wrong.
-  if (!showData) return null;
-  const r = showData.ratings;
-  if (!r) return null;
-  const candidates = [
-    r.imdb && r.imdb.rating,
-    r.IMDB && r.IMDB.rating,
-    typeof r.imdb === "number" ? r.imdb : null,
-    typeof r.imdb === "string" ? r.imdb : null,
-  ];
-  for (const c of candidates) {
-    if (typeof c === "number" && !isNaN(c)) return c;
-    if (typeof c === "string" && c.trim() && !isNaN(parseFloat(c))) return parseFloat(c);
-  }
-  return null;
-}
-
-// ---------------------------------------------------------------------
-// Ratings from several sources
-// ---------------------------------------------------------------------
-// SIMKL's own user rating - same /tv/{id} data (and same defensive
-// parsing) as the IMDb number above.
-function extractSimklRating(showData) {
-  const r = showData && showData.ratings;
-  if (!r || r.simkl == null) return null;
-  const v = typeof r.simkl === "object" ? r.simkl.rating : r.simkl;
-  const n = typeof v === "string" ? parseFloat(v) : v;
-  return typeof n === "number" && isFinite(n) && n > 0 ? n : null;
-}
-
 // Rotten Tomatoes (critics + audience) and Trakt come from MDBList, which
 // aggregates them behind one request per show. Needs a free API key from
 // mdblist.com (Settings); without one this quietly returns nothing and the
-// rest of the ratings still work. Its daily allowance is separate from
-// SIMKL's.
+// rest of the ratings still work.
 const CACHE_TTL_MDBLIST_MS = 24 * 60 * 60 * 1000;
 class MdblistCache {
   constructor() {
@@ -1098,7 +1301,7 @@ class MdblistCache {
     if (!key || !imdbId || this.disabled) return Promise.resolve(null);
     if (!this.map.has(imdbId)) {
       const cacheKey = `mdblist:${imdbId}`;
-      const cached = readPersistedCache(cacheKey, recent ? CACHE_TTL_SIMKL_SHOW_RECENT_MS : CACHE_TTL_MDBLIST_MS);
+      const cached = readPersistedCache(cacheKey, recent ? CACHE_TTL_RECENT_SHOW_MS : CACHE_TTL_MDBLIST_MS);
       if (cached !== undefined) {
         this.map.set(imdbId, Promise.resolve(cached));
         return this.map.get(imdbId);
@@ -1126,16 +1329,12 @@ async function checkMdblistKey(key) {
   }
 }
 
-// One object per show: imdb / simkl / tmdb are out of 10; the RT scores and
+// One object per show: imdb / tmdb are out of 10; the RT scores and
 // Trakt are percentages. null = no score from that source.
-function buildRatings(simklShowData, tmdbVote, mdb) {
+function buildRatings(tmdbVote, mdb) {
   const pos = v => (typeof v === "number" && isFinite(v) && v > 0) ? v : null;
-  const imdb = extractImdbRating(simklShowData);
   return {
-    // SIMKL's copy first (that's what the card always showed); MDBList's only
-    // fills in when SIMKL has none.
-    imdb: imdb != null ? imdb : pos(mdb && mdb.imdb),
-    simkl: extractSimklRating(simklShowData),
+    imdb: pos(mdb && mdb.imdb),
     tmdb: pos(tmdbVote),
     rtCritics: pos(mdb && mdb.tomatoes),
     rtAudience: pos(mdb && mdb.popcorn),
@@ -1143,9 +1342,9 @@ function buildRatings(simklShowData, tmdbVote, mdb) {
   };
 }
 
-async function loadRatings(simklShowData, tmdbVote, imdbId, recent) {
+async function loadRatings(tmdbVote, imdbId, recent) {
   const mdb = await mdblistCache.get(imdbId, recent);
-  return buildRatings(simklShowData, tmdbVote, mdb);
+  return buildRatings(tmdbVote, mdb);
 }
 
 function showAverageRuntime(showDetail) {
@@ -1190,12 +1389,12 @@ function mostRecentWatchedAt(item) {
   return latest;
 }
 
-async function estimateRemainingMinutes(item, tmdbId, simklId, token, cache, episodeCache, remainingCount, fallbackRuntime) {
-  // SIMKL's aggregate count (remainingCount, passed in) is always the
+async function estimateRemainingMinutes(item, tmdbId, showId, cache, episodeCache, remainingCount, fallbackRuntime) {
+  // The library's aggregate count (remainingCount, passed in) is always the
   // authoritative number of remaining episodes - this function only
   // estimates how long they'll take to watch, as accurately as possible:
-  // it identifies the SPECIFIC remaining episodes via SIMKL's own
-  // per-episode aired/watched data, then prices each one using TMDB's
+  // it identifies the SPECIFIC remaining episodes via the show's episode
+  // list (air dates) and watched records, then prices each one using TMDB's
   // exact per-episode runtime where available, falling back to the show's
   // average only for the specific episodes TMDB doesn't have.
   // Returns { totalMinutes, nextEpisodeMinutes }.
@@ -1219,26 +1418,27 @@ async function estimateRemainingMinutes(item, tmdbId, simklId, token, cache, epi
     }
   }
 
-  // Identify which specific episodes are remaining, via SIMKL's own data,
+  // Identify which specific episodes are remaining, via the episode list,
   // oldest (i.e. the very next one to watch) first. Also record each
   // season's highest known episode number, so every remaining episode
   // (not just the next one) can carry its own premiere/finale badge.
   let identifiedEpisodes = [];
   const seasonMaxEpisode = new Map();
-  if (simklId) {
-    const simklEpisodes = await episodeCache.get(simklId, token);
-    if (simklEpisodes) {
-      for (const ep of simklEpisodes) {
+  if (showId) {
+    const showEpisodes = await episodeCache.get(showId);
+    if (showEpisodes) {
+      for (const ep of showEpisodes) {
         if (ep.season == null || ep.season === 0 || ep.episode == null) continue;
         const prevMax = seasonMaxEpisode.get(ep.season);
         if (prevMax == null || ep.episode > prevMax) seasonMaxEpisode.set(ep.season, ep.episode);
       }
       const watchedBySeason = watchedEpisodeNumbersBySeason(item);
       const now = Date.now();
-      identifiedEpisodes = simklEpisodes
+      identifiedEpisodes = showEpisodes
         .filter(ep => ep.season != null && ep.season !== 0 && ep.episode != null && ep.date)
-        .map(ep => ({ season: ep.season, episode: ep.episode, ts: new Date(ep.date).getTime() }))
-        .filter(ep => !isNaN(ep.ts) && ep.ts <= now)
+        .filter(ep => episodeHasAired(ep, now))
+        .map(ep => ({ season: ep.season, episode: ep.episode, ts: episodeTimestamp(ep.date) }))
+        .filter(ep => !isNaN(ep.ts))
         .filter(ep => !(watchedBySeason[ep.season] || new Set()).has(ep.episode))
         .sort((a, b) => a.ts - b.ts);
     }
@@ -1257,7 +1457,7 @@ async function estimateRemainingMinutes(item, tmdbId, simklId, token, cache, epi
 
   // Price up to remainingCount identified episodes with their exact (or
   // per-episode-fallback) runtime; if we couldn't identify enough specific
-  // episodes to match SIMKL's aggregate count, pad the remainder with the
+  // episodes to match the aggregate count, pad the remainder with the
   // average so the count itself is still fully accounted for. The full
   // per-episode breakdown (used by the "episodes left" modal) is built
   // alongside the same totals so both always agree.
@@ -1282,7 +1482,7 @@ async function estimateRemainingMinutes(item, tmdbId, simklId, token, cache, epi
   return { totalMinutes: minutes, nextEpisodeMinutes, episodes };
 }
 
-function simklAiredMinusWatchedCount(item) {
+function airedMinusWatchedCount(item) {
   const total = item.total_episodes_count || 0;
   const notAired = item.not_aired_episodes_count || 0;
   const watched = item.watched_episodes_count || 0;
@@ -1327,7 +1527,6 @@ function parseNextEpisode(nextToWatch) {
 // Build rows (mirrors the Python core logic)
 // ---------------------------------------------------------------------
 const LS_IMAGE_OVERRIDES = "simkl_image_overrides"; // { [tmdbId]: { posterPath, bannerPath } }
-const LS_AUTO_STARTED = "simkl_auto_started"; // { [simklId]: firstAirDate of the premiere already moved to WATCHING, or "manual" once sent back to PLAN TO WATCH by hand }
 
 function getImageOverrides() {
   try {
@@ -1429,7 +1628,7 @@ function computeImages(showDetail, tmdbId) {
   return out;
 }
 
-async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token, ratingsCache, droppedItems) {
+async function getRecentlyWatchedEpisodes(items, cache, episodeCache, droppedItems) {
   // Scans every currently-"watching" show (even ones you've fully caught
   // up on, which wouldn't otherwise appear in My List) for watched
   // episodes with a timestamp, and returns the 10 most recent - at most
@@ -1452,7 +1651,7 @@ async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token, rat
           episode: ep.number,
           watchedAt: ep.watched_at,
           tmdbId: (show.ids || {}).tmdb,
-          simklId: (show.ids || {}).simkl,
+          showId: (show.ids || {}).library,
           imdbId: (show.ids || {}).imdb,
         });
       }
@@ -1460,10 +1659,10 @@ async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token, rat
   }
   for (const item of droppedItems || []) {
     if (item.status !== "dropped") continue;
-    // Unlike /watching, SIMKL's /dropped list doesn't return a
-    // seasons/episodes breakdown at all - just a last_watched_at
-    // timestamp and a "S01E06"-style last_watched code for the single
-    // most recent episode, which is all Recently Watched needs anyway.
+    // Dropped shows are read without their episode list (see
+    // getDroppedShows) - just a last_watched_at timestamp and a
+    // "S01E06"-style last_watched code for the single most recent episode,
+    // which is all Recently Watched needs anyway.
     if (!item.last_watched_at || !item.last_watched) continue;
     const match = /^S(\d+)E(\d+)$/i.exec(item.last_watched);
     if (!match) continue;
@@ -1474,7 +1673,7 @@ async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token, rat
       episode: Number(match[2]),
       watchedAt: item.last_watched_at,
       tmdbId: (show.ids || {}).tmdb,
-      simklId: (show.ids || {}).simkl,
+      showId: (show.ids || {}).library,
       imdbId: (show.ids || {}).imdb,
       dropped: true,
     });
@@ -1484,7 +1683,7 @@ async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token, rat
   const seenShows = new Set();
   const deduped = [];
   for (const c of candidates) {
-    const showKey = c.simklId != null ? `simkl:${c.simklId}` : `title:${c.title}`;
+    const showKey = c.showId != null ? `show:${c.showId}` : `title:${c.title}`;
     if (seenShows.has(showKey)) continue;
     seenShows.add(showKey);
     deduped.push(c);
@@ -1506,15 +1705,9 @@ async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token, rat
       tmdbLogoPath = network ? network.logo_path : null;
       firstAirDate = showDetail ? showDetail.first_air_date : null;
     }
-    if (!c.network && c.simklId && ratingsCache) {
-      // Same freshness rule as the rating lookups: the cache remembers the
-      // first read per show for the whole session, so this one mustn't be
-      // the call that pins an older copy of a brand-new show.
-      c.network = extractSimklNetwork(await ratingsCache.get(c.simklId, token, isRecentShow(firstAirDate)));
-    }
     c.networkLogoPath = resolveNetworkLogoUrl(c.network, tmdbLogoPath);
 
-    // Episode title: prefer SIMKL's own title if we have it, else TMDB's -
+    // Episode title: prefer the episode list's title if it has one, else TMDB's -
     // same fallback order used for My List / Airing Next.
     // Season/series premiere and season finale badges, same rule used
     // everywhere else (episode 1 -> premiere; matches the season's known
@@ -1527,14 +1720,14 @@ async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token, rat
     if (!c.dropped && c.episode === 1) {
       c.badge = c.season === 1 ? "SERIES PREMIERE" : "SEASON PREMIERE";
     }
-    if (c.simklId) {
-      const simklEpisodes = await episodeCache.get(c.simklId, token);
-      const match = simklEpisodes && simklEpisodes.find(e => e.season === c.season && e.episode === c.episode);
+    if (c.showId) {
+      const showEpisodes = await episodeCache.get(c.showId);
+      const match = showEpisodes && showEpisodes.find(e => e.season === c.season && e.episode === c.episode);
       if (match && match.title && !/^Episode\s+\d+$/i.test(String(match.title).trim())) {
         c.episodeTitle = String(match.title).trim();
       }
-      if (!c.dropped && !c.badge && simklEpisodes) {
-        const sameSeason = simklEpisodes.filter(e => e.season === c.season && e.episode != null);
+      if (!c.dropped && !c.badge && showEpisodes) {
+        const sameSeason = showEpisodes.filter(e => e.season === c.season && e.episode != null);
         if (sameSeason.length) {
           const maxEpisode = Math.max(...sameSeason.map(e => e.episode));
           if (c.episode === maxEpisode) c.badge = "SEASON FINALE";
@@ -1553,17 +1746,16 @@ async function getRecentlyWatchedEpisodes(items, cache, episodeCache, token, rat
   return top;
 }
 
-async function getPlanToWatchRows(token, cache, ratingsCache) {
-  const items = await getPlanToWatchShows(token);
+async function getPlanToWatchRows(cache) {
+  const items = await getPlanToWatchShows();
   cache = cache || new TmdbCache();
-  ratingsCache = ratingsCache || new SimklShowCache();
-  // Per-show TMDB/SIMKL lookups run concurrently instead of one-at-a-time -
+  // Per-show lookups run concurrently instead of one-at-a-time -
   // order doesn't matter here since the list gets sorted afterward anyway.
   const rows = await Promise.all(items.map(async item => {
     const show = item.show || {};
     const title = show.title || "Unknown";
     const tmdbId = (show.ids || {}).tmdb;
-    const simklId = (show.ids || {}).simkl;
+    const showId = (show.ids || {}).library;
     const imdbId = (show.ids || {}).imdb;
 
     let images = computeImages(null);
@@ -1597,10 +1789,8 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
       }
     }
     const recentShow = isRecentShow(firstAirDate);
-    const simklShowData = simklId ? await ratingsCache.get(simklId, token, recentShow) : null;
-    const ratings = await loadRatings(simklShowData, tmdbVote, imdbId, recentShow);
+    const ratings = await loadRatings(tmdbVote, imdbId, recentShow);
     const imdbRating = ratings.imdb;
-    if (!network) network = extractSimklNetwork(simklShowData);
     const networkLogoPath = resolveNetworkLogoUrl(network, tmdbLogoPath);
 
     const totalEpisodes = item.total_episodes_count || 0;
@@ -1623,7 +1813,8 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
     // "2016-2019" once ended, "2016-" (open-ended) while still airing.
     const yearRangeLabel = startYear ? `${startYear}-${ended ? (endYear || "") : ""}` : null;
 
-    return { title, imdbId, imdbRating, ratings, ...images, simklId, tmdbId, airedLabel, airedTone, ended, network, networkLogoPath, yearRangeLabel, contentRating, genreLabel, firstAirDate, watchedCount: item.watched_episodes_count || 0 };
+    return { title, imdbId, imdbRating, ratings, ...images, showId, tmdbId, airedLabel, airedTone, ended, network, networkLogoPath, yearRangeLabel, contentRating, genreLabel, firstAirDate, watchedCount: item.watched_episodes_count || 0,
+      autoStarted: item.autoStarted };
   }));
 
   // Highest IMDb rating first; shows with no known rating sink to the end.
@@ -1636,12 +1827,11 @@ async function getPlanToWatchRows(token, cache, ratingsCache) {
   return rows;
 }
 
-async function getMyListRows(token, cache, episodeCache, ratingsCache) {
-  const [items, droppedItems] = await Promise.all([getWatchingShowsOnce(token), getDroppedShows(token)]);
+async function getMyListRows(cache, episodeCache) {
+  const [items, droppedItems] = await Promise.all([getWatchingShowsOnce(), getDroppedShows()]);
   cache = cache || new TmdbCache();
-  episodeCache = episodeCache || new SimklEpisodeCache();
-  ratingsCache = ratingsCache || new SimklShowCache();
-  // Per-show TMDB/SIMKL lookups run concurrently instead of one-at-a-time;
+  episodeCache = episodeCache || newEpisodeCache();
+  // Per-show lookups run concurrently instead of one-at-a-time;
   // each task returns its own remaining/minutes contribution so the totals
   // below can be summed after everything resolves, rather than mutating a
   // shared counter from multiple in-flight tasks.
@@ -1651,7 +1841,7 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
     const show = item.show || {};
     const title = show.title || "Unknown";
     const tmdbId = (show.ids || {}).tmdb;
-    const simklId = (show.ids || {}).simkl;
+    const showId = (show.ids || {}).library;
     const imdbId = (show.ids || {}).imdb;
     const watched = item.watched_episodes_count || 0;
     const totalEpisodes = item.total_episodes_count || 0;
@@ -1689,47 +1879,45 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
       }
     }
 
-    // SIMKL's own aggregate counts are the sole source of truth for how
-    // many episodes remain - this is exactly what simkl.com itself shows,
-    // and needs no per-episode matching against TMDB at all. TMDB is used
-    // only to estimate how long they'll take to watch.
-    const remaining = Math.max(simklAiredMinusWatchedCount(item), 1);
+    // The library's aggregate counts (aired minus watched) are the sole
+    // source of truth for how many episodes remain. TMDB is used only to
+    // estimate how long they'll take to watch.
+    const remaining = Math.max(airedMinusWatchedCount(item), 1);
     const { totalMinutes: remainingMinutes, nextEpisodeMinutes, episodes: episodesLeft } = await estimateRemainingMinutes(
-      item, tmdbId, simklId, token, cache, episodeCache, remaining, show.runtime
+      item, tmdbId, showId, cache, episodeCache, remaining, show.runtime
     );
 
     // Air date/time of the specific "next episode to watch" (not the
     // show's next upcoming one) - used to sort: shows you're only a
     // little behind on (aired recently) float to the top; old backlog
-    // sinks to the bottom. Prefer SIMKL's own episode data (has an exact
-    // time + timezone offset, so it matches simkl.com); fall back to TMDB
-    // (date only) if SIMKL doesn't have it for some reason.
+    // sinks to the bottom. Prefer the episode list (an exact time where the
+    // source has one); fall back to TMDB's season data (date only).
     let nextAirDate = null;
     let episodeTitle = null;
-    let simklEpisodesForNext = null;
+    let nextShowEpisodes = null;
 
-    if (simklId && nextSeason != null) {
-      simklEpisodesForNext = await episodeCache.get(simklId, token);
-      const simklEp = simklEpisodesForNext && simklEpisodesForNext.find(
+    if (showId && nextSeason != null) {
+      nextShowEpisodes = await episodeCache.get(showId);
+      const listEp = nextShowEpisodes && nextShowEpisodes.find(
         e => e.season === nextSeason && e.episode === nextEpisode
       );
-      if (simklEp && simklEp.date) nextAirDate = simklEp.date;
-      if (simklEp && simklEp.title && !/^Episode\s+\d+$/i.test(String(simklEp.title).trim())) {
-        episodeTitle = String(simklEp.title).trim();
+      if (listEp && listEp.date) nextAirDate = listEp.date;
+      if (listEp && listEp.title && !/^Episode\s+\d+$/i.test(String(listEp.title).trim())) {
+        episodeTitle = String(listEp.title).trim();
       }
     }
 
     // Same premiere/finale badge logic as Airing Next (buildAiringRow) -
     // episode 1 of a season is a premiere; otherwise, if it's the highest
-    // episode number SIMKL has listed for that season, treat it as the
+    // episode number listed for that season, treat it as the
     // season finale.
     let badge = null;
     if (nextSeason != null && nextEpisode != null) {
       if (nextEpisode === 1) {
         badge = nextSeason === 1 ? "SERIES PREMIERE" : "SEASON PREMIERE";
-      } else if (simklId) {
-        const simklEpisodes = simklEpisodesForNext || await episodeCache.get(simklId, token);
-        const sameSeason = (simklEpisodes || []).filter(e => e.season === nextSeason && e.episode != null);
+      } else if (showId) {
+        const showEpisodes = nextShowEpisodes || await episodeCache.get(showId);
+        const sameSeason = (showEpisodes || []).filter(e => e.season === nextSeason && e.episode != null);
         if (sameSeason.length) {
           const maxEpisode = Math.max(...sameSeason.map(e => e.episode));
           if (nextEpisode === maxEpisode) badge = "SEASON FINALE";
@@ -1751,13 +1939,11 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
     const [hours, mins] = formatTime(remainingMinutes);
     const [nextHours, nextMins] = formatTime(nextEpisodeMinutes);
     const recentShow = isRecentShow(showDetail && showDetail.first_air_date);
-    const simklShowData = simklId ? await ratingsCache.get(simklId, token, recentShow) : null;
-    const ratings = await loadRatings(simklShowData, showDetail && showDetail.vote_average, imdbId, recentShow);
+    const ratings = await loadRatings(showDetail && showDetail.vote_average, imdbId, recentShow);
     const imdbRating = ratings.imdb;
-    if (!network) network = extractSimklNetwork(simklShowData);
     const networkLogoPath = resolveNetworkLogoUrl(network, tmdbLogoPath);
     const row = {
-      title, imdbId, imdbRating, ratings, simklId, tmdbId, year: show.year, ...images, network, networkLogoPath,
+      title, imdbId, imdbRating, ratings, showId, tmdbId, year: show.year, ...images, network, networkLogoPath,
       totalEpisodes, available, watched, remaining,
       hours, mins, nextHours, nextMins, nextLabel, nextSeason, nextEpisode, episodeTitle, nextAirDate, badge,
       episodesLeft, lastWatchedAt: mostRecentWatchedAt(item), yearRangeLabel,
@@ -1777,7 +1963,7 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
   // since its next unwatched episode's original air date is from years
   // ago; lastWatchedAt is what pulls it back to the top while you're
   // catching up on it. Compares actual timestamps (not raw strings),
-  // since SIMKL dates carry a timezone offset that lexical string
+  // since exact air times carry a timezone offset that lexical string
   // comparison can get wrong across different offsets.
   const sortTimestamp = (row) => {
     const airTs = row.nextAirDate != null ? airDateToTimestamp(row.nextAirDate) : null;
@@ -1797,7 +1983,7 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
   });
 
   rows.forEach((r, i) => { r.index = i + 1; });
-  const recentlyWatched = await getRecentlyWatchedEpisodes(items, cache, episodeCache, token, ratingsCache, droppedItems);
+  const recentlyWatched = await getRecentlyWatchedEpisodes(items, cache, episodeCache, droppedItems);
   return [rows, totalRemainingEps, totalRemainingMinutes, recentlyWatched];
 }
 
@@ -1806,7 +1992,7 @@ async function getMyListRows(token, cache, episodeCache, ratingsCache) {
 // actively watching, sorted soonest-first.
 // ---------------------------------------------------------------------
 async function nextAiringEpisode(tmdbId, showDetail, cache) {
-  // Fallback path only (used when SIMKL has no episode data for a show).
+  // Fallback path only (used when the episode list has nothing upcoming).
   // TMDB has no time-of-day, only a date - so "today" is ambiguous (may
   // have already aired earlier today, or not yet). To avoid this showing
   // up in Airing Next AND simultaneously counting as "available" in My
@@ -1834,15 +2020,13 @@ async function nextAiringEpisode(tmdbId, showDetail, cache) {
   return best;
 }
 
-async function nextAiringEpisodeSimkl(simklId, token, episodeCache) {
-  // Preferred path: SIMKL's own /tv/episodes data, which includes a full
-  // date+time WITH timezone offset per episode. Uses the exact CURRENT
-  // moment as the cutoff (not "start of today") - once an episode's real
-  // air time has passed, it's excluded here, since My List's remaining
-  // count (driven by SIMKL's own aired/not-aired judgment) will already
-  // treat it as available. Without this, an episode that aired earlier
-  // today would confusingly show up in both places at once.
-  const episodes = await episodeCache.get(simklId, token);
+async function nextAiringEpisodeFromList(showId, episodeCache) {
+  // Preferred path: the show's episode list, with an exact date+time per
+  // episode where the source has one. Uses the same aired rule as My List's
+  // remaining count (episodeHasAired: an exact time once it has passed, a
+  // date-only episode from the next day), so an episode is never in both
+  // places at once.
+  const episodes = await episodeCache.get(showId);
   if (!episodes) return null;
 
   const now = Date.now();
@@ -1851,8 +2035,9 @@ async function nextAiringEpisodeSimkl(simklId, token, episodeCache) {
   for (const ep of episodes) {
     if (ep.season == null || ep.season === 0) continue; // skip specials
     if (ep.episode == null || !ep.date) continue;
-    const ts = new Date(ep.date).getTime();
-    if (isNaN(ts) || ts <= now) continue; // strictly in the future
+    if (episodeHasAired(ep, now)) continue; // strictly in the future
+    const ts = episodeTimestamp(ep.date);
+    if (isNaN(ts)) continue;
     if (!best || ts < best.ts) {
       best = { ts, airDate: ep.date, season: ep.season, episode: ep.episode };
     }
@@ -1862,7 +2047,7 @@ async function nextAiringEpisodeSimkl(simklId, token, episodeCache) {
 
 function hasTimeComponent(dateStr) {
   // "YYYY-MM-DD" is exactly 10 chars (TMDB, date-only); a full ISO
-  // datetime with time+offset (SIMKL) is longer.
+  // datetime with time+offset (TVMaze) is longer.
   return typeof dateStr === "string" && dateStr.length > 10;
 }
 
@@ -1881,7 +2066,7 @@ function formatAirDate(dateStr) {
 }
 
 // The older scrolling layout's longer label: "Today"/"Tomorrow"/weekday
-// plus the time of day when SIMKL gives one.
+// plus the time of day when the episode list has one.
 function formatAirDateLong(dateStr) {
   const withTime = hasTimeComponent(dateStr);
   const today = new Date();
@@ -1889,10 +2074,9 @@ function formatAirDateLong(dateStr) {
   const sameYear = target.getFullYear() === today.getFullYear();
 
   if (withTime) {
-    // We have SIMKL's real date+time (with timezone offset), so "Today"/
-    // "Tomorrow" are trustworthy here - they're computed from the actual
-    // moment, not guessed from a bare date. This is what keeps day labels
-    // in sync with what simkl.com itself shows.
+    // A real date+time (with timezone offset), so "Today"/"Tomorrow" are
+    // trustworthy here - they're computed from the actual moment, not
+    // guessed from a bare date.
     const startOfDay = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
     const diffDays = Math.round((startOfDay(target) - startOfDay(today)) / 86400000);
     const timeStr = target.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
@@ -1909,10 +2093,8 @@ function formatAirDateLong(dateStr) {
     return `${dayLabel}, ${timeStr}`;
   }
 
-  // Fallback path (SIMKL episode data unavailable for this show): only a
-  // bare date, no reliable time-of-day - deliberately NOT using "Today"/
-  // "Tomorrow" here, since that guess is what caused the mismatch with
-  // SIMKL's own calendar in the first place.
+  // Only a bare date, no reliable time-of-day - deliberately NOT using
+  // "Today"/"Tomorrow" here, since that would be a guess.
   return target.toLocaleDateString(undefined, sameYear
     ? { weekday: "long", month: "short", day: "numeric" }
     : { weekday: "long", month: "short", day: "numeric", year: "numeric" });
@@ -1922,23 +2104,19 @@ function airDateText(row) {
   return (isScrollLayout() && row.airDateLongLabel) || row.airDateLabel;
 }
 
-async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, requirePremiere) {
-  // Fast-path guard, trusting SIMKL's own aggregate field directly: if
-  // SIMKL itself says there are zero not-yet-aired episodes for this show,
-  // there is definitively nothing upcoming - skip immediately rather than
-  // going episode-by-episode (which is also where the earlier mismatch
-  // came from, if TMDB's per-episode dates disagree with SIMKL's own
-  // judgment).
+async function buildAiringRow(item, cache, episodeCache, requirePremiere) {
+  // Fast-path guard: with zero not-yet-aired episodes in the list there is
+  // nothing upcoming - skip immediately rather than going episode-by-episode.
   if (item.not_aired_episodes_count === 0) return null;
 
   const show = item.show || {};
   const tmdbId = (show.ids || {}).tmdb;
-  const simklId = (show.ids || {}).simkl;
+  const showId = (show.ids || {}).library;
   const imdbId = (show.ids || {}).imdb;
 
-  // Prefer SIMKL's own episode data (exact date+time, matches simkl.com);
-  // fall back to TMDB (date only) if SIMKL has nothing for this show.
-  let next = simklId ? await nextAiringEpisodeSimkl(simklId, token, episodeCache) : null;
+  // Prefer the episode list (exact date+time where known); fall back to
+  // TMDB's season data (date only) if it has nothing upcoming.
+  let next = showId ? await nextAiringEpisodeFromList(showId, episodeCache) : null;
 
   const showDetail = tmdbId ? await cache.getShow(tmdbId) : null;
   if (!next && tmdbId) {
@@ -1957,11 +2135,11 @@ async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, re
     ? `S${String(next.season).padStart(2, "0")}E${String(next.episode).padStart(2, "0")}`
     : "";
 
-  // Episode title: prefer SIMKL's own title if we have it, else TMDB's.
+  // Episode title: prefer the episode list's title if it has one, else TMDB's.
   let nextEpisodeTitle = null;
-  if (simklId) {
-    const simklEpisodes = await episodeCache.get(simklId, token);
-    const match = simklEpisodes && simklEpisodes.find(e => e.season === next.season && e.episode === next.episode);
+  if (showId) {
+    const showEpisodes = await episodeCache.get(showId);
+    const match = showEpisodes && showEpisodes.find(e => e.season === next.season && e.episode === next.episode);
     if (match && match.title && !/^Episode\s+\d+$/i.test(String(match.title).trim())) {
       nextEpisodeTitle = String(match.title).trim();
     }
@@ -1976,22 +2154,21 @@ async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, re
   }
 
   const recentShow = isRecentShow(showDetail && showDetail.first_air_date);
-  const simklShowData = simklId ? await ratingsCache.get(simklId, token, recentShow) : null;
-  const ratings = await loadRatings(simklShowData, showDetail && showDetail.vote_average, imdbId, recentShow);
+  const ratings = await loadRatings(showDetail && showDetail.vote_average, imdbId, recentShow);
   const imdbRating = ratings.imdb;
 
-  // Premiere/finale badge, matching SIMKL's own "SEASON PREMIERE" labeling:
-  // episode 1 of a season is a premiere (season 1 specifically is a series
-  // premiere); otherwise, if this is the highest episode number SIMKL has
-  // listed for that season, treat it as the season finale. The finale check
-  // is a best-effort signal only - it reflects what SIMKL has published for
-  // the season so far, not confirmed final-episode metadata.
+  // Premiere/finale badge: episode 1 of a season is a premiere (season 1
+  // specifically is a series premiere); otherwise, if this is the highest
+  // episode number listed for that season, treat it as the season finale.
+  // The finale check is a best-effort signal only - it reflects what has
+  // been published for the season so far, not confirmed final-episode
+  // metadata.
   let badge = null;
   if (next.episode === 1) {
     badge = next.season === 1 ? "SERIES PREMIERE" : "SEASON PREMIERE";
-  } else if (simklId) {
-    const simklEpisodes = await episodeCache.get(simklId, token);
-    const sameSeason = (simklEpisodes || []).filter(e => e.season === next.season && e.episode != null);
+  } else if (showId) {
+    const showEpisodes = await episodeCache.get(showId);
+    const sameSeason = (showEpisodes || []).filter(e => e.season === next.season && e.episode != null);
     if (sameSeason.length) {
       const maxEpisode = Math.max(...sameSeason.map(e => e.episode));
       if (next.episode === maxEpisode) badge = "SEASON FINALE";
@@ -2001,7 +2178,6 @@ async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, re
   const showNetwork = latestNetwork(showDetail);
   let network = showNetwork ? showNetwork.name : null;
   const tmdbLogoPath = showNetwork ? showNetwork.logo_path : null;
-  if (!network) network = extractSimklNetwork(simklShowData);
 
   return {
     title: show.title || "Unknown",
@@ -2022,14 +2198,13 @@ async function buildAiringRow(item, cache, episodeCache, ratingsCache, token, re
   };
 }
 
-async function getAiringNextRows(token, cache, episodeCache, ratingsCache) {
+async function getAiringNextRows(cache, episodeCache) {
   cache = cache || new TmdbCache();
-  episodeCache = episodeCache || new SimklEpisodeCache();
-  ratingsCache = ratingsCache || new SimklShowCache();
+  episodeCache = episodeCache || newEpisodeCache();
 
   const [watchingItems, planToWatchItems] = await Promise.all([
-    getWatchingShowsOnce(token),
-    getPlanToWatchShows(token),
+    getWatchingShowsOnce(),
+    getPlanToWatchShows(),
   ]);
 
   // Both passes run their per-show work concurrently. The second pass still
@@ -2038,7 +2213,7 @@ async function getAiringNextRows(token, cache, episodeCache, ratingsCache) {
   // show is fetched in parallel instead of one-at-a-time.
   const watchingEligible = watchingItems.filter(item => item.status === "watching");
   const watchingRows = await Promise.all(watchingEligible.map(item =>
-    buildAiringRow(item, cache, episodeCache, ratingsCache, token, /* requirePremiere */ false)
+    buildAiringRow(item, cache, episodeCache, /* requirePremiere */ false)
   ));
 
   const rows = [];
@@ -2056,13 +2231,13 @@ async function getAiringNextRows(token, cache, episodeCache, ratingsCache) {
     return !(tmdbId && seenTmdbIds.has(tmdbId)); // already added from Watching
   });
   const planRows = await Promise.all(planEligible.map(item =>
-    buildAiringRow(item, cache, episodeCache, ratingsCache, token, /* requirePremiere */ true)
+    buildAiringRow(item, cache, episodeCache, /* requirePremiere */ true)
   ));
   for (const row of planRows) {
     if (row) rows.push(row);
   }
 
-  // Compare actual timestamps, not raw strings - SIMKL dates carry a
+  // Compare actual timestamps, not raw strings - exact air times carry a
   // timezone offset that lexical string comparison can get wrong.
   rows.sort((a, b) => airDateToTimestamp(a.airDate) - airDateToTimestamp(b.airDate));
   rows.forEach((r, i) => { r.index = i + 1; });
@@ -2070,19 +2245,15 @@ async function getAiringNextRows(token, cache, episodeCache, ratingsCache) {
 }
 
 // ---------------------------------------------------------------------
-// SIMKL write operations - search, add-to-list, status change, remove
+// Library changes - add / status change, remove, watched episodes - and search
 // ---------------------------------------------------------------------
-async function simklAddToList(ids, toStatus, token, extra) {
-  const show = { to: toStatus, ids, ...(extra || {}) };
-  const result = await simklPost("/sync/add-to-list", token, { shows: [show] });
-  // SIMKL answers a show it doesn't know with a success status but lists it
-  // under not_found - common for a brand-new show TMDB already has (search
-  // results also come from TMDB) that SIMKL hasn't added yet.
-  const notFound = result && result.not_found && result.not_found.shows;
-  if (Array.isArray(notFound) && notFound.length) {
-    throw new Error(`SIMKL doesn't have "${(extra && extra.title) || "this show"}" in its database yet - nothing was added. New shows usually appear on SIMKL within a few days.`);
-  }
-  return result;
+// Each resolves once the change is saved, or rejects with what happened
+// instead (waiting for the connection, a conflict, an error - see
+// reportWriteError).
+// Adds a show with this status, or moves it there if it's already in the
+// library. extra: { title, year, autoStarted }.
+async function saveShowStatus(ids, toStatus, extra) {
+  return library.adapter.setStatus(ids, toStatus, extra);
 }
 
 // The corner ribbon on a My List card. It has no dismiss control: it shows
@@ -2115,26 +2286,23 @@ function thumbBarHtml(imdbHtml, row) {
 
 // A PLAN TO WATCH show whose first episode has aired (and that's recent
 // enough to be a new premiere, not old backlog) moves to WATCHING, so it
-// shows up in My List. Each premiere is moved only once - remembered by
-// its first-air date - so a show sent back to PLAN TO WATCH by hand stays
-// there instead of bouncing back on the next load.
-async function autoStartAiredPremieres(planRows, token) {
-  let started = {};
-  try { started = JSON.parse(localStorage.getItem(LS_AUTO_STARTED) || "{}"); } catch (e) { started = {}; }
+// shows up in My List. Each premiere is moved only once - remembered on the
+// show itself (autoStarted: its first-air date, or "manual" once sent back
+// to PLAN TO WATCH by hand), so it's the same on every device and a show
+// sent back by hand stays there instead of bouncing back on the next load.
+async function autoStartAiredPremieres(planRows) {
   const now = Date.now();
-  const due = planRows.filter(r => r.simklId && r.firstAirDate
+  const due = planRows.filter(r => r.showId && r.firstAirDate
     && new Date(r.firstAirDate + "T00:00:00").getTime() <= now
     && isRecentShow(r.firstAirDate)
     && r.watchedCount === 0
-    && started[r.simklId] !== r.firstAirDate
-    && started[r.simklId] !== "manual");
+    && r.autoStarted !== r.firstAirDate
+    && r.autoStarted !== "manual");
   if (!due.length) return;
   let moved = 0;
   for (const r of due) {
     try {
-      await simklAddToList({ simkl: r.simklId, tmdb: r.tmdbId, imdb: r.imdbId }, "watching", token, { title: r.title });
-      started[r.simklId] = r.firstAirDate;
-      safeSetItem(LS_AUTO_STARTED, JSON.stringify(started));
+      await saveShowStatus({ library: r.showId, tmdb: r.tmdbId, imdb: r.imdbId }, "watching", { title: r.title, autoStarted: r.firstAirDate });
       moved++;
     } catch (err) {
       showToast(`Couldn't move "${r.title}" to Watching: ${err.message}`, true);
@@ -2146,54 +2314,31 @@ async function autoStartAiredPremieres(planRows, token) {
   }
 }
 
-async function removeShowFromList(simklId, token) {
-  // POST /sync/history/remove with just an ids object (no seasons/episodes)
-  // removes the show from the user's library entirely - equivalent to
-  // clicking "Remove from list" on simkl.com.
-  return simklPost("/sync/history/remove", token, { shows: [{ ids: { simkl: simklId } }] });
+async function removeShowFromList(showId) {
+  return library.adapter.remove(showId);
 }
 
-async function markEpisodeWatched(simklId, season, episode, token) {
-  return simklPost("/sync/history", token, {
-    shows: [{ ids: { simkl: simklId }, seasons: [{ number: season, episodes: [{ number: episode }] }] }],
-  });
+async function markEpisodeWatched(showId, season, episode) {
+  return library.adapter.setWatched(showId, season, [episode], true);
 }
 
-// Marks a batch of one season's episodes watched or not watched - the
-// history-remove endpoint takes the exact same body shape as the add one.
-async function setEpisodesWatched(simklId, season, episodeNumbers, watched, token) {
-  return simklPost(watched ? "/sync/history" : "/sync/history/remove", token, {
-    shows: [{
-      ids: { simkl: simklId },
-      seasons: [{ number: season, episodes: episodeNumbers.map(n => ({ number: n })) }],
-    }],
-  });
+// Marks a batch of one season's episodes watched or not watched.
+async function setEpisodesWatched(showId, season, episodeNumbers, watched) {
+  return library.adapter.setWatched(showId, season, episodeNumbers, watched);
 }
 
-// Normalized to the same {title, year, posterUrl, ids} shape TMDB results
-// use below, so the rest of the search UI (render, add-to-list, status
-// lookup) never needs to branch on which source a result came from.
-async function searchTvShows(query, token) {
-  const data = await simklGet("/search/tv", token, { q: query });
-  const results = Array.isArray(data) ? data : [];
-  return results.map(r => ({
-    title: r.title || "Unknown",
-    year: r.year || "",
-    posterUrl: r.poster ? `https://simkl.in/posters/${r.poster}_m.jpg` : null,
-    ids: r.ids || {},
-  }));
+// TMDB in English: the titles stored when a show is added. The Hebrew search
+// below runs alongside it (see wireSearchInput).
+async function searchTvShows(query) {
+  return searchTvShowsTmdb(query, "en-US");
 }
 
-// SIMKL's own search doesn't handle Hebrew queries well, so this runs
-// alongside it (see wireSearchInput) rather than replacing it - TMDB does
-// support a language param, which improves matching for Hebrew queries
-// specifically (and is a fine default for others too: it only affects
-// which localized title TMDB returns, not whether a show matches at all).
-// Results only ever carry a tmdb id (no simkl id) - simklAddToList and
-// findShowLibraryStatus already accept any subset of simkl/tmdb/imdb ids,
-// so nothing downstream needs to know the difference.
-async function searchTvShowsTmdb(query) {
-  const data = await tmdbGet("/search/tv", { query, language: "he-IL" }).catch(() => null);
+// TMDB in Hebrew: its language param improves matching for Hebrew queries
+// (it only affects which localized title TMDB returns, not whether a show
+// matches at all). Results carry only a tmdb id - saveShowStatus and
+// findShowLibraryStatus accept any subset of library/tmdb/imdb ids.
+async function searchTvShowsTmdb(query, language = "he-IL") {
+  const data = await tmdbGet("/search/tv", { query, language }).catch(() => null);
   const results = (data && data.results) || [];
   return results.map(r => ({
     title: r.name || r.original_name || "Unknown",
@@ -2203,19 +2348,16 @@ async function searchTvShowsTmdb(query) {
   }));
 }
 
-// Combines both sources, skipping a TMDB result whose tmdb id is already
-// covered by a SIMKL result (which carries the richer id set) - both lists
-// individually come back oldest-relevance-first from their own API, so
-// simplest is to just keep SIMKL's results first, TMDB's new ones after.
-function mergeSearchResults(simklResults, tmdbResults) {
+// Combines both searches: the English results first, then each Hebrew one
+// whose show isn't already among them.
+function mergeSearchResults(primaryResults, extraResults) {
   const seenTmdb = new Set(
-    simklResults.map(r => r.ids && r.ids.tmdb).filter(v => v != null).map(String)
+    primaryResults.map(r => r.ids && r.ids.tmdb).filter(v => v != null).map(String)
   );
-  const extra = tmdbResults.filter(r => !(r.ids && r.ids.tmdb != null && seenTmdb.has(String(r.ids.tmdb))));
-  return [...simklResults, ...extra];
+  const extra = extraResults.filter(r => !(r.ids && r.ids.tmdb != null && seenTmdb.has(String(r.ids.tmdb))));
+  return [...primaryResults, ...extra];
 }
 
-const LIBRARY_STATUSES = ["watching", "plantowatch", "hold", "completed", "dropped"];
 const STATUS_LABELS = {
   watching: "Watching", plantowatch: "Plan to Watch", hold: "On Hold",
   completed: "Completed", dropped: "Dropped",
@@ -2228,42 +2370,10 @@ const ALL_STATUS_OPTIONS = [
   { value: "dropped", label: "Dropped" },
 ];
 
-function idsMatch(a, b) {
-  if (!a || !b) return false;
-  return (a.simkl && b.simkl && a.simkl === b.simkl) ||
-    (a.tmdb && b.tmdb && String(a.tmdb) === String(b.tmdb)) ||
-    (a.imdb && b.imdb && a.imdb === b.imdb);
-}
-
-async function findShowLibraryStatus(ids, token) {
-  // No single SIMKL endpoint reports "what's the status of this one show",
-  // so this checks each of the 5 possible lists (same endpoint shape as
-  // getWatchingShows/getPlanToWatchShows) and returns the first match.
-  // Each of the 5 lists counts against SIMKL's daily allowance, so a recent
-  // fetch is reused (simklPost clears it on any library write).
-  let lists;
-  if (libraryListsCache && Date.now() - libraryListsCache.t < 3 * 60 * 1000) {
-    lists = libraryListsCache.lists;
-  } else {
-    let anyFailed = false;
-    lists = await Promise.all(
-      LIBRARY_STATUSES.map(status =>
-        // episode_watched_at is what makes SIMKL include each item's per-
-        // episode `seasons` list (same as getWatchingShows) - the episodes
-        // manager needs it to know which episodes are already watched.
-        simklGet(`/sync/all-items/shows/${status}`, token, { extended: "full", episode_watched_at: "yes" })
-          .catch(() => { anyFailed = true; return null; })
-      )
-    );
-    if (!anyFailed) libraryListsCache = { t: Date.now(), lists };
-  }
-  for (let i = 0; i < LIBRARY_STATUSES.length; i++) {
-    const data = lists[i];
-    const items = Array.isArray(data) ? data : (data && data.shows) || [];
-    const match = items.find(item => idsMatch((item.show || {}).ids, ids));
-    if (match) return { status: LIBRARY_STATUSES[i], item: match };
-  }
-  return null;
+// The show's status in the library and its list item: { status, item } or
+// null when it isn't in the library.
+async function findShowLibraryStatus(ids) {
+  return library.adapter.findStatus(ids);
 }
 
 function renderSearchResults(results) {
@@ -2334,12 +2444,12 @@ function wireSearchInput() {
     searchDebounceTimer = setTimeout(async () => {
       const queryAtRequestTime = lastSearchQuery;
       try {
-        const [simklResults, tmdbResults] = await Promise.all([
-          searchTvShows(queryAtRequestTime, simklToken).catch(() => []),
+        const [englishResults, hebrewResults] = await Promise.all([
+          searchTvShows(queryAtRequestTime).catch(() => []),
           searchTvShowsTmdb(queryAtRequestTime).catch(() => []),
         ]);
         if (queryAtRequestTime !== lastSearchQuery) return; // superseded by newer input
-        lastSearchResults = mergeSearchResults(simklResults, tmdbResults);
+        lastSearchResults = mergeSearchResults(englishResults, hebrewResults);
         renderSearchResults(lastSearchResults);
       } catch (err) {
         if (queryAtRequestTime !== lastSearchQuery) return;
@@ -2394,14 +2504,14 @@ async function openShowDetail(show) {
   let libraryMatch = null;
   try {
     // Runs alongside the library lookup rather than after it - a TMDB
-    // (as opposed to SIMKL) search result never carries an imdb id on its
+    // search result never carries an imdb id on its
     // own, which used to mean no link at all for anything not already in
     // the user's library. getShow's own response already includes
     // external_ids (see TmdbCache.getShow), so this reuses the exact same
     // cached per-show fetch every other TMDB-backed feature here does,
     // rather than a dedicated request.
     const [match, showDetail] = await Promise.all([
-      findShowLibraryStatus(ids, simklToken),
+      findShowLibraryStatus(ids),
       (!ids.imdb && ids.tmdb && sharedCache) ? sharedCache.getShow(ids.tmdb) : null,
     ]);
     libraryMatch = match;
@@ -2434,8 +2544,8 @@ function renderShowDetail(show, libraryMatch) {
     const total = item.total_episodes_count || 0;
     const progress = total ? ` — ${watched}/${total} episodes watched` : "";
     const label = `${STATUS_LABELS[libraryMatch.status]}${progress}`;
-    // Only shows with a SIMKL id can be managed episode-by-episode.
-    const canOpenEpisodes = !!(item.show && item.show.ids && item.show.ids.simkl);
+    // Only shows in the library can be managed episode-by-episode.
+    const canOpenEpisodes = !!(item.show && item.show.ids && item.show.ids.library);
     statusHtml = canOpenEpisodes
       ? `<button class="detail-status in-list detail-status-link" id="detailEpisodesBtn" title="Open episodes list">${label} <span aria-hidden="true">&rsaquo;</span></button>`
       : `<div class="detail-status in-list">${label}</div>`;
@@ -2453,11 +2563,9 @@ function renderShowDetail(show, libraryMatch) {
        <button class="card-menu-item danger" id="detailRemoveBtn">Remove from list</button>`
     : "";
 
-  // The search result itself carries an imdb id when it came from SIMKL's
-  // own search; a TMDB-sourced result (the Hebrew-query fallback) doesn't,
-  // but the library lookup just above already pulled the full SIMKL show
-  // record (extended=full) for anything already on the user's list, which
-  // does carry one - falls back to no link at all rather than a dead one.
+  // A TMDB search result has no imdb id of its own (openShowDetail fills it
+  // in from TMDB's details when it can); a show already in the library
+  // carries one - falls back to no link at all rather than a dead one.
   const libraryShowIds = libraryMatch && libraryMatch.item.show && libraryMatch.item.show.ids;
   const imdbId = (show.ids && show.ids.imdb) || (libraryShowIds && libraryShowIds.imdb) || null;
   const titleText = show.title || "Unknown";
@@ -2496,41 +2604,41 @@ function renderShowDetail(show, libraryMatch) {
 }
 
 async function removeShowFromDetail(show, libraryMatch, btnEl) {
-  const simklId = (libraryMatch.item.show || {}).ids && libraryMatch.item.show.ids.simkl;
-  if (!simklId) {
+  const showId = (libraryMatch.item.show || {}).ids && libraryMatch.item.show.ids.library;
+  if (!showId) {
     showToast("This result has no usable ID.", true);
     return;
   }
-  if (!confirm(`Remove "${show.title}" from your SIMKL list entirely?`)) return;
+  if (!confirm(`Remove "${show.title}" from your list entirely?`)) return;
   const buttons = btnEl.parentElement.querySelectorAll("button");
   buttons.forEach(b => { b.disabled = true; });
   try {
-    await removeShowFromList(simklId, simklToken);
+    await removeShowFromList(showId);
     showToast(`Removed "${show.title}"`);
     closeSearchModal();
     main();
   } catch (err) {
     buttons.forEach(b => { b.disabled = false; });
-    showToast(err.message, true);
+    reportWriteError(err);
   }
 }
 
 async function setShowStatusFromDetail(show, status, btnEl) {
   const ids = show.ids || {};
-  if (!ids.simkl && !ids.tmdb && !ids.imdb) {
+  if (!ids.library && !ids.tmdb && !ids.imdb) {
     showToast("This result has no usable ID.", true);
     return;
   }
   const buttons = btnEl.parentElement.querySelectorAll("button");
   buttons.forEach(b => { b.disabled = true; });
   try {
-    await simklAddToList(ids, status, simklToken, { title: show.title, year: show.year });
+    await saveShowStatus(ids, status, { title: show.title, year: show.year });
     showToast(`"${show.title}" set to ${STATUS_LABELS[status]}`);
     closeSearchModal();
     main();
   } catch (err) {
     buttons.forEach(b => { b.disabled = false; });
-    showToast(err.message, true);
+    reportWriteError(err);
   }
 }
 
@@ -2548,14 +2656,14 @@ async function openEpisodesManager(show, libraryMatch) {
   const body = document.getElementById("modalBody");
   if (!title || !body) return;
   const item = libraryMatch.item;
-  const simklId = item.show.ids.simkl;
+  const showId = item.show.ids.library;
   title.textContent = show.title || "Episodes";
   // The two-column layout below needs more room than the search modal's
   // usual width - dropped again on the way back to the detail view.
   const box = body.closest(".modal-box");
   if (box) box.classList.add("modal-wide");
   // Changes are staged locally until Save: `watched` is the working copy,
-  // `saved` the last state SIMKL is known to have (null until loaded).
+  // `saved` the last state the library is known to have (null until loaded).
   let saved = null, saving = false;
   const backToDetail = () => {
     if (!confirmLeave()) return;
@@ -2569,12 +2677,12 @@ async function openEpisodesManager(show, libraryMatch) {
     <div class="spinner" style="margin:30px auto"></div>`;
   document.getElementById("detailBackBtn").onclick = backToDetail;
 
-  const episodeCache = sharedEpisodeCache || new SimklEpisodeCache();
-  const all = await episodeCache.get(simklId, simklToken);
+  const episodeCache = sharedEpisodeCache || newEpisodeCache();
+  const all = await episodeCache.get(showId);
   if (!all || !all.length) {
     body.innerHTML = `
       <button class="modal-back-btn" id="detailBackBtn">&larr; Back</button>
-      <div class="error-box">SIMKL has no episode list for this show.</div>`;
+      <div class="error-box">No episode list is available for this show.</div>`;
     document.getElementById("detailBackBtn").onclick = backToDetail;
     return;
   }
@@ -2586,9 +2694,8 @@ async function openEpisodesManager(show, libraryMatch) {
   for (const ep of all) {
     if (ep.season == null || ep.season === 0 || ep.episode == null) continue;
     if (!seasons.has(ep.season)) seasons.set(ep.season, []);
-    const ts = ep.date ? new Date(ep.date).getTime() : NaN;
     seasons.get(ep.season).push({
-      episode: ep.episode, title: ep.title || "", aired: !isNaN(ts) && ts <= now,
+      episode: ep.episode, title: ep.title || "", aired: episodeHasAired(ep, now),
     });
   }
   const seasonNums = [...seasons.keys()].sort((a, b) => a - b);
@@ -2596,12 +2703,11 @@ async function openEpisodesManager(show, libraryMatch) {
 
   const watched = watchedEpisodeNumbersBySeason(item);
   const watchedSet = n => watched[n] || (watched[n] = new Set());
-  // SIMKL sometimes returns no per-episode `seasons` list for an item (only
-  // the counts). A fully-watched show is the one case that's still
-  // unambiguous without it: every aired episode counts as watched.
+  // A show may have no per-episode `seasons` list (only the counts - e.g.
+  // a watched count kept from the import). A fully-watched show is the one
+  // case that's still unambiguous without it: every aired episode counts.
   const hasWatchedDetail = Array.isArray(item.seasons) && item.seasons.length > 0;
-  // SIMKL only returns the per-episode list for shows in "watching"; every
-  // other status (dropped, completed, on hold) gets just the counts plus a
+  // Without the per-episode list there are just the counts plus a
   // "S01E08"-style last_watched code. In that case, assume the episodes
   // were watched in order up to that one - exact for the usual "watched
   // the first N, then stopped" case, an estimate if some were skipped
@@ -2749,7 +2855,7 @@ async function openEpisodesManager(show, libraryMatch) {
     });
   }
 
-  // Clicks only edit the local working copy; nothing reaches SIMKL until Save.
+  // Clicks only edit the local working copy; nothing is saved until Save.
   function setLocal(season, episodeNumbers, makeWatched) {
     if (saving) return;
     const set = watchedSet(season);
@@ -2757,7 +2863,7 @@ async function openEpisodesManager(show, libraryMatch) {
     render();
   }
 
-  // Per-season difference between the working copy and what SIMKL has.
+  // Per-season difference between the working copy and the library.
   function pendingChanges() {
     const out = [];
     for (const n of seasonNums) {
@@ -2792,19 +2898,19 @@ async function openEpisodesManager(show, libraryMatch) {
       // one, so a failure halfway leaves only the unsent part pending.
       for (const c of changes) {
         if (c.add.length) {
-          await setEpisodesWatched(simklId, c.season, c.add, true, simklToken);
+          await setEpisodesWatched(showId, c.season, c.add, true);
           c.add.forEach(x => saved[c.season].add(x));
           savedCount += c.add.length;
         }
         if (c.remove.length) {
-          await setEpisodesWatched(simklId, c.season, c.remove, false, simklToken);
+          await setEpisodesWatched(showId, c.season, c.remove, false);
           c.remove.forEach(x => saved[c.season].delete(x));
           savedCount += c.remove.length;
         }
       }
       showToast(`Saved ${savedCount} change${savedCount === 1 ? "" : "s"}`);
     } catch (err) {
-      showToast(err.message, true);
+      reportWriteError(err);
     } finally {
       if (savedCount) watchedMarksChanged = true;
       item.watched_episodes_count = seasonNums.reduce((s, n) => s + saved[n].size, 0);
@@ -3236,7 +3342,7 @@ function closePanelShowsModal() {
 }
 
 function openSearchModal() {
-  if (!simklToken) return;
+  if (!library || !library.adapter) return; // not signed in yet
   document.getElementById("addShowBtn").classList.add("active");
   lastSearchQuery = "";
   lastSearchResults = [];
@@ -3322,7 +3428,7 @@ function openCardMenu(arrIdx, btnEl) {
   if (alreadyOpenForThisBtn) return; // second click on the same button toggles it closed
 
   const row = lastRows && lastRows[arrIdx];
-  if (!row || !row.simklId) return;
+  if (!row || !row.showId) return;
 
   const rect = btnEl.getBoundingClientRect();
   const menu = document.createElement("div");
@@ -3365,46 +3471,41 @@ function openCardMenu(arrIdx, btnEl) {
 async function changeShowStatus(row, status) {
   closeCardMenu();
   try {
-    await simklAddToList(
-      { simkl: row.simklId, tmdb: row.tmdbId, imdb: row.imdbId },
-      status, simklToken, { title: row.title, year: row.year }
-    );
     // Sent to PLAN TO WATCH by hand: keep autoStartAiredPremieres from
-    // moving a just-premiered show straight back to WATCHING.
-    if (status === "plantowatch") {
-      let started = {};
-      try { started = JSON.parse(localStorage.getItem(LS_AUTO_STARTED) || "{}"); } catch (e) { started = {}; }
-      started[row.simklId] = "manual";
-      safeSetItem(LS_AUTO_STARTED, JSON.stringify(started));
-    }
+    // moving a just-premiered show straight back to WATCHING (the mark is
+    // kept on the show, saved with the status itself).
+    await saveShowStatus(
+      { library: row.showId, tmdb: row.tmdbId, imdb: row.imdbId }, status,
+      status === "plantowatch" ? { title: row.title, year: row.year, autoStarted: "manual" } : { title: row.title, year: row.year }
+    );
     const label = (ALL_STATUS_OPTIONS.find(o => o.value === status) || {}).label || status;
     showToast(`Moved "${row.title}" to ${label}`);
     main();
   } catch (err) {
-    showToast(err.message, true);
+    reportWriteError(err);
   }
 }
 
 async function markNextEpisodeWatched(row) {
   closeCardMenu();
   try {
-    await markEpisodeWatched(row.simklId, row.nextSeason, row.nextEpisode, simklToken);
+    await markEpisodeWatched(row.showId, row.nextSeason, row.nextEpisode);
     showToast(`Marked "${row.title}" ${row.nextLabel} as watched`);
     main();
   } catch (err) {
-    showToast(err.message, true);
+    reportWriteError(err);
   }
 }
 
 async function removeShowFromMyList(row) {
   closeCardMenu();
-  if (!confirm(`Remove "${row.title}" from your SIMKL list entirely?`)) return;
+  if (!confirm(`Remove "${row.title}" from your list entirely?`)) return;
   try {
-    await removeShowFromList(row.simklId, simklToken);
+    await removeShowFromList(row.showId);
     showToast(`Removed "${row.title}"`);
     main();
   } catch (err) {
-    showToast(err.message, true);
+    reportWriteError(err);
   }
 }
 
@@ -3418,7 +3519,7 @@ function openPlanCardMenu(idx, btnEl) {
   if (alreadyOpenForThisBtn) return;
 
   const row = getCycleRows("plan")[idx];
-  if (!row || !row.simklId) return;
+  if (!row || !row.showId) return;
 
   const rect = btnEl.getBoundingClientRect();
   const menu = document.createElement("div");
@@ -3461,9 +3562,7 @@ let lastPlanToWatch = [];
 let lastAiringPreview = [];
 let airingRows = null;       // lazily fetched, cached until next Refresh
 let sharedCache = null;      // TmdbCache reused across both views for one session
-let sharedEpisodeCache = null; // SimklEpisodeCache, same idea
-let sharedRatingsCache = null; // SimklShowCache, same idea
-let simklToken = null;
+let sharedEpisodeCache = null; // the library's episode lists, same idea
 let currentView = "list";    // "list" | "airing"
 
 function updateImageModeButton() {
@@ -3692,7 +3791,6 @@ function imdbPillHtml(rating, imdbId, ratings) {
 // Small hand-drawn marks, not the official logos.
 const RATING_ICON_SVG = {
   imdb: `<svg viewBox="0 0 64 32" width="30" height="15" aria-hidden="true"><rect width="64" height="32" rx="3" fill="#000"/><text x="32" y="23" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="18" fill="#F5C518">IMDb</text></svg>`,
-  simkl: `<svg viewBox="0 0 44 16" width="34" height="12" aria-hidden="true"><rect width="44" height="16" rx="3" fill="#0f2a3d"/><text x="22" y="11.7" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="9" fill="#7dd3fc">SIMKL</text></svg>`,
   tmdb: `<svg viewBox="0 0 38 16" width="32" height="13" aria-hidden="true"><rect width="38" height="16" rx="8" fill="#0d253f"/><text x="19" y="11.6" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="9" fill="#01b4e4">TMDB</text></svg>`,
   trakt: `<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><circle cx="12" cy="12" r="10.5" fill="#ed1c24"/><path d="M6.6 12.4l3.1 3.1 7.7-7.7M9.7 15.5l-1.6-1.6" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`,
   // Fresh tomato (60%+) and the green splat Rotten Tomatoes uses below that.
@@ -3710,7 +3808,6 @@ function ratingEntries(r) {
   // Same number with a small, tight % sign, so six tiles fit in a narrow row.
   const pctHtml = v => `${Math.round(v)}<span class="unit">%</span>`;
   if (r.imdb != null) out.push({ key: "imdb", label: "IMDb", icon: RATING_ICON_SVG.imdb, text: tenth(r.imdb), pct: r.imdb * 10, color: "#f5c518" });
-  if (r.simkl != null) out.push({ key: "simkl", label: "Simkl", icon: RATING_ICON_SVG.simkl, text: tenth(r.simkl), pct: r.simkl * 10, color: "#7dd3fc" });
   if (r.rtCritics != null) out.push({ key: "rt", label: "Tomatometer", icon: r.rtCritics >= 60 ? RATING_ICON_SVG.rtFresh : RATING_ICON_SVG.rtRotten, text: pct(r.rtCritics), html: pctHtml(r.rtCritics), pct: r.rtCritics, color: "#fa5a3c" });
   if (r.rtAudience != null) out.push({ key: "popcorn", label: "Audience", icon: RATING_ICON_SVG.popcorn, text: pct(r.rtAudience), html: pctHtml(r.rtAudience), pct: r.rtAudience, color: "#f2a93b" });
   if (r.tmdb != null) out.push({ key: "tmdb", label: "TMDB", icon: RATING_ICON_SVG.tmdb, text: tenth(r.tmdb), pct: r.tmdb * 10, color: "#01b4e4" });
@@ -3821,21 +3918,19 @@ function ratingTilesHtml(r) {
 }
 
 // Fills the ratings block under a show's header in the search window. Works
-// for any show (not just ones on the list): SIMKL id -> its rating, TMDB id
-// -> TMDB score, IMDb id -> MDBList. Whatever's missing is just left out.
+// for any show (not just ones on the list): TMDB id -> TMDB score, IMDb id ->
+// MDBList. Whatever's missing is just left out.
 async function fillDetailRatings(show, libraryMatch) {
   const el = document.getElementById("detailRatings");
   if (!el) return;
   const ids = show.ids || {};
   const libIds = (libraryMatch && libraryMatch.item.show && libraryMatch.item.show.ids) || {};
-  const simklId = ids.simkl || libIds.simkl;
   const tmdbId = ids.tmdb || libIds.tmdb;
   const imdbId = ids.imdb || libIds.imdb;
   try {
     const showDetail = tmdbId && sharedCache ? await sharedCache.getShow(tmdbId) : null;
     const recent = isRecentShow(showDetail && showDetail.first_air_date);
-    const simklData = simklId && sharedRatingsCache ? await sharedRatingsCache.get(simklId, simklToken, recent) : null;
-    const ratings = await loadRatings(simklData, showDetail && showDetail.vote_average, imdbId, recent);
+    const ratings = await loadRatings(showDetail && showDetail.vote_average, imdbId, recent);
     if (!el.isConnected) return; // navigated away while loading
     el.innerHTML = ratingTilesHtml(ratings);
   } catch (e) {
@@ -4870,7 +4965,7 @@ function renderAiringRows(rows) {
 
   if (!rows.length) {
     app.innerHTML = `<div class="center-box"><h2>Nothing airing soon</h2>
-      <p style="color:var(--muted)">No upcoming episodes found across your SIMKL lists.</p></div>`;
+      <p style="color:var(--muted)">No upcoming episodes found across your lists.</p></div>`;
     subtitle.textContent = "Nothing airing soon";
     return;
   }
@@ -4906,11 +5001,6 @@ function showError(err) {
     <div class="center-box">
       <h2>Something went wrong</h2>
       <div class="error-box">${(err && err.message) || err}</div>
-      <p style="color:var(--muted);font-size:0.8rem;margin-top:14px">
-        If this mentions CORS/network errors reaching api.simkl.com, your
-        browser may be blocking direct requests to SIMKL from this page -
-        in that case you'll need the local-server version instead.
-      </p>
     </div>
   `;
   subtitle.textContent = "Error";
@@ -4931,8 +5021,8 @@ function showToast(message, isError) {
 // Main
 // ---------------------------------------------------------------------
 async function main() {
-  const { clientId, clientIdV2, tmdbKey } = getConfig();
-  if ((!clientId && !clientIdV2) || !tmdbKey) {
+  const { tmdbKey } = getConfig();
+  if (!tmdbKey) {
     showSettings(main);
     return;
   }
@@ -4942,21 +5032,22 @@ async function main() {
 
   watchingListLoad = null;
   try {
-    const token = await getAccessToken();
-    simklToken = token;
     sharedCache = new TmdbCache();
-    sharedEpisodeCache = new SimklEpisodeCache();
-    sharedRatingsCache = new SimklShowCache();
+    if (!(await openLibrary())) return; // the sign-in screen is showing
+    sharedEpisodeCache = newEpisodeCache();
     app.innerHTML = `<div class="spinner" style="margin-top:80px"></div>`;
     subtitle.textContent = "Fetching your My List\u2026";
     const [[rows, totalEps, totalMinutes, recentlyWatched], planToWatchRows, airingNextRows] = await Promise.all([
-      getMyListRows(token, sharedCache, sharedEpisodeCache, sharedRatingsCache),
-      getPlanToWatchRows(token, sharedCache, sharedRatingsCache),
-      getAiringNextRows(token, sharedCache, sharedEpisodeCache, sharedRatingsCache),
+      getMyListRows(sharedCache, sharedEpisodeCache),
+      getPlanToWatchRows(sharedCache),
+      getAiringNextRows(sharedCache, sharedEpisodeCache),
     ]);
     airingRows = airingNextRows; // also primes the separate Airing Next tab's cache, so opening it doesn't re-fetch
     renderRows(rows, totalEps, totalMinutes, recentlyWatched, planToWatchRows, airingNextRows);
-    autoStartAiredPremieres(planToWatchRows, token);
+    runSimklBridge();
+    const missing = library.adapter.failures();
+    if (missing.length) showToast(`Couldn't load the episode list of ${missing.length} show${missing.length === 1 ? "" : "s"} (${missing.slice(0, 3).join(", ")}${missing.length > 3 ? "…" : ""}) - try Refresh later.`, true);
+    autoStartAiredPremieres(planToWatchRows);
   } catch (err) {
     showError(err);
   }

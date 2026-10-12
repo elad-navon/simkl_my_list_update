@@ -1,7 +1,7 @@
 {
   "name": "My Watch List",
   "short_name": "My Watch List",
-  "description": "Personal SIMKL watchlist dashboard",
+  "description": "Personal TV watchlist dashboard",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",

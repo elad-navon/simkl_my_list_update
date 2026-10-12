@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head><meta charset="UTF-8"><title>migrate tool harness</title></head>
+<body>
+<!-- Runs tools/migrate.js against fake SIMKL / TMDB / TVMaze answers (no
+     network) and prints the report summary into #result for the test. -->
+<button id="runBtn">run</button><button id="backupBtn" disabled></button><button id="reportBtn" disabled></button>
+<p id="progress"></p><p id="error"></p><div id="report"></div>
+<pre id="result"></pre>
+<script src="migrate-fixture.js"></script>
+<script src="../library-core.js"></script>
+<script src="../episode-source.js"></script>
+<script src="../tools/migrate-engine.js"></script>
+<script src="../tools/migrate.js"></script>
+<script>
+// Capture the report object by intercepting the JSON download.
+let capturedReport = null;
+const origCreate = URL.createObjectURL;
+URL.createObjectURL = blob => { blob.text().then(t => { capturedReport = JSON.parse(t); }); return "blob:test"; };
+HTMLAnchorElement.prototype.click = function () {};
+document.getElementById("runBtn").click();
+const poll = setInterval(() => {
+  const done = document.getElementById("progress").textContent.startsWith("הבדיקה הסתיימה") || document.getElementById("error").textContent;
+  if (!done) return;
+  if (!document.getElementById("error").textContent && !capturedReport) {
+    if (!poll.clicked) { poll.clicked = true; document.getElementById("reportBtn").click(); }
+    return;
+  }
+  clearInterval(poll);
+  document.getElementById("result").textContent = JSON.stringify({
+    error: document.getElementById("error").textContent,
+    lsWrites,
+    simklCalls: calls.filter(c => c.includes("simkl")),
+    summary: capturedReport && capturedReport.summary,
+    shows: capturedReport && capturedReport.shows.map(r => ({ title: r.title, source: r.source, methods: r.methods, unmapped: r.unmapped, checks: r.checks, airing: r.airing, personal: r.personal, bulkMarked: r.bulkMarked, partial: r.partial, issues: r.issues })),
+  });
+}, 200);
+</script>
+</body>
+</html>

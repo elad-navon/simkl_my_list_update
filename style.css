@@ -894,6 +894,20 @@
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .toast.error { color: var(--danger); }
 
+  /* Library mode only: the topbar's save state ("Saving...", "Offline - 2
+     waiting", ...) - hidden while everything is saved. */
+  .save-status {
+    background: var(--card); color: var(--accent2); border: 1px solid var(--border);
+    border-radius: 999px; padding: 5px 12px; font-size: 0.78rem; font-weight: 700;
+    cursor: pointer; white-space: nowrap;
+  }
+  .save-status[hidden] { display: none; }
+  .save-status[data-state="offline"] { color: var(--gold); }
+  .save-status[data-state="error"], .save-status[data-state="conflict"] { color: var(--danger); }
+  .library-settings { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .library-settings p { flex: 1 0 100%; }
+  .simkl-connect { margin-top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+
   /* Dim pushed well past a plain scrim (60% -> 88% black) so the page
      behind reads as properly out of focus instead of just darker - no
      backdrop-filter, so this costs nothing extra to render. Paired with

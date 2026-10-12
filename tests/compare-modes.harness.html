@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>compare modes harness</title>
+<style>body { margin: 0; } iframe { width: 1600px; height: 1000px; border: 0; display: block; }</style>
+</head>
+<body>
+<!-- Loads the real page (index.html + app.js) against a fake world
+     (compare-modes.fake.js: fake TMDB / TVMaze / SIMKL answers and an
+     in-memory database in place of Firebase), with its clock fixed, and
+     checks what it puts on the panels against tests/golden/panels.json -
+     the panels the SIMKL-backed site showed for the same world before
+     SIMKL's code was removed. Needs a local web server at the project root.
+     ?scenario=writes|ui|bridge: the changes, the screens around the panels,
+     the SIMKL auto-marking. ?show=library: just the page, full size, for a
+     screenshot. ?golden=library: what the page shows (to refresh the file). -->
+<pre id="result"></pre>
+<script>
+"use strict";
+// The fake world's "now": fixed, so every run (and the expected panels in
+// tests/golden/panels.json) sees exactly the same dates. ?base=<ms> moves it.
+const GOLDEN_BASE = 1791795600000; // 2026-10-12 09:00 UTC
+const BASE = Number(new URLSearchParams(location.search).get("base")) || GOLDEN_BASE;
+const params = new URLSearchParams(location.search);
+
+function deleteIdb(name) {
+  return new Promise(resolve => {
+    const req = indexedDB.deleteDatabase(name);
+    req.onsuccess = req.onerror = req.onblocked = () => resolve();
+    setTimeout(resolve, 2000); // some headless runs never answer
+  });
+}
+
+function step(text) {
+  const out = document.getElementById("result");
+  if (out && !out.dataset.done) out.textContent = `step: ${text}`;
+}
+
+async function loadMode(mode, forScreenshot, scenario) {
+  step(`${mode}: clearing storage`);
+  localStorage.clear();
+  await deleteIdb("tv-library-cache");
+  step(`${mode}: fetching the page`);
+  const html = await (await fetch("../index.html", { cache: "no-store" })).text();
+  const inject = `<base href="${new URL("../", location.href)}">` +
+    `<script>window.__MODE=${JSON.stringify(mode)};window.__BASE=${BASE};window.__SCENARIO=${JSON.stringify(scenario || "")};<\/script>` +
+    // The page's clock runs from BASE, not from today.
+    `<script>(function () { const R = Date, off = ${BASE} - R.now();
+      function D(...a) { if (!new.target) return new R(R.now() + off).toString(); return a.length ? new R(...a) : new R(R.now() + off); }
+      D.prototype = R.prototype; D.now = () => R.now() + off; D.parse = R.parse; D.UTC = R.UTC; window.Date = D; })();<\/script>` +
+    `<script src="tests/compare-modes.fake.js"><\/script>` +
+    (forScreenshot ? `<style>#topbarClock, #subtitle, .series-panel-updated { visibility: hidden !important; }</style>` : "");
+  const doc = html
+    .replace("<head>", "<head>" + inject)
+    .replace('<script src="firebase-backend.js"><\/script>', '$&<script>FirebaseBackend.create = window.__fakeFirebaseCreate;<\/script>');
+  const frame = document.createElement("iframe");
+  frame.srcdoc = doc;
+  document.body.appendChild(frame);
+  step(`${mode}: loading`);
+  const w = await new Promise(resolve => frame.onload = () => resolve(frame.contentWindow));
+  for (let i = 0; i < 600; i++) {
+    step(`${mode}: waiting (${w.document.getElementById("subtitle").textContent})`);
+    const sub = w.document.getElementById("subtitle").textContent;
+    if (w.document.querySelector(".series-panel-updated") || /^Error|^Nothing|required/.test(sub)) break;
+    await new Promise(r => setTimeout(r, 100));
+  }
+  return { frame, w };
+}
+
+function collect(w) {
+  const g = name => w.eval(name);
+  const pick = (rows, fields) => (rows || []).map(r => Object.fromEntries(fields.map(f => [f, r[f] === undefined ? null : r[f]])));
+  return {
+    subtitle: w.document.getElementById("subtitle").textContent.replace(/^Updated .*/, "Updated"),
+    error: (w.document.querySelector(".error-box") || {}).textContent || "",
+    myList: pick(g("lastRows"), ["index", "title", "nextLabel", "episodeTitle", "nextAirDate", "badge", "totalEpisodes", "available", "watched", "remaining", "hours", "mins", "nextHours", "nextMins", "lastWatchedAt", "yearRangeLabel", "network"]),
+    episodesLeft: (g("lastRows") || []).map(r => (r.episodesLeft || []).map(e => `${e.season}x${e.episode} ${e.title} ${e.runtime} ${e.badge}`)),
+    totals: [g("lastTotalEps"), g("lastTotalMinutes")],
+    recentlyWatched: pick(g("lastRecentlyWatched"), ["title", "season", "episode", "watchedAt", "badge", "episodeTitle", "network"]),
+    planToWatch: pick(g("lastPlanToWatch"), ["title", "airedLabel", "airedTone", "ended", "yearRangeLabel", "watchedCount", "firstAirDate"]),
+    airingNext: pick(g("airingRows"), ["index", "title", "nextLabel", "nextEpisodeTitle", "nextSeason", "badge", "airDate", "airDateLabel", "airDateLongLabel"]),
+    pageText: w.document.getElementById("app").innerText.replace(/Updated [^\n]*/g, "Updated"),
+    simklCalls: w.__calls.filter(c => c.startsWith("api.simkl.com")).length,
+    tvmazeCalls: w.__calls.filter(c => c.startsWith("api.tvmaze.com")).length,
+    saveStatusVisible: !!(w.document.getElementById("saveStatus") && !w.document.getElementById("saveStatus").hidden),
+  };
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function waitFor(fn, ms = 30000) {
+  for (let t = 0; t < ms; t += 100) {
+    try { if (fn()) return true; } catch (e) { /* not there yet */ }
+    await sleep(100);
+  }
+  return false;
+}
+// Runs an action that ends in a page refresh (main()) and waits for it.
+async function rerender(w, action) {
+  const marker = w.document.querySelector(".series-panel-updated");
+  if (marker) marker.dataset.old = "1";
+  await action();
+  return waitFor(() => { const m = w.document.querySelector(".series-panel-updated"); return m && !m.dataset.old; });
+}
+
+// ?scenario=writes: every kind of change, through the page's own functions,
+// in library mode - checked against the (fake) database afterwards.
+async function runWrites() {
+  const { w } = await loadMode("library", false, "writes");
+  const results = [];
+  const check = (name, ok, detail) => results.push({ name, ok: !!ok, detail: detail === undefined ? null : detail });
+  const lib = () => w.eval("library");
+  const doc = id => lib().backend.docs.get(id);
+  const row = title => (w.eval("lastRows") || []).find(r => r.title === title);
+  const toast = () => w.document.getElementById("toast").textContent;
+  const saveStatus = () => { const el = w.document.getElementById("saveStatus"); return el && !el.hidden ? el.textContent : ""; };
+  const watchedCodes = id => Object.values(doc(id).watched).map(r => `${r.s}x${r.e}`).sort();
+  const fn = name => w.eval(name);
+
+  // A Plan to Watch show that premiered 2 days ago moves to Watching on load.
+  await waitFor(() => doc("109").status === "watching" && row("Juliet"));
+  check("premiere moved to Watching, mark saved on the show", doc("109").status === "watching" && /^\d{4}-\d\d-\d\d$/.test(doc("109").autoStarted), doc("109").autoStarted);
+
+  await rerender(w, () => fn("markNextEpisodeWatched")(row("Alpha")));
+  check("mark next episode watched", watchedCodes("101").includes("2x2") && row("Alpha").nextLabel === "S02E03", { toast: toast(), next: row("Alpha").nextLabel });
+
+  await rerender(w, () => fn("changeShowStatus")(row("Charlie"), "hold"));
+  check("change status", doc("103").status === "hold" && !row("Charlie"), toast());
+
+  await rerender(w, () => fn("changeShowStatus")(row("Juliet"), "plantowatch"));
+  await sleep(1500);
+  check("sent back to Plan to Watch by hand stays there", doc("109").status === "plantowatch" && doc("109").autoStarted === "manual", doc("109").autoStarted);
+
+  await fn("setEpisodesWatched")("103", 1, [6, 7], true);
+  const afterAdd = watchedCodes("103");
+  await fn("setEpisodesWatched")("103", 1, [7], false);
+  check("episodes manager: mark and un-mark", afterAdd.includes("1x6") && afterAdd.includes("1x7") && watchedCodes("103").includes("1x6") && !watchedCodes("103").includes("1x7"), watchedCodes("103"));
+
+  await fn("saveShowStatus")({ tmdb: 110 }, "plantowatch", { title: "אינדיה", year: "2020" });
+  const added = doc("110");
+  check("add from search: English title and outside ids from TMDB", added && added.title === "India" && added.ids.imdb === "tt110" && added.ids.tvdb === 9110 && added.status === "plantowatch", added && { title: added.title, ids: added.ids });
+
+  w.confirm = () => true;
+  await rerender(w, () => fn("removeShowFromMyList")(row("Alpha")));
+  check("remove", !doc("101") && !row("Alpha"), toast());
+
+  lib().backend.setOffline(true);
+  await rerender(w, () => fn("changeShowStatus")(row("Hotel"), "completed"));
+  check("offline: not reported as saved, shown as waiting", /back online/.test(toast()) && /Offline/.test(saveStatus()) && doc("108").status === "watching" && !row("Hotel"), { toast: toast(), saveStatus: saveStatus() });
+  lib().backend.setOffline(false);
+  w.dispatchEvent(new Event("online"));
+  await waitFor(() => doc("108").status === "completed" && !saveStatus());
+  await sleep(500);
+  check("back online: the waiting change is saved", doc("108").status === "completed" && !saveStatus(), toast());
+
+  const otherDevice = (id, status) => lib().backend.docs.set(id, w.LibraryCore.applyOp(doc(id), { id: `other-${status}`, type: "setStatus", status, at: new Date().toISOString() }).show);
+  const bravo = { showId: "102", tmdbId: 102, imdbId: "tt102", title: "Bravo" };
+  otherDevice("102", "dropped");
+  w.confirm = () => false; // keep the other device's version
+  await fn("changeShowStatus")(bravo, "hold");
+  const conflictToast = toast();
+  await waitFor(() => /other device's version/.test(toast()));
+  check("conflict: nothing overwritten, other version kept", /another device/.test(conflictToast) && doc("102").status === "dropped" && lib().store.status().state !== "conflict", { conflictToast, after: toast() });
+
+  otherDevice("102", "watching");
+  w.confirm = () => true; // apply mine on top
+  await fn("changeShowStatus")(bravo, "completed");
+  await waitFor(() => /Your change was saved/.test(toast()));
+  check("conflict: my change applied on top when chosen", doc("102").status === "completed", toast());
+
+  // Only the auto-marking bridge's reads ("anything new?") may reach SIMKL.
+  const bridgeReads = /^api\.simkl\.com\/(sync\/activities|sync\/all-items\/shows|tv\/episodes\/\d+)$/;
+  const other = w.__calls.filter(c => c.startsWith("api.simkl.com") && !bridgeReads.test(c));
+  check("nothing reaches SIMKL except the auto-marking's reads", !other.length, other);
+  return results;
+}
+
+// ?scenario=ui: the screens around the panels, in library mode.
+async function runUi() {
+  const { w } = await loadMode("library", false, "ui");
+  const results = [];
+  const check = (name, ok, detail) => results.push({ name, ok: !!ok, detail: detail === undefined ? null : detail });
+  const $ = sel => w.document.querySelector(sel);
+  const fn = name => w.eval(name);
+
+  fn("openSearchModal")();
+  const input = $("#searchQueryInput");
+  input.value = "alpha";
+  input.dispatchEvent(new w.Event("input"));
+  await waitFor(() => $(".search-result-row"));
+  const titles = [...w.document.querySelectorAll(".search-result-title")].map(e => e.textContent);
+  check("search: TMDB results, each show once", titles.length === 1 && titles[0] === "Alpha", titles);
+
+  $(".search-result-row").click();
+  await waitFor(() => $("#detailEpisodesBtn"));
+  const status = $("#detailEpisodesBtn") && $("#detailEpisodesBtn").textContent.trim();
+  check("show page: status and progress from the library", /Watching.*11\/18 episodes watched/.test(status), status);
+
+  $("#detailEpisodesBtn").click();
+  await waitFor(() => $(".ep-manage-summary"));
+  const summary = $(".ep-manage-summary").textContent;
+  const openSeason = [...w.document.querySelectorAll(".ep-card")].map(c => c.textContent.replace(/\s+/g, " ").trim());
+  check("episodes manager: counts, next episode, not-aired episodes", /11\/18 episodes watched/.test(summary)
+    && openSeason.some(t => /S02E02 · UP NEXT/.test(t)) && openSeason.some(t => /S02E04 · NOT AIRED/.test(t)), { summary, openSeason: openSeason.slice(0, 5) });
+  w.confirm = () => true;
+  fn("closeSearchModal")();
+
+  fn("showSettings")(fn("main"));
+  await waitFor(() => $("#libraryBackupBtn"));
+  const settingsText = $(".library-settings") && $(".library-settings").textContent;
+  check("settings: account, backup, restore, sign out", /signed in as test@example.com/.test(settingsText)
+    && $("#libraryRestoreBtn") && $("#librarySignOutBtn"), settingsText && settingsText.replace(/\s+/g, " ").trim());
+  const backup = w.eval("library").store.exportBackup();
+  check("backup holds every show", backup.kind === "tv-library-backup" && Object.keys(backup.shows).length === 8, Object.keys(backup.shows).length);
+
+  $("#librarySignOutBtn").click();
+  await waitFor(() => $("#librarySignInBtn"));
+  check("signed out: the sign-in screen", !!$("#librarySignInBtn") && w.document.getElementById("subtitle").textContent === "Sign in required");
+  $("#librarySignInBtn").click();
+  const back = await waitFor(() => w.document.querySelector(".series-panel-updated"));
+  check("signed in again: the panels", back);
+  return results;
+}
+
+// ?scenario=bridge: SIMKL auto-marking, end to end in library mode.
+async function runBridge() {
+  const { w } = await loadMode("library", false, "bridge");
+  const results = [];
+  const check = (name, ok, detail) => results.push({ name, ok: !!ok, detail: detail === undefined ? null : detail });
+  const doc = id => w.eval("library").backend.docs.get(id);
+  const row = title => (w.eval("lastRows") || []).find(r => r.title === title);
+  await waitFor(() => row("Alpha") && row("Alpha").nextLabel === "S02E03");
+  const rec = Object.values(doc("101").watched).find(r => r.s === 2 && r.e === 2);
+  check("episode marked on SIMKL lands in the library with its watch time", rec && rec.at === new Date(BASE - 3600000).toISOString(), rec);
+  check("the page refreshed on its own: next episode moved on", row("Alpha").nextLabel === "S02E03", row("Alpha").nextLabel);
+  check("told the user", /From SIMKL: 1 episode marked watched/.test(w.document.getElementById("toast").textContent), w.document.getElementById("toast").textContent);
+  check("read point saved in the library", w.eval("library").backend.meta.get("simklBridge").since === new Date(BASE).toISOString());
+  const writes = w.__calls.filter(c => c.startsWith("api.simkl.com/sync/history") || c.startsWith("api.simkl.com/sync/add"));
+  check("nothing written to SIMKL", !writes.length, writes);
+  return results;
+}
+
+(async () => {
+  const out = document.getElementById("result");
+  try {
+    if (params.get("scenario") === "bridge") {
+      const results = await runBridge();
+      out.dataset.done = "1";
+      out.textContent = JSON.stringify({ writes: results }, null, 1);
+      return;
+    }
+    if (params.get("scenario") === "ui") {
+      const results = await runUi();
+      out.dataset.done = "1";
+      out.textContent = JSON.stringify({ writes: results }, null, 1);
+      return;
+    }
+    if (params.get("scenario") === "writes") {
+      const results = await runWrites();
+      out.dataset.done = "1";
+      out.textContent = JSON.stringify({ writes: results }, null, 1);
+      return;
+    }
+    if (params.get("show")) {
+      document.body.style.overflow = "hidden";
+      out.remove();
+      await loadMode(params.get("show"), true);
+      return;
+    }
+    // ?golden=<mode>: just what that mode shows (to write tests/golden/panels.json).
+    if (params.get("golden")) {
+      const { w } = await loadMode(params.get("golden"), false);
+      out.dataset.done = "1";
+      out.textContent = JSON.stringify(collect(w), null, 1);
+      return;
+    }
+    // Default: the page (library mode) against the expected panels, taken
+    // from the SIMKL-backed page on the same fake world before SIMKL's code
+    // was removed.
+    const golden = await (await fetch("golden/panels.json", { cache: "no-store" })).json();
+    const { w } = await loadMode("library", false);
+    const library = collect(w);
+    const diffs = [];
+    for (const key of Object.keys(golden)) {
+      if (["simklCalls", "tvmazeCalls", "saveStatusVisible"].includes(key)) continue;
+      if (JSON.stringify(golden[key]) !== JSON.stringify(library[key])) diffs.push(key);
+    }
+    out.dataset.done = "1";
+    out.textContent = JSON.stringify({ diffs, results: { simkl: golden, library } }, null, 1);
+  } catch (e) {
+    out.dataset.done = "1";
+    out.textContent = JSON.stringify({ harnessError: String(e && e.stack || e) });
+  }
+})();
+</script>
+</body>
+</html>
