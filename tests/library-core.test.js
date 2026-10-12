@@ -4,7 +4,7 @@ const core = require("../library-core.js");
 const { loadAppFunctions } = require("./app-helpers.js");
 
 const app = loadAppFunctions([
-  "simklAiredMinusWatchedCount", "parseNextEpisode",
+  "airedMinusWatchedCount", "parseNextEpisode",
   "watchedEpisodeNumbersBySeason", "mostRecentWatchedAt",
 ]);
 
@@ -78,7 +78,7 @@ test("toSimklShape: watched out of order - next follows the latest in order, gap
   const eps = [1, 2, 3, 4].map(n => ep(1, n, iso(NOW - (10 - n) * DAY)));
   const item = core.toSimklShape(show({ watched: watched(1, 3, NOW - DAY) }), eps, NOW);
   assert.equal(item.next_to_watch, "S01E04");
-  assert.equal(app.simklAiredMinusWatchedCount(item), 3, "E1, E2 and E4 remain");
+  assert.equal(app.airedMinusWatchedCount(item), 3, "E1, E2 and E4 remain");
 });
 
 test("toSimklShape: nothing watched -> the first aired episode", () => {
@@ -133,7 +133,7 @@ test("toSimklShape: a watched episode counts as aired even without a date", () =
   const eps = [ep(1, 1, null), ep(1, 2, null), ep(1, 3, null)];
   const item = core.toSimklShape(show({ watched: Object.assign({}, watched(1, 1, NOW - DAY), watched(1, 2, NOW - DAY)) }), eps, NOW);
   assert.equal(item.not_aired_episodes_count, 1, "only the unwatched, undated one");
-  assert.equal(app.simklAiredMinusWatchedCount(item), 0);
+  assert.equal(app.airedMinusWatchedCount(item), 0);
   assert.equal(item.next_to_watch, null, "an undated next episode isn't known to have aired");
 });
 
@@ -142,7 +142,7 @@ test("app.js helpers read the new shape correctly", () => {
   const eps = [1, 2, 3, 4, 5].map(n => ep(1, n, iso(NOW - (10 - n) * DAY))).concat([ep(2, 1, iso(NOW + DAY))]);
   const rec = Object.assign({}, watched(1, 1, NOW - 4 * DAY), watched(1, 2, NOW - 2 * DAY));
   const item = core.toSimklShape(show({ watched: rec }), eps, NOW);
-  assert.equal(app.simklAiredMinusWatchedCount(item), 3);
+  assert.equal(app.airedMinusWatchedCount(item), 3);
   assert.deepEqual([...app.parseNextEpisode(item.next_to_watch)], [1, 3]);
   const bySeason = app.watchedEpisodeNumbersBySeason(item);
   assert.deepEqual([...bySeason[1]].sort(), [1, 2]);

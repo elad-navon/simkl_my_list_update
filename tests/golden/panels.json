@@ -1,0 +1,198 @@
+{
+ "subtitle": "",
+ "error": "",
+ "myList": [
+  {
+   "index": 1,
+   "title": "Charlie",
+   "nextLabel": "S01E06",
+   "episodeTitle": "Charlie 1x6",
+   "nextAirDate": "2024-05-30T18:00:00.000Z",
+   "badge": null,
+   "totalEpisodes": 20,
+   "available": 20,
+   "watched": 5,
+   "remaining": 15,
+   "hours": 11,
+   "mins": 15,
+   "nextHours": 0,
+   "nextMins": 45,
+   "lastWatchedAt": 1791741600000,
+   "yearRangeLabel": "2024-2025",
+   "network": "Network"
+  },
+  {
+   "index": 2,
+   "title": "Hotel",
+   "nextLabel": "S01E01",
+   "episodeTitle": "Hotel 1x1",
+   "nextAirDate": "2026-10-11T18:00:00.000Z",
+   "badge": "SERIES PREMIERE",
+   "totalEpisodes": 6,
+   "available": 1,
+   "watched": 0,
+   "remaining": 1,
+   "hours": 0,
+   "mins": 45,
+   "nextHours": 0,
+   "nextMins": 45,
+   "lastWatchedAt": null,
+   "yearRangeLabel": "2026-",
+   "network": "Network"
+  },
+  {
+   "index": 3,
+   "title": "Alpha",
+   "nextLabel": "S02E02",
+   "episodeTitle": "Alpha 2x2",
+   "nextAirDate": "2026-10-03T18:00:00.000Z",
+   "badge": null,
+   "totalEpisodes": 18,
+   "available": 13,
+   "watched": 11,
+   "remaining": 2,
+   "hours": 1,
+   "mins": 30,
+   "nextHours": 0,
+   "nextMins": 45,
+   "lastWatchedAt": 1791136800000,
+   "yearRangeLabel": "2026-",
+   "network": "Network"
+  }
+ ],
+ "episodesLeft": [
+  [
+   "1x6 Charlie 1x6 45 null",
+   "1x7 Charlie 1x7 45 null",
+   "1x8 Charlie 1x8 45 null",
+   "1x9 Charlie 1x9 45 null",
+   "1x10 Charlie 1x10 45 SEASON FINALE",
+   "2x1 Charlie 2x1 45 SEASON PREMIERE",
+   "2x2 Charlie 2x2 45 null",
+   "2x3 Charlie 2x3 45 null",
+   "2x4 Charlie 2x4 45 null",
+   "2x5 Charlie 2x5 45 null",
+   "2x6 Charlie 2x6 45 null",
+   "2x7 Charlie 2x7 45 null",
+   "2x8 Charlie 2x8 45 null",
+   "2x9 Charlie 2x9 45 null",
+   "2x10 Charlie 2x10 45 SEASON FINALE"
+  ],
+  [
+   "1x1 Hotel 1x1 45 SERIES PREMIERE"
+  ],
+  [
+   "2x2 Alpha 2x2 45 null",
+   "2x3 Alpha 2x3 45 null"
+  ]
+ ],
+ "totals": [
+  18,
+  810
+ ],
+ "recentlyWatched": [
+  {
+   "title": "Charlie",
+   "season": 1,
+   "episode": 5,
+   "watchedAt": "2026-10-11T18:00:00.000Z",
+   "badge": null,
+   "episodeTitle": "Charlie 1x5",
+   "network": "Network"
+  },
+  {
+   "title": "Foxtrot",
+   "season": 1,
+   "episode": 3,
+   "watchedAt": "2026-10-09T18:00:00.000Z",
+   "badge": "DROPPED",
+   "episodeTitle": "Foxtrot 1x3",
+   "network": "Network"
+  },
+  {
+   "title": "Bravo",
+   "season": 1,
+   "episode": 5,
+   "watchedAt": "2026-10-07T18:00:00.000Z",
+   "badge": null,
+   "episodeTitle": "Bravo 1x5",
+   "network": "Network"
+  },
+  {
+   "title": "Alpha",
+   "season": 2,
+   "episode": 1,
+   "watchedAt": "2026-10-04T18:00:00.000Z",
+   "badge": "SEASON PREMIERE",
+   "episodeTitle": "Alpha 2x1",
+   "network": "Network"
+  }
+ ],
+ "planToWatch": [
+  {
+   "title": "Delta",
+   "airedLabel": "Premieres Oct 22",
+   "airedTone": "soon",
+   "ended": false,
+   "yearRangeLabel": "2026-",
+   "watchedCount": 0,
+   "firstAirDate": "2026-10-22"
+  },
+  {
+   "title": "Echo",
+   "airedLabel": "Series Ended - 24 Episodes",
+   "airedTone": "",
+   "ended": true,
+   "yearRangeLabel": "2022-2023",
+   "watchedCount": 0,
+   "firstAirDate": "2022-09-03"
+  }
+ ],
+ "airingNext": [
+  {
+   "index": 1,
+   "title": "Bravo",
+   "nextLabel": "S01E06",
+   "nextEpisodeTitle": "Bravo 1x6",
+   "nextSeason": 1,
+   "badge": null,
+   "airDate": "2026-10-13T18:00:00.000Z",
+   "airDateLabel": "Oct 13, 2026",
+   "airDateLongLabel": "Tomorrow, 9:00 PM"
+  },
+  {
+   "index": 2,
+   "title": "Alpha",
+   "nextLabel": "S02E04",
+   "nextEpisodeTitle": "Alpha 2x4",
+   "nextSeason": 2,
+   "badge": null,
+   "airDate": "2026-10-17T18:00:00.000Z",
+   "airDateLabel": "Oct 17, 2026",
+   "airDateLongLabel": "Saturday, 9:00 PM"
+  },
+  {
+   "index": 3,
+   "title": "Hotel",
+   "nextLabel": "S01E02",
+   "nextEpisodeTitle": "Hotel 1x2",
+   "nextSeason": 1,
+   "badge": null,
+   "airDate": "2026-10-18T18:00:00.000Z",
+   "airDateLabel": "Oct 18, 2026",
+   "airDateLongLabel": "Sunday, 9:00 PM"
+  },
+  {
+   "index": 4,
+   "title": "Delta",
+   "nextLabel": "S01E01",
+   "nextEpisodeTitle": "Delta 1x1",
+   "nextSeason": 1,
+   "badge": "SERIES PREMIERE",
+   "airDate": "2026-10-22T18:00:00.000Z",
+   "airDateLabel": "Oct 22, 2026",
+   "airDateLongLabel": "Thursday, Oct 22, 9:00 PM"
+  }
+ ],
+ "pageText": "3\nSHOWS\n18\nEPISODES LEFT\n13h 30m\nWATCH TIME LEFT\nUpdated\n2024\n-\n2025\nC\nIMDb\n15 EPISODES LEFT\nCHARLIE\n⋮\nNext: S01E06\nCHARLIE 1X6\n5/20\n0h 45m / 11h 15m left\n2026\n-\nH\nSERIES PREMIERE\nIMDb\n1 EPISODE LEFT\nHOTEL\n⋮\nNext: S01E01\nHOTEL 1X1\n0/1\n0h 45m left\n2026\n-\nA\nIMDb\n2 EPISODES LEFT\nALPHA\n⋮\nNext: S02E02\nALPHA 2X2\n11/13\n0h 45m / 1h 30m left\nRECENTLY WATCHED\n‹\n1-2 of 4\n›\n4 SHOWS\nC\nCHARLIE\nNetwork\nS01E05\nCHARLIE 1X5\nF\nDROPPED\nFOXTROT\nNetwork\nS01E03\nFOXTROT 1X3\nB\nBRAVO\nNetwork\nS01E05\nBRAVO 1X5\nA\nSEASON 2 PREMIERE\nALPHA\nNetwork\nS02E01\nALPHA 2X1\nAIRING NEXT\n‹\n1-4 of 4\n›\n4 SHOWS\nB\nIMDb\nBRAVO\nNetwork\nNext: S01E06\nBRAVO 1X6\n📅 Oct 13, 2026\nA\nIMDb\nALPHA\nNetwork\nNext: S02E04\nALPHA 2X4\n📅 Oct 17, 2026\nH\nIMDb\nHOTEL\nNetwork\nNext: S01E02\nHOTEL 1X2\n📅 Oct 18, 2026\nD\nIMDb\nSERIES PREMIERE\nDELTA\nNetwork\nNext: S01E01\nDELTA 1X1\n📅 Oct 22, 2026\nPLAN TO WATCH\n‹\n1-2 of 2\n›\n2 SHOWS\nD\nIMDb\nDELTA\n2026-\nNetwork\nPREMIERES OCT 22\n⋮\nE\nIMDb\nECHO\n2022-2023\nNetwork\nSERIES ENDED - 24 EPISODES\n⋮"
+}

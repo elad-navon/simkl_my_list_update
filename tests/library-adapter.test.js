@@ -61,7 +61,7 @@ test("items come back in SIMKL's all-items shape, keyed by the library document 
   });
   const items = await adapter.items("watching");
   assert.equal(items.length, 2);
-  const a = items.find(i => i.show.ids.simkl === "1");
+  const a = items.find(i => i.show.ids.library === "1");
   assert.equal(a.status, "watching");
   assert.equal(a.next_to_watch, "S01E03");
   assert.equal(a.watched_episodes_count, 2);
@@ -95,19 +95,19 @@ test("a date-only episode airing today is not aired yet; tomorrow it is", async 
   assert.equal(item.next_to_watch, "S01E02");
 });
 
-test("simklEpisodes gives the episode cache's { season, episode, date, title } list", async () => {
+test("showEpisodes gives the episode cache's { season, episode, date, title } list", async () => {
   const { adapter } = await setup({ 2: show(2, "watching") });
-  const eps = await adapter.simklEpisodes("2");
+  const eps = await adapter.showEpisodes("2");
   assert.deepEqual(eps[1], { season: 1, episode: 2, date: date(0), title: "E2" });
-  assert.equal(await adapter.simklEpisodes("999"), null, "not in the library");
+  assert.equal(await adapter.showEpisodes("999"), null, "not in the library");
 });
 
 test("one episode list request per show per refresh, shared by every caller", async () => {
   const { adapter, source } = await setup({ 1: show(1, "watching") });
-  await Promise.all([adapter.items("watching"), adapter.simklEpisodes("1"), adapter.findStatus({ tmdb: 1 })]);
+  await Promise.all([adapter.items("watching"), adapter.showEpisodes("1"), adapter.findStatus({ tmdb: 1 })]);
   assert.equal(source.calls.length, 1);
   adapter.reset();
-  await adapter.simklEpisodes("1");
+  await adapter.showEpisodes("1");
   assert.equal(source.calls.length, 2, "a refresh asks again (the source's own cache decides about the network)");
 });
 
@@ -119,7 +119,7 @@ test("the episode source chosen at import is used: TMDB numbering, or the fixed 
   });
   await adapter.items("watching");
   assert.equal(source.calls.find(c => c.ids.tmdb === 1).prefer, "tmdb");
-  const eps = await adapter.simklEpisodes("3");
+  const eps = await adapter.showEpisodes("3");
   assert.deepEqual(eps.map(e => `${e.season}-${e.episode}`), ["1-1", "1-2", "2-1"],
     "the snapshot, plus the upcoming episode the outside source announced");
 });
@@ -133,9 +133,9 @@ test("a show whose list couldn't load is reported, not silently empty", async ()
 test("findStatus matches by document id, TMDB, IMDb or TheTVDB id", async () => {
   const { adapter } = await setup({ 1: show(1, "hold"), "imdb:tt9": core.createShow({ ids: { imdb: "tt9", tvdb: 99 }, title: "No TMDB", status: "completed", now: NOW }) });
   assert.equal((await adapter.findStatus({ tmdb: "1" })).status, "hold");
-  assert.equal((await adapter.findStatus({ simkl: "1" })).status, "hold");
+  assert.equal((await adapter.findStatus({ library: "1" })).status, "hold");
   assert.equal((await adapter.findStatus({ imdb: "tt1" })).status, "hold");
-  assert.equal((await adapter.findStatus({ tvdb: "99" })).item.show.ids.simkl, "imdb:tt9");
+  assert.equal((await adapter.findStatus({ tvdb: "99" })).item.show.ids.library, "imdb:tt9");
   assert.equal(await adapter.findStatus({ tmdb: 5 }), null);
 });
 
@@ -152,12 +152,12 @@ test("adding a show from search stores TMDB's English title and outside ids", as
 
 test("changing the status of a show already in the library; autoStarted travels with it", async () => {
   const { adapter, backend } = await setup({ 1: show(1, "plantowatch") });
-  await adapter.setStatus({ simkl: "1", tmdb: 1 }, "watching", { title: "Show 1", autoStarted: "2026-10-01" });
+  await adapter.setStatus({ library: "1", tmdb: 1 }, "watching", { title: "Show 1", autoStarted: "2026-10-01" });
   assert.equal(backend.docs.get("1").status, "watching");
   assert.equal(backend.docs.get("1").autoStarted, "2026-10-01");
   const [item] = await adapter.items("watching");
   assert.equal(item.autoStarted, "2026-10-01");
-  await adapter.setStatus({ simkl: "1" }, "plantowatch", { autoStarted: "manual" });
+  await adapter.setStatus({ library: "1" }, "plantowatch", { autoStarted: "manual" });
   assert.equal(backend.docs.get("1").autoStarted, "manual");
 });
 
@@ -182,13 +182,13 @@ test("remove deletes the show", async () => {
 test("a change that isn't confirmed is never reported as saved", async () => {
   const { adapter, backend, store } = await setup({ 1: show(1, "watching") });
   backend.setOffline(true);
-  await assert.rejects(adapter.setStatus({ simkl: "1" }, "hold"), e => e.outcome === "queued" && /back online/.test(e.message));
+  await assert.rejects(adapter.setStatus({ library: "1" }, "hold"), e => e.outcome === "queued" && /back online/.test(e.message));
   assert.equal(store.view().get("1").status, "hold", "shown as pending");
   backend.setOffline(false);
   await store.retry();
   assert.equal(backend.docs.get("1").status, "hold");
 
   backend.docs.set("1", core.applyOp(backend.docs.get("1"), { id: "other", type: "setStatus", status: "dropped", at: iso(0) }).show);
-  await assert.rejects(adapter.setStatus({ simkl: "1" }, "completed"), e => e.outcome === "conflict" && /another device/.test(e.message));
+  await assert.rejects(adapter.setStatus({ library: "1" }, "completed"), e => e.outcome === "conflict" && /another device/.test(e.message));
   assert.equal(backend.docs.get("1").status, "dropped", "nothing overwritten");
 });

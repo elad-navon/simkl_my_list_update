@@ -1,8 +1,10 @@
 // Fake world for tests/compare-modes.harness.html: one set of synthetic
-// shows, served the way SIMKL would serve it (the old mode) and the way the
-// library + TMDB + TVMaze would (the new mode), with no real network. Loaded
-// into the page before app.js; window.__MODE picks the mode and
-// window.__BASE fixes "now" for the dates, so both runs see the same data.
+// shows, served the way the library + TMDB + TVMaze serve it (and, for the
+// auto-marking bridge, the way SIMKL reports changes), with no real
+// network. Loaded into the page before app.js; window.__BASE fixes "now"
+// for the dates, so every run sees the same data. (The SIMKL list answers
+// are what tests/golden/panels.json was taken from, while the site could
+// still read SIMKL.)
 (function () {
   "use strict";
   const BASE = window.__BASE;
@@ -185,5 +187,4 @@
   localStorage.setItem("tmdb_api_key", "fake");
   localStorage.setItem("simkl_client_id", "fake");
   localStorage.setItem("simkl_access_token", "fake");
-  localStorage.setItem("data_source", window.__MODE);
 })();

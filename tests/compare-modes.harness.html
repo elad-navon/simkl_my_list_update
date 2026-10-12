@@ -4,16 +4,22 @@
 <style>body { margin: 0; } iframe { width: 1600px; height: 1000px; border: 0; display: block; }</style>
 </head>
 <body>
-<!-- Loads the real page (index.html + app.js) twice against the same fake
-     world (compare-modes.fake.js): once reading SIMKL, once reading the
-     library. Prints what each mode put on the panels into #result as JSON.
-     Needs a local web server at the project root (it fetches ../index.html).
-     ?show=simkl|library renders just that mode, full size, for a screenshot
-     (the clock and the "Updated" line are hidden, they differ by the second). -->
+<!-- Loads the real page (index.html + app.js) against a fake world
+     (compare-modes.fake.js: fake TMDB / TVMaze / SIMKL answers and an
+     in-memory database in place of Firebase), with its clock fixed, and
+     checks what it puts on the panels against tests/golden/panels.json -
+     the panels the SIMKL-backed site showed for the same world before
+     SIMKL's code was removed. Needs a local web server at the project root.
+     ?scenario=writes|ui|bridge: the changes, the screens around the panels,
+     the SIMKL auto-marking. ?show=library: just the page, full size, for a
+     screenshot. ?golden=library: what the page shows (to refresh the file). -->
 <pre id="result"></pre>
 <script>
 "use strict";
-const BASE = Date.now();
+// The fake world's "now": fixed, so every run (and the expected panels in
+// tests/golden/panels.json) sees exactly the same dates. ?base=<ms> moves it.
+const GOLDEN_BASE = 1791795600000; // 2026-10-12 09:00 UTC
+const BASE = Number(new URLSearchParams(location.search).get("base")) || GOLDEN_BASE;
 const params = new URLSearchParams(location.search);
 
 function deleteIdb(name) {
@@ -37,6 +43,10 @@ async function loadMode(mode, forScreenshot, scenario) {
   const html = await (await fetch("../index.html", { cache: "no-store" })).text();
   const inject = `<base href="${new URL("../", location.href)}">` +
     `<script>window.__MODE=${JSON.stringify(mode)};window.__BASE=${BASE};window.__SCENARIO=${JSON.stringify(scenario || "")};<\/script>` +
+    // The page's clock runs from BASE, not from today.
+    `<script>(function () { const R = Date, off = ${BASE} - R.now();
+      function D(...a) { if (!new.target) return new R(R.now() + off).toString(); return a.length ? new R(...a) : new R(R.now() + off); }
+      D.prototype = R.prototype; D.now = () => R.now() + off; D.parse = R.parse; D.UTC = R.UTC; window.Date = D; })();<\/script>` +
     `<script src="tests/compare-modes.fake.js"><\/script>` +
     (forScreenshot ? `<style>#topbarClock, #subtitle, .series-panel-updated { visibility: hidden !important; }</style>` : "");
   const doc = html
@@ -124,7 +134,7 @@ async function runWrites() {
   await fn("setEpisodesWatched")("103", 1, [7], false);
   check("episodes manager: mark and un-mark", afterAdd.includes("1x6") && afterAdd.includes("1x7") && watchedCodes("103").includes("1x6") && !watchedCodes("103").includes("1x7"), watchedCodes("103"));
 
-  await fn("simklAddToList")({ tmdb: 110 }, "plantowatch", "library", { title: "אינדיה", year: "2020" });
+  await fn("saveShowStatus")({ tmdb: 110 }, "plantowatch", { title: "אינדיה", year: "2020" });
   const added = doc("110");
   check("add from search: English title and outside ids from TMDB", added && added.title === "India" && added.ids.imdb === "tt110" && added.ids.tvdb === 9110 && added.status === "plantowatch", added && { title: added.title, ids: added.ids });
 
@@ -142,7 +152,7 @@ async function runWrites() {
   check("back online: the waiting change is saved", doc("108").status === "completed" && !saveStatus(), toast());
 
   const otherDevice = (id, status) => lib().backend.docs.set(id, w.LibraryCore.applyOp(doc(id), { id: `other-${status}`, type: "setStatus", status, at: new Date().toISOString() }).show);
-  const bravo = { simklId: "102", tmdbId: 102, imdbId: "tt102", title: "Bravo" };
+  const bravo = { showId: "102", tmdbId: 102, imdbId: "tt102", title: "Bravo" };
   otherDevice("102", "dropped");
   w.confirm = () => false; // keep the other device's version
   await fn("changeShowStatus")(bravo, "hold");
@@ -255,19 +265,26 @@ async function runBridge() {
       await loadMode(params.get("show"), true);
       return;
     }
-    const results = {};
-    for (const mode of ["simkl", "library"]) {
-      const { frame, w } = await loadMode(mode, false);
-      results[mode] = collect(w);
-      frame.remove();
+    // ?golden=<mode>: just what that mode shows (to write tests/golden/panels.json).
+    if (params.get("golden")) {
+      const { w } = await loadMode(params.get("golden"), false);
+      out.dataset.done = "1";
+      out.textContent = JSON.stringify(collect(w), null, 1);
+      return;
     }
+    // Default: the page (library mode) against the expected panels, taken
+    // from the SIMKL-backed page on the same fake world before SIMKL's code
+    // was removed.
+    const golden = await (await fetch("golden/panels.json", { cache: "no-store" })).json();
+    const { w } = await loadMode("library", false);
+    const library = collect(w);
     const diffs = [];
-    for (const key of Object.keys(results.simkl)) {
+    for (const key of Object.keys(golden)) {
       if (["simklCalls", "tvmazeCalls", "saveStatusVisible"].includes(key)) continue;
-      if (JSON.stringify(results.simkl[key]) !== JSON.stringify(results.library[key])) diffs.push(key);
+      if (JSON.stringify(golden[key]) !== JSON.stringify(library[key])) diffs.push(key);
     }
     out.dataset.done = "1";
-    out.textContent = JSON.stringify({ diffs, results }, null, 1);
+    out.textContent = JSON.stringify({ diffs, results: { simkl: golden, library } }, null, 1);
   } catch (e) {
     out.dataset.done = "1";
     out.textContent = JSON.stringify({ harnessError: String(e && e.stack || e) });

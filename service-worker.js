@@ -1,9 +1,15 @@
-const CACHE_NAME = "tvseries-shell-v11";
+const CACHE_NAME = "tvseries-shell-v12";
 const SHELL_FILES = [
   "./",
   "./index.html",
   "./style.css",
   "./app.js",
+  "./library-core.js",
+  "./episode-source.js",
+  "./library-store.js",
+  "./firebase-backend.js",
+  "./library-adapter.js",
+  "./simkl-bridge.js",
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png"

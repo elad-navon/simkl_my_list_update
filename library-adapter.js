@@ -5,9 +5,8 @@
 // code keeps working as it is. Runs in the browser (window.LibraryAdapter)
 // and in Node for tests.
 //
-// A library show's document id stands in wherever app.js used SIMKL's id
-// (item.show.ids.simkl, row.simklId), so menus, the episodes manager and
-// de-duplication keep working without knowing the difference.
+// A library show's document id travels as item.show.ids.library (row.showId
+// on the page), for menus, the episodes manager and de-duplication.
 (function (root, factory) {
   const api = factory();
   if (typeof module === "object" && module.exports) module.exports = api;
@@ -80,7 +79,7 @@
     // SIMKL's /sync/all-items item for one library show.
     function itemFor(docId, show, episodes) {
       const item = core.toSimklShape(show, episodes, now());
-      item.show.ids.simkl = docId;
+      item.show.ids.library = docId;
       // SIMKL's show runtime was only a fallback for TMDB's per-episode
       // runtimes; the episode list's own average plays the same part.
       const runtimes = episodes.filter(core.isRegular).map(e => e.runtime).filter(r => r > 0);
@@ -91,10 +90,9 @@
 
     function idsMatch(docId, show, ids) {
       if (!ids) return false;
-      if (ids.simkl != null && String(ids.simkl) === docId) return true;
+      if (ids.library != null && String(ids.library) === docId) return true;
       const own = show.ids || {};
-      // simklLegacy: a real SIMKL show id (the auto-marking bridge) - unlike
-      // ids.simkl, which on this page means the library document id.
+      // simklLegacy: the show's SIMKL id (the auto-marking bridge).
       if (ids.simklLegacy != null && own.simklLegacy != null && String(ids.simklLegacy) === String(own.simklLegacy)) return true;
       return (ids.tmdb != null && own.tmdb != null && String(ids.tmdb) === String(own.tmdb)) ||
         (!!ids.imdb && ids.imdb === own.imdb) ||
@@ -150,7 +148,7 @@
 
       // Like GET /tv/episodes/{id}: [{ season, episode, date, title }], or
       // null for a show that isn't in the library or has no list.
-      async simklEpisodes(docId) {
+      async showEpisodes(docId) {
         const show = store.view().get(String(docId));
         if (!show) return null;
         const eps = await episodesFor(String(docId), show);
