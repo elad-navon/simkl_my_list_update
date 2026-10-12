@@ -1439,16 +1439,22 @@
 
     .series-panel { padding: 14px; }
     .series-panel-header { flex-wrap: wrap; row-gap: 10px; }
+    /* The top panel's stats on two lines (shows + episodes left, then the
+       watch time) instead of one cut-off line, in the same condensed font
+       and size as the bottom panels' titles. */
     .series-panel-header-left {
-      max-width: 100%; overflow-x: auto; scrollbar-width: none;
-      padding-bottom: 8px; gap: 4px;
+      width: 100%; flex-wrap: wrap; column-gap: 12px; row-gap: 8px;
+      padding-bottom: 8px;
     }
-    .series-panel-header-left::-webkit-scrollbar { display: none; }
-    .series-panel-header-left svg { flex-shrink: 0; }
-    .series-panel-stat-group { flex: 0 0 auto; gap: 4px; }
-    .series-panel-stat { flex: 0 0 auto; gap: 3px; }
-    .series-panel-stat .num { font-size: 0.95rem; }
-    .series-panel-stat .label { font-size: 0.62rem; }
+    .series-panel-header-left svg { flex-shrink: 0; width: 18px; height: 18px; }
+    .series-panel-header-left > .stats-divider:nth-child(4) { display: none; }
+    .series-panel-header-left > .series-panel-stat-group:last-child { flex-basis: 100%; }
+    .series-panel-stat-group { flex: 0 0 auto; gap: 6px; }
+    .series-panel-stat { flex: 0 0 auto; gap: 5px; }
+    .series-panel-stat .num, .series-panel-stat .label {
+      font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
+      font-size: 1.3rem; line-height: 1; letter-spacing: 0.02em;
+    }
 
     /* Carousel: one card per swipe, no click-arrows - touch takes over. */
     .carousel-arrow { display: none; }

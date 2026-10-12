@@ -262,7 +262,9 @@ async function runBridge() {
     if (params.get("show")) {
       document.body.style.overflow = "hidden";
       out.remove();
-      await loadMode(params.get("show"), true);
+      const { frame } = await loadMode(params.get("show"), true);
+      // ?w=&h=: the page at another size (e.g. a phone's 390 x 844).
+      if (params.get("w")) { frame.style.width = `${params.get("w")}px`; frame.style.height = `${params.get("h") || 844}px`; }
       return;
     }
     // ?golden=<mode>: just what that mode shows (to write tests/golden/panels.json).
