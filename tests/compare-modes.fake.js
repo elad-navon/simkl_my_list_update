@@ -61,7 +61,11 @@
       { title: "Papa", simkl: 25, tmdb: 115, tvmaze: 1015, status: "watching", ended: true,
         eps: season(1, 4, -300), watched: [1, 2, 3, 4].map(e => [1, e, -290 + e]) },
       { title: "Quebec", simkl: 26, tmdb: 116, tvmaze: 1016, status: "watching", ended: false,
-        eps: season(1, 6, -800), watched: [[1, 1, -790], [1, 2, -783]] });
+        eps: season(1, 6, -800), watched: [[1, 1, -790], [1, 2, -783]] },
+      // Romeo: fully watched two years ago, still running (on a long break):
+      // never suggested - a new season may come.
+      { title: "Romeo", simkl: 27, tmdb: 117, tvmaze: 1017, status: "watching", ended: false,
+        eps: season(1, 3, -760), watched: [1, 2, 3].map(e => [1, e, -740 + e]) });
   }
   if (window.__SCENARIO === "onair") {
     const ep = (number, x) => ({ season: 1, number, ...x });

@@ -907,10 +907,11 @@ function wireLibrarySettings() {
 // Watching clean-up (from Settings)
 // ---------------------------------------------------------------------
 // Suggests moving shows that no longer belong in Watching, for the user to
-// confirm one by one: a show that has ended and is fully watched, or fully
-// watched with nothing new announced and untouched for over a year
+// confirm one by one: a show that has officially ended and is fully watched
 // (-> Completed); one with episodes left but untouched for over a year
-// (-> On Hold). Nothing moves until "Move" is pressed.
+// (-> On Hold). A fully watched show that hasn't ended is never suggested,
+// however long since its last episode - a new season may still come, and
+// only Watching shows are checked for one. Nothing moves until "Move".
 const CLEANUP_IDLE_DAYS = 365;
 
 function idleText(days) {
@@ -945,9 +946,6 @@ async function watchingCleanupSuggestions() {
     if (left === 0 && ended) {
       status = "completed";
       reason = "The series has ended and you've watched it all";
-    } else if (left === 0 && item.not_aired_episodes_count === 0 && idle) {
-      status = "completed";
-      reason = `All watched, nothing new announced, ${idleText(idleDays)}`;
     } else if (left > 0 && idle) {
       status = "hold";
       reason = `${left} episode${left === 1 ? "" : "s"} left, ${idleText(idleDays)}`;
