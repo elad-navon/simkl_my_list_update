@@ -2069,6 +2069,19 @@ async function getMyListRows(cache, episodeCache) {
       }
     }
 
+    // When the show's newest aired episode became available - whichever
+    // episode it is, not only the next one to watch (sorting, below).
+    let newestEpisodeAt = null;
+    if (showId) {
+      const now = Date.now();
+      for (const ep of (await episodeCache.get(showId)) || []) {
+        if (ep.season == null || ep.season === 0 || ep.episode == null) continue;
+        if (!episodeHasAired(ep, now, show.runtime)) continue;
+        const at = episodeAvailableAt(ep, show.runtime);
+        if (at != null && (newestEpisodeAt == null || at > newestEpisodeAt)) newestEpisodeAt = at;
+      }
+    }
+
     const [hours, mins] = formatTime(remainingMinutes);
     const [nextHours, nextMins] = formatTime(nextEpisodeMinutes);
     const recentShow = isRecentShow(showDetail && showDetail.first_air_date);
@@ -2079,7 +2092,7 @@ async function getMyListRows(cache, episodeCache) {
       title, imdbId, imdbRating, ratings, showId, tmdbId, year: show.year, ...images, network, networkLogoPath,
       totalEpisodes, available, watched, remaining,
       hours, mins, nextHours, nextMins, nextLabel, nextSeason, nextEpisode, episodeTitle, nextAirDate, badge,
-      episodesLeft, lastWatchedAt: mostRecentWatchedAt(item), yearRangeLabel,
+      episodesLeft, lastWatchedAt: mostRecentWatchedAt(item), newestEpisodeAt, yearRangeLabel,
       firstAirDate: showDetail && showDetail.first_air_date ? showDetail.first_air_date : null,
     };
     return { row, remaining, remainingMinutes };
@@ -2089,22 +2102,16 @@ async function getMyListRows(cache, episodeCache) {
   const totalRemainingEps = results.reduce((sum, r) => sum + r.remaining, 0);
   const totalRemainingMinutes = results.reduce((sum, r) => sum + r.remainingMinutes, 0);
 
-  // Sort by whichever is more recent: the next episode's air date, or the
-  // last time you actually watched an episode of that show - most recent
-  // first, shows with neither signal sink toward the end. The air date
-  // alone would bury an already-ended show you're actively rewatching,
-  // since its next unwatched episode's original air date is from years
-  // ago; lastWatchedAt is what pulls it back to the top while you're
-  // catching up on it. Compares actual timestamps (not raw strings),
-  // since exact air times carry a timezone offset that lexical string
-  // comparison can get wrong across different offsets.
+  // The show with the most recent event comes first: a new episode becoming
+  // available (the end of its broadcast - any newly aired episode, not only
+  // the next one to watch) or you watching an episode of it. Each new event
+  // moves its show to the front and the rest one place along. Without
+  // either (no dates, nothing watched), the next episode's air date; shows
+  // with no signal at all sink to the end.
   const sortTimestamp = (row) => {
-    const airTs = row.nextAirDate != null ? airDateToTimestamp(row.nextAirDate) : null;
-    const watchTs = row.lastWatchedAt;
-    if (airTs == null && watchTs == null) return null;
-    if (airTs == null) return watchTs;
-    if (watchTs == null) return airTs;
-    return Math.max(airTs, watchTs);
+    const times = [row.newestEpisodeAt, row.lastWatchedAt].filter(t => t != null);
+    if (times.length) return Math.max(...times);
+    return row.nextAirDate != null ? airDateToTimestamp(row.nextAirDate) : null;
   };
   rows.sort((a, b) => {
     const tsA = sortTimestamp(a);
@@ -2193,6 +2200,24 @@ async function nextAiringEpisodeFromList(showId, episodeCache, fallbackMinutes) 
 // or null for a date-only (or undated) one - its time isn't known. Its
 // length: its own runtime, else the show's average (fallbackMinutes), else
 // 30 minutes.
+// When an episode became available to watch: the end of its broadcast for an
+// exact air time (its runtime, else fallbackMinutes, else 30 minutes), the
+// start of the next local day for a date-only one; null without a date.
+// The same moments LibraryCore.isAired uses.
+function episodeAvailableAt(ep, fallbackMinutes) {
+  if (!ep || typeof ep.date !== "string" || !ep.date) return null;
+  if (ep.date.length > 10) {
+    const start = new Date(ep.date).getTime();
+    if (isNaN(start)) return null;
+    const minutes = ep.runtime > 0 ? ep.runtime : fallbackMinutes > 0 ? fallbackMinutes : 30;
+    return start + minutes * 60000;
+  }
+  const next = new Date(ep.date + "T00:00:00");
+  if (isNaN(next.getTime())) return null;
+  next.setDate(next.getDate() + 1);
+  return next.getTime();
+}
+
 function episodeAirWindow(ep, fallbackMinutes) {
   if (!ep || typeof ep.date !== "string" || ep.date.length <= 10) return null;
   const start = new Date(ep.date).getTime();

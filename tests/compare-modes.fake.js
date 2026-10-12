@@ -47,7 +47,8 @@
     );
   }
   // ?scenario=onair: Kilo airs right now (45 minutes long, started 44 minutes
-  // ago - it ends a minute in), Lima starts 40 seconds in, Mike in 5h 20m.
+  // ago - it ends a minute in), Lima starts 40 seconds in (a one-minute
+  // episode, over 100 seconds in), Mike in 5h 20m.
   // The page refreshes itself as each starts or ends.
   // `at`: an exact air time, as an offset from BASE in ms.
   // ?scenario=ui: Oscar's first season has no air dates anywhere (all
@@ -73,7 +74,7 @@
       { title: "Kilo", simkl: 21, tmdb: 111, tvmaze: 1011, status: "watching", ended: false,
         eps: [ep(1, { day: -7 }), ep(2, { at: -44 * 60000 }), ep(3, { day: 6 })], watched: [[1, 1, -6]] },
       { title: "Lima", simkl: 22, tmdb: 112, tvmaze: 1012, status: "watching", ended: false,
-        eps: [ep(1, { day: -7 }), ep(2, { at: 40000 }), ep(3, { day: 7 })], watched: [[1, 1, -6]] },
+        eps: [ep(1, { day: -7 }), ep(2, { at: 40000, runtime: 1 }), ep(3, { day: 7 })], watched: [[1, 1, -6]] },
       { title: "Mike", simkl: 23, tmdb: 113, tvmaze: 1013, status: "watching", ended: false,
         eps: [ep(1, { day: -7 }), ep(2, { at: (5 * 60 + 20) * 60000 }), ep(3, { day: 8 })], watched: [[1, 1, -6]] },
     );
@@ -197,7 +198,7 @@
       }
       if ((m = /^\/shows\/(\d+)\/episodes$/.exec(p))) {
         const s = SHOWS.find(x => String(x.tvmaze) === m[1]);
-        return json(s.eps.map(e => ({ id: e.id, season: e.season, number: e.number, name: e.name, airdate: localDate(e.airstamp) || "", airtime: e.airstamp ? "21:00" : "", airstamp: e.airstamp, runtime: 45 })));
+        return json(s.eps.map(e => ({ id: e.id, season: e.season, number: e.number, name: e.name, airdate: localDate(e.airstamp) || "", airtime: e.airstamp ? "21:00" : "", airstamp: e.airstamp, runtime: e.runtime || 45 })));
       }
       if (p === "/updates/shows") return json({});
       return json(null, 404);
