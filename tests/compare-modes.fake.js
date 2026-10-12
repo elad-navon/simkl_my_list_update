@@ -55,7 +55,13 @@
   if (window.__SCENARIO === "ui") {
     SHOWS.push({ title: "Oscar", simkl: 24, tmdb: 114, tvmaze: 1014, status: "watching", ended: false,
       eps: [...season(1, 3, -900).map(e => ({ ...e, undated: true })), ...season(2, 3, -10)],
-      watched: [[1, 1, -20], [1, 2, -19], [1, 3, -18], [2, 1, -9]] });
+      watched: [[1, 1, -20], [1, 2, -19], [1, 3, -18], [2, 1, -9]] },
+      // Clean-up candidates: Papa ended and is fully watched (-> Completed);
+      // Quebec has episodes left but was last watched two years ago (-> On Hold).
+      { title: "Papa", simkl: 25, tmdb: 115, tvmaze: 1015, status: "watching", ended: true,
+        eps: season(1, 4, -300), watched: [1, 2, 3, 4].map(e => [1, e, -290 + e]) },
+      { title: "Quebec", simkl: 26, tmdb: 116, tvmaze: 1016, status: "watching", ended: false,
+        eps: season(1, 6, -800), watched: [[1, 1, -790], [1, 2, -783]] });
   }
   if (window.__SCENARIO === "onair") {
     const ep = (number, x) => ({ season: 1, number, ...x });
