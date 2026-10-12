@@ -78,7 +78,14 @@ function collect(w) {
     recentlyWatched: pick(g("lastRecentlyWatched"), ["title", "season", "episode", "watchedAt", "badge", "episodeTitle", "network"]),
     planToWatch: pick(g("lastPlanToWatch"), ["title", "airedLabel", "airedTone", "ended", "yearRangeLabel", "watchedCount", "firstAirDate"]),
     airingNext: pick(g("airingRows"), ["index", "title", "nextLabel", "nextEpisodeTitle", "nextSeason", "badge", "airDate", "airDateLabel", "airDateLongLabel"]),
-    pageText: w.document.getElementById("app").innerText.replace(/Updated [^\n]*/g, "Updated"),
+    // Without the airing countdowns added later (they change by the minute).
+    pageText: (() => {
+      const hidden = [...w.document.querySelectorAll("#app .air-count")].filter(e => !e.hidden);
+      hidden.forEach(e => { e.hidden = true; });
+      const text = w.document.getElementById("app").innerText;
+      hidden.forEach(e => { e.hidden = false; });
+      return text.replace(/Updated [^\n]*/g, "Updated");
+    })(),
     simklCalls: w.__calls.filter(c => c.startsWith("api.simkl.com")).length,
     tvmazeCalls: w.__calls.filter(c => c.startsWith("api.tvmaze.com")).length,
     saveStatusVisible: !!(w.document.getElementById("saveStatus") && !w.document.getElementById("saveStatus").hidden),
@@ -238,9 +245,47 @@ async function runBridge() {
   return results;
 }
 
+// ?scenario=onair: the countdowns and NOW in Airing Next; an episode on the
+// air stays out of My List until it ends; the quiet refreshes as an episode
+// starts and as one ends.
+async function runOnAir() {
+  const { w } = await loadMode("library", false, "onair");
+  const results = [];
+  const check = (name, ok, detail) => results.push({ name, ok: !!ok, detail: detail === undefined ? null : detail });
+  const doc = w.document;
+  const airing = () => [...doc.querySelectorAll(".list-panel--airing .list-row")].map(r => ({
+    title: r.querySelector(".list-row-title").textContent.trim(),
+    count: (r.querySelector(".air-count:not([hidden])") || { innerText: "" }).innerText.replace(/\s+/g, " ").trim(),
+  }));
+  const card = t => [...doc.querySelectorAll(".carousel-card")].find(c => c.querySelector("h3").textContent.trim() === t);
+  const airRow = t => airing().find(r => r.title === t) || {};
+  await waitFor(() => airing().length);
+  const a = airing();
+  check("airing now: first in Airing Next, with NOW and its end time", a[0].title === "Kilo" && /^NOW ends \d\d:\d\d$/i.test(airRow("Kilo").count), a.slice(0, 3));
+  check("starting in under a minute: 1 MIN", airRow("Lima").count === "1 MIN", airRow("Lima"));
+  check("in 5h 20m: 5 HOURS", airRow("Mike").count === "5 HOURS", airRow("Mike"));
+  check("more than 24 hours away: no counter", airRow("Bravo").count === "", airRow("Bravo"));
+  check("while it airs, the episode isn't in My List", !card("Kilo"), "Kilo not in My List");
+  check("no ON AIR ribbon anywhere", ![...doc.querySelectorAll(".card-ribbon")].some(r => /ON AIR/.test(r.textContent)));
+  const started = await waitFor(() => /^NOW/.test(airRow("Lima").count || ""), 90000);
+  check("as an episode starts: NOW in Airing Next, still not in My List", started && !card("Lima"), { airing: airRow("Lima"), inMyList: !!card("Lima") });
+  const ended = await waitFor(() => !!card("Kilo"), 90000);
+  check("as an episode ends, the page refreshes by itself: in My List, no longer NOW",
+    ended && !/^NOW/.test(airRow("Kilo").count || ""),
+    { inMyList: !!card("Kilo"), next: card("Kilo") && card("Kilo").querySelector(".next-up").textContent, airing: airRow("Kilo") });
+  check("no loading screen during those refreshes", !doc.querySelector("#app .spinner"));
+  return results;
+}
+
 (async () => {
   const out = document.getElementById("result");
   try {
+    if (params.get("scenario") === "onair" && !params.get("show")) {
+      const results = await runOnAir();
+      out.dataset.done = "1";
+      out.textContent = JSON.stringify({ writes: results }, null, 1);
+      return;
+    }
     if (params.get("scenario") === "bridge") {
       const results = await runBridge();
       out.dataset.done = "1";
@@ -262,7 +307,7 @@ async function runBridge() {
     if (params.get("show")) {
       document.body.style.overflow = "hidden";
       out.remove();
-      const { frame } = await loadMode(params.get("show"), true);
+      const { frame } = await loadMode(params.get("show"), true, params.get("scenario") || "");
       // ?w=&h=: the page at another size (e.g. a phone's 390 x 844).
       if (params.get("w")) { frame.style.width = `${params.get("w")}px`; frame.style.height = `${params.get("h") || 844}px`; }
       return;

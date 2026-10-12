@@ -46,11 +46,26 @@
       { title: "India", simkl: 20, tmdb: 110, tvmaze: 1010, status: null, ended: true, eps: season(1, 6, -300), watched: [] },
     );
   }
+  // ?scenario=onair: Kilo airs right now (45 minutes long, started 44 minutes
+  // ago - it ends a minute in), Lima starts 40 seconds in, Mike in 5h 20m.
+  // The page refreshes itself as each starts or ends.
+  // `at`: an exact air time, as an offset from BASE in ms.
+  if (window.__SCENARIO === "onair") {
+    const ep = (number, x) => ({ season: 1, number, ...x });
+    SHOWS.push(
+      { title: "Kilo", simkl: 21, tmdb: 111, tvmaze: 1011, status: "watching", ended: false,
+        eps: [ep(1, { day: -7 }), ep(2, { at: -44 * 60000 }), ep(3, { day: 6 })], watched: [[1, 1, -6]] },
+      { title: "Lima", simkl: 22, tmdb: 112, tvmaze: 1012, status: "watching", ended: false,
+        eps: [ep(1, { day: -7 }), ep(2, { at: 40000 }), ep(3, { day: 7 })], watched: [[1, 1, -6]] },
+      { title: "Mike", simkl: 23, tmdb: 113, tvmaze: 1013, status: "watching", ended: false,
+        eps: [ep(1, { day: -7 }), ep(2, { at: (5 * 60 + 20) * 60000 }), ep(3, { day: 8 })], watched: [[1, 1, -6]] },
+    );
+  }
   for (const s of SHOWS) {
     s.imdb = `tt${s.tmdb}`;
     s.tvdb = 9000 + s.tmdb;
     s.year = new Date(stamp(s.eps[0].day)).getFullYear();
-    for (const e of s.eps) { e.airstamp = stamp(e.day); e.id = s.tvmaze * 1000 + e.season * 100 + e.number; e.name = `${s.title} ${e.season}x${e.number}`; }
+    for (const e of s.eps) { e.airstamp = e.at != null ? new Date(BASE + e.at).toISOString() : stamp(e.day); e.id = s.tvmaze * 1000 + e.season * 100 + e.number; e.name = `${s.title} ${e.season}x${e.number}`; }
   }
   const code = (s, e) => `S${String(s).padStart(2, "0")}E${String(e).padStart(2, "0")}`;
 

@@ -27,7 +27,12 @@ function watched(season, episode, atMs, extra = {}) {
 
 // ---------------------------------------------------------------------------
 test("isAired: exact time, date-only and missing dates", () => {
-  assert.equal(core.isAired({ date: iso(NOW - 1000) }, NOW), true);
+  const MIN = 60000;
+  assert.equal(core.isAired({ date: iso(NOW - 1000) }, NOW), false, "just started: on the air, not aired yet");
+  assert.equal(core.isAired({ date: iso(NOW - 31 * MIN) }, NOW), true, "over: 30-minute default length");
+  assert.equal(core.isAired({ date: iso(NOW - 40 * MIN), runtime: 45 }, NOW), false, "its own runtime");
+  assert.equal(core.isAired({ date: iso(NOW - 46 * MIN), runtime: 45 }, NOW), true);
+  assert.equal(core.isAired({ date: iso(NOW - 50 * MIN) }, NOW, 60), false, "the show's average when it has none");
   assert.equal(core.isAired({ date: iso(NOW + 1000) }, NOW), false);
   assert.equal(core.isAired({ date: localDate(NOW - DAY) }, NOW), true, "yesterday, date only");
   assert.equal(core.isAired({ date: localDate(NOW) }, NOW), false, "today, date only: aired only from tomorrow");

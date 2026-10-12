@@ -98,7 +98,7 @@ test("a date-only episode airing today is not aired yet; tomorrow it is", async 
 test("showEpisodes gives the episode cache's { season, episode, date, title } list", async () => {
   const { adapter } = await setup({ 2: show(2, "watching") });
   const eps = await adapter.showEpisodes("2");
-  assert.deepEqual(eps[1], { season: 1, episode: 2, date: date(0), title: "E2" });
+  assert.deepEqual(eps[1], { season: 1, episode: 2, date: date(0), title: "E2", runtime: 40 });
   assert.equal(await adapter.showEpisodes("999"), null, "not in the library");
 });
 

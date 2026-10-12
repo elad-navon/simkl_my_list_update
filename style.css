@@ -781,6 +781,33 @@
   /* Airing Next: IMDb stays bottom-left, the tag moves to bottom-right. */
   .list-panel--airing .list-thumb-bar { right: 0; }
   .list-panel--airing .list-thumb-tag { margin-left: auto; }
+  /* Airing Next: the countdown to an episode with a known air time (the 24
+     hours before it) or NOW while it airs, in the thumbnail's top-right
+     corner - clear of the IMDb badge and premiere tag along the bottom. */
+  .air-count {
+    position: absolute; top: 0; right: 0; z-index: 11;
+    background: rgba(8, 12, 17, 0.84); border-bottom-left-radius: 8px;
+    padding: 4px 9px 4px; text-align: center; line-height: 1;
+    font-variant-numeric: tabular-nums; pointer-events: none;
+  }
+  .air-count[hidden] { display: none; }
+  .air-count-n {
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
+    font-weight: 700; font-size: 1.75rem; color: var(--gold);
+  }
+  .air-count-u {
+    display: block; margin-top: 2px;
+    font-family: "Montserrat", sans-serif; font-weight: 800; font-size: 8.5px;
+    letter-spacing: 0.05em; text-transform: uppercase; color: #ffffff;
+  }
+  .air-count.live .air-count-n { color: #ef4444; font-size: 1.3rem; }
+  .air-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: 0 0 auto;
+    display: inline-block; animation: air-dot-pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes air-dot-pulse { 50% { opacity: 0.25; } }
+  @media (prefers-reduced-motion: reduce) { .air-dot { animation: none; } }
   /* One-page layout: each bottom-panel row (thumbnail + its text) sits in
      its own frame, in the top panel's two pair colors (rowToneClass in
      app.js). Same total vertical padding + border as the old 12px row
@@ -1451,6 +1478,9 @@
     .series-panel-header-left > .series-panel-stat-group:last-child { flex-basis: 100%; }
     .series-panel-stat-group { flex: 0 0 auto; gap: 6px; }
     .series-panel-stat { flex: 0 0 auto; gap: 5px; }
+    .air-count { padding: 3px 7px; }
+    .air-count-n { font-size: 1.4rem; }
+    .air-count.live .air-count-n { font-size: 1.1rem; }
     .series-panel-stat .num, .series-panel-stat .label {
       font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
       font-size: 1.3rem; line-height: 1; letter-spacing: 0.02em;
