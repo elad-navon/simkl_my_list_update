@@ -2069,19 +2069,32 @@ function episodeAirWindow(ep, fallbackMinutes) {
   return { start, end: start + minutes * 60000 };
 }
 
-// What an Airing Next corner counter shows for an episode starting at
-// `start` (on the air until `end`): { live: true } while it airs; within
-// the 24 hours before it, { n, unit } - minutes under an hour ("12 MIN"),
-// whole hours from there ("5 HOURS"); otherwise null (no counter).
-function airCountdown(start, end, now) {
-  if (start == null || isNaN(start)) return null;
+// What an Airing Next corner chip shows - for an episode with an exact air
+// time (`start`, on the air until `end`), or one known only by its date
+// (`day`, "YYYY-MM-DD"):
+// - on the air: { live: true };
+// - an exact time: minutes under an hour ("12 MIN"), whole hours under 48
+//   ("31 HOURS"), then calendar days ("5 DAYS");
+// - a date only: calendar days alone ("TODAY", "2 DAYS", flagged dateOnly) -
+//   hours or minutes would be a guess.
+// null when there's nothing to show (over, or no date at all).
+function airCountdown(start, end, now, day) {
+  const startOfDay = ms => { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); };
+  const daysUntil = ms => Math.round((startOfDay(ms) - startOfDay(now)) / 86400000);
+  const plural = (n, one, many) => (n === 1 ? one : many);
+  if (start == null || isNaN(start)) {
+    if (!day) return null;
+    const days = daysUntil(new Date(day + "T00:00:00").getTime());
+    if (days < 0) return null;
+    return days === 0 ? { n: "TODAY", unit: "", dateOnly: true } : { n: days, unit: plural(days, "DAY", "DAYS"), dateOnly: true };
+  }
   if (now >= start) return end != null && now < end ? { live: true } : null;
-  const left = start - now;
-  if (left > 24 * 60 * 60 * 1000) return null;
-  const minutes = Math.ceil(left / 60000);
+  const minutes = Math.ceil((start - now) / 60000);
   if (minutes < 60) return { n: minutes, unit: "MIN" };
   const hours = Math.floor(minutes / 60);
-  return { n: hours, unit: hours === 1 ? "HOUR" : "HOURS" };
+  if (hours < 48) return { n: hours, unit: plural(hours, "HOUR", "HOURS") };
+  const days = daysUntil(start);
+  return { n: days, unit: plural(days, "DAY", "DAYS") };
 }
 
 function hasTimeComponent(dateStr) {
@@ -2232,9 +2245,10 @@ async function buildAiringRow(item, cache, episodeCache, requirePremiere) {
     airDate: next.airDate,
     airDateLabel: formatAirDate(next.airDate),
     airDateLongLabel: formatAirDateLong(next.airDate),
-    // The corner counter (airCountHtml): exact air times only.
+    // The corner chip (airCountHtml): an exact air time, else the date.
     airStart: hasTimeComponent(next.airDate) ? airDateToTimestamp(next.airDate) : null,
     airEnd: next.airEnd != null ? next.airEnd : null,
+    airDay: next.airDate && !hasTimeComponent(next.airDate) ? next.airDate.slice(0, 10) : null,
     network,
     networkLogoPath: resolveNetworkLogoUrl(network, tmdbLogoPath),
   };
@@ -4598,24 +4612,28 @@ function renderPlanToWatchHtml(list) {
     </div>`;
 }
 
-// The corner counter on an Airing Next thumbnail: empty here, filled in (and
-// kept current) by tickAirCountdowns from the times it carries.
+// The corner chip on an Airing Next thumbnail: empty here, filled in (and
+// kept current) by tickAirCountdowns from the time or date it carries.
 function airCountHtml(row) {
-  if (row.airStart == null) return "";
-  return `<div class="air-count" data-air-start="${row.airStart}"${row.airEnd != null ? ` data-air-end="${row.airEnd}"` : ""} hidden></div>`;
+  if (row.airStart == null && !row.airDay) return "";
+  const attrs = row.airStart != null
+    ? `data-air-start="${row.airStart}"${row.airEnd != null ? ` data-air-end="${row.airEnd}"` : ""}`
+    : `data-air-day="${row.airDay}"`;
+  return `<div class="air-count" ${attrs} hidden></div>`;
 }
 
 function paintAirCount(el, now) {
-  const start = Number(el.dataset.airStart);
+  const start = el.dataset.airStart ? Number(el.dataset.airStart) : null;
   const end = el.dataset.airEnd ? Number(el.dataset.airEnd) : null;
-  const c = airCountdown(start, end, now);
+  const c = airCountdown(start, end, now, el.dataset.airDay || null);
   el.hidden = !c;
   el.classList.toggle("live", !!(c && c.live));
+  el.classList.toggle("day", !!(c && c.dateOnly));
   if (!c) return;
   const ends = c.live ? new Date(end).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }) : "";
   el.innerHTML = c.live
     ? `<span class="air-count-n"><span class="air-dot"></span>NOW</span><span class="air-count-u">ends ${ends}</span>`
-    : `<span class="air-count-n">${c.n}</span><span class="air-count-u">${c.unit}</span>`;
+    : `<span class="air-count-n">${c.n}</span>${c.unit ? `<span class="air-count-u">${c.unit}</span>` : ""}`;
 }
 
 function tickAirCountdowns() {
@@ -4634,6 +4652,13 @@ function scheduleAirRefresh() {
   const now = Date.now();
   const moments = [];
   for (const r of lastAiringPreview || []) moments.push(r.airStart, r.airEnd);
+  // A date-only episode counts as aired from the next local day: refresh
+  // just after midnight while any is listed.
+  if ((lastAiringPreview || []).some(r => r.airDay)) {
+    const midnight = new Date(now);
+    midnight.setHours(24, 0, 0, 0);
+    moments.push(midnight.getTime());
+  }
   let next = Infinity;
   for (const t of moments) {
     if (t == null) continue;

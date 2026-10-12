@@ -15,7 +15,7 @@ test("episodeAirWindow: exact times only; length from the episode, the show, els
   assert.equal(app.episodeAirWindow({ date: null }, 60), null);
 });
 
-test("airCountdown: NOW while on the air, minutes under an hour, whole hours, nothing past 24 hours", () => {
+test("airCountdown: NOW, minutes, hours up to 48, then calendar days; date-only: days alone", () => {
   const c = (startOffset, endOffset) => {
     const r = app.airCountdown(NOW + startOffset, endOffset == null ? null : NOW + endOffset, NOW);
     return r && { ...r };
@@ -26,9 +26,19 @@ test("airCountdown: NOW while on the air, minutes under an hour, whole hours, no
   assert.deepEqual(c(12 * MIN), { n: 12, unit: "MIN" });
   assert.deepEqual(c(30 * 1000), { n: 1, unit: "MIN" }, "under a minute rounds up");
   assert.deepEqual(c(59 * MIN + 30 * 1000), { n: 1, unit: "HOUR" });
-  assert.deepEqual(c(HOUR + 40 * MIN), { n: 1, unit: "HOUR" });
   assert.deepEqual(c(5 * HOUR + 20 * MIN), { n: 5, unit: "HOURS" });
-  assert.deepEqual(c(23 * HOUR + 59 * MIN), { n: 23, unit: "HOURS" });
-  assert.equal(c(25 * HOUR), null, "outside the 24-hour window: the date as before");
-  assert.equal(app.airCountdown(null, null, NOW), null, "date-only episode: no time, no counter");
+  assert.deepEqual(c(31 * HOUR), { n: 31, unit: "HOURS" });
+  assert.deepEqual(c(47 * HOUR + 59 * MIN), { n: 47, unit: "HOURS" });
+  const local = ms => { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); };
+  const calendarDays = ms => Math.round((local(ms) - local(NOW)) / 86400000);
+  assert.deepEqual(c(49 * HOUR), { n: calendarDays(NOW + 49 * HOUR), unit: "DAYS" }, "past 48 hours: calendar days");
+  assert.deepEqual(c(17 * 24 * HOUR), { n: 17, unit: "DAYS" });
+
+  const day = offsetDays => { const d = new Date(NOW + offsetDays * 24 * HOUR); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+  const dayOnly = offsetDays => { const r = app.airCountdown(null, null, NOW, day(offsetDays)); return r && { ...r }; };
+  assert.deepEqual(dayOnly(0), { n: "TODAY", unit: "", dateOnly: true });
+  assert.deepEqual(dayOnly(1), { n: 1, unit: "DAY", dateOnly: true });
+  assert.deepEqual(dayOnly(2), { n: 2, unit: "DAYS", dateOnly: true });
+  assert.equal(dayOnly(-1), null, "yesterday: aired");
+  assert.equal(app.airCountdown(null, null, NOW, null), null, "no date at all: no chip");
 });
