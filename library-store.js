@@ -237,10 +237,11 @@
   // writes between this read and this write).
   function memoryBackend(initial = {}) {
     const docs = new Map(Object.entries(clone(initial)));
+    const meta = new Map();
     let offline = false, fails = 0, lose = 0, interleave = null;
     const calls = { transact: 0, attempts: 0 };
     return {
-      docs, calls,
+      docs, calls, meta,
       setOffline(v) { offline = v; },
       failTimes(n) { fails = n; },
       loseResponseTimes(n) { lose = n; },
@@ -266,6 +267,14 @@
           if (lose > 0) { lose--; throw transientError("Answer lost"); }
           return { doc: docs.has(id) ? clone(docs.get(id)) : null };
         }
+      },
+      async getMeta(name) {
+        if (offline) throw transientError();
+        return meta.has(name) ? clone(meta.get(name)) : null;
+      },
+      async setMeta(name, data) {
+        if (offline) throw transientError();
+        meta.set(name, clone(data));
       },
       async replaceAll(map, onProgress) {
         if (offline) throw transientError();

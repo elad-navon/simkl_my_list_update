@@ -174,6 +174,22 @@
         }
       },
 
+      // Small shared settings next to the library (users/{uid}/meta/{name}),
+      // e.g. how far the SIMKL auto-marking has read.
+      async getMeta(name) {
+        await ready();
+        try {
+          const snap = await sdk.getDoc(sdk.doc(db, "users", requireUser(), "meta", name));
+          return snap.exists() ? snap.data() : null;
+        } catch (e) { throw classify(e); }
+      },
+      async setMeta(name, data) {
+        await ready();
+        try {
+          await sdk.setDoc(sdk.doc(db, "users", requireUser(), "meta", name), data);
+        } catch (e) { throw classify(e); }
+      },
+
       // For the self-check page only: whether another user's data is
       // readable (it must not be).
       async canReadOtherUser() {

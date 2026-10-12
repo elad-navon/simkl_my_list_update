@@ -156,7 +156,10 @@ async function runWrites() {
   await waitFor(() => /Your change was saved/.test(toast()));
   check("conflict: my change applied on top when chosen", doc("102").status === "completed", toast());
 
-  check("no requests to SIMKL", !w.__calls.some(c => c.startsWith("api.simkl.com")), w.__calls.filter(c => c.startsWith("api.simkl.com")));
+  // Only the auto-marking bridge's reads ("anything new?") may reach SIMKL.
+  const bridgeReads = /^api\.simkl\.com\/(sync\/activities|sync\/all-items\/shows|tv\/episodes\/\d+)$/;
+  const other = w.__calls.filter(c => c.startsWith("api.simkl.com") && !bridgeReads.test(c));
+  check("nothing reaches SIMKL except the auto-marking's reads", !other.length, other);
   return results;
 }
 
@@ -207,9 +210,33 @@ async function runUi() {
   return results;
 }
 
+// ?scenario=bridge: SIMKL auto-marking, end to end in library mode.
+async function runBridge() {
+  const { w } = await loadMode("library", false, "bridge");
+  const results = [];
+  const check = (name, ok, detail) => results.push({ name, ok: !!ok, detail: detail === undefined ? null : detail });
+  const doc = id => w.eval("library").backend.docs.get(id);
+  const row = title => (w.eval("lastRows") || []).find(r => r.title === title);
+  await waitFor(() => row("Alpha") && row("Alpha").nextLabel === "S02E03");
+  const rec = Object.values(doc("101").watched).find(r => r.s === 2 && r.e === 2);
+  check("episode marked on SIMKL lands in the library with its watch time", rec && rec.at === new Date(BASE - 3600000).toISOString(), rec);
+  check("the page refreshed on its own: next episode moved on", row("Alpha").nextLabel === "S02E03", row("Alpha").nextLabel);
+  check("told the user", /From SIMKL: 1 episode marked watched/.test(w.document.getElementById("toast").textContent), w.document.getElementById("toast").textContent);
+  check("read point saved in the library", w.eval("library").backend.meta.get("simklBridge").since === new Date(BASE).toISOString());
+  const writes = w.__calls.filter(c => c.startsWith("api.simkl.com/sync/history") || c.startsWith("api.simkl.com/sync/add"));
+  check("nothing written to SIMKL", !writes.length, writes);
+  return results;
+}
+
 (async () => {
   const out = document.getElementById("result");
   try {
+    if (params.get("scenario") === "bridge") {
+      const results = await runBridge();
+      out.dataset.done = "1";
+      out.textContent = JSON.stringify({ writes: results }, null, 1);
+      return;
+    }
     if (params.get("scenario") === "ui") {
       const results = await runUi();
       out.dataset.done = "1";

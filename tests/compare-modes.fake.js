@@ -97,6 +97,7 @@
       ids: { tmdb: s.tmdb, imdb: s.imdb, tvdb: s.tvdb, tvmaze: null, simklLegacy: s.simkl },
       idsVerified: true, title: s.title, year: s.year, status: s.status,
       addedAt: at, statusChangedAt: at, watched, unmappedWatched: [],
+      ...(window.__SCENARIO === "bridge" ? { importedAt: new Date(BASE - 2 * 3600000).toISOString() } : {}),
     };
   }
   window.__libraryDocs = Object.fromEntries(SHOWS.filter(s => s.status).map(s => [String(s.tmdb), libraryDoc(s)]));
@@ -131,6 +132,16 @@
         return json(s.eps.map(e => ({ season: e.season, episode: e.number, date: e.airstamp, title: e.name })));
       }
       if (/^\/tv\/\d+$/.test(p)) return json({});
+      // ?scenario=bridge: Emby marked Alpha S02E02 watched on SIMKL an hour ago.
+      if (window.__SCENARIO === "bridge") {
+        const alpha = SHOWS.find(x => x.title === "Alpha");
+        if (p === "/sync/activities") return json({ all: new Date(BASE).toISOString(), tv_shows: { all: new Date(BASE).toISOString() } });
+        if (p === "/sync/all-items/shows") {
+          const it = simklItem(alpha);
+          it.seasons.find(x => x.number === 2).episodes.push({ number: 2, watched_at: new Date(BASE - 3600000).toISOString() });
+          return json([it]);
+        }
+      }
       return json({ error: "unexpected" }, 500);
     }
     if (url.host === "api.themoviedb.org") {

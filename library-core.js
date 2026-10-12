@@ -299,7 +299,7 @@
   // everywhere (locally, on retry, after a conflict re-read):
   //   { id, type: "setStatus", status, at, autoStarted? }
   //   { id, type: "setWatched", watched: true|false, at,
-  //     episodes: [{ key, keys?, season, episode }] }
+  //     episodes: [{ key, keys?, season, episode, at? }] }
   //   { id, type: "remove" }
   //   { id, type: "create", show }   (adding a show; on a show that already
   //                                    exists it just sets op.show.status)
@@ -352,7 +352,9 @@
           return keys.has(ep.key) || (ep.keys || []).some(x => keys.has(x));
         });
         if (op.watched && !existingKey) {
-          next.watched[ep.key] = { s: ep.season, e: ep.episode, at: op.at, keys: ep.keys || [ep.key] };
+          // An episode may carry its own watch time (e.g. when it was really
+          // watched, as reported by the old service); otherwise the op's.
+          next.watched[ep.key] = { s: ep.season, e: ep.episode, at: ep.at !== undefined ? ep.at : op.at, keys: ep.keys || [ep.key] };
           changed = true;
         } else if (!op.watched && existingKey) {
           delete next.watched[existingKey];

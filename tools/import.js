@@ -159,6 +159,10 @@
     });
 
     if (verified) {
+      // SIMKL auto-marking (simkl-bridge.js) picks up from the import, not
+      // from wherever it had read to before it.
+      const importedAt = Object.values(docs).map(d => d.importedAt).filter(Boolean).sort()[0];
+      if (importedAt) await backend.setMeta("simklBridge", { since: importedAt, checkedAt: new Date().toISOString() });
       progress("");
       $("importResult").innerHTML = `<p class="ok">הייבוא הושלם ואומת: ${esc(ids.length)} סדרות נכתבו, נקראו בחזרה, וכולן זהות למה שנבדק. הדוח ירד.</p>
         <p><a href="../index.html?source=library">פתיחת האתר מהספרייה החדשה</a> (רק בדפדפן הזה; בכל מקום אחר האתר ממשיך לעבוד מסימקל עד המעבר)</p>`;

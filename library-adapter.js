@@ -93,6 +93,9 @@
       if (!ids) return false;
       if (ids.simkl != null && String(ids.simkl) === docId) return true;
       const own = show.ids || {};
+      // simklLegacy: a real SIMKL show id (the auto-marking bridge) - unlike
+      // ids.simkl, which on this page means the library document id.
+      if (ids.simklLegacy != null && own.simklLegacy != null && String(ids.simklLegacy) === String(own.simklLegacy)) return true;
       return (ids.tmdb != null && own.tmdb != null && String(ids.tmdb) === String(own.tmdb)) ||
         (!!ids.imdb && ids.imdb === own.imdb) ||
         (!!ids.tvdb && own.tvdb != null && String(ids.tvdb) === String(own.tvdb));
@@ -126,6 +129,14 @@
         progress = { done: 0, total: 0 };
       },
       failures: () => [...failures.values()],
+
+      // The library show matching any of these ids: { docId, show } or null.
+      find: ids => findDoc(ids),
+      // A library show's episode list (the episode source's shape).
+      episodes(docId) {
+        const show = store.view().get(String(docId));
+        return show ? episodesFor(String(docId), show) : Promise.resolve([]);
+      },
 
       // Like GET /sync/all-items/shows/{status}. A show's episode list is
       // needed for its counts and next episode; withEpisodes: false skips
@@ -166,6 +177,7 @@
           tmdb: ids.tmdb != null ? ids.tmdb : null,
           imdb: ids.imdb || (meta && meta.imdb) || null,
           tvdb: ids.tvdb || (meta && meta.tvdb) || null,
+          simklLegacy: ids.simklLegacy != null ? ids.simklLegacy : null,
         };
         const docId = core.showDocId(fullIds);
         if (!docId) throw new Error("This show has no TMDB, IMDb or TheTVDB id, so it can't be added.");
