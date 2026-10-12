@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const core = require("../library-core.js");
 const { createLibraryStore, memoryBackend } = require("../library-store.js");
-const { appendUpcoming } = require("../episode-source.js");
+const { appendAfter } = require("../episode-source.js");
 const { createLibraryAdapter } = require("../library-adapter.js");
 const { createSimklBridge } = require("../simkl-bridge.js");
 
@@ -56,7 +56,7 @@ async function setup(docs, simklOpts) {
   await store.load();
   const source = { async getEpisodes(ids) { return { source: "tvmaze", episodes: LISTS[ids.tmdb] || [], errors: [] }; } };
   const showMeta = async id => ({ title: `TMDB ${id}`, year: "2024", imdb: `tt${id}`, tvdb: null });
-  const adapter = createLibraryAdapter({ core, store, source, appendUpcoming, showMeta, now: () => NOW });
+  const adapter = createLibraryAdapter({ core, store, source, appendAfter, showMeta, now: () => NOW });
   const simkl = fakeSimkl(simklOpts);
   const bridge = createSimklBridge({ core, store, adapter, backend, simkl, now: () => NOW });
   return { backend, store, adapter, simkl, bridge };
@@ -149,7 +149,7 @@ test("two devices (or a rerun) never record anything twice", async () => {
   // A second device: its own store and bridge, the same database.
   const storeB = createLibraryStore({ core, backend: a.backend, storage: null, sleep: async () => {} });
   await storeB.load();
-  const adapterB = createLibraryAdapter({ core, store: storeB, source: { async getEpisodes(ids) { return { episodes: LISTS[ids.tmdb], errors: [] }; } }, appendUpcoming, now: () => NOW });
+  const adapterB = createLibraryAdapter({ core, store: storeB, source: { async getEpisodes(ids) { return { episodes: LISTS[ids.tmdb], errors: [] }; } }, appendAfter, now: () => NOW });
   const bridgeB = createSimklBridge({ core, store: storeB, adapter: adapterB, backend: a.backend, simkl: fakeSimkl(opts), now: () => NOW });
   await Promise.all([a.bridge.run(), bridgeB.run()]);
   await a.bridge.run();

@@ -106,7 +106,8 @@ few marks (e.g. `autoStarted`). Everything else is fetched.
 - **Episode list per show**: TVMaze by default (it has air times), or
   TMDB when its numbering fits the show's history better, or a fixed
   snapshot of SIMKL's list for shows the outside sources don't cover
-  (both decided at import). Upcoming episodes the main source doesn't
+  (both decided at import), followed by every episode the outside source
+  lists after the snapshot's end, aired or not. Upcoming episodes the main source doesn't
   list yet are added from the other one, but never one dated before the
   main source's last episode. A TMDB-numbered episode takes TVMaze's
   exact time when both agree it's the same episode. Placeholder titles

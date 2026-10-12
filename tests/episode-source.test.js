@@ -286,3 +286,22 @@ test("An episode from the other source dated before the main source's last one i
   const r = appendUpcoming(base, extra, now);
   assert.deepEqual(r.episodes.map(e => e.episode), [1, 3]);
 });
+
+test("appendAfter: a snapshot keeps every later episode of the other source, aired or not", () => {
+  const { appendAfter } = require("../episode-source.js");
+  const snapshot = [
+    { season: 6, episode: 25, date: "2024-03-01" }, { season: 6, episode: 26, date: "2024-03-08" },
+    { season: 3, episode: 4, date: null }, // undated, inside the snapshot
+  ];
+  const other = [
+    { season: 6, episode: 26, date: "2024-03-08" }, // the snapshot has it
+    { season: 6, episode: 20, date: "2024-01-01" }, // before the snapshot's end
+    { season: 7, episode: 1, date: "2026-10-10" },  // aired since: kept
+    { season: 7, episode: 2, date: "2026-10-12" },
+    { season: 7, episode: 3, date: null },          // undated, numbered after: kept
+    { season: 5, episode: 30, date: null },         // undated, numbered before: not
+  ];
+  const r = appendAfter(snapshot, other);
+  assert.deepEqual(r.episodes.slice(3).map(e => `${e.season}x${e.episode}`), ["7x1", "7x2", "7x3"]);
+  assert.equal(r.added, 3);
+});

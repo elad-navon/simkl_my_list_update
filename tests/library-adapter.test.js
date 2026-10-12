@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const core = require("../library-core.js");
 const { createLibraryStore, memoryBackend } = require("../library-store.js");
-const { appendUpcoming } = require("../episode-source.js");
+const { appendAfter } = require("../episode-source.js");
 const { createLibraryAdapter } = require("../library-adapter.js");
 
 const NOW = Date.parse("2026-10-12T12:00:00Z");
@@ -49,7 +49,7 @@ async function setup(docs, { lists, showMeta, backendHook } = {}) {
   const store = createLibraryStore({ core, backend, storage: null, sleep: async () => {} });
   await store.load();
   const source = fakeSource(lists);
-  const adapter = createLibraryAdapter({ core, store, source, appendUpcoming, showMeta, now: () => NOW });
+  const adapter = createLibraryAdapter({ core, store, source, appendAfter, showMeta, now: () => NOW });
   return { backend, store, source, adapter };
 }
 
@@ -89,7 +89,7 @@ test("a date-only episode airing today is not aired yet; tomorrow it is", async 
   assert.equal(item.not_aired_episodes_count, 2);
   const later = createLibraryAdapter({
     core, store: { view: () => new Map([["2", show(2, "watching", W(1, 1, iso(-4)))]]) },
-    source: fakeSource(), appendUpcoming, now: () => NOW + DAY,
+    source: fakeSource(), appendAfter, now: () => NOW + DAY,
   });
   [item] = await later.items("watching");
   assert.equal(item.next_to_watch, "S01E02");
@@ -191,4 +191,14 @@ test("a change that isn't confirmed is never reported as saved", async () => {
   backend.docs.set("1", core.applyOp(backend.docs.get("1"), { id: "other", type: "setStatus", status: "dropped", at: iso(0) }).show);
   await assert.rejects(adapter.setStatus({ library: "1" }, "completed"), e => e.outcome === "conflict" && /another device/.test(e.message));
   assert.equal(backend.docs.get("1").status, "dropped", "nothing overwritten");
+});
+
+test("a snapshot show keeps a new season's episodes after they air", async () => {
+  const snapshot = [ep(1, 1, -400, { key: "simklep:1-1" }), ep(1, 2, -393, { key: "simklep:1-2" })];
+  const lists = { 4: [ep(2, 1, -2, { key: "tmdb:21" }), ep(2, 2, 5, { key: "tmdb:22" })] };
+  const { adapter } = await setup({ 4: show(4, "watching", W(1, 2, iso(-390), "simklep:1-2"), { episodeSource: "snapshot", snapshotEpisodes: snapshot }) }, { lists });
+  const eps = await adapter.showEpisodes("4");
+  assert.deepEqual(eps.map(e => `${e.season}x${e.episode}`), ["1x1", "1x2", "2x1", "2x2"], "2x1 aired two days ago and stays");
+  const [item] = await adapter.items("watching");
+  assert.equal(item.next_to_watch, "S02E01");
 });

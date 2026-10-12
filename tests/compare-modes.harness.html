@@ -207,7 +207,15 @@ async function runUi() {
   const openSeason = [...w.document.querySelectorAll(".ep-card")].map(c => c.textContent.replace(/\s+/g, " ").trim());
   check("episodes manager: counts, next episode, not-aired episodes", /11\/18 episodes watched/.test(summary)
     && openSeason.some(t => /S02E02 · UP NEXT/.test(t)) && openSeason.some(t => /S02E04 · NOT AIRED/.test(t)), { summary, openSeason: openSeason.slice(0, 5) });
+  // A season no source dates (Oscar's first), all watched: complete, markable.
   w.confirm = () => true;
+  fn("openShowDetail")({ title: "Oscar", year: "", ids: { tmdb: 114 } });
+  await waitFor(() => $("#detailEpisodesBtn") && /Oscar/.test($("#modalTitle").textContent));
+  $("#detailEpisodesBtn").click();
+  await waitFor(() => $('[data-season-cb="1"]'));
+  const s1 = $('[data-season-cb="1"]');
+  check("episodes manager: an undated, fully watched season counts as complete",
+    s1.classList.contains("all") && !s1.disabled, { className: s1.className, disabled: s1.disabled });
   fn("closeSearchModal")();
 
   fn("showSettings")(fn("main"));
@@ -216,7 +224,7 @@ async function runUi() {
   check("settings: account, backup, restore, sign out", /signed in as test@example.com/.test(settingsText)
     && $("#libraryRestoreBtn") && $("#librarySignOutBtn"), settingsText && settingsText.replace(/\s+/g, " ").trim());
   const backup = w.eval("library").store.exportBackup();
-  check("backup holds every show", backup.kind === "tv-library-backup" && Object.keys(backup.shows).length === 8, Object.keys(backup.shows).length);
+  check("backup holds every show", backup.kind === "tv-library-backup" && Object.keys(backup.shows).length === 9, Object.keys(backup.shows).length);
 
   $("#librarySignOutBtn").click();
   await waitFor(() => $("#librarySignInBtn"));

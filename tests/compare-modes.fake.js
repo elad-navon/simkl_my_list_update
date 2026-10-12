@@ -12,7 +12,7 @@
   const midnight = (() => { const d = new Date(BASE); d.setHours(0, 0, 0, 0); return d.getTime(); })();
   // Day offsets from today, at 21:00 local time.
   const stamp = day => new Date(midnight + day * DAY + 21 * 3600000).toISOString();
-  const localDate = iso => { const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+  const localDate = iso => { if (!iso) return null; const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 
   // season(n, count, firstDay, everyDays)
   const season = (n, count, first, every = 7) => Array.from({ length: count }, (_, i) => ({ season: n, number: i + 1, day: first + i * every }));
@@ -50,6 +50,13 @@
   // ago - it ends a minute in), Lima starts 40 seconds in, Mike in 5h 20m.
   // The page refreshes itself as each starts or ends.
   // `at`: an exact air time, as an offset from BASE in ms.
+  // ?scenario=ui: Oscar's first season has no air dates anywhere (all
+  // watched) - the episodes manager must still count it as aired.
+  if (window.__SCENARIO === "ui") {
+    SHOWS.push({ title: "Oscar", simkl: 24, tmdb: 114, tvmaze: 1014, status: "watching", ended: false,
+      eps: [...season(1, 3, -900).map(e => ({ ...e, undated: true })), ...season(2, 3, -10)],
+      watched: [[1, 1, -20], [1, 2, -19], [1, 3, -18], [2, 1, -9]] });
+  }
   if (window.__SCENARIO === "onair") {
     const ep = (number, x) => ({ season: 1, number, ...x });
     SHOWS.push(
@@ -65,7 +72,7 @@
     s.imdb = `tt${s.tmdb}`;
     s.tvdb = 9000 + s.tmdb;
     s.year = new Date(stamp(s.eps[0].day)).getFullYear();
-    for (const e of s.eps) { e.airstamp = e.at != null ? new Date(BASE + e.at).toISOString() : stamp(e.day); e.id = s.tvmaze * 1000 + e.season * 100 + e.number; e.name = `${s.title} ${e.season}x${e.number}`; }
+    for (const e of s.eps) { e.airstamp = e.undated ? null : e.at != null ? new Date(BASE + e.at).toISOString() : stamp(e.day); e.id = s.tvmaze * 1000 + e.season * 100 + e.number; e.name = `${s.title} ${e.season}x${e.number}`; }
   }
   const code = (s, e) => `S${String(s).padStart(2, "0")}E${String(e).padStart(2, "0")}`;
 
@@ -180,7 +187,7 @@
       }
       if ((m = /^\/shows\/(\d+)\/episodes$/.exec(p))) {
         const s = SHOWS.find(x => String(x.tvmaze) === m[1]);
-        return json(s.eps.map(e => ({ id: e.id, season: e.season, number: e.number, name: e.name, airdate: localDate(e.airstamp), airtime: "21:00", airstamp: e.airstamp, runtime: 45 })));
+        return json(s.eps.map(e => ({ id: e.id, season: e.season, number: e.number, name: e.name, airdate: localDate(e.airstamp) || "", airtime: e.airstamp ? "21:00" : "", airstamp: e.airstamp, runtime: 45 })));
       }
       if (p === "/updates/shows") return json({});
       return json(null, 404);
