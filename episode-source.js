@@ -48,13 +48,22 @@
   // coming. Never adds a past episode (numbering between sources can
   // differ, and the past is the main source's to describe). With
   // afterBaseEnd, only episodes dated after the base's last dated episode.
+  // An episode dated before the base's last dated one is never added either:
+  // it contradicts the base (e.g. a second episode listed a day before the
+  // first) and would wrongly become "the next episode".
   function appendUpcoming(base, extra, now, { afterBaseEnd = false } = {}) {
     const nums = new Set(base.map(e => `${e.season}-${e.episode}`));
     const baseDates = base.map(e => e.date && e.date.slice(0, 10)).filter(Boolean).sort();
-    const lastBase = afterBaseEnd && baseDates.length ? baseDates[baseDates.length - 1] : null;
+    const lastBase = baseDates.length ? baseDates[baseDates.length - 1] : null;
     const added = (extra || []).filter(e => isUpcoming(e, now) && !nums.has(`${e.season}-${e.episode}`) &&
-      (!lastBase || !e.date || e.date.slice(0, 10) > lastBase));
+      (!lastBase || !e.date || (afterBaseEnd ? e.date.slice(0, 10) > lastBase : e.date.slice(0, 10) >= lastBase)));
     return { episodes: [...base, ...added], added: added.length };
+  }
+
+  // "TBA", "TBD", "Episode 3": a placeholder, not a title.
+  function realTitle(name) {
+    const t = String(name || "").trim();
+    return !t || /^(TBA|TBD|TBC)$/i.test(t) || /^Episode\s+\d+$/i.test(t) ? null : t;
   }
 
   function fromTvmaze(ep) {
@@ -64,7 +73,7 @@
       season: ep.season, episode: ep.number,
       date: hasTime ? ep.airstamp : (ep.airdate || null),
       hasTime,
-      title: ep.name || null,
+      title: realTitle(ep.name),
       runtime: ep.runtime || null,
       keys: [`tvmaze:${ep.id}`],
     };
@@ -75,7 +84,7 @@
       season, episode: ep.episode_number,
       date: ep.air_date || null,
       hasTime: false,
-      title: ep.name || null,
+      title: realTitle(ep.name),
       runtime: ep.runtime || null,
       keys: [`tmdb:${ep.id}`],
     };
@@ -160,7 +169,7 @@
     }
 
     function tvmazeEpisodes(tvmazeId) {
-      const key = `tvmaze-episodes:${tvmazeId}`;
+      const key = `tvmaze-episodes2:${tvmazeId}`;
       const fetchList = async () => {
         const list = await tvmazeGet(`/shows/${tvmazeId}/episodes`);
         return { fetchedAt: Date.now(), episodes: (list || []).map(fromTvmaze).filter(Boolean) };
@@ -212,7 +221,7 @@
           disagreements.push({ season: e.season, episode: e.episode, tvmaze: e.date, tmdb: twin.date });
           return e;
         }
-        return { ...e, keys: [...e.keys, ...twin.keys], runtime: e.runtime || twin.runtime };
+        return { ...e, keys: [...e.keys, ...twin.keys], runtime: e.runtime || twin.runtime, title: e.title || twin.title };
       });
       const tvmNums = new Set(tvm.map(e => `${e.season}-${e.episode}`));
       const onlyInTmdb = tmdb.filter(e => !tvmNums.has(`${e.season}-${e.episode}`)).map(e => ({ season: e.season, episode: e.episode }));
@@ -251,7 +260,12 @@
       return tmdb.map(e => {
         const twin = tvmByNum.get(`${e.season}-${e.episode}`);
         const diff = twin ? dayDiff(e.date, twin.date) : null;
-        return twin && (diff == null || diff <= MATCH_WINDOW_DAYS) ? { ...e, keys: [...e.keys, ...twin.keys] } : e;
+        if (!twin || (diff != null && diff > MATCH_WINDOW_DAYS)) return e;
+        const linked = { ...e, keys: [...e.keys, ...twin.keys], title: e.title || twin.title, runtime: e.runtime || twin.runtime };
+        // TMDB has dates only; TVMaze's exact air time for the same episode
+        // (its date in UTC can be a day later than TMDB's local one).
+        if (twin.hasTime && diff != null && diff <= 1) { linked.date = twin.date; linked.hasTime = true; }
+        return linked;
       });
     }
 
@@ -292,5 +306,5 @@
     };
   }
 
-  return { createEpisodeSource, memoryCache, fromTvmaze, fromTmdb, appendUpcoming, isUpcoming };
+  return { createEpisodeSource, memoryCache, fromTvmaze, fromTmdb, appendUpcoming, isUpcoming, realTitle };
 });

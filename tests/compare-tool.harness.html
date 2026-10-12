@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head><meta charset="UTF-8"><title>compare tool harness</title></head>
+<body>
+<!-- Runs tools/compare.js against the fake world of compare-modes.fake.js:
+     each page the tool loads gets the fake network injected first. Prints
+     the tool's findings into #out. ?diff=1 plants a difference in the
+     library (Alpha's S02E01 not watched) that the tool must report. -->
+<pre id="out"></pre>
+<div id="tool"></div>
+<script>
+"use strict";
+const BASE = Date.now();
+const params = new URLSearchParams(location.search);
+// Each iframe the tool points at ../index.html gets the page with the fake
+// world injected (as srcdoc, same origin), in the mode the tool just chose.
+Object.defineProperty(HTMLIFrameElement.prototype, "src", {
+  set(url) {
+    const frame = this;
+    const mode = localStorage.getItem("data_source");
+    fetch("../index.html", { cache: "no-store" }).then(r => r.text()).then(html => {
+      const plant = params.get("diff") && mode === "library"
+        ? `<script>const a = window.__libraryDocs["101"]; for (const k of Object.keys(a.watched)) if (a.watched[k].s === 2) delete a.watched[k];<\/script>` : "";
+      frame.srcdoc = html
+        .replace("<head>", `<head><base href="${new URL("../", location.href)}"><script>window.__MODE=${JSON.stringify(mode)};window.__BASE=${BASE};<\/script><script src="tests/compare-modes.fake.js"><\/script>${plant}`)
+        .replace('<script src="firebase-backend.js"><\/script>', '$&<script>FirebaseBackend.create = window.__fakeFirebaseCreate;<\/script>');
+    });
+  },
+});
+(async () => {
+  const html = await (await fetch("../tools/compare.html")).text();
+  document.getElementById("tool").innerHTML = /<main>([\s\S]*)<\/main>/.exec(html)[1];
+  await new Promise((resolve, reject) => { const s = document.createElement("script"); s.src = "../tools/compare.js"; s.onload = resolve; s.onerror = reject; document.body.appendChild(s); });
+  localStorage.setItem("data_source", "simkl");
+  document.getElementById("runBtn").click();
+  for (let i = 0; i < 1200 && !window.__compareResult && !document.querySelector("#result .bad"); i++) await new Promise(r => setTimeout(r, 100));
+  document.getElementById("out").textContent = JSON.stringify({
+    result: window.__compareResult || null,
+    text: document.getElementById("result").innerText,
+    modeAfter: localStorage.getItem("data_source"),
+  });
+})().catch(e => { document.getElementById("out").textContent = JSON.stringify({ harnessError: String(e.stack || e) }); });
+</script>
+</body>
+</html>

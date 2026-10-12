@@ -104,7 +104,7 @@ test("prefer: tmdb pins TMDB's numbering, still linked to TVMaze where dates agr
   const r = await src.getEpisodes({ tmdb: 77, imdb: "tt1" }, { prefer: "tmdb" });
   assert.equal(r.source, "tmdb");
   assert.deepEqual(r.episodes.map(e => e.keys), [["tmdb:901", "tvmaze:11"], ["tmdb:902"]]);
-  assert.equal(r.episodes[0].date, "2026-01-05");
+  assert.equal(r.episodes[0].date, "2026-01-06T02:00:00+00:00", "TVMaze's exact time for the same episode");
   assert.equal(r.disagreements.length, 1);
   const lists = await src.getSourceLists({ tmdb: 77, imdb: "tt1" });
   assert.equal(lists.tvmaze.length, 2);
@@ -223,7 +223,7 @@ test("With TVMaze's update list, a cached episode list is kept until TVMaze repo
 
   // A day later (past the plain 6-hour expiry), nothing changed on TVMaze:
   // the next page load keeps the copy.
-  cache.age("tvmaze-episodes:5", 24 * 3600 * 1000);
+  cache.age("tvmaze-episodes2:5", 24 * 3600 * 1000);
   await make().getEpisodes({ imdb: "tt1" });
   assert.equal(fetch.calls.filter(c => c === "/shows/5/episodes").length, 1);
 
@@ -241,7 +241,48 @@ test("If TVMaze's update list can't be had, the plain expiry applies", async () 
   await make().getEpisodes({ imdb: "tt1" });
   await make().getEpisodes({ imdb: "tt1" });
   assert.equal(fetch.calls.filter(c => c === "/shows/5/episodes").length, 1, "fresh copy kept");
-  cache.age("tvmaze-episodes:5", 7 * 3600 * 1000);
+  cache.age("tvmaze-episodes2:5", 7 * 3600 * 1000);
   await make().getEpisodes({ imdb: "tt1" });
   assert.equal(fetch.calls.filter(c => c === "/shows/5/episodes").length, 2, "older than 6 hours: fetched again");
+});
+
+test("Placeholder titles (TBA, Episode 3) count as no title; a linked twin's title fills in", async () => {
+  const { realTitle } = require("../episode-source.js");
+  assert.equal(realTitle("TBA"), null);
+  assert.equal(realTitle(" tbd "), null);
+  assert.equal(realTitle("Episode 3"), null);
+  assert.equal(realTitle("Scared Straight"), "Scared Straight");
+  const src = createEpisodeSource({
+    fetch: fakeFetch({ "/lookup/shows?imdb=tt1": { id: 5 }, "/shows/5/episodes": [
+      { id: 11, season: 1, number: 1, name: "TBA", airdate: "2026-01-05", airtime: "21:00", airstamp: "2026-01-06T02:00:00+00:00" },
+    ] }),
+    tmdbGet: fakeTmdb({ 77: { 1: [{ id: 901, episode_number: 1, air_date: "2026-01-05", name: "Scared Straight" }] } }),
+    minGapMs: 0,
+  });
+  const r = await src.getEpisodes({ tmdb: 77, imdb: "tt1" });
+  assert.equal(r.episodes[0].title, "Scared Straight");
+});
+
+test("TMDB numbering keeps TVMaze's exact air time for the same episode", async () => {
+  const src = createEpisodeSource({
+    fetch: fakeFetch({ "/lookup/shows?imdb=tt1": { id: 5 }, "/shows/5/episodes": [
+      { id: 11, season: 1, number: 1, name: "Pilot", airdate: "2026-10-29", airtime: "20:30", airstamp: "2026-10-30T00:30:00+00:00" },
+    ] }),
+    tmdbGet: fakeTmdb({ 77: { 1: [{ id: 901, episode_number: 1, air_date: "2026-10-29", name: "Pilot" }] } }),
+    minGapMs: 0,
+  });
+  const r = await src.getEpisodes({ tmdb: 77, imdb: "tt1" }, { prefer: "tmdb" });
+  assert.equal(r.source, "tmdb");
+  assert.equal(r.episodes[0].date, "2026-10-30T00:30:00+00:00");
+  assert.equal(r.episodes[0].hasTime, true);
+  assert.deepEqual(r.episodes[0].keys, ["tmdb:901", "tvmaze:11"]);
+});
+
+test("An episode from the other source dated before the main source's last one isn't added", () => {
+  const { appendUpcoming } = require("../episode-source.js");
+  const now = Date.parse("2026-10-12T12:00:00Z");
+  const base = [{ season: 1, episode: 1, date: "2027-01-22" }];
+  const extra = [{ season: 1, episode: 1, date: "2027-01-22" }, { season: 1, episode: 2, date: "2027-01-21" }, { season: 1, episode: 3, date: "2027-01-29" }];
+  const r = appendUpcoming(base, extra, now);
+  assert.deepEqual(r.episodes.map(e => e.episode), [1, 3]);
 });
