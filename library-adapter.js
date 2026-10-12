@@ -20,13 +20,13 @@
     error: "Not saved",
   };
 
-  // createLibraryAdapter({ core, store, source, appendUpcoming, showMeta, now, onProgress })
+  // createLibraryAdapter({ core, store, source, appendAfter, showMeta, now, onProgress })
   // - core: LibraryCore; store: a LibraryStore (already loaded)
-  // - source: an EpisodeSource; appendUpcoming: EpisodeSource.appendUpcoming
+  // - source: an EpisodeSource; appendAfter: EpisodeSource.appendAfter
   // - showMeta(tmdbId): optional, resolves to { title, year, imdb, tvdb }
   //   from TMDB (English title) - fills in a show being added
   // - onProgress(done, total): optional, while episode lists load
-  function createLibraryAdapter({ core, store, source, appendUpcoming, showMeta, now = () => Date.now(), onProgress }) {
+  function createLibraryAdapter({ core, store, source, appendAfter, showMeta, now = () => Date.now(), onProgress }) {
     let episodeMemo = new Map(); // docId -> Promise<episodes>
     const failures = new Map();  // docId -> title, shows whose list couldn't load
     let progress = { done: 0, total: 0 };
@@ -45,14 +45,14 @@
 
     // The show's episode list. Which source fits the show's history was
     // decided at import: TVMaze (default, has air times), TMDB, or a fixed
-    // snapshot of the old service's list (still topped up with episodes
-    // announced since, from the outside sources).
+    // snapshot of the old service's list - followed by every episode the
+    // outside sources list after it, aired or not (EpisodeSource.appendAfter).
     async function loadEpisodes(docId, show) {
       const ids = await sourceIds(show);
       try {
         if (show.episodeSource === "snapshot" && Array.isArray(show.snapshotEpisodes)) {
           const res = await source.getEpisodes(ids, { now: now() });
-          return appendUpcoming(show.snapshotEpisodes, res.episodes, now(), { afterBaseEnd: true }).episodes;
+          return appendAfter(show.snapshotEpisodes, res.episodes).episodes;
         }
         const res = await source.getEpisodes(ids, { prefer: show.episodeSource === "tmdb" ? "tmdb" : undefined, now: now() });
         if (!res.episodes.length && res.errors && res.errors.length) failures.set(docId, show.title);

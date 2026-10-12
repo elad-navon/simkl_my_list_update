@@ -60,6 +60,26 @@
     return { episodes: [...base, ...added], added: added.length };
   }
 
+  // A fixed snapshot of an older episode list (`base`) plus every episode
+  // `extra` lists after it - aired or not, so a new season's episodes stay
+  // once they air: dated after the snapshot's last dated episode, or undated
+  // and numbered after its last episode. Nothing the snapshot covers is
+  // replaced (numbering between the two can differ).
+  function appendAfter(base, extra) {
+    const nums = new Set(base.map(e => `${e.season}-${e.episode}`));
+    const baseDates = base.map(e => e.date && e.date.slice(0, 10)).filter(Boolean).sort();
+    const lastDate = baseDates.length ? baseDates[baseDates.length - 1] : null;
+    let lastPos = null;
+    for (const e of base) {
+      if (e.season == null || e.season === 0 || e.episode == null) continue;
+      if (!lastPos || e.season > lastPos.season || (e.season === lastPos.season && e.episode > lastPos.episode)) lastPos = e;
+    }
+    const after = e => !!lastPos && (e.season > lastPos.season || (e.season === lastPos.season && e.episode > lastPos.episode));
+    const added = (extra || []).filter(e => !nums.has(`${e.season}-${e.episode}`) &&
+      (e.date ? (!lastDate || e.date.slice(0, 10) > lastDate) : after(e)));
+    return { episodes: [...base, ...added], added: added.length };
+  }
+
   // "TBA", "TBD", "Episode 3": a placeholder, not a title.
   function realTitle(name) {
     const t = String(name || "").trim();
@@ -306,5 +326,5 @@
     };
   }
 
-  return { createEpisodeSource, memoryCache, fromTvmaze, fromTmdb, appendUpcoming, isUpcoming, realTitle };
+  return { createEpisodeSource, memoryCache, fromTvmaze, fromTmdb, appendUpcoming, appendAfter, isUpcoming, realTitle };
 });

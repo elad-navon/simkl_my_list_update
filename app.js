@@ -704,7 +704,7 @@ async function openLibrary() {
     await store.load();
     library.store = store;
     library.adapter = LibraryAdapter.createLibraryAdapter({
-      core: LibraryCore, store, source: library.source, appendUpcoming: EpisodeSource.appendUpcoming,
+      core: LibraryCore, store, source: library.source, appendAfter: EpisodeSource.appendAfter,
       showMeta: libraryShowMeta,
       onProgress: (done, total) => {
         if (total > 5 && done < total) subtitle.textContent = `Loading episode lists… ${done}/${total}`;
@@ -2737,7 +2737,8 @@ async function openEpisodesManager(show, libraryMatch) {
     if (ep.season == null || ep.season === 0 || ep.episode == null) continue;
     if (!seasons.has(ep.season)) seasons.set(ep.season, []);
     seasons.get(ep.season).push({
-      episode: ep.episode, title: ep.title || "", aired: episodeHasAired(ep, now, item.show && item.show.runtime),
+      episode: ep.episode, title: ep.title || "", dated: !!ep.date,
+      aired: episodeHasAired(ep, now, item.show && item.show.runtime),
     });
   }
   const seasonNums = [...seasons.keys()].sort((a, b) => a - b);
@@ -2745,6 +2746,19 @@ async function openEpisodesManager(show, libraryMatch) {
 
   const watched = watchedEpisodeNumbersBySeason(item);
   const watchedSet = n => watched[n] || (watched[n] = new Set());
+  // Watched means it aired, whatever its date says; and an episode with no
+  // date that comes before one that aired by its date did air too (many
+  // older episodes have no date in any source). Both can be marked, and
+  // count toward their season's box.
+  let lastAired = null;
+  for (const n of seasonNums) for (const e of seasons.get(n)) if (e.aired) lastAired = { n, ep: e.episode };
+  for (const n of seasonNums) {
+    for (const e of seasons.get(n)) {
+      if (e.aired) continue;
+      if (watchedSet(n).has(e.episode)) e.aired = true;
+      else if (!e.dated && lastAired && (n < lastAired.n || (n === lastAired.n && e.episode < lastAired.ep))) e.aired = true;
+    }
+  }
   // A show may have no per-episode `seasons` list (only the counts - e.g.
   // a watched count kept from the import). A fully-watched show is the one
   // case that's still unambiguous without it: every aired episode counts.

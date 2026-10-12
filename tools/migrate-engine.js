@@ -308,10 +308,10 @@
       if (!chosen || sc > chosen.score) chosen = { ...c, mapping, score: sc };
     }
     // When neither outside source covers the whole history, SIMKL's own
-    // episode list is kept as a fixed snapshot for this show (upcoming
-    // episodes still come from the best outside source).
+    // episode list is kept as a fixed snapshot for this show (episodes after
+    // its end still come from the best outside source, aired or not).
     if (oldEps && oldEps.length && (!chosen || chosen.score < regularWatched)) {
-      const filled = EpisodeSource.appendUpcoming(oldEps, chosen ? chosen.res.episodes : [], NOW, { afterBaseEnd: true });
+      const filled = EpisodeSource.appendAfter(oldEps, chosen ? chosen.res.episodes : []);
       const res = { episodes: filled.episodes, disagreements: [], upcomingFromOther: filled.added };
       const mapping = LibraryCore.mapWatched(watched, res.episodes, oldEps);
       const sc = score(mapping);
