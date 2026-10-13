@@ -322,7 +322,7 @@ async function runOnAir() {
   const a = airing();
   check("airing now: first in Airing Next, with NOW and its end time", a[0].title === "Kilo" && /^NOW ends \d\d:\d\d$/i.test(airRow("Kilo").count), a.slice(0, 3));
   check("starting in under a minute: 1 MIN", airRow("Lima").count === "1 MIN", airRow("Lima"));
-  check("in 5h 20m: 5 HOURS", airRow("Mike").count === "5 HOURS", airRow("Mike"));
+  check("in 5h 20m: 6 HOURS (rounded up)", airRow("Mike").count === "6 HOURS", airRow("Mike"));
   check("33 hours away: in hours", airRow("Bravo").count === "33 HOURS", airRow("Bravo"));
   check("more than 48 hours away: in days", /^\d+ DAYS$/.test(airRow("Delta").count), airRow("Delta"));
   check("while it airs, the episode isn't in My List", !card("Kilo"), "Kilo not in My List");

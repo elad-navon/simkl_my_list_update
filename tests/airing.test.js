@@ -15,7 +15,7 @@ test("episodeAirWindow: exact times only; length from the episode, the show, els
   assert.equal(app.episodeAirWindow({ date: null }, 60), null);
 });
 
-test("airCountdown: NOW, minutes, hours up to 48, then calendar days; date-only: days alone", () => {
+test("airCountdown: NOW, minutes, hours up to 48 (rounded up), then calendar days; date-only: days alone", () => {
   const c = (startOffset, endOffset) => {
     const r = app.airCountdown(NOW + startOffset, endOffset == null ? null : NOW + endOffset, NOW);
     return r && { ...r };
@@ -25,10 +25,15 @@ test("airCountdown: NOW, minutes, hours up to 48, then calendar days; date-only:
   assert.equal(c(-5 * MIN, null), null, "started, end unknown");
   assert.deepEqual(c(12 * MIN), { n: 12, unit: "MIN" });
   assert.deepEqual(c(30 * 1000), { n: 1, unit: "MIN" }, "under a minute rounds up");
-  assert.deepEqual(c(59 * MIN + 30 * 1000), { n: 1, unit: "HOUR" });
-  assert.deepEqual(c(5 * HOUR + 20 * MIN), { n: 5, unit: "HOURS" });
+  assert.deepEqual(c(59 * MIN + 30 * 1000), { n: 1, unit: "HOUR" }, "60 minutes, rounded up");
+  assert.deepEqual(c(HOUR), { n: 1, unit: "HOUR" });
+  assert.deepEqual(c(HOUR + 14 * MIN), { n: 2, unit: "HOURS" }, "hours round up: 1h 14m left is 2 HOURS");
+  assert.deepEqual(c(2 * HOUR), { n: 2, unit: "HOURS" }, "drops to 2 exactly at two hours");
+  assert.deepEqual(c(2 * HOUR + 5 * MIN), { n: 3, unit: "HOURS" });
+  assert.deepEqual(c(5 * HOUR + 20 * MIN), { n: 6, unit: "HOURS" });
   assert.deepEqual(c(31 * HOUR), { n: 31, unit: "HOURS" });
-  assert.deepEqual(c(47 * HOUR + 59 * MIN), { n: 47, unit: "HOURS" });
+  assert.deepEqual(c(47 * HOUR + 59 * MIN), { n: 48, unit: "HOURS" });
+  assert.deepEqual(c(48 * HOUR), { n: 48, unit: "HOURS" });
   const local = ms => { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); };
   const calendarDays = ms => Math.round((local(ms) - local(NOW)) / 86400000);
   assert.deepEqual(c(49 * HOUR), { n: calendarDays(NOW + 49 * HOUR), unit: "DAYS" }, "past 48 hours: calendar days");
