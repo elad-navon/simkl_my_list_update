@@ -218,6 +218,38 @@ async function runUi() {
     s1.classList.contains("all") && !s1.disabled, { className: s1.className, disabled: s1.disabled });
   fn("closeSearchModal")();
 
+  // The cast window's Episodes tab: the same manager, marking and saving there.
+  // (A moment first: closing the search window steps browser history back,
+  // and that lands asynchronously - a window opened before it would close.)
+  await sleep(500);
+  const alphaIdx = w.eval("lastRows").findIndex(r => r.title === "Alpha");
+  try { await fn("openCastModal")("main", alphaIdx); }
+  catch (e) { check("cast window: opens", false, String(e && e.stack || e)); return results; }
+  await waitFor(() => $("#castModalOverlay .modal-tab[data-tab='episodes']"));
+  $("#castModalOverlay .modal-tab[data-tab='episodes']").click();
+  await waitFor(() => $("#castEpisodes .ep-manage-summary"));
+  const epSummary = $("#castEpisodes .ep-manage-summary");
+  check("cast window: Episodes tab shows the show's episodes",
+    epSummary && /11\/18 episodes watched/.test(epSummary.textContent) && $("#castGrid").hidden,
+    epSummary ? epSummary.textContent : { tab: ($("#castEpisodes") || {}).innerHTML, overlay: !!$("#castModalOverlay"), alphaIdx, cache: !!w.eval("sharedCache"), view: w.eval("currentView"), row: JSON.stringify(Object.keys((w.eval("lastRows") || [])[alphaIdx] || {})) });
+  if (!epSummary) return results;
+  $("#castEpisodes [data-toggle-ep='2']").click();
+  let asked = 0;
+  w.confirm = () => { asked++; return false; }; // keep the unsaved change
+  fn("closeCastModal")();
+  check("cast window: closing with an unsaved change asks first, and stays open", asked === 1 && !!$("#castModalOverlay"));
+  $("#castEpisodes #epSaveBtn").click();
+  const alphaDoc = () => w.eval("library").backend.docs.get("101");
+  await waitFor(() => Object.values(alphaDoc().watched).some(r => r.s === 2 && r.e === 2) && !$("#castEpisodes #epSaveBtn"));
+  w.confirm = () => true;
+  const marker = w.document.querySelector(".series-panel-updated");
+  if (marker) marker.dataset.old = "1";
+  fn("closeCastModal")();
+  await waitFor(() => { const m = w.document.querySelector(".series-panel-updated"); return m && !m.dataset.old; });
+  const alphaRow = w.eval("lastRows").find(r => r.title === "Alpha");
+  check("cast window: saved there, and the panels refresh on close",
+    !$("#castModalOverlay") && alphaRow && alphaRow.nextLabel === "S02E03", alphaRow && alphaRow.nextLabel);
+
   fn("showSettings")(fn("main"));
   await waitFor(() => $("#libraryBackupBtn"));
   const settingsText = $(".library-settings") && $(".library-settings").textContent;
@@ -348,6 +380,16 @@ async function runOnAir() {
         const w = frame.contentWindow;
         await waitFor(() => w.document.querySelector(".series-panel-updated"));
         w.eval("showWatchingCleanup")();
+      }
+      // ?open=cast / cast-episodes: Alpha's cast window, on either tab.
+      if (/^cast/.test(params.get("open") || "")) {
+        const w = frame.contentWindow;
+        await waitFor(() => w.document.querySelector(".series-panel-updated"));
+        await w.eval("openCastModal")("main", w.eval("lastRows").findIndex(r => r.title === "Alpha"));
+        if (params.get("open") === "cast-episodes") {
+          await waitFor(() => w.document.querySelector(".modal-tab[data-tab='episodes']"));
+          w.document.querySelector(".modal-tab[data-tab='episodes']").click();
+        }
       }
       return;
     }

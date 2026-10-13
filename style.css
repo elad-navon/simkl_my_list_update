@@ -1043,6 +1043,21 @@
      subtitle), a card grid of cast members below: square headshot on top,
      name + character centered underneath. */
   .cast-modal { max-width: 760px; display: flex; flex-direction: column; max-height: 85vh; padding: 20px 0 4px; }
+  /* The cast window's CAST / EPISODES tabs: the active one underlined in
+     gold, the other dimmed, on one shared line. */
+  .modal-tabs { flex: 1 1 auto; display: flex; gap: 22px; border-bottom: 1px solid var(--border); }
+  .episodes-modal-head .modal-tab {
+    flex: 0 0 auto; margin: 0 0 -1px; padding: 0 0 8px; background: none; border: 0;
+    border-bottom: 3px solid transparent; color: var(--muted); cursor: pointer;
+  }
+  .episodes-modal-head .modal-tab.active { color: var(--text); border-bottom-color: var(--gold); }
+  .episodes-modal-head .modal-tab:not(.active) svg { opacity: 0.55; }
+  .episodes-modal-head .modal-tab:hover { color: var(--text); }
+  .cast-grid[hidden], .cast-episodes-tab[hidden] { display: none; }
+  /* The Episodes tab: the episodes manager, its season list scrolling and
+     its save bar kept in view. */
+  .cast-episodes-tab { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 4px 22px 16px; }
+  .cast-episodes-tab .ep-manager { flex: 1 1 auto; min-height: 0; max-height: none; }
   .cast-grid {
     overflow-y: auto; padding: 4px 22px 20px;
     display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 20px;
