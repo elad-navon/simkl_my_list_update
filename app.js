@@ -2254,6 +2254,24 @@ function airCountdown(start, end, now, day) {
   return { n: days, unit: plural(days, "DAY", "DAYS") };
 }
 
+// Airing Next order: by (local) day; within a day, episodes with an exact air
+// time first, by that time, then the date-only ones - their time isn't
+// known. Exact times are compared as moments, not strings (they carry a
+// timezone offset).
+function compareAirDates(a, b) {
+  const key = d => {
+    if (typeof d === "string" && d.length > 10) {
+      const t = new Date(d);
+      const day = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+      return { day, dateOnly: 0, ts: t.getTime() };
+    }
+    return { day: String(d || "9999-12-31").slice(0, 10), dateOnly: 1, ts: 0 };
+  };
+  const x = key(a), y = key(b);
+  if (x.day !== y.day) return x.day < y.day ? -1 : 1;
+  return (x.dateOnly - y.dateOnly) || (x.ts - y.ts);
+}
+
 function hasTimeComponent(dateStr) {
   // "YYYY-MM-DD" is exactly 10 chars (TMDB, date-only); a full ISO
   // datetime with time+offset (TVMaze) is longer.
@@ -2450,9 +2468,7 @@ async function getAiringNextRows(cache, episodeCache) {
     if (row) rows.push(row);
   }
 
-  // Compare actual timestamps, not raw strings - exact air times carry a
-  // timezone offset that lexical string comparison can get wrong.
-  rows.sort((a, b) => airDateToTimestamp(a.airDate) - airDateToTimestamp(b.airDate));
+  rows.sort((a, b) => compareAirDates(a.airDate, b.airDate));
   rows.forEach((r, i) => { r.index = i + 1; });
   return rows;
 }
