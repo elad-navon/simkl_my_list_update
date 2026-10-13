@@ -2880,39 +2880,55 @@ let watchedMarksChanged = false;
 // asks it first, so X / Esc / clicking outside can't silently drop them.
 let searchModalCloseGuard = null;
 
-async function openEpisodesManager(show, libraryMatch) {
+// Where the episodes manager lives: in the search window by default (in place
+// of the show's page, with a Back to it), or in the cast window's Episodes
+// tab. A host gives the element to draw into, the scrolling element around
+// it, how to register the "unsaved changes" check that closing asks first,
+// and what Back does (none: no Back button).
+function searchEpisodesHost(show, libraryMatch) {
   const title = document.getElementById("modalTitle");
   const body = document.getElementById("modalBody");
-  if (!title || !body) return;
-  const item = libraryMatch.item;
-  const showId = item.show.ids.library;
+  if (!title || !body) return null;
   title.textContent = show.title || "Episodes";
-  // The two-column layout below needs more room than the search modal's
-  // usual width - dropped again on the way back to the detail view.
+  // The two-column layout needs more room than the search modal's usual
+  // width - dropped again on the way back to the detail view.
   const box = body.closest(".modal-box");
   if (box) box.classList.add("modal-wide");
+  return {
+    body,
+    overlay: document.getElementById("searchModalOverlay"),
+    setGuard: fn => { searchModalCloseGuard = fn; },
+    onBack: () => {
+      if (box) box.classList.remove("modal-wide");
+      searchModalCloseGuard = null;
+      title.textContent = show.title || "Show";
+      renderShowDetail(show, libraryMatch);
+    },
+  };
+}
+
+async function openEpisodesManager(show, libraryMatch, host) {
+  host = host || searchEpisodesHost(show, libraryMatch);
+  if (!host || !host.body) return;
+  const body = host.body;
+  const item = libraryMatch.item;
+  const showId = item.show.ids.library;
   // Changes are staged locally until Save: `watched` is the working copy,
   // `saved` the last state the library is known to have (null until loaded).
   let saved = null, saving = false;
-  const backToDetail = () => {
-    if (!confirmLeave()) return;
-    if (box) box.classList.remove("modal-wide");
-    searchModalCloseGuard = null;
-    title.textContent = show.title || "Show";
-    renderShowDetail(show, libraryMatch);
+  const backBtnHtml = host.onBack ? `<button class="modal-back-btn" data-ep-back>&larr; Back</button>` : "";
+  const wireBack = () => {
+    const btn = body.querySelector("[data-ep-back]");
+    if (btn) btn.onclick = () => { if (confirmLeave()) host.onBack(); };
   };
-  body.innerHTML = `
-    <button class="modal-back-btn" id="detailBackBtn">&larr; Back</button>
-    <div class="spinner" style="margin:30px auto"></div>`;
-  document.getElementById("detailBackBtn").onclick = backToDetail;
+  body.innerHTML = `${backBtnHtml}<div class="spinner" style="margin:30px auto"></div>`;
+  wireBack();
 
   const episodeCache = sharedEpisodeCache || newEpisodeCache();
   const all = await episodeCache.get(showId);
   if (!all || !all.length) {
-    body.innerHTML = `
-      <button class="modal-back-btn" id="detailBackBtn">&larr; Back</button>
-      <div class="error-box">No episode list is available for this show.</div>`;
-    document.getElementById("detailBackBtn").onclick = backToDetail;
+    body.innerHTML = `${backBtnHtml}<div class="error-box">No episode list is available for this show.</div>`;
+    wireBack();
     return;
   }
 
@@ -3040,12 +3056,12 @@ async function openEpisodesManager(show, libraryMatch) {
     // both scrollers (the list itself and the modal overlay) and put them
     // back - otherwise each click on a low episode jumps back to the top.
     const listEl = body.querySelector(".ep-manager");
-    const overlayEl = document.getElementById("searchModalOverlay");
+    const overlayEl = host.overlay;
     const listScroll = listEl ? listEl.scrollTop : 0;
     const overlayScroll = overlayEl ? overlayEl.scrollTop : 0;
 
     body.innerHTML = `
-      <button class="modal-back-btn" id="detailBackBtn">&larr; Back</button>
+      ${backBtnHtml}
       <div class="ep-manage-summary">${STATUS_LABELS[libraryMatch.status]} &mdash; ${totalWatched}/${item.total_episodes_count || all.length} episodes watched</div>
       ${estimatedMarks ? `<div class="ep-manage-diag">${estimateOff
         ? "Marks are estimated from the last watched episode and may not match exactly what you watched."
@@ -3059,10 +3075,10 @@ async function openEpisodesManager(show, libraryMatch) {
             <button class="ep-savebar-btn primary" id="epSaveBtn" ${saving ? "disabled" : ""}>${saving ? "Saving&hellip;" : "Save"}</button>
           </span>
         </div>` : ""}`;
-    document.getElementById("detailBackBtn").onclick = backToDetail;
-    const saveBtn = document.getElementById("epSaveBtn");
+    wireBack();
+    const saveBtn = body.querySelector("#epSaveBtn");
     if (saveBtn) saveBtn.onclick = saveChanges;
-    const discardBtn = document.getElementById("epDiscardBtn");
+    const discardBtn = body.querySelector("#epDiscardBtn");
     if (discardBtn) discardBtn.onclick = discardChanges;
     const newListEl = body.querySelector(".ep-manager");
     if (newListEl) newListEl.scrollTop = listScroll;
@@ -3164,7 +3180,7 @@ async function openEpisodesManager(show, libraryMatch) {
 
   saved = {};
   for (const n of seasonNums) saved[n] = new Set(watchedSet(n));
-  searchModalCloseGuard = confirmLeave;
+  host.setGuard(confirmLeave);
   render();
 }
 
@@ -3408,16 +3424,51 @@ async function openCastModal(source, idx) {
   overlay.innerHTML = `
     <div class="modal-box cast-modal">
       <div class="episodes-modal-head">
-        <div class="list-panel-header">${CAST_ICON_SOLID_SVG}<span>CAST</span></div>
+        <div class="modal-tabs" role="tablist">
+          <button class="list-panel-header modal-tab active" data-tab="cast" role="tab" aria-selected="true">${CAST_ICON_SOLID_SVG}<span>CAST</span></button>
+          <button class="list-panel-header modal-tab" data-tab="episodes" role="tab" aria-selected="false">${LIST_ICON_SOLID_SVG}<span>EPISODES</span></button>
+        </div>
         <button class="modal-close-btn" id="castModalCloseBtn">&times;</button>
       </div>
       <div class="episodes-modal-subtitle">${row.title}</div>
       <div class="cast-grid" id="castGrid">${gridHtml}</div>
+      <div class="cast-episodes-tab" id="castEpisodes" hidden></div>
     </div>`;
   document.body.appendChild(overlay);
   pushModalHistoryState(closeCastModal);
 
   document.getElementById("castModalCloseBtn").onclick = closeCastModal;
+  // Episodes tab: the same episodes manager as in search, loaded the first
+  // time it's opened; switching tabs keeps whatever is on it.
+  let episodesLoaded = false;
+  overlay.querySelectorAll(".modal-tab").forEach(tab => {
+    tab.onclick = async () => {
+      const toEpisodes = tab.dataset.tab === "episodes";
+      overlay.querySelectorAll(".modal-tab").forEach(t => {
+        t.classList.toggle("active", t === tab);
+        t.setAttribute("aria-selected", t === tab ? "true" : "false");
+      });
+      document.getElementById("castGrid").hidden = toEpisodes;
+      const episodesEl = document.getElementById("castEpisodes");
+      episodesEl.hidden = !toEpisodes;
+      if (!toEpisodes || episodesLoaded) return;
+      episodesLoaded = true;
+      episodesEl.innerHTML = `<div class="spinner" style="margin:30px auto"></div>`;
+      const match = library && library.adapter
+        ? await library.adapter.findStatus({ library: row.showId, tmdb: row.tmdbId, imdb: row.imdbId })
+        : null;
+      if (!match) {
+        episodesEl.innerHTML = `<div class="error-box">This show isn't in your list.</div>`;
+        return;
+      }
+      openEpisodesManager({ title: row.title }, match, {
+        body: episodesEl,
+        overlay: episodesEl,
+        setGuard: fn => { castModalCloseGuard = fn; },
+        onBack: null,
+      });
+    };
+  });
   overlay.addEventListener("click", e => { if (e.target === overlay) closeCastModal(); });
   document.addEventListener("keydown", castModalEscHandler);
 
@@ -3447,12 +3498,23 @@ function castModalEscHandler(e) {
   if (e.key === "Escape") closeCastModal();
 }
 
+// Set while the cast window's Episodes tab holds unsaved changes (same as
+// searchModalCloseGuard): closing asks first.
+let castModalCloseGuard = null;
+
 function closeCastModal() {
+  if (castModalCloseGuard && !castModalCloseGuard()) return;
+  castModalCloseGuard = null;
   const overlay = document.getElementById("castModalOverlay");
   if (!overlay) return;
   overlay.remove();
   document.removeEventListener("keydown", castModalEscHandler);
   consumeModalHistoryState();
+  // Watched marks changed on the Episodes tab: the panels behind are stale.
+  if (watchedMarksChanged) {
+    watchedMarksChanged = false;
+    main();
+  }
 }
 
 // Icon/title for the "all shows" modal opened from a bottom panel's show-count
