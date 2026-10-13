@@ -2230,8 +2230,10 @@ function episodeAirWindow(ep, fallbackMinutes) {
 // time (`start`, on the air until `end`), or one known only by its date
 // (`day`, "YYYY-MM-DD"):
 // - on the air: { live: true };
-// - an exact time: minutes under an hour ("12 MIN"), whole hours under 48
-//   ("31 HOURS"), then calendar days ("5 DAYS");
+// - an exact time: minutes under an hour ("12 MIN"), hours up to 48 -
+//   rounded up, so the number drops only as each whole hour is reached
+//   (1h 14m left shows "2 HOURS", exactly 1 hour "1 HOUR") - then calendar
+//   days ("5 DAYS");
 // - a date only: calendar days alone ("TODAY", "2 DAYS", flagged dateOnly) -
 //   hours or minutes would be a guess.
 // null when there's nothing to show (over, or no date at all).
@@ -2248,8 +2250,10 @@ function airCountdown(start, end, now, day) {
   if (now >= start) return end != null && now < end ? { live: true } : null;
   const minutes = Math.ceil((start - now) / 60000);
   if (minutes < 60) return { n: minutes, unit: "MIN" };
-  const hours = Math.floor(minutes / 60);
-  if (hours < 48) return { n: hours, unit: plural(hours, "HOUR", "HOURS") };
+  if (minutes <= 48 * 60) {
+    const hours = Math.ceil(minutes / 60);
+    return { n: hours, unit: plural(hours, "HOUR", "HOURS") };
+  }
   const days = daysUntil(start);
   return { n: days, unit: plural(days, "DAY", "DAYS") };
 }
