@@ -51,3 +51,24 @@ test("episodeAvailableAt: the end of the broadcast, or the next day for a date-o
   assert.equal(app.episodeAvailableAt({ date: "2026-10-12" }), next.getTime(), "date only: from the next local day");
   assert.equal(app.episodeAvailableAt({ date: null }), null);
 });
+
+test("compareAirDates: by day; within a day exact times first (by time), then date-only", () => {
+  const { compareAirDates } = loadAppFunctions(["compareAirDates"]);
+  const at = (day, hh) => new Date(`${day}T${hh}:00`).toISOString(); // a local time
+  const list = [
+    "2026-10-16",                 // Dark Matter, date only
+    "2026-10-14",                 // Slow Horses, date only
+    at("2026-10-14", "04:00"),    // Doc
+    "2026-10-14",                 // The Voice, date only
+    at("2026-10-13", "21:30"),    // Eretz Nehederet
+    at("2026-10-14", "22:00"),
+    at("2026-10-15", "01:00"),
+  ];
+  const sorted = list.slice().sort(compareAirDates);
+  assert.deepEqual(sorted, [
+    at("2026-10-13", "21:30"),
+    at("2026-10-14", "04:00"), at("2026-10-14", "22:00"), "2026-10-14", "2026-10-14",
+    at("2026-10-15", "01:00"),
+    "2026-10-16",
+  ]);
+});
