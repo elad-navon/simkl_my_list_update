@@ -11,7 +11,8 @@
      the panels the SIMKL-backed site showed for the same world before
      SIMKL's code was removed. Needs a local web server at the project root.
      ?scenario=writes|ui|bridge: the changes, the screens around the panels,
-     the SIMKL auto-marking. ?show=library: just the page, full size, for a
+     the SIMKL auto-marking (also onair, airtimes, posters - see each run*).
+     ?panels=poster: the bottom panels with posters. ?show=library: just the page, full size, for a
      screenshot. ?golden=library: what the page shows (to refresh the file). -->
 <pre id="result"></pre>
 <script>
@@ -35,7 +36,7 @@ function step(text) {
   if (out && !out.dataset.done) out.textContent = `step: ${text}`;
 }
 
-async function loadMode(mode, forScreenshot, scenario) {
+async function loadMode(mode, forScreenshot, scenario, panels = params.get("panels")) {
   step(`${mode}: clearing storage`);
   localStorage.clear();
   await deleteIdb("tv-library-cache");
@@ -48,6 +49,8 @@ async function loadMode(mode, forScreenshot, scenario) {
       function D(...a) { if (!new.target) return new R(R.now() + off).toString(); return a.length ? new R(...a) : new R(R.now() + off); }
       D.prototype = R.prototype; D.now = () => R.now() + off; D.parse = R.parse; D.UTC = R.UTC; window.Date = D; })();<\/script>` +
     `<script src="tests/compare-modes.fake.js"><\/script>` +
+    // ?panels=poster: the bottom panels with posters (Panels to Posters).
+    (panels ? `<script>localStorage.setItem("panel_image_mode", ${JSON.stringify(panels)});<\/script>` : "") +
     (forScreenshot ? `<style>#topbarClock, #subtitle, .series-panel-updated { visibility: hidden !important; }</style>` : "");
   const doc = html
     .replace("<head>", "<head>" + inject)
@@ -370,9 +373,93 @@ async function runAirTimes() {
   return results;
 }
 
+// ?scenario=posters: Panels to Posters - the bottom panels keep their size,
+// the shows in L-shaped pairs drawn like the top panel's, and the button
+// switches back and forth.
+async function runPosters() {
+  const results = [];
+  const check = (name, ok, detail) => results.push({ name, ok: !!ok, detail: detail === undefined ? null : detail });
+  const measure = w => {
+    const doc = w.document;
+    const panel = sel => doc.querySelector(sel).getBoundingClientRect();
+    const range = sel => doc.querySelector(`${sel} .list-pager-range`).textContent.trim();
+    const shown = sel => {
+      const track = doc.querySelector(`${sel} .list-rows-paged`).getBoundingClientRect();
+      return [...doc.querySelectorAll(`${sel} .list-row`)].filter(r => { const b = r.getBoundingClientRect(); return b.left >= track.left - 1 && b.right <= track.right + 1; }).length;
+    };
+    const out = {};
+    for (const [k, sel] of [["watched", ".list-panel--watched"], ["airing", ".list-panel--airing"], ["plan", ".list-panel--plan"]]) {
+      const b = panel(sel);
+      out[k] = { w: Math.round(b.width), h: Math.round(b.height), range: range(sel), shown: shown(sel) };
+    }
+    const bar = doc.querySelector(".topbar").getBoundingClientRect();
+    out.topbarH = Math.round(bar.height);
+    const thumb = doc.querySelector(".list-panel--watched .list-thumb-wrap").getBoundingClientRect();
+    out.thumb = [Math.round(thumb.width), Math.round(thumb.height)];
+    out.pairs = doc.querySelectorAll(".bottom-panels-row .panel-pair").length;
+    out.order = [...doc.querySelectorAll(".bottom-panels-row .list-panel")].map(p => p.className.replace("list-panel list-panel--", ""));
+    const frame = el => el && getComputedStyle(el).borderTopColor;
+    out.frames = [frame(doc.querySelector(".panel-pair > .list-row:nth-child(1) .list-thumb-wrap")), frame(doc.querySelector(".panel-pair > .list-row:nth-child(2) .list-row-body"))];
+    const top = [frame(doc.querySelector(".poster-pair > .card:nth-child(1) .poster-wrap")), frame(doc.querySelector(".poster-pair > .card:nth-child(2) .card-body"))];
+    out.topFrames = top;
+    return out;
+  };
+  const banner = await loadMode("library", false, "", "banner");
+  const before = measure(banner.w);
+  banner.frame.remove();
+  const poster = await loadMode("library", false, "", "poster");
+  const after = measure(poster.w);
+  const same = k => before[k].w === after[k].w && before[k].h === after[k].h;
+  check("the panels keep their size", same("watched") && same("airing") && same("plan"), { before, after });
+  check("the top bar keeps its height", before.topbarH === after.topbarH, [before.topbarH, after.topbarH]);
+  check("Airing Next first, then Recently Watched and Plan to Watch", JSON.stringify(after.order) === JSON.stringify(["airing", "watched", "plan"]), after.order);
+  check("a poster, as tall as the two banners", after.thumb[0] === 187 && after.thumb[1] === 280, after.thumb);
+  check("the shows in pairs, a page per pair", after.pairs >= 3 && /^1 of /.test(after.watched.range) && /^1-2 of /.test(after.airing.range), after);
+  check("the same frame colors as the top panel's pairs", after.frames[0] === "rgb(48, 156, 205)" && after.frames[1] === "rgb(203, 156, 35)", after.frames);
+  // The narrow panels' arrows step one show at a time: the pair's second
+  // show stops where its details box starts, the next pair at its start.
+  const w = poster.w;
+  const panelEl = w.document.querySelector(".list-panel--watched");
+  const track = panelEl.querySelector(".list-rows-paged");
+  const rangeNow = () => panelEl.querySelector(".list-pager-range").textContent.trim();
+  const at = el => Math.round(el.getBoundingClientRect().left - track.getBoundingClientRect().left);
+  // Headless runs neither animate a smooth scroll nor run animation frames:
+  // the scroll lands at once and the header is brought up to date directly.
+  track.scrollTo = o => { track.scrollLeft = o.left; w.eval("updatePagerUiForTrack")(track); };
+  const steps = [rangeNow()];
+  const lefts = [];
+  for (let i = 0; i < 2; i++) {
+    panelEl.querySelector(".list-pager-arrow.next").click();
+    await sleep(900);
+    steps.push(rangeNow());
+  }
+  const second = track.querySelectorAll(".list-row")[2];
+  lefts.push(at(second.querySelector(".list-thumb-wrap")));
+  panelEl.querySelector(".list-pager-arrow.prev").click();
+  await sleep(900);
+  const body2 = track.querySelectorAll(".list-row")[1].querySelector(".list-row-body");
+  lefts.push(at(body2));
+  check("narrow panels: each arrow click moves one show (poster + its details)",
+    /^1 of /.test(steps[0]) && /^2 of /.test(steps[1]) && /^3 of /.test(steps[2]) && Math.abs(lefts[0]) <= 1 && Math.abs(lefts[1]) <= 1,
+    { steps, lefts });
+  const btn = () => w.document.getElementById("panelImagesBtn");
+  check("the button offers the way back", /Panels to\s*Banners/.test(btn().textContent), btn().textContent);
+  await rerender(w, () => btn().click());
+  const back = measure(w);
+  check("one click: banners again, two per page", back.watched.shown === 2 && /^1-2 of /.test(back.watched.range) &&
+    back.thumb[0] === 204 && !back.pairs && /Panels to\s*Posters/.test(btn().textContent), back);
+  return results;
+}
+
 (async () => {
   const out = document.getElementById("result");
   try {
+    if (params.get("scenario") === "posters") {
+      const results = await runPosters();
+      out.dataset.done = "1";
+      out.textContent = JSON.stringify({ writes: results }, null, 1);
+      return;
+    }
     if (params.get("scenario") === "airtimes" && !params.get("show")) {
       const results = await runAirTimes();
       out.dataset.done = "1";
