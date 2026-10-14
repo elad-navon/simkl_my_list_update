@@ -929,52 +929,56 @@
     border-radius: 50%; animation: spin 0.9s linear infinite; margin: 18px auto;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-  /* The loading screen (loaderHtml in app.js): the page's own outlines,
-     empty, with one light sweeping across all of them at once (the
-     gradient is fixed to the window, so every block shows the same band). */
-  .skel-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
-  .skel-page .bottom-panels-row { margin: 0; }
-  .sk {
-    border-radius: 6px;
-    background: linear-gradient(100deg, var(--card-hover) 40%, var(--border) 50%, var(--card-hover) 60%) fixed;
-    background-size: 200vw 100%;
-    animation: skel-sweep 1.6s linear infinite;
+  /* The loading screen (filmLoaderHtml in app.js): posters rolling past on
+     a strip of film, the sprocket holes moving at the same speed (a frame
+     plus its gap every --film-time; the holes repeat every 36px), the
+     progress line under it. */
+  .film-loader {
+    /* --film-holes-time: 36px at the frames' speed = 36 / (w + gap) x --film-time. */
+    --film-w: 140px; --film-h: 210px; --film-gap: 18px; --film-band: 36px; --film-time: 0.75s; --film-holes-time: 0.171s;
+    --film-step: calc(var(--film-w) + var(--film-gap));
+    display: flex; flex-direction: column; align-items: center; gap: 20px; max-width: 1300px; margin: 50px auto 0;
   }
-  @keyframes skel-sweep { from { background-position: -100vw 0; } to { background-position: 100vw 0; } }
-  .skel-head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
-  .skel-stats { width: 420px; max-width: 60%; height: 40px; border-radius: 8px; }
-  .skel-status {
-    margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap;
-    font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif; font-weight: 700; font-size: 1.05rem;
+  .film-strip {
+    position: relative; width: 100%; height: calc(var(--film-h) + 2 * var(--film-band));
+    background: #05080b; border-radius: 6px; overflow: hidden;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+  }
+  .film-strip::before, .film-strip::after {
+    content: ""; position: absolute; left: 0; right: 0; height: calc(var(--film-band) - 16px); z-index: 2;
+    background: repeating-linear-gradient(90deg, transparent 0 12px, rgba(201, 212, 223, 0.55) 12px 26px, transparent 26px 36px);
+    border-radius: 3px;
+    animation: film-sprockets var(--film-holes-time) linear infinite;
+  }
+  .film-strip::before { top: 8px; }
+  .film-strip::after { bottom: 8px; }
+  @keyframes film-sprockets { to { background-position: -36px 0; } }
+  .film-track {
+    position: absolute; top: var(--film-band); left: 0; display: flex; gap: var(--film-gap);
+    animation: film-roll calc(var(--frames) * var(--film-time)) linear infinite;
+  }
+  @keyframes film-roll { to { transform: translateX(calc(var(--frames) * var(--film-step) * -1)); } }
+  .film-frame {
+    flex: 0 0 auto; width: var(--film-w); height: var(--film-h); border-radius: 3px; overflow: hidden;
+    background: linear-gradient(160deg, #22303e, #121a23);
+  }
+  .film-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .film-status {
+    min-height: 1.3em; color: var(--muted); font-variant-numeric: tabular-nums;
+    font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif; font-weight: 700; font-size: 1.4rem;
     letter-spacing: 0.1em; text-transform: uppercase;
   }
-  .skel-cards { display: flex; gap: 22px; overflow: hidden; }
-  .skel-card { flex: 0 0 auto; }
-  .skel-card--poster { display: flex; }
-  .skel-card--poster .skel-img { height: min(348px, 42vh); aspect-ratio: 2 / 3; border-radius: 10px; }
-  .skel-card--poster .skel-lines { width: 210px; padding: 14px; }
-  .skel-card--banner { width: 368px; display: grid; gap: 12px; }
-  .skel-card--banner .skel-img { height: 206px; border-radius: 10px; }
-  .skel-lines { display: grid; gap: 9px; align-content: start; }
-  .skel-lines .l1 { height: 16px; width: 80%; }
-  .skel-lines .l2 { height: 12px; width: 55%; }
-  .skel-lines .l3 { height: 12px; width: 68%; }
-  .skel-title { width: 170px; height: 34px; border-radius: 8px; margin-bottom: 10px; }
-  .skel-rows { display: grid; gap: 10px; }
-  .skel-rows.cols { grid-template-columns: 1fr 1fr; column-gap: 16px; }
-  .skel-row { display: flex; gap: 14px; align-items: flex-start; min-width: 0; padding: 10px 0; }
-  .skel-row .skel-thumb { flex: 0 0 auto; width: 204px; height: 115px; }
-  .skel-row .skel-lines { flex: 1 1 auto; min-width: 0; }
-  .skel-row--poster { padding: 0; }
-  .skel-row--poster .skel-thumb { width: 187px; height: 280px; border-radius: 10px; }
   @media (max-width: 720px) {
-    .skel-cards { gap: 12px; }
-    .skel-card--poster .skel-img { height: 300px; }
-    .skel-rows.cols { grid-template-columns: 1fr; }
-    .skel-row .skel-thumb { width: 160px; height: 90px; }
-    .skel-row--poster .skel-thumb { width: 140px; height: 210px; }
+    .film-loader { --film-w: 90px; --film-h: 135px; --film-gap: 12px; --film-band: 26px; --film-holes-time: 0.265s; margin-top: 30px; }
+    .film-strip::before, .film-strip::after { height: calc(var(--film-band) - 12px); }
+    .film-strip::before { top: 6px; }
+    .film-strip::after { bottom: 6px; }
+    .film-status { font-size: 1.1rem; }
   }
-  @media (prefers-reduced-motion: reduce) { .sk { animation: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .film-strip::before, .film-strip::after, .film-track { animation: none; }
+  }
   .error-box { color: var(--danger); font-size: 0.85rem; margin-top: 10px; white-space: pre-wrap; }
   a { color: var(--accent2); }
 

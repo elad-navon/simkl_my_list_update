@@ -54,6 +54,7 @@ const LS_IMAGE_MODE = "simkl_image_mode"; // "poster" | "banner"
 const LS_THEME = "simkl_theme"; // "light" | "dark"
 const LS_PANEL_LAYOUT = "simkl_panel_layout"; // "paged" (one-page, default) | "scroll" (older vertically scrolling panels)
 const LS_PANEL_IMAGES = "panel_image_mode"; // "banner" (default) | "poster" - the three bottom panels' thumbnails
+const LS_LOADER_POSTERS = "loader_posters"; // the posters the loading screen rolls past (the last ones shown)
 const LS_VIEW_MODE = "simkl_view_mode";   // "list" or "airing" (not restored on load - always starts on "list")
 
 // How much of the origin's localStorage the persisted API cache may take. A browser gives a whole address
@@ -138,31 +139,31 @@ function dropOldCacheUntil(write) {
 const app = document.getElementById("app");
 const subtitle = document.getElementById("subtitle");
 
-// The loading screen: the page itself, still empty - the outlines of the
-// top panel's cards and of the three bottom panels (in the image modes
-// they're set to), one light sweeping across all of them, and the progress
-// line (the subtitle's text) where the top panel's stats will be.
-function loaderHtml() {
-  const lines = `<div class="skel-lines"><div class="sk l1"></div><div class="sk l2"></div><div class="sk l3"></div></div>`;
-  const topKind = getImageMode() === "banner" ? "banner" : "poster";
-  const topCards = Array.from({ length: 4 }, () => `<div class="skel-card skel-card--${topKind}"><div class="sk skel-img"></div>${lines}</div>`).join("");
-  const posters = panelPosters();
-  const row = `<div class="skel-row${posters ? " skel-row--poster" : ""}"><div class="sk skel-thumb"></div>${lines}</div>`;
-  const panel = (cls, cols) => `
-    <div class="list-panel ${cls}">
-      <div class="sk skel-title"></div>
-      <div class="skel-rows${cols > 1 ? " cols" : ""}">${row.repeat((posters ? 1 : 2) * cols)}</div>
-    </div>`;
+// The loading screen: the posters last shown here rolling past on a strip
+// of film, the progress line (the subtitle's text) under it. Plain frames
+// until a first load has kept any posters; at least 10 frames, so one round
+// of the strip is always wider than the screen.
+function filmLoaderHtml() {
+  let urls = [];
+  try { urls = JSON.parse(localStorage.getItem(LS_LOADER_POSTERS) || "[]"); } catch (e) { urls = []; }
+  if (!Array.isArray(urls)) urls = [];
+  const frames = urls.length ? urls.slice(0, 12) : [""];
+  while (frames.length < 10) frames.push(...frames.slice(0, 10 - frames.length));
+  const round = frames.map(u => `<div class="film-frame">${u ? `<img src="${u}" alt="" onerror="this.remove()">` : ""}</div>`).join("");
   return `
-    <div class="skel-page" role="status" aria-label="Loading">
-      <div class="series-panel">
-        <div class="skel-head"><div class="sk skel-stats"></div><div class="skel-status" id="loaderStatus">${subtitle.textContent}</div></div>
-        <div class="skel-cards">${topCards}</div>
-      </div>
-      <div class="bottom-panels-row">
-        ${panel("list-panel--airing", 2)}${panel("", 1)}${panel("", 1)}
-      </div>
+    <div class="film-loader" role="status">
+      <div class="film-strip"><div class="film-track" style="--frames:${frames.length}">${round}${round}</div></div>
+      <div class="film-status" id="loaderStatus">${subtitle.textContent}</div>
     </div>`;
+}
+
+// Keeps the posters on screen for the next loading screen.
+function rememberLoaderPosters() {
+  const urls = [];
+  for (const rows of [lastRows, lastAiringPreview, lastRecentlyWatched, lastPlanToWatch]) {
+    for (const r of rows || []) if (r && r.posterUrl && !urls.includes(r.posterUrl)) urls.push(r.posterUrl);
+  }
+  if (urls.length) safeSetItem(LS_LOADER_POSTERS, JSON.stringify(urls.slice(0, 12)));
 }
 
 // The loading screen's progress line follows the subtitle ("Loading
@@ -5019,7 +5020,7 @@ function scheduleAirRefresh() {
 // sign-in, an error, a load already under way) is showing.
 async function refreshPanelsQuietly() {
   const showingPanels = () => !!document.querySelector(".bottom-panels-row, .series-panel")
-    && !app.querySelector(".spinner, .skel-page") && currentView === "list";
+    && !app.querySelector(".spinner, .film-loader") && currentView === "list";
   if (!library || !library.adapter || !showingPanels()) return;
   try {
     library.adapter.reset();
@@ -5302,6 +5303,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   if (recentlyWatched !== undefined) lastRecentlyWatched = recentlyWatched;
   if (planToWatch !== undefined) lastPlanToWatch = planToWatch;
   if (airingPreview !== undefined) lastAiringPreview = airingPreview;
+  rememberLoaderPosters();
   currentView = "list";
   safeSetItem(LS_VIEW_MODE, "list");
   updateViewModeButton();
@@ -5559,7 +5561,7 @@ async function main() {
     return;
   }
 
-  app.innerHTML = loaderHtml();
+  app.innerHTML = filmLoaderHtml();
   subtitle.textContent = "Fetching your My List\u2026";
 
   watchingListLoad = null;
@@ -5567,7 +5569,7 @@ async function main() {
     sharedCache = new TmdbCache();
     if (!(await openLibrary())) return; // the sign-in screen is showing
     sharedEpisodeCache = newEpisodeCache();
-    app.innerHTML = loaderHtml();
+    app.innerHTML = filmLoaderHtml();
     subtitle.textContent = "Fetching your My List\u2026";
     const [[rows, totalEps, totalMinutes, recentlyWatched], planToWatchRows, airingNextRows] = await Promise.all([
       getMyListRows(sharedCache, sharedEpisodeCache),
