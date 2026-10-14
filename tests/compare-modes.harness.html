@@ -341,7 +341,7 @@ async function runOnAir() {
   const limaIn = await waitFor(() => order()[0] === "Lima", 120000);
   check("the next one to end takes first place, the previous moves one along",
     limaIn && order()[1] === "Kilo", order());
-  check("no loading screen during those refreshes", !doc.querySelector("#app .spinner, #app .film-loader"));
+  check("no loading screen during those refreshes", !doc.querySelector("#app .spinner, #app .skel-page"));
   return results;
 }
 
@@ -500,7 +500,7 @@ async function runPosters() {
       if (params.get("open") === "loader") {
         const w = frame.contentWindow;
         await waitFor(() => w.document.querySelector(".series-panel-updated"));
-        w.eval("app.innerHTML = filmLoaderHtml(); subtitle.textContent = 'Loading episode lists… 37/130'");
+        w.eval("app.innerHTML = loaderHtml(); subtitle.textContent = 'Loading episode lists… 37/130'");
       }
       // ?open=cleanup: the Clean up Watching screen instead of the panels.
       if (params.get("open") === "cleanup") {

@@ -88,7 +88,7 @@
   .nav-label { line-height: 1.15; }
   .nav-item[hidden] { display: none; }
   /* Search Show and Settings: the icon alone (the name shows on hover). */
-  .nav-item.icon-only { padding-left: 12px; padding-right: 12px; }
+  @media (min-width: 721px) { .nav-item.icon-only { padding-left: 12px; padding-right: 12px; } }
   .nav-icon { line-height: 1; display: inline-flex; flex: 0 0 auto; color: var(--muted); }
   .nav-item:hover:not(.active) {
     background: linear-gradient(160deg, var(--card-hover), var(--card-hover));
@@ -929,38 +929,52 @@
     border-radius: 50%; animation: spin 0.9s linear infinite; margin: 18px auto;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-  /* The loading screen (filmLoaderHtml in app.js): posters rolling past on
-     a strip of film, the sprocket holes moving with them (82px a frame:
-     70px + the 12px gap, 0.55s each), the progress line under it. */
-  .film-loader { display: flex; flex-direction: column; align-items: center; gap: 16px; max-width: 760px; margin: 70px auto 0; }
-  .film-strip {
-    position: relative; width: 100%; height: 150px; background: #05080b; border-radius: 4px; overflow: hidden;
-    -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
-    mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  /* The loading screen (loaderHtml in app.js): the page's own outlines,
+     empty, with one light sweeping across all of them at once (the
+     gradient is fixed to the window, so every block shows the same band). */
+  .skel-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
+  .skel-page .bottom-panels-row { margin: 0; }
+  .sk {
+    border-radius: 6px;
+    background: linear-gradient(100deg, var(--card-hover) 40%, var(--border) 50%, var(--card-hover) 60%) fixed;
+    background-size: 200vw 100%;
+    animation: skel-sweep 1.6s linear infinite;
   }
-  .film-strip::before, .film-strip::after {
-    content: ""; position: absolute; left: 0; right: 0; height: 12px; z-index: 2;
-    background: repeating-linear-gradient(90deg, transparent 0 10px, rgba(201, 212, 223, 0.55) 10px 20px, transparent 20px 28px);
-    animation: film-sprockets 0.188s linear infinite;
-  }
-  .film-strip::before { top: 5px; }
-  .film-strip::after { bottom: 5px; }
-  @keyframes film-sprockets { to { background-position: -28px 0; } }
-  .film-track {
-    position: absolute; top: 22px; left: 0; display: flex; gap: 12px;
-    animation: film-roll calc(var(--frames) * 0.55s) linear infinite;
-  }
-  @keyframes film-roll { to { transform: translateX(calc(var(--frames) * -82px)); } }
-  .film-frame { flex: 0 0 auto; width: 70px; height: 105px; border-radius: 2px; overflow: hidden; background: linear-gradient(160deg, #22303e, #121a23); }
-  .film-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .film-status {
-    min-height: 1.3em; color: var(--muted); font-variant-numeric: tabular-nums;
+  @keyframes skel-sweep { from { background-position: -100vw 0; } to { background-position: 100vw 0; } }
+  .skel-head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+  .skel-stats { width: 420px; max-width: 60%; height: 40px; border-radius: 8px; }
+  .skel-status {
+    margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap;
     font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif; font-weight: 700; font-size: 1.05rem;
     letter-spacing: 0.1em; text-transform: uppercase;
   }
-  @media (prefers-reduced-motion: reduce) {
-    .film-strip::before, .film-strip::after, .film-track { animation: none; }
+  .skel-cards { display: flex; gap: 22px; overflow: hidden; }
+  .skel-card { flex: 0 0 auto; }
+  .skel-card--poster { display: flex; }
+  .skel-card--poster .skel-img { height: min(348px, 42vh); aspect-ratio: 2 / 3; border-radius: 10px; }
+  .skel-card--poster .skel-lines { width: 210px; padding: 14px; }
+  .skel-card--banner { width: 368px; display: grid; gap: 12px; }
+  .skel-card--banner .skel-img { height: 206px; border-radius: 10px; }
+  .skel-lines { display: grid; gap: 9px; align-content: start; }
+  .skel-lines .l1 { height: 16px; width: 80%; }
+  .skel-lines .l2 { height: 12px; width: 55%; }
+  .skel-lines .l3 { height: 12px; width: 68%; }
+  .skel-title { width: 170px; height: 34px; border-radius: 8px; margin-bottom: 10px; }
+  .skel-rows { display: grid; gap: 10px; }
+  .skel-rows.cols { grid-template-columns: 1fr 1fr; column-gap: 16px; }
+  .skel-row { display: flex; gap: 14px; align-items: flex-start; min-width: 0; padding: 10px 0; }
+  .skel-row .skel-thumb { flex: 0 0 auto; width: 204px; height: 115px; }
+  .skel-row .skel-lines { flex: 1 1 auto; min-width: 0; }
+  .skel-row--poster { padding: 0; }
+  .skel-row--poster .skel-thumb { width: 187px; height: 280px; border-radius: 10px; }
+  @media (max-width: 720px) {
+    .skel-cards { gap: 12px; }
+    .skel-card--poster .skel-img { height: 300px; }
+    .skel-rows.cols { grid-template-columns: 1fr; }
+    .skel-row .skel-thumb { width: 160px; height: 90px; }
+    .skel-row--poster .skel-thumb { width: 140px; height: 210px; }
   }
+  @media (prefers-reduced-motion: reduce) { .sk { animation: none; } }
   .error-box { color: var(--danger); font-size: 0.85rem; margin-top: 10px; white-space: pre-wrap; }
   a { color: var(--accent2); }
 
