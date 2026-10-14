@@ -342,9 +342,43 @@ async function runOnAir() {
   return results;
 }
 
+// ?scenario=airtimes: SIMKL's air times for episodes TVMaze lists by date
+// only - taken only when real and on the known date.
+async function runAirTimes() {
+  const { w } = await loadMode("library", false, "airtimes");
+  const results = [];
+  const check = (name, ok, detail) => results.push({ name, ok: !!ok, detail: detail === undefined ? null : detail });
+  const doc = w.document;
+  const airing = () => [...doc.querySelectorAll(".list-panel--airing .list-row")].map(r => ({
+    title: r.querySelector(".list-row-title").textContent.trim(),
+    count: (r.querySelector(".air-count:not([hidden])") || { innerText: "" }).innerText.replace(/\s+/g, " ").trim(),
+  }));
+  const airRow = t => airing().find(r => r.title === t) || {};
+  await waitFor(() => airing().length);
+  check("SIMKL's real time is taken: hours, not TODAY", airRow("November").count === "3 HOURS", airRow("November"));
+  check("SIMKL's midnight is no time: still TODAY", airRow("Sierra").count === "TODAY", airRow("Sierra"));
+  check("SIMKL's date two days off: the known date stays", airRow("Tango").count === "1 DAY", airRow("Tango"));
+  const order = airing().map(r => r.title);
+  check("the timed episode sorts before today's date-only one", order.indexOf("November") < order.indexOf("Sierra"), order);
+  const asked = w.__calls.filter(c => c.startsWith("api.simkl.com/tv/episodes/")).sort();
+  check("SIMKL asked only about shows with a date-only episode coming up",
+    JSON.stringify(asked) === JSON.stringify(["api.simkl.com/tv/episodes/28", "api.simkl.com/tv/episodes/29", "api.simkl.com/tv/episodes/30"]), asked);
+  // A refresh: the lists come from the cache, SIMKL isn't asked again.
+  await rerender(w, () => w.eval("main")());
+  const askedAgain = w.__calls.filter(c => c.startsWith("api.simkl.com/tv/episodes/")).length;
+  check("a refresh doesn't ask SIMKL again", askedAgain === 3 && airRow("November").count === "3 HOURS", { askedAgain, november: airRow("November") });
+  return results;
+}
+
 (async () => {
   const out = document.getElementById("result");
   try {
+    if (params.get("scenario") === "airtimes" && !params.get("show")) {
+      const results = await runAirTimes();
+      out.dataset.done = "1";
+      out.textContent = JSON.stringify({ writes: results }, null, 1);
+      return;
+    }
     if (params.get("scenario") === "onair" && !params.get("show")) {
       const results = await runOnAir();
       out.dataset.done = "1";

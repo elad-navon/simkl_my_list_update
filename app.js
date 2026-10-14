@@ -634,15 +634,33 @@ async function simklGet(path, token, extraParams) {
 // bridge exist once signed in and loaded.
 let library = null;
 
-// Only the TVMaze parts of the episode source go to disk (IndexedDB): the
-// TMDB requests it makes go through the app's own TmdbCache (see
-// libraryTmdbGet), which already persists them.
+// Only the TVMaze and SIMKL parts of the episode lists go to disk
+// (IndexedDB): the TMDB requests the episode source makes go through the
+// app's own TmdbCache (see libraryTmdbGet), which already persists them.
+let libraryCache = null;
+function libraryListCache() {
+  if (!libraryCache) {
+    libraryCache = LibraryAdapter.idbCache({ persist: key => key.startsWith("tvmaze-") || key.startsWith("simkl-") });
+  }
+  return libraryCache;
+}
+
 function libraryEpisodeSource() {
   return EpisodeSource.createEpisodeSource({
     fetch: (...args) => fetch(...args),
     tmdbGet: libraryTmdbGet,
-    cache: LibraryAdapter.idbCache({ persist: key => key.startsWith("tvmaze-") }),
+    cache: libraryListCache(),
     useUpdates: true,
+  });
+}
+
+// Air times from SIMKL for episodes the lists know only the date of (see
+// air-times.js) - only while this browser is connected to SIMKL.
+function libraryAirTimes() {
+  return AirTimes.createSimklAirTimes({
+    get: (path, params) => simklGet(path, null, params),
+    cache: libraryListCache(),
+    connected: simklConnected,
   });
 }
 
@@ -706,6 +724,7 @@ async function openLibrary() {
     library.adapter = LibraryAdapter.createLibraryAdapter({
       core: LibraryCore, store, source: library.source, appendAfter: EpisodeSource.appendAfter,
       showMeta: libraryShowMeta,
+      airTimes: libraryAirTimes(),
       onProgress: (done, total) => {
         if (total > 5 && done < total) subtitle.textContent = `Loading episode lists… ${done}/${total}`;
       },

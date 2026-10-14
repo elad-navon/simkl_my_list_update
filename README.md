@@ -22,8 +22,9 @@ page.
   [MDBList](https://mdblist.com) and TMDB.
 - **SIMKL is optional.** If something marks episodes watched on SIMKL
   for you (e.g. the Emby plugin), the site copies them into your library
-  automatically. Nothing else depends on SIMKL, and nothing is ever
-  written to it.
+  automatically, and takes SIMKL's air times for streaming episodes
+  TVMaze lists by date only. Nothing else depends on SIMKL, and nothing
+  is ever written to it.
 
 ## Setup
 
@@ -88,6 +89,7 @@ signed-in account.
 | `firebase-backend.js` | Google sign-in and Firestore (`users/{uid}/shows/{id}`, `users/{uid}/meta/{name}`). |
 | `library-adapter.js` | Answers the page's questions from the library, in the item shape the row builders were written against. |
 | `simkl-bridge.js` | The optional SIMKL auto-marking. |
+| `air-times.js` | The optional SIMKL air times for date-only episodes. |
 | `app.js` | The page itself. |
 
 A show's document id is its TMDB id; a show TMDB doesn't know is kept
@@ -150,6 +152,20 @@ few marks (e.g. `autoStarted`). Everything else is fetched.
   added as Watching; Completed and Dropped keep their status.
 - How far it has read is kept in the library, shared by every device.
 
+**SIMKL air times** (`air-times.js`), when connected
+- Many streaming episodes come with a date only. A show with such an
+  episode from yesterday to 3 days ahead gets SIMKL's episode list
+  (kept 6 hours, so a refresh doesn't ask again), and the episode takes
+  SIMKL's time when:
+  - it's a real time: SIMKL's midnight (in its own timezone) means "some
+    time that day", the same as no time;
+  - SIMKL's date is within a day of the known one (a US evening release
+    is the next day here). Further off is a disagreement: the known date
+    stays.
+- The fetched list is kept for 30 days, so an episode keeps its time
+  after it airs. Not connected, or SIMKL slow or failing: date only, as
+  before.
+
 ## Backups and recovery
 
 - **Settings → Download backup** saves the whole library as a JSON file;
@@ -174,13 +190,15 @@ on the same address as the site.
 ## Tests
 
 - `node --test "tests/*.test.js"`: the core rules, the episode source,
-  the store, the adapter, the SIMKL bridge and the database writes.
+  the store, the adapter, the SIMKL bridge, the air times and the
+  database writes.
 - In a browser, through a local web server at the project root:
   - `tests/compare-modes.harness.html`: the real page against a fake
     world, compared with `tests/golden/panels.json` (what the
     SIMKL-backed site showed for the same world).
-    `?scenario=writes|ui|bridge` covers changes, the surrounding
-    screens, and the auto-marking.
+    `?scenario=writes|ui|bridge|onair|airtimes` covers changes, the
+    surrounding screens, the auto-marking, the airing countdowns and
+    SIMKL's air times.
   - `tests/migrate-tool.harness.html` and
     `tests/import-tool.harness.html`: the two tools.
 
