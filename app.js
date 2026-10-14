@@ -5309,10 +5309,10 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   updateViewModeButton();
 
   const bottomPanelsHtml = [
-    // Airing Next first (the wide one), then Recently Watched, Plan to Watch.
+    // Airing Next first (the wide one), then Plan to Watch, Recently Watched.
     renderAiringNextPreviewHtml(lastAiringPreview),
-    renderRecentlyWatchedHtml(lastRecentlyWatched),
     renderPlanToWatchHtml(lastPlanToWatch),
+    renderRecentlyWatchedHtml(lastRecentlyWatched),
   ].filter(Boolean).join("");
   const bottomPanelsWrapped = bottomPanelsHtml
     ? `<div class="bottom-panels-row">${bottomPanelsHtml}</div>`
