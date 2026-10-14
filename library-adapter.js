@@ -20,13 +20,15 @@
     error: "Not saved",
   };
 
-  // createLibraryAdapter({ core, store, source, appendAfter, showMeta, now, onProgress })
+  // createLibraryAdapter({ core, store, source, appendAfter, showMeta, airTimes, now, onProgress })
   // - core: LibraryCore; store: a LibraryStore (already loaded)
   // - source: an EpisodeSource; appendAfter: EpisodeSource.appendAfter
   // - showMeta(tmdbId): optional, resolves to { title, year, imdb, tvdb }
   //   from TMDB (English title) - fills in a show being added
+  // - airTimes(ids, episodes): optional, resolves to the episodes with air
+  //   times filled in where only dates were known (air-times.js)
   // - onProgress(done, total): optional, while episode lists load
-  function createLibraryAdapter({ core, store, source, appendAfter, showMeta, now = () => Date.now(), onProgress }) {
+  function createLibraryAdapter({ core, store, source, appendAfter, showMeta, airTimes, now = () => Date.now(), onProgress }) {
     let episodeMemo = new Map(); // docId -> Promise<episodes>
     const failures = new Map();  // docId -> title, shows whose list couldn't load
     let progress = { done: 0, total: 0 };
@@ -48,6 +50,13 @@
     // snapshot of the old service's list - followed by every episode the
     // outside sources list after it, aired or not (EpisodeSource.appendAfter).
     async function loadEpisodes(docId, show) {
+      const eps = await loadListedEpisodes(docId, show);
+      if (!airTimes || !eps.length) return eps;
+      const ids = { ...(await sourceIds(show)), simklLegacy: show.ids.simklLegacy != null ? show.ids.simklLegacy : null };
+      return airTimes(ids, eps).catch(() => eps);
+    }
+
+    async function loadListedEpisodes(docId, show) {
       const ids = await sourceIds(show);
       try {
         if (show.episodeSource === "snapshot" && Array.isArray(show.snapshotEpisodes)) {

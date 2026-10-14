@@ -79,6 +79,25 @@
         eps: [ep(1, { day: -7 }), ep(2, { at: (5 * 60 + 20) * 60000 }), ep(3, { day: 8 })], watched: [[1, 1, -6]] },
     );
   }
+  // ?scenario=airtimes: episodes TVMaze knows only the date of, and the
+  // time SIMKL gives each (`simklDate`): November's real time 3 hours in
+  // (taken), Sierra's midnight in SIMKL's timezone ("some time that day" -
+  // not taken), Tango's two days off the known date (a disagreement - not
+  // taken).
+  if (window.__SCENARIO === "airtimes") {
+    const ep = (number, x) => ({ season: 1, number, ...x });
+    SHOWS.push(
+      { title: "November", simkl: 28, tmdb: 118, tvmaze: 1018, status: "watching", ended: false,
+        eps: [ep(1, { day: -7 }), ep(2, { day: 0, dateOnly: true, simklDate: new Date(BASE + 3 * 3600000).toISOString() }), ep(3, { day: 7, dateOnly: true })],
+        watched: [[1, 1, -6]] },
+      { title: "Sierra", simkl: 29, tmdb: 119, tvmaze: 1019, status: "watching", ended: false,
+        eps: [ep(1, { day: -7 }), ep(2, { day: 0, dateOnly: true, simklDate: `${localDate(stamp(0))}T00:00:00-04:00` })],
+        watched: [[1, 1, -6]] },
+      { title: "Tango", simkl: 30, tmdb: 120, tvmaze: 1020, status: "watching", ended: false,
+        eps: [ep(1, { day: -7 }), ep(2, { day: 1, dateOnly: true, simklDate: `${localDate(stamp(3))}T21:00:00-04:00` })],
+        watched: [[1, 1, -6]] },
+    );
+  }
   for (const s of SHOWS) {
     s.imdb = `tt${s.tmdb}`;
     s.tvdb = 9000 + s.tmdb;
@@ -164,7 +183,7 @@
       if ((m = /^\/sync\/all-items\/shows\/(\w+)$/.exec(p))) return json(SHOWS.filter(s => s.status === m[1]).map(simklItem));
       if ((m = /^\/tv\/episodes\/(\d+)$/.exec(p))) {
         const s = SHOWS.find(x => String(x.simkl) === m[1]);
-        return json(s.eps.map(e => ({ season: e.season, episode: e.number, date: e.airstamp, title: e.name })));
+        return json(s.eps.map(e => ({ type: "episode", season: e.season, episode: e.number, date: e.simklDate || e.airstamp, title: e.name })));
       }
       if (/^\/tv\/\d+$/.test(p)) return json({});
       // ?scenario=bridge: Emby marked Alpha S02E02 watched on SIMKL an hour ago.
@@ -198,7 +217,7 @@
       }
       if ((m = /^\/shows\/(\d+)\/episodes$/.exec(p))) {
         const s = SHOWS.find(x => String(x.tvmaze) === m[1]);
-        return json(s.eps.map(e => ({ id: e.id, season: e.season, number: e.number, name: e.name, airdate: localDate(e.airstamp) || "", airtime: e.airstamp ? "21:00" : "", airstamp: e.airstamp, runtime: e.runtime || 45 })));
+        return json(s.eps.map(e => ({ id: e.id, season: e.season, number: e.number, name: e.name, airdate: localDate(e.airstamp) || "", airtime: e.airstamp && !e.dateOnly ? "21:00" : "", airstamp: e.airstamp, runtime: e.runtime || 45 })));
       }
       if (p === "/updates/shows") return json({});
       return json(null, 404);

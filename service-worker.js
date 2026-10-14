@@ -1,4 +1,4 @@
-const CACHE_NAME = "tvseries-shell-v22";
+const CACHE_NAME = "tvseries-shell-v23";
 const SHELL_FILES = [
   "./",
   "./index.html",
@@ -8,6 +8,7 @@ const SHELL_FILES = [
   "./episode-source.js",
   "./library-store.js",
   "./firebase-backend.js",
+  "./air-times.js",
   "./library-adapter.js",
   "./simkl-bridge.js",
   "./manifest.json",
