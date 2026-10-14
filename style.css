@@ -1528,6 +1528,16 @@
   .card-menu-item:disabled:hover { background: transparent; }
   .card-menu-sep { height: 1px; background: rgba(255,255,255,0.1); margin: 6px 4px; }
 
+  /* Dark theme: the panels stand out from the page - a darker page behind
+     them, a brighter outline and a deep shadow with a light top edge (the
+     outline stays 1px, so nothing moves). */
+  body:not(.light-theme) { --bg: #070a0e; }
+  body:not(.light-theme) .series-panel,
+  body:not(.light-theme) .list-panel {
+    background: #1b2633; border-color: #56708f;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  }
+
   /* Light theme overrides - toggled via body.light-theme.
      "Warm Ivory": a dimmed cream (~90% lightness), not stark white - and the
      accent/gold/danger get their OWN light-tuned values instead of inheriting
