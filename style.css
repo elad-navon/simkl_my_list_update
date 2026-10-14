@@ -929,6 +929,38 @@
     border-radius: 50%; animation: spin 0.9s linear infinite; margin: 18px auto;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+  /* The loading screen (filmLoaderHtml in app.js): posters rolling past on
+     a strip of film, the sprocket holes moving with them (82px a frame:
+     70px + the 12px gap, 0.55s each), the progress line under it. */
+  .film-loader { display: flex; flex-direction: column; align-items: center; gap: 16px; max-width: 760px; margin: 70px auto 0; }
+  .film-strip {
+    position: relative; width: 100%; height: 150px; background: #05080b; border-radius: 4px; overflow: hidden;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  }
+  .film-strip::before, .film-strip::after {
+    content: ""; position: absolute; left: 0; right: 0; height: 12px; z-index: 2;
+    background: repeating-linear-gradient(90deg, transparent 0 10px, rgba(201, 212, 223, 0.55) 10px 20px, transparent 20px 28px);
+    animation: film-sprockets 0.188s linear infinite;
+  }
+  .film-strip::before { top: 5px; }
+  .film-strip::after { bottom: 5px; }
+  @keyframes film-sprockets { to { background-position: -28px 0; } }
+  .film-track {
+    position: absolute; top: 22px; left: 0; display: flex; gap: 12px;
+    animation: film-roll calc(var(--frames) * 0.55s) linear infinite;
+  }
+  @keyframes film-roll { to { transform: translateX(calc(var(--frames) * -82px)); } }
+  .film-frame { flex: 0 0 auto; width: 70px; height: 105px; border-radius: 2px; overflow: hidden; background: linear-gradient(160deg, #22303e, #121a23); }
+  .film-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .film-status {
+    min-height: 1.3em; color: var(--muted); font-variant-numeric: tabular-nums;
+    font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif; font-weight: 700; font-size: 1.05rem;
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .film-strip::before, .film-strip::after, .film-track { animation: none; }
+  }
   .error-box { color: var(--danger); font-size: 0.85rem; margin-top: 10px; white-space: pre-wrap; }
   a { color: var(--accent2); }
 
