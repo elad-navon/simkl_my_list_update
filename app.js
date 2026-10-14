@@ -53,6 +53,7 @@ const LS_AUTH_V2 = "simkl_auth_v2";
 const LS_IMAGE_MODE = "simkl_image_mode"; // "poster" | "banner"
 const LS_THEME = "simkl_theme"; // "light" | "dark"
 const LS_PANEL_LAYOUT = "simkl_panel_layout"; // "paged" (one-page, default) | "scroll" (older vertically scrolling panels)
+const LS_PANEL_IMAGES = "panel_image_mode"; // "banner" (default) | "poster" - the three bottom panels' thumbnails
 const LS_VIEW_MODE = "simkl_view_mode";   // "list" or "airing" (not restored on load - always starts on "list")
 
 // How much of the origin's localStorage the persisted API cache may take. A browser gives a whole address
@@ -3898,7 +3899,32 @@ function updateImageModeButton() {
   const mode = getImageMode();
   const nextLabel = mode === "poster" ? "Banners" : "Posters";
   const icon = mode === "poster" ? ICON_BANNER_SHAPE : ICON_POSTER_SHAPE;
-  btn.innerHTML = `<span class="nav-icon">${icon}</span>Switch to ${nextLabel}`;
+  btn.innerHTML = `<span class="nav-icon">${icon}</span><span class="nav-label">Switch to<br>${nextLabel}</span>`;
+}
+
+// The bottom panels' thumbnails: banners (two shows stacked per page) or
+// posters in L-shaped pairs, exactly like the top panel's poster mode (two
+// posters as tall as the two banner rows were, sharing the details column
+// between them) - the panels keep their size either way; a pair wider than
+// its panel is cut at the edge and comes in with a drag. Only in the
+// one-page layout; the older scrolling panels stay with banners.
+function panelPosters() {
+  return localStorage.getItem(LS_PANEL_IMAGES) === "poster" && !isScrollLayout();
+}
+
+function applyPanelImages() {
+  document.body.classList.toggle("panel-posters", panelPosters());
+  const btn = document.getElementById("panelImagesBtn");
+  if (!btn) return;
+  btn.hidden = isScrollLayout();
+  const posters = panelPosters();
+  btn.title = posters ? "Show banners in the panels below" : "Show posters in the panels below";
+  btn.innerHTML = `<span class="nav-icon">${posters ? ICON_BANNER_SHAPE : ICON_POSTER_SHAPE}</span><span class="nav-label">Panels to<br>${posters ? "Banners" : "Posters"}</span>`;
+}
+
+// A bottom-panel thumbnail's image: the kind the panels show, else the other.
+function panelThumbSrc(row) {
+  return panelPosters() ? (row.posterUrl || row.bannerUrl) : (row.bannerUrl || row.posterUrl);
 }
 
 function applyStoredTheme() {
@@ -3922,6 +3948,7 @@ function isScrollLayout() {
 function applyPanelLayout() {
   document.body.classList.toggle("panels-scroll", isScrollLayout());
   updateLayoutToggleButton();
+  applyPanelImages();
 }
 
 function updateLayoutToggleButton() {
@@ -4600,13 +4627,12 @@ function closeImagePicker() {
 // thumbnail (Recently Watched / Plan to Watch / Airing Next), matching the
 // same convention cardImageBits uses for the top carousel card.
 //
-// These thumbnails always show the banner if the show has one (falling
-// back to the poster) regardless of the sidebar's poster/banner toggle -
-// so the picker has to list whichever of the two is actually on screen,
-// not blindly follow getImageMode() (which governs the top carousel and
-// may point at the other, unrelated image type).
+// These thumbnails show the panels' own image kind (panelThumbSrc: banners,
+// or posters with Panels to Posters), falling back to the other one - so
+// the picker has to list whichever of the two is actually on screen, not
+// follow getImageMode() (which governs the top carousel).
 function thumbCycleAttrs(row, source, idx) {
-  const mode = row.bannerUrl ? "banner" : "poster";
+  const mode = panelPosters() ? (row.posterUrl ? "poster" : "banner") : (row.bannerUrl ? "banner" : "poster");
   const cfg = IMAGE_MODE_CONFIG[mode];
   const altCount = (row[cfg.pathsKey] || []).length;
   if (altCount <= 1 && !row.imdbId) return { cycleableClass: "", attrs: "", mode };
@@ -4798,6 +4824,33 @@ function pagedColumnsHtml(list, rowHtmlFn) {
   };
 }
 
+// Panels to Posters: one page per pair of shows, an L-shaped tile each (see
+// .panel-pair, the top panel's .poster-pair rules), an odd last show on its
+// own. A pair is as wide as it needs - wider than a narrow panel, where the
+// second poster is cut at the edge and comes in with a drag. byShow: the
+// arrows step one show (poster + its details) at a time, not a pair
+// (trackStops) - for the narrow panels.
+function pairedPanelHtml(list, rowHtmlFn, { byShow = false } = {}) {
+  const n = list.length;
+  const pages = [];
+  for (let s = 0; s < n; s += 2) {
+    const items = list.slice(s, s + 2);
+    pages.push(`<div class="list-page list-page--pair" data-range="${pagedRangeLabel(s, s + items.length, n)}">` +
+      `<div class="panel-pair${items.length === 1 ? " single" : ""}">${items.map((item, i) => rowHtmlFn(item, s + i)).join("")}</div></div>`);
+  }
+  return {
+    pagerHtml: pagerControlsHtml(n ? pagedRangeLabel(0, byShow ? 1 : Math.min(2, n), n) : "", byShow ? n > 1 : pages.length > 1),
+    rowsWrapHtml: `<div class="list-rows-paged list-rows-paged--pairs${byShow ? " by-show" : ""}">${pages.join("\n")}</div>`,
+  };
+}
+
+// A row's details: in a pair they sit in the tile's half-height box
+// (.list-row-body), its text measured inside it (fitPanelRowLines).
+function rowDetailsHtml(inner) {
+  const wrap = `<div class="list-row-title-wrap">${inner}</div>`;
+  return panelPosters() ? `<div class="list-row-body">${wrap}</div>` : wrap;
+}
+
 // Bottom-panel row frames alternate between the top panel's two pair colors
 // (blue / brown) - Airing Next's two visible columns as a checkerboard.
 function rowToneClass(idx, checker) {
@@ -4815,7 +4868,7 @@ function renderRecentlyWatchedHtml(list) {
   if (!list || !list.length) return "";
   const scroll = isScrollLayout();
   const rowHtmlFn = (ep, idx) => {
-    const bannerSrc = ep.bannerUrl || ep.posterUrl;
+    const bannerSrc = panelThumbSrc(ep);
     const { cycleableClass, attrs, mode } = thumbCycleAttrs(ep, "watched", idx);
     const thumbHtml = bannerSrc
       ? `<img class="list-thumb" loading="lazy" src="${bannerSrc}" alt="${ep.title}" onerror="handleThumbError(this, 'watched', ${idx}, '${mode}')">`
@@ -4823,11 +4876,11 @@ function renderRecentlyWatchedHtml(list) {
     return `
       <div class="list-row ${rowToneClass(idx)}">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}${scroll ? "" : thumbBarHtml("", ep)}</div>
-        <div class="list-row-title-wrap">${rowInfoWrapHtml(ep, idx, "watched", "row")}</div>
+        ${rowDetailsHtml(rowInfoWrapHtml(ep, idx, "watched", "row"))}
         ${scroll ? `<span class="list-check">${CHECK_ICON_SVG}</span>` : ""}
       </div>`;
   };
-  const { pagerHtml, rowsWrapHtml } = scroll ? scrollPanelHtml(list, rowHtmlFn) : pagedPanelHtml(list, 2, rowHtmlFn);
+  const { pagerHtml, rowsWrapHtml } = scroll ? scrollPanelHtml(list, rowHtmlFn) : panelPosters() ? pairedPanelHtml(list, rowHtmlFn, { byShow: true }) : pagedPanelHtml(list, 2, rowHtmlFn);
 
   return `
     <div class="list-panel list-panel--watched">
@@ -4844,7 +4897,7 @@ function renderPlanToWatchHtml(list) {
   if (!list || !list.length) return "";
   const scroll = isScrollLayout();
   const rowHtmlFn = (row, idx) => {
-    const bannerSrc = row.bannerUrl || row.posterUrl;
+    const bannerSrc = panelThumbSrc(row);
     const { cycleableClass, attrs, mode } = thumbCycleAttrs(row, "plan", idx);
     const thumbHtml = bannerSrc
       ? `<img class="list-thumb" loading="lazy" src="${bannerSrc}" alt="${row.title}" onerror="handleThumbError(this, 'plan', ${idx}, '${mode}')">`
@@ -4852,12 +4905,12 @@ function renderPlanToWatchHtml(list) {
     return `
       <div class="list-row ${rowToneClass(idx)}">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}${scroll ? "" : thumbBarHtml(imdbButtonHtml(row.imdbId, row.imdbRating, row.ratings))}</div>
-        <div class="list-row-title-wrap">${rowInfoWrapHtml(row, idx, "plan", "row")}</div>
+        ${rowDetailsHtml(rowInfoWrapHtml(row, idx, "plan", "row"))}
         ${scroll ? `<span class="list-check">${STAR_ICON_SVG}</span>` : ""}
         <button class="card-menu-btn plan-menu-btn" title="Manage" onclick="event.stopPropagation(); openPlanCardMenu(${idx}, this)">&#8942;</button>
       </div>`;
   };
-  const { pagerHtml, rowsWrapHtml } = scroll ? scrollPanelHtml(list, rowHtmlFn) : pagedPanelHtml(list, 2, rowHtmlFn);
+  const { pagerHtml, rowsWrapHtml } = scroll ? scrollPanelHtml(list, rowHtmlFn) : panelPosters() ? pairedPanelHtml(list, rowHtmlFn, { byShow: true }) : pagedPanelHtml(list, 2, rowHtmlFn);
 
   return `
     <div class="list-panel list-panel--plan">
@@ -4955,7 +5008,7 @@ function renderAiringNextPreviewHtml(list) {
   if (!list || !list.length) return "";
   const scroll = isScrollLayout();
   const rowHtmlFn = (row, idx) => {
-    const bannerSrc = row.bannerUrl || row.posterUrl;
+    const bannerSrc = panelThumbSrc(row);
     const { cycleableClass, attrs, mode } = thumbCycleAttrs(row, "airing", idx);
     const thumbHtml = bannerSrc
       ? `<img class="list-thumb" loading="lazy" src="${bannerSrc}" alt="${row.title}" onerror="handleThumbError(this, 'airing', ${idx}, '${mode}')">`
@@ -4963,11 +5016,11 @@ function renderAiringNextPreviewHtml(list) {
     return `
       <div class="list-row ${rowToneClass(idx, true)}">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}${scroll ? "" : thumbBarHtml(imdbButtonHtml(row.imdbId, row.imdbRating, row.ratings), row)}${airCountHtml(row)}</div>
-        <div class="list-row-title-wrap">${rowInfoWrapHtml(row, idx, "airing", "row")}</div>
+        ${rowDetailsHtml(rowInfoWrapHtml(row, idx, "airing", "row"))}
         ${scroll ? `<span class="list-check">${BELL_ICON_SVG}</span>` : ""}
       </div>`;
   };
-  const { pagerHtml, rowsWrapHtml } = scroll ? scrollPanelHtml(list, rowHtmlFn) : pagedColumnsHtml(list, rowHtmlFn);
+  const { pagerHtml, rowsWrapHtml } = scroll ? scrollPanelHtml(list, rowHtmlFn) : panelPosters() ? pairedPanelHtml(list, rowHtmlFn) : pagedColumnsHtml(list, rowHtmlFn);
 
   return `
     <div class="list-panel list-panel--airing">
@@ -4986,26 +5039,47 @@ function pagerArrowClick(btn, dir) {
   if (track) scrollTrackByPage(track, dir);
 }
 
-// One snap step's width (a full page, or one half-width column plus its gap
-// for Airing Next), the last reachable step, and the step nearest the
-// track's current position.
+// Where the arrows stop: [{ left, range }] - each page (a full page, one
+// half-width column of Airing Next, or a pair of posters), or in a by-show
+// track each show (a pair's first show at the pair, its second where its
+// details box starts). A stop past the end lands on the end; of stops that
+// land together, the first one's range is kept.
+function trackStops(track) {
+  const base = track.getBoundingClientRect().left - track.scrollLeft;
+  const leftOf = el => el.getBoundingClientRect().left - base;
+  const stops = [];
+  if (track.classList.contains("by-show")) {
+    const rows = [...track.querySelectorAll(".list-row")];
+    rows.forEach((row, i) => {
+      const anchor = row.previousElementSibling ? row.querySelector(".list-row-body") : row.parentElement;
+      stops.push({ left: leftOf(anchor), range: pagedRangeLabel(i, i + 1, rows.length) });
+    });
+  } else {
+    for (const page of track.children) stops.push({ left: leftOf(page), range: page.dataset.range });
+  }
+  const max = Math.max(0, track.scrollWidth - track.clientWidth);
+  const out = [];
+  for (const st of stops) {
+    const left = Math.round(Math.min(Math.max(0, st.left), max));
+    if (!out.length || Math.abs(out[out.length - 1].left - left) >= 2) out.push({ left, range: st.range });
+  }
+  return out;
+}
+
+// The stops, and the one nearest the track's current position.
 function trackSnapMetrics(track) {
-  const kids = track.children;
-  if (!kids.length) return null;
-  const unit = kids.length > 1
-    ? kids[1].getBoundingClientRect().left - kids[0].getBoundingClientRect().left
-    : track.clientWidth;
-  if (!unit) return null;
-  const maxIdx = Math.max(0, Math.round((track.scrollWidth - track.clientWidth) / unit));
-  const idx = Math.max(0, Math.min(maxIdx, Math.round(track.scrollLeft / unit)));
-  return { unit, maxIdx, idx };
+  const stops = trackStops(track);
+  if (!stops.length) return null;
+  let idx = 0;
+  stops.forEach((st, i) => { if (Math.abs(st.left - track.scrollLeft) < Math.abs(stops[idx].left - track.scrollLeft)) idx = i; });
+  return { stops, idx, maxIdx: stops.length - 1 };
 }
 
 function scrollTrackByPage(track, dir) {
   const m = trackSnapMetrics(track);
   if (!m || !m.maxIdx) return;
   const next = Math.max(0, Math.min(m.maxIdx, m.idx + dir));
-  track.scrollTo({ left: next * m.unit, behavior: "smooth" });
+  track.scrollTo({ left: m.stops[next].left, behavior: "smooth" });
 }
 
 // Keeps a panel's header range text ("3-4 of 20") and arrow disabled-states
@@ -5016,11 +5090,11 @@ function updatePagerUiForTrack(track) {
   const panel = track.closest(".list-panel");
   const m = trackSnapMetrics(track);
   if (!panel || !m) return;
-  const page = track.children[m.idx];
+  const stop = m.stops[m.idx];
   const rangeEl = panel.querySelector(".list-pager-range");
   const prevBtn = panel.querySelector(".list-pager-arrow.prev");
   const nextBtn = panel.querySelector(".list-pager-arrow.next");
-  if (rangeEl && page) rangeEl.textContent = page.dataset.range;
+  if (rangeEl && stop && stop.range) rangeEl.textContent = stop.range;
   if (prevBtn) prevBtn.classList.toggle("off", m.idx === 0);
   if (nextBtn) nextBtn.classList.toggle("off", m.idx === m.maxIdx);
 }
@@ -5061,8 +5135,16 @@ function fitPanelRowLines() {
     pending.forEach(it => {
       it.fixedH = it.wrap.getBoundingClientRect().height - lineH.get(it.title) - (it.ep ? lineH.get(it.ep) : 0);
       it.fixedLines = [...it.wrap.children].filter(c => c !== it.title && c !== it.ep && c.offsetHeight > 0).length;
-      const thumb = it.wrap.parentElement.querySelector(".list-thumb-wrap");
-      it.maxH = (thumb ? thumb.getBoundingClientRect().height : 0) + 0.5;
+      // The text never grows taller than the thumbnail - or, in a pair,
+      // than the half-height box it sits in.
+      const box = it.wrap.closest(".list-row-body");
+      if (box) {
+        const cs = getComputedStyle(box);
+        it.maxH = box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) + 0.5;
+      } else {
+        const thumb = it.wrap.parentElement.querySelector(".list-thumb-wrap");
+        it.maxH = (thumb ? thumb.getBoundingClientRect().height : 0) + 0.5;
+      }
     });
     flex.forEach(el => el.style.setProperty("-webkit-line-clamp", "none"));
     const need = new Map(flex.map(el => [el, Math.max(1, Math.round(el.getBoundingClientRect().height / (lineH.get(el) || 1)))]));
@@ -5191,8 +5273,9 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   updateViewModeButton();
 
   const bottomPanelsHtml = [
-    renderRecentlyWatchedHtml(lastRecentlyWatched),
+    // Airing Next first (the wide one), then Recently Watched, Plan to Watch.
     renderAiringNextPreviewHtml(lastAiringPreview),
+    renderRecentlyWatchedHtml(lastRecentlyWatched),
     renderPlanToWatchHtml(lastPlanToWatch),
   ].filter(Boolean).join("");
   const bottomPanelsWrapped = bottomPanelsHtml
@@ -5496,6 +5579,15 @@ document.getElementById("imageModeBtn").onclick = () => {
   } else {
     updateImageModeButton();
   }
+};
+// Panels to Posters / Banners: redrawn at once from what's loaded, each
+// panel back at its first page (a page holds a different number of shows).
+document.getElementById("panelImagesBtn").onclick = () => {
+  safeSetItem(LS_PANEL_IMAGES, panelPosters() ? "banner" : "poster");
+  applyPanelImages();
+  if (currentView !== "list" || !lastRows) return;
+  document.querySelectorAll(".list-rows-paged").forEach(track => { track.scrollLeft = 0; });
+  renderRows(lastRows, lastTotalEps, lastTotalMinutes);
 };
 updateImageModeButton();
 updateViewModeButton();

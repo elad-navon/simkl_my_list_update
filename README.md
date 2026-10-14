@@ -49,9 +49,12 @@ signed-in account.
 ## Features
 
 - **Single-page dashboard**: a top bar (logo, live clock and date, Switch
-  to Banners, Search Show, Settings, greeting and avatar), the **My
-  List** carousel, and three panels below it: **Recently Watched**,
-  **Airing Next** and **Plan to Watch**.
+  to Banners, Panels to Posters, Search Show, Settings, greeting and
+  avatar), the **My List** carousel, and three panels below it:
+  **Recently Watched**, **Airing Next** and **Plan to Watch**.
+- **Panels to Posters**: the three panels show one poster per page (two
+  side by side in Airing Next) with the details beside it, instead of
+  two banners - the panels keep their size. Remembered on this device.
 - **My List cards**: poster or banner, a progress bar, total / available
   / watched / remaining episodes, time left (*next episode / all
   remaining*), the next episode with its title, and premiere / finale
