@@ -54,6 +54,7 @@ const LS_IMAGE_MODE = "simkl_image_mode"; // "poster" | "banner"
 const LS_THEME = "simkl_theme"; // "light" | "dark"
 const LS_PANEL_LAYOUT = "simkl_panel_layout"; // "paged" (one-page, default) | "scroll" (older vertically scrolling panels)
 const LS_PANEL_IMAGES = "panel_image_mode"; // "banner" (default) | "poster" - the three bottom panels' thumbnails
+const LS_LOADER_POSTERS = "loader_posters"; // the posters the loading screen rolls past (the last ones shown)
 const LS_VIEW_MODE = "simkl_view_mode";   // "list" or "airing" (not restored on load - always starts on "list")
 
 // How much of the origin's localStorage the persisted API cache may take. A browser gives a whole address
@@ -137,6 +138,40 @@ function dropOldCacheUntil(write) {
 
 const app = document.getElementById("app");
 const subtitle = document.getElementById("subtitle");
+
+// The loading screen: the posters last shown here rolling past on a strip
+// of film, the progress line (the subtitle's text) under it. Plain frames
+// until a first load has kept any posters; at least 10 frames, so one round
+// of the strip is always wider than the screen.
+function filmLoaderHtml() {
+  let urls = [];
+  try { urls = JSON.parse(localStorage.getItem(LS_LOADER_POSTERS) || "[]"); } catch (e) { urls = []; }
+  if (!Array.isArray(urls)) urls = [];
+  const frames = urls.length ? urls.slice(0, 12) : [""];
+  while (frames.length < 10) frames.push(...frames.slice(0, 10 - frames.length));
+  const round = frames.map(u => `<div class="film-frame">${u ? `<img src="${u}" alt="" onerror="this.remove()">` : ""}</div>`).join("");
+  return `
+    <div class="film-loader" role="status">
+      <div class="film-strip"><div class="film-track" style="--frames:${frames.length}">${round}${round}</div></div>
+      <div class="film-status" id="loaderStatus">${subtitle.textContent}</div>
+    </div>`;
+}
+
+// Keeps the posters on screen for the next loading screen.
+function rememberLoaderPosters() {
+  const urls = [];
+  for (const rows of [lastRows, lastAiringPreview, lastRecentlyWatched, lastPlanToWatch]) {
+    for (const r of rows || []) if (r && r.posterUrl && !urls.includes(r.posterUrl)) urls.push(r.posterUrl);
+  }
+  if (urls.length) safeSetItem(LS_LOADER_POSTERS, JSON.stringify(urls.slice(0, 12)));
+}
+
+// The loading screen's progress line follows the subtitle ("Loading
+// episode lists… 37/130").
+new MutationObserver(() => {
+  const el = document.getElementById("loaderStatus");
+  if (el) el.textContent = subtitle.textContent;
+}).observe(subtitle, { childList: true, characterData: true, subtree: true });
 
 function getImageMode() {
   return localStorage.getItem(LS_IMAGE_MODE) === "banner" ? "banner" : "poster";
@@ -4027,17 +4062,17 @@ function syncImageAcrossCards(tmdbId, cfg, index, url) {
 }
 
 // What a given card is actually showing right now, matching the exact
-// rule each render function uses (cardImageBits for "main", "whichever
-// of banner/poster is present" for the three bottom panels via
-// thumbCycleAttrs) - kept in sync with those so a patched <img> always
-// shows what a full re-render of that same row would have shown.
+// rule each render function uses (cardImageBits for "main", panelThumbSrc
+// for the three bottom panels - banners, or posters with Panels to
+// Posters) - kept in sync with those so a patched <img> always shows what
+// a full re-render of that same row would have shown.
 function displaySrcFor(source, row) {
   if (source === "main") {
     const mode = getImageMode();
     const cfg = IMAGE_MODE_CONFIG[mode];
     return mode === "banner" ? (row.bannerUrl || row.posterUrl) : row[cfg.urlKey];
   }
-  return row.bannerUrl || row.posterUrl;
+  return panelThumbSrc(row);
 }
 
 // Updates every currently-rendered <img> for a show directly, in place -
@@ -4985,7 +5020,7 @@ function scheduleAirRefresh() {
 // sign-in, an error, a load already under way) is showing.
 async function refreshPanelsQuietly() {
   const showingPanels = () => !!document.querySelector(".bottom-panels-row, .series-panel")
-    && !app.querySelector(".spinner") && currentView === "list";
+    && !app.querySelector(".spinner, .film-loader") && currentView === "list";
   if (!library || !library.adapter || !showingPanels()) return;
   try {
     library.adapter.reset();
@@ -5268,6 +5303,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   if (recentlyWatched !== undefined) lastRecentlyWatched = recentlyWatched;
   if (planToWatch !== undefined) lastPlanToWatch = planToWatch;
   if (airingPreview !== undefined) lastAiringPreview = airingPreview;
+  rememberLoaderPosters();
   currentView = "list";
   safeSetItem(LS_VIEW_MODE, "list");
   updateViewModeButton();
@@ -5525,7 +5561,7 @@ async function main() {
     return;
   }
 
-  app.innerHTML = `<div class="spinner" style="margin-top:80px"></div>`;
+  app.innerHTML = filmLoaderHtml();
   subtitle.textContent = "Fetching your My List\u2026";
 
   watchingListLoad = null;
@@ -5533,7 +5569,7 @@ async function main() {
     sharedCache = new TmdbCache();
     if (!(await openLibrary())) return; // the sign-in screen is showing
     sharedEpisodeCache = newEpisodeCache();
-    app.innerHTML = `<div class="spinner" style="margin-top:80px"></div>`;
+    app.innerHTML = filmLoaderHtml();
     subtitle.textContent = "Fetching your My List\u2026";
     const [[rows, totalEps, totalMinutes, recentlyWatched], planToWatchRows, airingNextRows] = await Promise.all([
       getMyListRows(sharedCache, sharedEpisodeCache),
