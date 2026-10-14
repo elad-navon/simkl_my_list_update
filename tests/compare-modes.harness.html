@@ -412,7 +412,7 @@ async function runPosters() {
   const same = k => before[k].w === after[k].w && before[k].h === after[k].h;
   check("the panels keep their size", same("watched") && same("airing") && same("plan"), { before, after });
   check("the top bar keeps its height", before.topbarH === after.topbarH, [before.topbarH, after.topbarH]);
-  check("Airing Next first, then Recently Watched and Plan to Watch", JSON.stringify(after.order) === JSON.stringify(["airing", "watched", "plan"]), after.order);
+  check("Airing Next first, then Plan to Watch and Recently Watched", JSON.stringify(after.order) === JSON.stringify(["airing", "plan", "watched"]), after.order);
   check("a poster, as tall as the two banners", after.thumb[0] === 187 && after.thumb[1] === 280, after.thumb);
   check("the shows in pairs, a page per pair", after.pairs >= 3 && /^1 of /.test(after.watched.range) && /^1-2 of /.test(after.airing.range), after);
   check("the same frame colors as the top panel's pairs", after.frames[0] === "rgb(48, 156, 205)" && after.frames[1] === "rgb(203, 156, 35)", after.frames);
