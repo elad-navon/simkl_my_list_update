@@ -189,6 +189,18 @@
           await sdk.setDoc(sdk.doc(db, "users", requireUser(), "meta", name), data);
         } catch (e) { throw classify(e); }
       },
+      // Follows one of them live: cb(data or null) now and on every change
+      // (e.g. what's playing on Emby, written by tools/emby-bridge).
+      // Returns a function that stops following.
+      watchMeta(name, cb) {
+        let stop = () => {};
+        ready().then(() => {
+          stop = sdk.onSnapshot(sdk.doc(db, "users", requireUser(), "meta", name),
+            snap => cb(snap.exists() ? snap.data() : null),
+            e => console.warn(`Following ${name} stopped:`, e.message));
+        }).catch(() => {});
+        return () => stop();
+      },
 
       // For the self-check page only: whether another user's data is
       // readable (it must not be).
