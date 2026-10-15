@@ -45,7 +45,7 @@ function readConfig() {
     uid: c.uid || null,
     tmdbApiKey: c.tmdbApiKey || null,
     intervalSeconds: Math.max(30, Number(c.intervalSeconds) || 60),
-    threshold: Math.min(1, Math.max(0.5, Number(c.threshold) || 0.8)),
+    threshold: Math.min(1, Math.max(0.5, Number(c.threshold) || 0.9)),
   };
 }
 

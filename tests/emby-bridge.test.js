@@ -73,15 +73,15 @@ test("first run: starts from now, never from the whole history", async () => {
   assert.deepEqual(backend.docs.get("1").watched, {});
 });
 
-test("live: an episode is marked once 80% of it was played, not before", async () => {
+test("live: an episode is marked once 90% of it was played, not before", async () => {
   const { bridge, backend, emby, loads } = await setup({ 1: libShow(1, "watching") });
   await bridge.run(); // starts the read point
-  emby.state.sessions = [{ item: embyEp("e2", "s1", 1, 2), positionTicks: 35 * TICKS_PER_MIN }]; // 78%
+  emby.state.sessions = [{ item: embyEp("e2", "s1", 1, 2), positionTicks: 40 * TICKS_PER_MIN }]; // 89%
   let r = await bridge.run();
   assert.equal(r.added, 0);
   assert.equal(loads(), 0, "nothing to mark: the library isn't read");
-  assert.equal(Math.round(r.live[0].share * 100), 78);
-  emby.state.sessions = [{ item: embyEp("e2", "s1", 1, 2), positionTicks: 36.5 * TICKS_PER_MIN }]; // 81%
+  assert.equal(Math.round(r.live[0].share * 100), 89);
+  emby.state.sessions = [{ item: embyEp("e2", "s1", 1, 2), positionTicks: 41 * TICKS_PER_MIN }]; // 91%
   r = await bridge.run();
   assert.equal(r.added, 1);
   const rec = backend.docs.get("1").watched["tvmaze:102"];
@@ -108,7 +108,7 @@ test("safety net: an episode Emby marked played while the bridge wasn't watching
 test("marked live, then played by Emby: recorded once", async () => {
   const { bridge, backend, emby } = await setup({ 1: libShow(1, "watching") });
   await bridge.run();
-  emby.state.sessions = [{ item: embyEp("e2", "s1", 1, 2), positionTicks: 40 * TICKS_PER_MIN }];
+  emby.state.sessions = [{ item: embyEp("e2", "s1", 1, 2), positionTicks: 42 * TICKS_PER_MIN }];
   await bridge.run();
   emby.state.sessions = [];
   emby.state.played = [embyEp("e2", "s1", 1, 2, { UserData: { LastPlayedDate: iso(NOW + MIN) } })];
@@ -194,7 +194,7 @@ test("now watching: stopped partway shows Emby's resume point; nothing on, nothi
 test("marked live, then Emby marks it played: the library isn't read a second time", async () => {
   const { bridge, emby, loads } = await setup({ 1: libShow(1, "watching") });
   await bridge.run();
-  emby.state.sessions = [{ item: embyEp("e2", "s1", 1, 2), positionTicks: 40 * TICKS_PER_MIN }];
+  emby.state.sessions = [{ item: embyEp("e2", "s1", 1, 2), positionTicks: 42 * TICKS_PER_MIN }];
   await bridge.run();
   const after = loads();
   emby.state.sessions = [];

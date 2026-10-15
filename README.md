@@ -172,7 +172,7 @@ few marks (e.g. `autoStarted`). Everything else is fetched.
 
 **Emby auto-marking** (`tools/emby-bridge/`), on the computer that runs Emby
 - A small Node program next to Emby asks it once a minute what's playing
-  and what was played. An episode is marked once 80% of it was played
+  and what was played. An episode is marked once 90% of it was played
   (`threshold` in its config), at that moment; episodes Emby itself marked
   played (its own 90% rule, or by hand) are taken too, with their real
   time - a safety net for when the program wasn't running.

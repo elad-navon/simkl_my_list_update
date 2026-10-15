@@ -4,7 +4,8 @@
 //
 // Each pass (once a minute):
 // - Live: what's playing now (Emby's sessions). An episode is marked once
-//   at least `threshold` (80%) of it was played, at that moment.
+//   at least `threshold` (90%, as SIMKL does) of it was played, at that
+//   moment - while it plays, not only once it's stopped, as Emby marks it.
 // - Safety net: episodes Emby itself marked played since the last pass
 //   (its own rule - stopping past 90%, or marked by hand) - so a watch
 //   while this bridge wasn't running still gets in, with its real time.
@@ -63,7 +64,7 @@ function seriesIds(series) {
 // - emby.resume(): episodes stopped partway (optional), each with
 //   UserData.PlaybackPositionTicks
 // - backend: getMeta(name) / setMeta(name, data)
-function createEmbyBridge({ core, store, adapter, backend, emby, now = () => Date.now(), threshold = 0.8 }) {
+function createEmbyBridge({ core, store, adapter, backend, emby, now = () => Date.now(), threshold = 0.9 }) {
   const takeShow = createShowTaker({ core, store, adapter, prefix: "emby-bridge", by: "emby" });
   const handled = new Set(); // this session: what was already taken in
   const retryAt = new Map();  // key -> when a failed one may be tried again
@@ -142,7 +143,7 @@ function createEmbyBridge({ core, store, adapter, backend, emby, now = () => Dat
       if (!at || Date.parse(at) <= cutoff) continue;
       if (at > newest) newest = at;
       const key = `played:${item.Id}:${at}`;
-      // Already marked this session (live, at 80%): Emby's own mark later
+      // Already marked this session (live, at 90%): Emby's own mark later
       // needs no second look at the library.
       if (handled.has(`done:${item.Id}`)) { handled.add(key); continue; }
       if (!waiting(key)) take.push({ item, at: new Date(Date.parse(at)).toISOString(), key, how: "played" });

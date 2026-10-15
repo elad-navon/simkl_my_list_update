@@ -288,10 +288,12 @@
     box-shadow: inset 0 0 0 2px rgba(255,255,255,0.35), 0 3px 8px rgba(0,0,0,0.45);
   }
   .card-ribbon.tone-premiere { background: #2fa84f; color: #fff; }
-  /* "Now watching" (applyNowWatching in app.js): its ribbon takes the
-     premiere/finale ribbon's place while it's there, and a bar with the
-     minutes runs along the poster just above its bottom badges. */
-  .card-ribbon.nw-covered { display: none; }
+  /* "Now watching" (applyNowWatching in app.js): its ribbon mirrors the
+     premiere/finale one into the top-left corner, so both can show (the
+     network logo stays on top of it), and a bar with the minutes runs
+     along the poster just above its bottom badges. */
+  .card-ribbon.nw-left { right: auto; left: -46px; transform: rotate(-40deg); }
+  .poster-wrap .badge.network-badge { z-index: 13; }
   .card-ribbon.tone-watching { background: #e11d48; color: #fff; }
   .card-ribbon.tone-paused { background: #f59e0b; color: #1a1205; }
   .card-ribbon .nw-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: currentColor; margin-right: 6px; vertical-align: 1px; animation: nw-pulse 1.2s ease-in-out infinite; }
