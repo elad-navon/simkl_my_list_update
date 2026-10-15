@@ -1,4 +1,4 @@
-const CACHE_NAME = "tvseries-shell-v30";
+const CACHE_NAME = "tvseries-shell-v31";
 const SHELL_FILES = [
   "./",
   "./index.html",
