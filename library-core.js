@@ -310,8 +310,10 @@
   // Every change to the library is an operation, applied the same way
   // everywhere (locally, on retry, after a conflict re-read):
   //   { id, type: "setStatus", status, at, autoStarted? }
-  //   { id, type: "setWatched", watched: true|false, at,
+  //   { id, type: "setWatched", watched: true|false, at, by?,
   //     episodes: [{ key, keys?, season, episode, at? }] }
+  //     (by: what marked them, kept on each record - "emby", "simkl";
+  //     none when marked by hand)
   //   { id, type: "remove" }
   //   { id, type: "create", show }   (adding a show; on a show that already
   //                                    exists it just sets op.show.status)
@@ -367,6 +369,7 @@
           // An episode may carry its own watch time (e.g. when it was really
           // watched, as reported by the old service); otherwise the op's.
           next.watched[ep.key] = { s: ep.season, e: ep.episode, at: ep.at !== undefined ? ep.at : op.at, keys: ep.keys || [ep.key] };
+          if (op.by) next.watched[ep.key].by = op.by;
           changed = true;
         } else if (!op.watched && existingKey) {
           delete next.watched[existingKey];

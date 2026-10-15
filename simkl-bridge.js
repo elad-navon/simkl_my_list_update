@@ -33,6 +33,60 @@
   const MOVE_TO_WATCHING = ["plantowatch", "hold"];
   const listItems = data => (Array.isArray(data) ? data : ((data && data.shows) || []));
 
+  // The part every watch "inbox" shares (SIMKL here, Emby in emby-bridge.js):
+  // one show with newly watched episodes goes into the library under the
+  // rules above. createShowTaker({ core, store, adapter, prefix, by, episodeList })
+  // - prefix: starts every operation id ("simkl-bridge"), so the same
+  //   episode from the same inbox is never recorded twice
+  // - by: kept on every episode it marks ("simkl"), to tell later what
+  //   marked it
+  // - episodeList(show): optional, the inbox's own episode list for the
+  //   numbering check (mapWatched), or null
+  // Returns takeShow(show, newly, summary) - show: { title, year, ids },
+  // newly: [{ s, e, at, tvdbId }].
+  function createShowTaker({ core, store, adapter, prefix, by, episodeList = async () => null }) {
+    async function applyOrThrow(docId, op) {
+      const outcome = await store.apply(docId, op);
+      if (outcome === "error") throw new Error(store.status().error || "Not saved");
+      if (outcome === "conflict") throw new Error("changed on another device meanwhile - waiting for your choice");
+      return outcome; // "saved", or "queued" (goes out once back online)
+    }
+
+    return async function takeShow(show, newly, summary) {
+      const ids = show.ids;
+      let found = adapter.find(ids);
+      const latestAt = newly.reduce((m, w) => (w.at > m ? w.at : m), "");
+
+      if (!found) {
+        await adapter.setStatus(ids, CREATE_STATUS, { title: show.title, year: show.year })
+          .catch(e => { if (e.outcome !== "queued") throw e; });
+        found = adapter.find(ids);
+        if (!found) { summary.problems.push(`${show.title}: couldn't be added`); return; }
+        summary.created.push(found.show.title);
+      } else if (MOVE_TO_WATCHING.includes(found.show.status)) {
+        await applyOrThrow(found.docId, { id: `${prefix}:${found.docId}:status:${latestAt}`, type: "setStatus", status: "watching", at: latestAt });
+        summary.moved.push(found.show.title);
+      }
+
+      const eps = await adapter.episodes(found.docId);
+      const mapping = core.mapWatched(newly, eps, await episodeList(show));
+      const episodes = mapping.map(m => {
+        const tvdbKey = m.w.tvdbId ? [`tvdb:${m.w.tvdbId}`] : [];
+        if (m.ep) return { key: m.ep.keys[0], keys: [...m.ep.keys, ...tvdbKey], season: m.ep.season, episode: m.ep.episode, at: m.w.at };
+        if (m.method !== "special") summary.unplaced.push(`${found.show.title} ${core.episodeCode(m.w.s, m.w.e)}`);
+        return { key: `num:${m.w.s}-${m.w.e}`, keys: [`num:${m.w.s}-${m.w.e}`, ...tvdbKey], season: m.w.s, episode: m.w.e, at: m.w.at };
+      });
+      const before = store.view().get(found.docId);
+      const fresh = episodes.filter(ep => !Object.entries(before.watched || {}).some(([k, rec]) =>
+        [k, ...(rec.keys || [])].some(x => ep.keys.includes(x))));
+      if (!fresh.length) return;
+      const opId = `${prefix}:${found.docId}:${fresh.map(ep => `${ep.season}-${ep.episode}@${ep.at}`).join(",")}`;
+      await applyOrThrow(found.docId, { id: opId, type: "setWatched", watched: true, at: latestAt, by, episodes: fresh });
+      summary.added += fresh.filter(ep => ep.season !== 0).length;
+      summary.shows.push(found.show.title);
+    };
+  }
+
   // createSimklBridge({ core, store, adapter, backend, simkl, now })
   // - simkl.get(path, params): resolves to SIMKL's JSON (reads only)
   // - backend: getMeta(name) / setMeta(name, data)
@@ -47,7 +101,8 @@
       return latest;
     }
 
-    async function simklEpisodeList(simklId) {
+    async function simklEpisodeList(show) {
+      const simklId = show.ids.simklLegacy;
       if (simklId == null) return null;
       const list = await simkl.get(`/tv/episodes/${simklId}`, { extended: "full" }).catch(() => null);
       return Array.isArray(list) ? list.filter(e => e.season != null && e.episode != null).map(e => ({
@@ -55,49 +110,7 @@
       })) : null;
     }
 
-    async function applyOrThrow(docId, op) {
-      const outcome = await store.apply(docId, op);
-      if (outcome === "error") throw new Error(store.status().error || "Not saved");
-      if (outcome === "conflict") throw new Error("changed on another device meanwhile - waiting for your choice");
-      return outcome; // "saved", or "queued" (goes out once back online)
-    }
-
-    // One show from SIMKL with newly watched episodes.
-    async function takeShow(item, newly, summary) {
-      const show = item.show || {};
-      const sIds = show.ids || {};
-      const ids = { simklLegacy: sIds.simkl, tmdb: sIds.tmdb != null ? Number(sIds.tmdb) : null, imdb: sIds.imdb || null, tvdb: sIds.tvdb || null };
-      let found = adapter.find(ids);
-      const latestAt = newly.reduce((m, w) => (w.at > m ? w.at : m), "");
-
-      if (!found) {
-        await adapter.setStatus(ids, CREATE_STATUS, { title: show.title, year: show.year })
-          .catch(e => { if (e.outcome !== "queued") throw e; });
-        found = adapter.find(ids);
-        if (!found) { summary.problems.push(`${show.title}: couldn't be added`); return; }
-        summary.created.push(found.show.title);
-      } else if (MOVE_TO_WATCHING.includes(found.show.status)) {
-        await applyOrThrow(found.docId, { id: `simkl-bridge:${found.docId}:status:${latestAt}`, type: "setStatus", status: "watching", at: latestAt });
-        summary.moved.push(found.show.title);
-      }
-
-      const eps = await adapter.episodes(found.docId);
-      const mapping = core.mapWatched(newly, eps, await simklEpisodeList(sIds.simkl));
-      const episodes = mapping.map(m => {
-        const tvdbKey = m.w.tvdbId ? [`tvdb:${m.w.tvdbId}`] : [];
-        if (m.ep) return { key: m.ep.keys[0], keys: [...m.ep.keys, ...tvdbKey], season: m.ep.season, episode: m.ep.episode, at: m.w.at };
-        if (m.method !== "special") summary.unplaced.push(`${found.show.title} ${core.episodeCode(m.w.s, m.w.e)}`);
-        return { key: `num:${m.w.s}-${m.w.e}`, keys: [`num:${m.w.s}-${m.w.e}`, ...tvdbKey], season: m.w.s, episode: m.w.e, at: m.w.at };
-      });
-      const before = store.view().get(found.docId);
-      const fresh = episodes.filter(ep => !Object.entries(before.watched || {}).some(([k, rec]) =>
-        [k, ...(rec.keys || [])].some(x => ep.keys.includes(x))));
-      if (!fresh.length) return;
-      const opId = `simkl-bridge:${found.docId}:${fresh.map(ep => `${ep.season}-${ep.episode}@${ep.at}`).join(",")}`;
-      await applyOrThrow(found.docId, { id: opId, type: "setWatched", watched: true, at: latestAt, episodes: fresh });
-      summary.added += fresh.filter(ep => ep.season !== 0).length;
-      summary.shows.push(found.show.title);
-    }
+    const takeShow = createShowTaker({ core, store, adapter, prefix: "simkl-bridge", by: "simkl", episodeList: simklEpisodeList });
 
     // One pass. Resolves to { added, shows, created, moved, unplaced,
     // problems, upToDate?, started? }.
@@ -126,8 +139,11 @@
           }
         }
         if (!newly.length) continue;
+        const show = item.show || {};
+        const sIds = show.ids || {};
+        const ids = { simklLegacy: sIds.simkl, tmdb: sIds.tmdb != null ? Number(sIds.tmdb) : null, imdb: sIds.imdb || null, tvdb: sIds.tvdb || null };
         try {
-          await takeShow(item, newly, summary);
+          await takeShow({ title: show.title, year: show.year, ids }, newly, summary);
         } catch (e) {
           summary.problems.push(`${(item.show || {}).title || "?"}: ${e.message}`);
         }
@@ -143,5 +159,5 @@
     return { run };
   }
 
-  return { createSimklBridge, META };
+  return { createSimklBridge, createShowTaker, META };
 });

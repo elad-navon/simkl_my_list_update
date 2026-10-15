@@ -93,6 +93,7 @@ signed-in account.
 | `library-adapter.js` | Answers the page's questions from the library, in the item shape the row builders were written against. |
 | `simkl-bridge.js` | The optional SIMKL auto-marking. |
 | `air-times.js` | The optional SIMKL air times for date-only episodes. |
+| `tools/emby-bridge/` | The optional Emby auto-marking, run on the Emby computer. |
 | `app.js` | The page itself. |
 
 A show's document id is its TMDB id; a show TMDB doesn't know is kept
@@ -168,6 +169,28 @@ few marks (e.g. `autoStarted`). Everything else is fetched.
 - The fetched list is kept for 30 days, so an episode keeps its time
   after it airs. Not connected, or SIMKL slow or failing: date only, as
   before.
+
+**Emby auto-marking** (`tools/emby-bridge/`), on the computer that runs Emby
+- A small Node program next to Emby asks it once a minute what's playing
+  and what was played. An episode is marked once 80% of it was played
+  (`threshold` in its config), at that moment; episodes Emby itself marked
+  played (its own 90% rule, or by hand) are taken too, with their real
+  time - a safety net for when the program wasn't running.
+- Same rules as the SIMKL auto-marking (it shares its code): matched by
+  the series' ids, Plan to Watch / On Hold move to Watching, a series
+  not in the library is added as Watching, nothing recorded twice. How
+  far it has read is kept in the library (meta `embyBridge`); it starts
+  from its first run, never from the whole history.
+- Every episode it marks says so (`by: "emby"` on the record; the SIMKL
+  bridge writes `by: "simkl"`, a mark by hand has none).
+- The library is read only when there's something to mark.
+- Setup: `npm install` in `tools/emby-bridge`; copy `config.example.json`
+  to `config.json`; an Emby API key (Emby dashboard > Advanced > API
+  Keys) and a Firebase service-account key file (Firebase console >
+  Project settings > Service accounts) next to it - both stay on that
+  computer (`.gitignore`). `node run.js --check` tests the connections;
+  a shortcut to `start-hidden.vbs` in the Windows Startup folder starts
+  it at every sign-in, logging to `emby-bridge.log`.
 
 ## Backups and recovery
 

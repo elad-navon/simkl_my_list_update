@@ -17,3 +17,13 @@ dist/
 /import-report-*.json
 /migration-report-*.json
 /tv-library-*.json
+
+# Emby bridge: secrets, log and installed packages stay on this computer
+/tools/emby-bridge/config.json
+/tools/emby-bridge/service-account*.json
+/tools/emby-bridge/*.log
+/tools/emby-bridge/*.log.old
+/tools/emby-bridge/node_modules/
+/tools/emby-bridge/package-lock.json
+/tools/emby-bridge/*firebase-adminsdk*.json
+**/*firebase-adminsdk*.json

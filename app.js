@@ -765,6 +765,10 @@ async function openLibrary() {
         if (total > 5 && done < total) subtitle.textContent = `Loading episode lists… ${done}/${total}`;
       },
     });
+    // What's playing on Emby (tools/emby-bridge), for the top cards.
+    if (library.backend.watchMeta) {
+      library.backend.watchMeta("emby", data => { embyNow = data; applyNowWatching(); });
+    }
     library.bridge = SimklBridge.createSimklBridge({
       core: LibraryCore, store, adapter: library.adapter, backend: library.backend,
       simkl: { get: (path, params) => simklGet(path, null, params) },
@@ -772,6 +776,49 @@ async function openLibrary() {
   }
   library.adapter.reset();
   return true;
+}
+
+// "Now watching" on the top cards: tools/emby-bridge (on the computer
+// running Emby) keeps meta "emby" up to date - the episodes playing now, and
+// the ones stopped partway, each with its position to the minute. A card
+// whose next episode is one of them gets a ribbon (WATCHING, or PAUSED - also
+// when the report is over 3 minutes old: the computer went off) in place of
+// its premiere/finale ribbon, and a progress bar along the poster with the
+// minutes.
+let embyNow = null;
+const EMBY_STALE_MS = 3 * 60 * 1000;
+
+function nowWatchingFor(row) {
+  if (!embyNow) return null;
+  const m = /S(\d+)E(\d+)/.exec(row.nextLabel || "");
+  if (!m) return null;
+  const s = Number(m[1]), e = Number(m[2]);
+  const same = x => x.s === s && x.e === e && ((x.docId != null && String(x.docId) === String(row.showId)) ||
+    (x.tmdb != null && row.tmdbId != null && String(x.tmdb) === String(row.tmdbId)) || (!!x.imdb && x.imdb === row.imdbId));
+  const live = Date.now() - Date.parse(embyNow.updatedAt || 0) < EMBY_STALE_MS;
+  const playing = (embyNow.playing || []).find(same);
+  if (playing) return { ...playing, paused: !!playing.paused || !live };
+  const stopped = (embyNow.resume || []).find(same);
+  return stopped ? { ...stopped, paused: true } : null;
+}
+
+function applyNowWatching() {
+  document.querySelectorAll(".nw-overlay").forEach(el => el.remove());
+  document.querySelectorAll(".card-ribbon.nw-covered").forEach(el => el.classList.remove("nw-covered"));
+  if (currentView !== "list" || !lastRows) return;
+  lastRows.forEach((row, i) => {
+    const nw = nowWatchingFor(row);
+    const wrap = nw && document.querySelector(`.carousel-card[data-row="${i}"] .poster-wrap`);
+    if (!wrap) return;
+    const ribbon = wrap.querySelector(".card-ribbon");
+    if (ribbon) ribbon.classList.add("nw-covered");
+    const pct = nw.len ? Math.min(100, Math.round((nw.pos / nw.len) * 100)) : 0;
+    const word = nw.paused ? "PAUSED" : "WATCHING";
+    wrap.insertAdjacentHTML("beforeend", `
+      <div class="card-ribbon nw-overlay tone-${nw.paused ? "paused" : "watching"}" title=""><span><i class="nw-dot"></i>${word}</span></div>
+      <div class="nw-overlay nw-time${nw.paused ? " paused" : ""}" title="">${Math.floor(nw.pos / 60)} / ${Math.round(nw.len / 60)} min</div>
+      <div class="nw-overlay nw-bar${nw.paused ? " paused" : ""}" title=""><i style="width:${pct}%"></i></div>`);
+  });
 }
 
 // SIMKL as an inbox only: whatever marks episodes watched on SIMKL (the Emby
@@ -4985,6 +5032,7 @@ function paintAirCount(el, now) {
 function tickAirCountdowns() {
   const now = Date.now();
   document.querySelectorAll(".air-count").forEach(el => paintAirCount(el, now));
+  if (embyNow) applyNowWatching(); // a report going stale turns WATCHING into PAUSED
 }
 
 // At the next moment something changes state - an episode starting (NOW in
@@ -5375,7 +5423,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
     const { wrapHtml } = cardImageBits(row, mode, arrIdx, overlayHtml);
 
     return `
-      <div class="card carousel-card${isWide ? " banner-mode" : ""}${isWide && onePage ? " framed " + rowToneClass(arrIdx) : ""}">
+      <div class="card carousel-card${isWide ? " banner-mode" : ""}${isWide && onePage ? " framed " + rowToneClass(arrIdx) : ""}" data-row="${arrIdx}">
         ${wrapHtml}
         <div class="card-body">
           <div class="card-title-row">

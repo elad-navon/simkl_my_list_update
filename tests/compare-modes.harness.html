@@ -451,9 +451,39 @@ async function runPosters() {
   return results;
 }
 
+// ?scenario=nowwatching: what Emby is playing (meta "emby", faked) on the
+// top cards - a WATCHING ribbon and the minutes on the playing show's
+// card, PAUSED on the one stopped partway, the other ribbons untouched.
+async function runNowWatching() {
+  const { w } = await loadMode("library", false, "nowwatching");
+  const results = [];
+  const check = (name, ok, detail) => results.push({ name, ok: !!ok, detail: detail === undefined ? null : detail });
+  const doc = w.document;
+  const card = t => [...doc.querySelectorAll(".carousel-card")].find(c => c.querySelector("h3").textContent.trim() === t);
+  await waitFor(() => doc.querySelector(".card-ribbon.tone-watching"));
+  const alpha = card("Alpha"), charlie = card("Charlie"), hotel = card("Hotel");
+  check("playing: WATCHING ribbon and the minutes on its card",
+    alpha.querySelector(".card-ribbon.tone-watching") && alpha.querySelector(".nw-time").textContent.trim() === "23 / 45 min",
+    alpha.querySelector(".nw-time") && alpha.querySelector(".nw-time").textContent);
+  check("stopped partway: PAUSED, its bar where it stopped",
+    charlie.querySelector(".card-ribbon.tone-paused") && charlie.querySelector(".nw-bar i").style.width === "27%",
+    charlie.querySelector(".nw-bar i") && charlie.querySelector(".nw-bar i").style.width);
+  check("other cards keep their own ribbon", hotel.querySelector(".card-ribbon:not(.nw-overlay)") && !hotel.querySelector(".nw-overlay"));
+  await rerender(w, () => w.eval("main")());
+  await waitFor(() => doc.querySelector(".card-ribbon.tone-watching"));
+  check("still there after the page redraws", !!card("Alpha").querySelector(".card-ribbon.tone-watching"));
+  return results;
+}
+
 (async () => {
   const out = document.getElementById("result");
   try {
+    if (params.get("scenario") === "nowwatching" && !params.get("show")) {
+      const results = await runNowWatching();
+      out.dataset.done = "1";
+      out.textContent = JSON.stringify({ writes: results }, null, 1);
+      return;
+    }
     if (params.get("scenario") === "posters") {
       const results = await runPosters();
       out.dataset.done = "1";

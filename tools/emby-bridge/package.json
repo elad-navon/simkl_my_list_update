@@ -1,0 +1,13 @@
+{
+  "name": "tv-series-emby-bridge",
+  "private": true,
+  "description": "Marks episodes watched on this computer's Emby server in the TV Series library.",
+  "main": "run.js",
+  "scripts": {
+    "start": "node run.js",
+    "check": "node run.js --check"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  }
+}

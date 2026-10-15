@@ -1,0 +1,8 @@
+{
+  "embyUrl": "http://localhost:8096",
+  "embyApiKey": "paste the key from Emby: Dashboard > Advanced > API Keys",
+  "serviceAccountFile": "service-account.json",
+  "threshold": 0.8,
+  "intervalSeconds": 60,
+  "tmdbApiKey": ""
+}
