@@ -462,8 +462,8 @@ async function runNowWatching() {
   const card = t => [...doc.querySelectorAll(".carousel-card")].find(c => c.querySelector("h3").textContent.trim() === t);
   await waitFor(() => doc.querySelector(".card-ribbon.tone-watching"));
   const alpha = card("Alpha"), charlie = card("Charlie"), hotel = card("Hotel");
-  check("playing: WATCHING ribbon and the minutes left on its card",
-    alpha.querySelector(".card-ribbon.tone-watching") && alpha.querySelector(".nw-time").textContent.trim() === "22 min left",
+  check("playing: WATCHING ribbon and the minutes on its card",
+    alpha.querySelector(".card-ribbon.tone-watching") && alpha.querySelector(".nw-time").textContent.trim() === "23 / 45 min",
     alpha.querySelector(".nw-time") && alpha.querySelector(".nw-time").textContent);
   check("stopped partway: PAUSED, its bar where it stopped",
     charlie.querySelector(".card-ribbon.tone-paused") && charlie.querySelector(".nw-bar i").style.width === "27%",
