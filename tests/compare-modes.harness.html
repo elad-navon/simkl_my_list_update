@@ -526,6 +526,13 @@ async function runNowWatching() {
       const { frame } = await loadMode(params.get("show"), true, params.get("scenario") || "");
       // ?w=&h=: the page at another size (e.g. a phone's 390 x 844).
       if (params.get("w")) { frame.style.width = `${params.get("w")}px`; frame.style.height = `${params.get("h") || 844}px`; }
+      // ?eval=<code>: run this in the page once it has drawn (a screenshot
+      // of an edge case, e.g. a long show name).
+      if (params.get("eval")) {
+        const w = frame.contentWindow;
+        await waitFor(() => w.document.querySelector(".series-panel-updated"));
+        w.eval(params.get("eval"));
+      }
       // ?open=loader: the loading screen, held (for a screenshot).
       if (params.get("open") === "loader") {
         const w = frame.contentWindow;

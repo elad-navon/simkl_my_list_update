@@ -207,7 +207,7 @@
      groove. 232x348 posters keep the top panel exactly as tall as banner mode. */
   .poster-pair, .panel-pair {
     --pp-h: var(--top-img-h, 348px); --pp-w: calc(var(--pp-h) * 2 / 3);
-    --pp-text: 210px; --pp-gap: 12px; --pp-line: 2px; --pp-r: 10px;
+    --pp-text: 210px; --pp-gap: 12px; --pp-line: 3px; --pp-r: 10px;
     --pp-half: calc((var(--pp-h) - var(--pp-gap)) / 2);
     position: relative; flex: 0 0 auto; height: var(--pp-h);
     width: calc(2 * var(--pp-w) + var(--pp-text) + var(--pp-gap));
@@ -276,6 +276,39 @@
   .panel-pair > .list-row:nth-child(2) .list-row-body::before {
     right: 0; bottom: 100%; background: radial-gradient(circle at 0 0, var(--pp-curve));
   }
+  /* Frosted poster (dark theme), in every L-shaped pair - the top panel's
+     and the bottom panels' (Panels to Posters): behind each text box, its
+     own poster blown up, blurred and dimmed (posterGlowHtml in app.js),
+     with a faint sheen; the text as everywhere else. A show's name is never
+     cut: fitPairText (app.js) steps its size down until the box holds it.
+     --pp-tint is the ground under the glass, so the rounded inside corners
+     follow it. The glass is clipped by its own layer, not the box - the box
+     must not clip its rounded inside corner (::before). */
+  body:not(.light-theme) .poster-pair > .card:nth-child(n),
+  body:not(.light-theme) .panel-pair > .list-row:nth-child(n) { --pp-tint: #0b0f14; }
+  .pp-glow { display: none; }
+  body:not(.light-theme) .poster-pair .pp-glow, body:not(.light-theme) .panel-pair .pp-glow {
+    display: block; position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none;
+    border-radius: inherit;
+  }
+  body:not(.light-theme) .poster-pair .pp-glow i, body:not(.light-theme) .panel-pair .pp-glow i {
+    position: absolute; inset: -40px; background-position: center; background-size: cover;
+    filter: blur(24px) saturate(1.35) brightness(0.5); transition: filter 0.15s ease;
+  }
+  body:not(.light-theme) .poster-pair > .card.hover-stable .pp-glow i,
+  body:not(.light-theme) .panel-pair > .list-row:hover .pp-glow i { filter: blur(24px) saturate(1.35) brightness(0.62); }
+  body:not(.light-theme) .poster-pair .pp-glow::after, body:not(.light-theme) .panel-pair .pp-glow::after {
+    /* A faint sheen over a dark wash - keeps the text readable on a light poster too. */
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.08), transparent 45%), rgba(6, 9, 13, 0.45);
+  }
+  body:not(.light-theme) .poster-pair .card-body > :not(.pp-glow),
+  body:not(.light-theme) .panel-pair .list-row-body > :not(.pp-glow) { position: relative; z-index: 1; }
+  body:not(.light-theme) .poster-pair .watch-progress-track { background: rgba(0, 0, 0, 0.45); }
+  /* Whole names (fitPairText sizes them). */
+  .poster-pair .card-body h3 { max-height: none; overflow: visible; }
+  .panel-pair .list-row-title { display: block; -webkit-line-clamp: none; overflow: visible; }
+
   /* Corner ribbon on a My List poster (new show, season premiere, season finale).
      Top-right, where the short year badge sits, so it never covers network names. */
   .card-ribbon {
@@ -866,7 +899,7 @@
   /* No overflow: hidden here - it would clip the rounded inside corner
      (::before, just outside the box); the text inside clips instead. */
   .panel-pair .list-row-body { padding: 10px 12px 11px; background: var(--pp-tint); }
-  .panel-pair .list-row-body .list-row-title-wrap { flex: none; max-height: 100%; overflow: hidden; }
+  .panel-pair .list-row-body .list-row-title-wrap { flex: none; }
   /* The ... menu (Plan to Watch) in its show's details box, top right. */
   .panel-pair .plan-menu-btn { z-index: 2; right: auto; }
   .panel-pair > .list-row:nth-child(1) .plan-menu-btn { top: 8px; left: calc(var(--pp-w) + var(--pp-text) - 30px); }
