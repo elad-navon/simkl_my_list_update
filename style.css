@@ -355,7 +355,7 @@
     font-weight: 800; -webkit-text-stroke: 3px #05080c; paint-order: stroke fill;
     text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
   }
-  body .episode-title { font-family: "Fraunces", Georgia, serif; font-style: italic; font-weight: 600; text-transform: none; }
+  body .episode-title { font-family: "Fraunces", Georgia, serif; font-style: italic; font-weight: 600; text-transform: none; color: var(--gold); }
 
   /* Corner ribbon on a My List poster (new show, season premiere, season finale).
      Top-right, where the short year badge sits, so it never covers network names. */
