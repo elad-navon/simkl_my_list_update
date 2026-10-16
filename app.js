@@ -3635,13 +3635,13 @@ function closeCastModal() {
 // themselves are declared further down the file (TDZ at load time otherwise).
 function panelShowsModalConfig(source) {
   switch (source) {
-    case "watched": return { icon: CLOCK_ICON_SOLID_SVG, title: "RECENTLY WATCHED" };
-    case "plan": return { icon: BOOKMARK_ICON_SVG, title: "PLAN TO WATCH" };
-    case "airing": return { icon: CALENDAR_ICON_SVG, title: "AIRING NEXT" };
+    case "watched": return { icon: CLOCK_ICON_SOLID_SVG, title: "Just Watched" };
+    case "plan": return { icon: BOOKMARK_ICON_SVG, title: "Plan to Watch" };
+    case "airing": return { icon: CALENDAR_ICON_SVG, title: "Airing Next" };
     // The top panel's own "N Shows" stat - title follows currentView since
     // that stat only actually exists in the "list" header today, but the
     // underlying rows (getCycleRows("main")) already switch on it too.
-    case "main": return { icon: STAT_TV_ICON_SVG, title: currentView === "airing" ? "AIRING NEXT" : "MY WATCH LIST" };
+    case "main": return { icon: STAT_TV_ICON_SVG, title: currentView === "airing" ? "Airing Next" : "Ready to Watch" };
     default: return null;
   }
 }
@@ -4416,6 +4416,8 @@ const CHECK_ICON_SVG = `<svg viewBox="0 0 24 24" width="17" height="17" fill="no
 const BELL_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg>`;
 const STAR_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 3 14.7 9.2 21.4 9.8 16.3 14.2 17.9 20.8 12 17.3 6.1 20.8 7.7 14.2 2.6 9.8 9.3 9.2"></polygon></svg>`;
 const BOOKMARK_ICON_SVG = `<svg viewBox="0 0 24 24" width="17" height="17" fill="var(--accent2)"><path d="M6 3.5h12a.5.5 0 0 1 .5.5v16.2a.5.5 0 0 1-.77.42L12 16.5l-5.73 4.12a.5.5 0 0 1-.77-.42V4a.5.5 0 0 1 .5-.5z"></path></svg>`;
+// The top panel's title icon: a screen with a play mark (the logo's).
+const READY_ICON_SVG = `<svg viewBox="0 0 24 24" width="18" height="18"><rect x="3" y="3" width="18" height="15" rx="3.5" fill="var(--accent2)"></rect><polygon points="10,7.6 10,13.4 15,10.5" fill="var(--card)"></polygon><rect x="8" y="20" width="8" height="2" rx="1" fill="var(--accent2)"></rect></svg>`;
 const CALENDAR_ICON_SVG = `<svg viewBox="0 0 24 24" width="17" height="17"><rect x="3" y="5" width="18" height="16" rx="2" fill="var(--accent2)"></rect><rect x="3" y="9" width="18" height="1.8" fill="var(--card)"></rect><rect x="7" y="2.5" width="1.8" height="4" rx="0.9" fill="var(--card)"></rect><rect x="15.2" y="2.5" width="1.8" height="4" rx="0.9" fill="var(--card)"></rect></svg>`;
 // Same "pile of episodes" stack icon as the top stat row, in black to sit
 // on the remaining-badge's yellow background.
@@ -4760,7 +4762,8 @@ function networkSubHtml(name, logoPath) {
 // own header, just reused here instead of duplicated. Doubles as the
 // entry point into that panel's "all shows" modal (openPanelShowsModal).
 function listPanelCountHtml(count, source) {
-  return `<button type="button" class="list-panel-count" onclick="openPanelShowsModal('${source}')"><span class="list-panel-count-num">${count}</span> SHOW${count === 1 ? "" : "S"}</button>`;
+  const word = `Show${count === 1 ? "" : "s"}`;
+  return `<button type="button" class="list-panel-count" title="${count} ${word.toLowerCase()}" onclick="openPanelShowsModal('${source}')"><span class="list-panel-count-num">${count}</span><span class="list-panel-count-word"> ${word}</span></button>`;
 }
 
 // Exact inner content of a row's .list-row-title-wrap, factored out of the
@@ -4984,7 +4987,7 @@ function renderRecentlyWatchedHtml(list) {
   return `
     <div class="list-panel list-panel--watched">
       <div class="list-panel-header-row">
-        <div class="list-panel-header">${CLOCK_ICON_SOLID_SVG}<span>RECENTLY WATCHED</span></div>
+        <div class="list-panel-header">${CLOCK_ICON_SOLID_SVG}<span>Just Watched</span></div>
         ${pagerHtml}
         ${listPanelCountHtml(list.length, "watched")}
       </div>
@@ -5014,7 +5017,7 @@ function renderPlanToWatchHtml(list) {
   return `
     <div class="list-panel list-panel--plan">
       <div class="list-panel-header-row">
-        <div class="list-panel-header">${BOOKMARK_ICON_SVG}<span>PLAN TO WATCH</span></div>
+        <div class="list-panel-header">${BOOKMARK_ICON_SVG}<span>Plan to Watch</span></div>
         ${pagerHtml}
         ${listPanelCountHtml(list.length, "plan")}
       </div>
@@ -5125,7 +5128,7 @@ function renderAiringNextPreviewHtml(list) {
   return `
     <div class="list-panel list-panel--airing">
       <div class="list-panel-header-row">
-        <div class="list-panel-header">${CALENDAR_ICON_SVG}<span>AIRING NEXT</span></div>
+        <div class="list-panel-header">${CALENDAR_ICON_SVG}<span>Airing Next</span></div>
         ${pagerHtml}
         ${listPanelCountHtml(list.length, "airing")}
       </div>
@@ -5503,6 +5506,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   app.innerHTML = `
     <div class="series-panel">
       <div class="series-panel-header">
+        <div class="list-panel-header series-panel-title">${READY_ICON_SVG}<span>Ready to Watch</span></div>
         <div class="series-panel-header-left">
           <button type="button" class="series-panel-stat-group series-panel-stat-clickable" onclick="openPanelShowsModal('main')">
             ${STAT_TV_ICON_SVG}
@@ -5519,7 +5523,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
             <div class="series-panel-stat"><span class="num">${totalHours}h ${totalMins}m</span><span class="label">Watch Time Left</span></div>
           </div>
         </div>
-        <span class="series-panel-updated">Updated ${new Date().toLocaleString()}</span>
+        <span class="series-panel-updated" hidden></span>
       </div>
       <div class="carousel-wrap">
         <button class="carousel-arrow left" title="Scroll left" style="top:${carouselArrowTop}"

@@ -17,7 +17,7 @@
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+    font-family: "Work Sans", "Segoe UI", Arial, Helvetica, sans-serif;
   }
 
   /* ===================== Top bar ===================== */
@@ -131,7 +131,8 @@
   .page-header p { color: var(--muted); margin: 0; font-size: 0.9rem; font-weight: 600; }
   #subtitle:empty { display: none; }
   .page-header:has(#subtitle:empty) { display: none; }
-  .series-panel-updated { color: var(--muted); font-size: 0.8rem; font-weight: 600; margin-left: auto; }
+  /* Kept, hidden: marks a finished draw (the tests wait for it). */
+  .series-panel-updated[hidden] { display: none; }
   /* ===================== "MY LIST" series panel + carousel ===================== */
   .series-panel {
     background: var(--card); border: 1px solid var(--border); border-radius: 12px;
@@ -141,8 +142,11 @@
     display: flex; align-items: center; gap: 9px; color: var(--gold);
     font-weight: 700; font-size: 0.95rem; letter-spacing: 0.04em; margin-bottom: 16px;
   }
+  /* READY TO WATCH on the left, as the bottom panels' titles (the same
+     .list-panel-header look); the stats pushed to the right end. */
+  .series-panel-header .series-panel-title { margin-bottom: 0; flex: 0 0 auto; }
   .series-panel-header-left {
-    display: flex; align-items: center; gap: 24px;
+    display: flex; align-items: center; gap: 24px; margin-left: auto;
     border-bottom: 3px solid var(--gold); padding-bottom: 10px;
   }
   .series-panel-stat-group { display: flex; align-items: center; gap: 8px; }
@@ -308,6 +312,50 @@
   /* Whole names (fitPairText sizes them). */
   .poster-pair .card-body h3 { max-height: none; overflow: visible; }
   .panel-pair .list-row-title { display: block; -webkit-line-clamp: none; overflow: visible; }
+
+  /* Type: Fraunces (a warm editorial serif) for every heading and show
+     name, in title case; Work Sans for all other text (body, above). The
+     sizes are the ones the old faces had, so names fit as before (and
+     fitPairText / fitPanelRowLines still fit the long ones). */
+  /* (body-prefixed: these win over the faces set further down.) */
+  body .logo-text .logo-tv, body .logo-accent, body .topbar-slogan,
+  body .list-panel-header, body .list-panel-count, body .series-panel-stat .num, body .series-panel-stat .label,
+  body .card-body h3, body .list-row-title {
+    font-family: "Fraunces", Georgia, "Times New Roman", serif; text-transform: none; letter-spacing: 0;
+  }
+  body .logo-text .logo-tv, body .logo-accent { font-weight: 800; }
+  body .topbar-slogan { font-style: italic; font-weight: 600; }
+  body .list-panel-header, body .list-panel-count { font-weight: 700; font-size: 1.2rem; }
+  /* The bottom panels' titles share their row with the pager and the
+     count: a size down, and a little less padding, so the whole name shows. */
+  body .list-panel .list-panel-header, body .list-panel .list-panel-count { font-size: 1.2rem; }
+  /* The bottom panels' header rows hold the title, the arrows, the "1-2 of
+     7" page counter and the count ("4 Shows"). On a screen too narrow for
+     all four at this size (a panel under 390px inside), the page counter gives way
+     so the title stays whole; on a wider one it's there. */
+  body:not(.panels-scroll) .list-panel { container-type: inline-size; }
+  @container (max-width: 389px) {
+    .list-pager-range { display: none; }
+  }
+
+  body:not(.panels-scroll) .list-panel .list-panel-header { padding: 7px 10px; gap: 7px; }
+  .list-panel-header svg { flex: 0 0 auto; }
+  body .list-pager-range { min-width: 42px; }
+  body .list-panel .list-panel-header-row { gap: 7px; }
+  body .list-panel .list-pager { gap: 4px; }
+  body .series-panel-stat .num { font-weight: 700; }
+  body .series-panel-stat .label { font-style: italic; font-weight: 600; }
+  body .card-body h3, body .list-row-title { font-weight: 700; }
+  /* Dark theme: show names a weight up, with a thin dark outline round
+     every letter (drawn under the fill), like film subtitles - clear on
+     any poster's glass. */
+  body:not(.light-theme) .card-body h3, body:not(.light-theme) .list-row-title,
+  body:not(.light-theme) .list-panel-header, body:not(.light-theme) .list-panel-count,
+  body:not(.light-theme) .series-panel-stat .num, body:not(.light-theme) .series-panel-stat .label {
+    font-weight: 800; -webkit-text-stroke: 3px #05080c; paint-order: stroke fill;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+  }
+  body .episode-title { font-family: "Fraunces", Georgia, serif; font-style: italic; font-weight: 600; text-transform: none; }
 
   /* Corner ribbon on a My List poster (new show, season premiere, season finale).
      Top-right, where the short year badge sits, so it never covers network names. */
@@ -917,10 +965,13 @@
      under it, and a gap between the framed bottom-panel rows (the page-fit
      in app.js takes the extra height out of the top panel). */
   body:not(.panels-scroll) .series-panel-header-left,
+  body:not(.panels-scroll) .series-panel .series-panel-title,
   body:not(.panels-scroll) .list-panel .list-panel-header {
     border: 1px solid var(--gold); border-radius: 8px; padding: 7px 12px;
   }
   body:not(.panels-scroll) .list-panel .list-panel-header { margin-bottom: 0; }
+  /* The top panel's title a size up, as tall as the stats beside it. */
+  body:not(.panels-scroll) .series-panel .series-panel-title { font-size: 1.45rem; padding: 9px 14px; }
   body:not(.panels-scroll) .list-panel .list-panel-header-row { align-items: center; margin-bottom: 10px; }
   body:not(.panels-scroll) .list-rows-paged .list-row-divider { flex-basis: 10px; height: 10px; }
   /* One-page layout on desktop: tighter page margins, and the top panel's
