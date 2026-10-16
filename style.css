@@ -345,7 +345,8 @@
   body .list-panel .list-pager { gap: 4px; }
   body .series-panel-stat .num { font-weight: 700; }
   body .series-panel-stat .label { font-style: italic; font-weight: 600; }
-  body .card-body h3, body .list-row-title { font-weight: 700; }
+  body .card-body h3, body .list-row-title { font-weight: 700; color: var(--gold); }
+  body .card-body h3:hover, body .list-row-title:hover { color: var(--accent2); }
   /* Dark theme: show names a weight up, with a thin dark outline round
      every letter (drawn under the fill), like film subtitles - clear on
      any poster's glass. */
