@@ -327,26 +327,31 @@
      along the poster just above its bottom badges. */
   .card-ribbon.nw-left { right: auto; left: -46px; transform: rotate(-40deg); }
   .poster-wrap .badge.network-badge { z-index: 13; }
-  .card-ribbon.tone-watching { background: #e11d48; color: #fff; }
-  .card-ribbon.tone-paused { background: #f59e0b; color: #1a1205; }
+  /* Yellow and blue: yellow with navy while it plays, blue with yellow
+     once it's stopped. */
+  .card-ribbon.tone-watching { background: #ffd200; color: #0b2a6b; }
+  .card-ribbon.tone-paused { background: #1e40af; color: #ffd200; }
   .card-ribbon .nw-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: currentColor; margin-right: 6px; vertical-align: 1px; animation: nw-pulse 1.2s ease-in-out infinite; }
   .card-ribbon.tone-paused .nw-dot { animation: none; }
   @keyframes nw-pulse { 50% { opacity: 0.25; } }
   @media (prefers-reduced-motion: reduce) { .card-ribbon .nw-dot { animation: none; } }
   .nw-bar { position: absolute; left: 0; right: 0; bottom: 22px; height: 6px; background: rgba(0, 0, 0, 0.6); z-index: 11; pointer-events: none; }
-  .nw-bar i { display: block; height: 100%; background: #e11d48; }
-  .nw-bar.paused i { background: #f59e0b; }
-  /* What's left of the episode, in a dark box edged in the ribbon's color,
-     sitting on the bar's end. */
+  .nw-bar i { display: block; height: 100%; background: #ffd200; }
+  .nw-bar.paused i { background: #1e40af; }
+  /* The minutes in a box of the ribbon's color at the bar's right end, its
+     pointer down at the bar. */
   .nw-time {
-    position: absolute; right: 6px; bottom: 31px; z-index: 11; pointer-events: none;
-    background: rgba(5, 8, 12, 0.88); color: #fff; border: 2px solid #e11d48; border-radius: 6px; padding: 3px 8px 2px;
+    position: absolute; right: 6px; bottom: 33px; z-index: 11; pointer-events: none; white-space: nowrap;
+    background: #ffd200; color: #0b2a6b; border-radius: 5px; padding: 3px 8px 2px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
     font-family: "Montserrat", sans-serif; font-weight: 800; font-size: 12px; line-height: 1.2; font-variant-numeric: tabular-nums;
   }
-  .nw-time b { color: #e11d48; font-weight: 800; }
-  .nw-time.paused { border-color: #f59e0b; }
-  .nw-time.paused b { color: #f59e0b; }
+  .nw-time::after {
+    content: ""; position: absolute; left: 50%; bottom: -5px; margin-left: -5px;
+    border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 5px solid #ffd200;
+  }
+  .nw-time.paused { background: #1e40af; color: #ffd200; }
+  .nw-time.paused::after { border-top-color: #1e40af; }
   .card-ribbon.tone-finale { background: #c1502e; color: #fff; }
   .remaining-badge {
     /* Flush into the bottom-right corner, square rather than merged with

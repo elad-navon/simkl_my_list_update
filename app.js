@@ -784,7 +784,7 @@ async function openLibrary() {
 // whose next episode is one of them gets a ribbon in its top-left corner
 // (WATCHING, or PAUSED - also when the report is over 3 minutes old: the
 // computer went off), clear of the premiere/finale ribbon on the right, and
-// a progress bar along the poster with the minutes left.
+// a progress bar along the poster with the minutes in a box at its end.
 let embyNow = null;
 const EMBY_STALE_MS = 3 * 60 * 1000;
 
@@ -813,7 +813,7 @@ function applyNowWatching() {
     const word = nw.paused ? "PAUSED" : "WATCHING";
     wrap.insertAdjacentHTML("beforeend", `
       <div class="card-ribbon nw-left nw-overlay tone-${nw.paused ? "paused" : "watching"}" title=""><span><i class="nw-dot"></i>${word}</span></div>
-      <div class="nw-overlay nw-time${nw.paused ? " paused" : ""}" title=""><b>${Math.max(0, Math.round((nw.len - nw.pos) / 60))} min</b> left</div>
+      <div class="nw-overlay nw-time${nw.paused ? " paused" : ""}" title="">${Math.floor(nw.pos / 60)} / ${Math.round(nw.len / 60)} min</div>
       <div class="nw-overlay nw-bar${nw.paused ? " paused" : ""}" title=""><i style="width:${pct}%"></i></div>`);
   });
 }
