@@ -347,13 +347,13 @@
   body .series-panel-stat .label { font-style: italic; font-weight: 600; }
   body .card-body h3, body .list-row-title { font-weight: 700; color: var(--gold); }
   body .card-body h3:hover, body .list-row-title:hover { color: var(--accent2); }
-  /* Dark theme: show names a weight up, with a thin dark outline round
+  /* Dark theme: show names a weight up, with a thin white outline round
      every letter (drawn under the fill), like film subtitles - clear on
      any poster's glass. */
   body:not(.light-theme) .card-body h3, body:not(.light-theme) .list-row-title,
   body:not(.light-theme) .list-panel-header, body:not(.light-theme) .list-panel-count,
   body:not(.light-theme) .series-panel-stat .num, body:not(.light-theme) .series-panel-stat .label {
-    font-weight: 800; -webkit-text-stroke: 3px #05080c; paint-order: stroke fill;
+    font-weight: 800; -webkit-text-stroke: 3px #ffffff; paint-order: stroke fill;
     text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
   }
   body .episode-title { font-family: "Fraunces", Georgia, serif; font-style: italic; font-weight: 600; text-transform: none; color: var(--gold); }
