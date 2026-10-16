@@ -475,9 +475,28 @@ async function runNowWatching() {
   return results;
 }
 
+// ?scenario=order: a new episode moves a show to the front of My List only
+// when the show wasn't already waiting there.
+async function runOrder() {
+  const { w } = await loadMode("library", false, "order");
+  const results = [];
+  const check = (name, ok, detail) => results.push({ name, ok: !!ok, detail: detail === undefined ? null : detail });
+  await waitFor(() => (w.eval("lastRows") || []).some(r => r.title === "Uno"));
+  const order = w.eval("lastRows").map(r => r.title);
+  check("a show with nothing to watch until a new episode came out comes first", order[0] === "Dos", order);
+  check("a show already waiting doesn't move for its newer episode", order.indexOf("Uno") > order.indexOf("Charlie"), order);
+  return results;
+}
+
 (async () => {
   const out = document.getElementById("result");
   try {
+    if (params.get("scenario") === "order") {
+      const results = await runOrder();
+      out.dataset.done = "1";
+      out.textContent = JSON.stringify({ writes: results }, null, 1);
+      return;
+    }
     if (params.get("scenario") === "nowwatching" && !params.get("show")) {
       const results = await runNowWatching();
       out.dataset.done = "1";

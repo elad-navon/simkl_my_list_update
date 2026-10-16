@@ -2168,16 +2168,24 @@ async function getMyListRows(cache, episodeCache) {
       }
     }
 
-    // When the show's newest aired episode became available - whichever
-    // episode it is, not only the next one to watch (sorting, below).
-    let newestEpisodeAt = null;
+    // When the show came into My List: when its next episode to watch
+    // became available (sorting, below). A newer episode of a show that's
+    // already waiting here doesn't count - the one you're up to does. Only
+    // when that episode isn't in the list (numbering), its newest aired one.
+    let joinedAt = null;
     if (showId) {
       const now = Date.now();
-      for (const ep of (await episodeCache.get(showId)) || []) {
-        if (ep.season == null || ep.season === 0 || ep.episode == null) continue;
-        if (!episodeHasAired(ep, now, show.runtime)) continue;
-        const at = episodeAvailableAt(ep, show.runtime);
-        if (at != null && (newestEpisodeAt == null || at > newestEpisodeAt)) newestEpisodeAt = at;
+      const eps = (await episodeCache.get(showId)) || [];
+      const next = nextSeason != null ? eps.find(e => e.season === nextSeason && e.episode === nextEpisode) : null;
+      if (next && episodeHasAired(next, now, show.runtime)) {
+        joinedAt = episodeAvailableAt(next, show.runtime);
+      } else {
+        for (const ep of eps) {
+          if (ep.season == null || ep.season === 0 || ep.episode == null) continue;
+          if (!episodeHasAired(ep, now, show.runtime)) continue;
+          const at = episodeAvailableAt(ep, show.runtime);
+          if (at != null && (joinedAt == null || at > joinedAt)) joinedAt = at;
+        }
       }
     }
 
@@ -2191,7 +2199,7 @@ async function getMyListRows(cache, episodeCache) {
       title, imdbId, imdbRating, ratings, showId, tmdbId, year: show.year, ...images, network, networkLogoPath,
       totalEpisodes, available, watched, remaining,
       hours, mins, nextHours, nextMins, nextLabel, nextSeason, nextEpisode, episodeTitle, nextAirDate, badge,
-      episodesLeft, lastWatchedAt: mostRecentWatchedAt(item), newestEpisodeAt, yearRangeLabel,
+      episodesLeft, lastWatchedAt: mostRecentWatchedAt(item), joinedAt, yearRangeLabel,
       firstAirDate: showDetail && showDetail.first_air_date ? showDetail.first_air_date : null,
     };
     return { row, remaining, remainingMinutes };
@@ -2201,14 +2209,15 @@ async function getMyListRows(cache, episodeCache) {
   const totalRemainingEps = results.reduce((sum, r) => sum + r.remaining, 0);
   const totalRemainingMinutes = results.reduce((sum, r) => sum + r.remainingMinutes, 0);
 
-  // The show with the most recent event comes first: a new episode becoming
-  // available (the end of its broadcast - any newly aired episode, not only
-  // the next one to watch) or you watching an episode of it. Each new event
-  // moves its show to the front and the rest one place along. Without
-  // either (no dates, nothing watched), the next episode's air date; shows
-  // with no signal at all sink to the end.
+  // The show with the most recent event comes first: it coming into My List
+  // (its next episode to watch became available - the end of its broadcast)
+  // or you watching an episode of it. Each new event moves its show to the
+  // front and the rest one place along; another new episode of a show
+  // that's already here doesn't move it. Without either (no dates, nothing
+  // watched), the next episode's air date; shows with no signal at all sink
+  // to the end.
   const sortTimestamp = (row) => {
-    const times = [row.newestEpisodeAt, row.lastWatchedAt].filter(t => t != null);
+    const times = [row.joinedAt, row.lastWatchedAt].filter(t => t != null);
     if (times.length) return Math.max(...times);
     return row.nextAirDate != null ? airDateToTimestamp(row.nextAirDate) : null;
   };

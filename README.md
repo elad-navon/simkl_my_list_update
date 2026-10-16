@@ -125,8 +125,10 @@ few marks (e.g. `autoStarted`). Everything else is fetched.
 - *Next to watch* = the first aired, unwatched episode after the latest
   one you watched (in season / episode order). Gaps before it still
   count as remaining.
-- My List shows Watching shows that have a next episode, ordered by the
-  later of its air time and the last time you watched the show.
+- My List shows Watching shows that have a next episode, the most recent
+  event first: the show coming into My List (its next episode to watch
+  became available) or you watching it. Another new episode of a show
+  that's already waiting there doesn't move it.
 
 **Status**
 - A Plan to Watch show whose first episode aired in the last 30 days,
