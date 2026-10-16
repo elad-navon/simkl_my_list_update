@@ -322,36 +322,34 @@
   }
   .card-ribbon.tone-premiere { background: #2fa84f; color: #fff; }
   /* "Now watching" (applyNowWatching in app.js): its ribbon mirrors the
-     premiere/finale one into the top-left corner, so both can show (the
-     network logo stays on top of it), and a bar with the minutes runs
-     along the poster just above its bottom badges. */
-  .card-ribbon.nw-left { right: auto; left: -46px; transform: rotate(-40deg); }
-  .poster-wrap .badge.network-badge { z-index: 13; }
-  /* Yellow and blue: yellow with navy while it plays, blue with yellow
-     once it's stopped. */
-  .card-ribbon.tone-watching { background: #ffd200; color: #0b2a6b; }
+     premiere/finale one into the top-left corner, so both can show - over
+     the network logo there while it's on - and a bar with the minutes
+     runs along the poster just above its bottom badges. */
+  .card-ribbon.nw-left { right: auto; left: -46px; transform: rotate(-40deg); z-index: 14; }
+  /* Bordeaux while it plays, blue with yellow once it's stopped. */
+  .card-ribbon.tone-watching { background: #8c1c3a; color: #fde8ec; }
   .card-ribbon.tone-paused { background: #1e40af; color: #ffd200; }
   .card-ribbon .nw-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: currentColor; margin-right: 6px; vertical-align: 1px; animation: nw-pulse 1.2s ease-in-out infinite; }
   .card-ribbon.tone-paused .nw-dot { animation: none; }
   @keyframes nw-pulse { 50% { opacity: 0.25; } }
   @media (prefers-reduced-motion: reduce) { .card-ribbon .nw-dot { animation: none; } }
   .nw-bar { position: absolute; left: 0; right: 0; bottom: 22px; height: 6px; background: rgba(0, 0, 0, 0.6); z-index: 11; pointer-events: none; }
-  .nw-bar i { display: block; height: 100%; background: #ffd200; }
+  .nw-bar i { display: block; height: 100%; background: #a8204a; }
   .nw-bar.paused i { background: #1e40af; }
-  /* The minutes in a box of the ribbon's color at the bar's right end, its
-     pointer down at the bar. */
+  /* The minutes in a dark box edged in the ribbon's color at the bar's
+     right end, its pointer down at the bar. */
   .nw-time {
     position: absolute; right: 6px; bottom: 33px; z-index: 11; pointer-events: none; white-space: nowrap;
-    background: #ffd200; color: #0b2a6b; border-radius: 5px; padding: 3px 8px 2px;
+    background: rgba(5, 8, 12, 0.88); color: #fff; border: 2px solid #a8204a; border-radius: 6px; padding: 2px 8px 1px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
     font-family: "Montserrat", sans-serif; font-weight: 800; font-size: 12px; line-height: 1.2; font-variant-numeric: tabular-nums;
   }
   .nw-time::after {
-    content: ""; position: absolute; left: 50%; bottom: -5px; margin-left: -5px;
-    border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 5px solid #ffd200;
+    content: ""; position: absolute; left: 50%; bottom: -7px; margin-left: -5px;
+    border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 5px solid #a8204a;
   }
-  .nw-time.paused { background: #1e40af; color: #ffd200; }
-  .nw-time.paused::after { border-top-color: #1e40af; }
+  .nw-time.paused { border-color: #2f5bd6; color: #ffd200; }
+  .nw-time.paused::after { border-top-color: #2f5bd6; }
   .card-ribbon.tone-finale { background: #c1502e; color: #fff; }
   .remaining-badge {
     /* Flush into the bottom-right corner, square rather than merged with
