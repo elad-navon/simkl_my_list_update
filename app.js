@@ -4119,6 +4119,13 @@ function displaySrcFor(source, row) {
   return panelThumbSrc(row);
 }
 
+// Poster pairs: the poster's own colors glowing into its text box from the
+// side it touches - the same image, blown up and blurred, fading out across
+// the box (.pp-glow).
+function posterGlowHtml(src) {
+  return src ? `<div class="pp-glow" aria-hidden="true"><i style="background-image:url('${src}')"></i></div>` : "";
+}
+
 // Updates every currently-rendered <img> for a show directly, in place -
 // used after a cycle instead of a full renderRows()/renderAiringRows()
 // rebuild. A full rebuild recreates every card's <img> tag across every
@@ -4143,6 +4150,9 @@ function patchImagesForTmdbId(tmdbId) {
       if (!img) return;
       const newSrc = displaySrcFor(source, r);
       if (newSrc && img.src !== newSrc) img.src = newSrc;
+      const tile = newSrc && wrap.closest(".card, .list-row");
+      const glow = tile && tile.querySelector(".pp-glow i");
+      if (glow) glow.style.backgroundImage = `url('${newSrc}')`;
     });
   }
 }
@@ -4924,10 +4934,11 @@ function pairedPanelHtml(list, rowHtmlFn, { byShow = false } = {}) {
 }
 
 // A row's details: in a pair they sit in the tile's half-height box
-// (.list-row-body), its text measured inside it (fitPanelRowLines).
-function rowDetailsHtml(inner) {
+// (.list-row-body), its text measured inside it (fitPanelRowLines), over
+// the poster's glow (posterGlowHtml) - `src`, the poster shown beside it.
+function rowDetailsHtml(inner, src) {
   const wrap = `<div class="list-row-title-wrap">${inner}</div>`;
-  return panelPosters() ? `<div class="list-row-body">${wrap}</div>` : wrap;
+  return panelPosters() ? `<div class="list-row-body">${posterGlowHtml(src)}${wrap}</div>` : wrap;
 }
 
 // Bottom-panel row frames alternate between the top panel's two pair colors
@@ -4955,7 +4966,7 @@ function renderRecentlyWatchedHtml(list) {
     return `
       <div class="list-row ${rowToneClass(idx)}">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}${scroll ? "" : thumbBarHtml("", ep)}</div>
-        ${rowDetailsHtml(rowInfoWrapHtml(ep, idx, "watched", "row"))}
+        ${rowDetailsHtml(rowInfoWrapHtml(ep, idx, "watched", "row"), bannerSrc)}
         ${scroll ? `<span class="list-check">${CHECK_ICON_SVG}</span>` : ""}
       </div>`;
   };
@@ -4984,7 +4995,7 @@ function renderPlanToWatchHtml(list) {
     return `
       <div class="list-row ${rowToneClass(idx)}">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}${scroll ? "" : thumbBarHtml(imdbButtonHtml(row.imdbId, row.imdbRating, row.ratings))}</div>
-        ${rowDetailsHtml(rowInfoWrapHtml(row, idx, "plan", "row"))}
+        ${rowDetailsHtml(rowInfoWrapHtml(row, idx, "plan", "row"), bannerSrc)}
         ${scroll ? `<span class="list-check">${STAR_ICON_SVG}</span>` : ""}
         <button class="card-menu-btn plan-menu-btn" title="Manage" onclick="event.stopPropagation(); openPlanCardMenu(${idx}, this)">&#8942;</button>
       </div>`;
@@ -5096,7 +5107,7 @@ function renderAiringNextPreviewHtml(list) {
     return `
       <div class="list-row ${rowToneClass(idx, true)}">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}${scroll ? "" : thumbBarHtml(imdbButtonHtml(row.imdbId, row.imdbRating, row.ratings), row)}${airCountHtml(row)}</div>
-        ${rowDetailsHtml(rowInfoWrapHtml(row, idx, "airing", "row"))}
+        ${rowDetailsHtml(rowInfoWrapHtml(row, idx, "airing", "row"), bannerSrc)}
         ${scroll ? `<span class="list-check">${BELL_ICON_SVG}</span>` : ""}
       </div>`;
   };
@@ -5189,7 +5200,8 @@ function updatePagerUiForTrack(track) {
 const ROW_LINE_BUDGET = 6;
 const ROW_TITLE_SIZES = ["", "title-fs-1", "title-fs-2"];
 function fitPanelRowLines() {
-  const items = [...document.querySelectorAll(".list-rows-paged .list-row-title-wrap")].map(wrap => ({
+  // (Rows in poster pairs are fitted whole instead - fitPairText.)
+  const items = [...document.querySelectorAll(".list-rows-paged .list-row-title-wrap")].filter(wrap => !wrap.closest(".panel-pair")).map(wrap => ({
     wrap,
     title: wrap.querySelector(":scope > .list-row-title"),
     ep: wrap.querySelector(":scope > .episode-title"),
@@ -5251,6 +5263,42 @@ function fitPanelRowLines() {
     pending = next;
   });
 }
+// The text boxes of the L-shaped pairs (top panel, and the bottom panels
+// with Panels to Posters) never cut a show's name: its type steps down a
+// pixel at a time until the box holds everything; if it still doesn't, the
+// network line, then the air date, then the episode's name give way.
+const PAIR_TITLE_MIN_PX = 13;
+function fitPairText() {
+  const boxes = [...document.querySelectorAll(".poster-pair .card-body, .panel-pair .list-row-body")];
+  for (const box of boxes) {
+    const title = box.querySelector("h3, .list-row-title");
+    if (title) title.style.removeProperty("font-size");
+    box.querySelectorAll("[data-fit-dropped]").forEach(el => { el.style.removeProperty("display"); delete el.dataset.fitDropped; });
+  }
+  for (const box of boxes) {
+    const title = box.querySelector("h3, .list-row-title");
+    if (!title || !box.clientHeight) continue;
+    // The bottom boxes' text sits in one wrap: measure that against the
+    // box's inner height. The top boxes' text fills the box itself (its
+    // last line pinned to the bottom): it fits while that line ends inside.
+    // (Not scrollHeight: the rounded inside corner hangs just outside.)
+    const wrap = box.querySelector(".list-row-title-wrap");
+    const cs = getComputedStyle(box);
+    const room = box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    const last = box.lastElementChild;
+    const fits = wrap
+      ? () => wrap.scrollHeight <= room + 1
+      : () => last.getBoundingClientRect().bottom <= box.getBoundingClientRect().bottom - parseFloat(cs.borderBottomWidth) - parseFloat(cs.paddingBottom) + 1;
+    let size = parseFloat(getComputedStyle(title).fontSize);
+    while (!fits() && size > PAIR_TITLE_MIN_PX) { size -= 1; title.style.fontSize = `${size}px`; }
+    for (const sel of [".network-sub, .network-imdb-row", ".list-row-airdate", ".episode-title"]) {
+      if (fits()) break;
+      box.querySelectorAll(sel).forEach(el => { el.style.display = "none"; el.dataset.fitDropped = "1"; });
+    }
+  }
+}
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitPairText());
+
 // One-page layout on desktop: grows or shrinks the top panel's posters /
 // banners (--top-img-h) so the page fills the window exactly - no scrolling,
 // whatever the screen height. A few passes, since a banner's width follows
@@ -5277,7 +5325,7 @@ if (document.fonts) document.fonts.ready.then(() => fitTopPanelToWindow());
 let fitRowLinesRaf = null;
 window.addEventListener("resize", () => {
   if (fitRowLinesRaf) return;
-  fitRowLinesRaf = requestAnimationFrame(() => { fitRowLinesRaf = null; fitPanelRowLines(); fitTopPanelToWindow(); });
+  fitRowLinesRaf = requestAnimationFrame(() => { fitRowLinesRaf = null; fitPanelRowLines(); fitTopPanelToWindow(); fitPairText(); });
 });
 
 // Re-wired after every renderRows() - the bottom panels' HTML (and so every
@@ -5372,6 +5420,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
     wirePanelPagerTracks();
     fitPanelRowLines();
     fitTopPanelToWindow();
+    fitPairText();
     tickAirCountdowns();
     scheduleAirRefresh();
     return;
@@ -5423,6 +5472,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
       <div class="card carousel-card${isWide ? " banner-mode" : ""}${isWide && onePage ? " framed " + rowToneClass(arrIdx) : ""}" data-row="${arrIdx}">
         ${wrapHtml}
         <div class="card-body">
+          ${pairPosters ? posterGlowHtml(displaySrcFor("main", row)) : ""}
           <div class="card-title-row">
             <h3 title="View cast" onclick="event.stopPropagation(); openCastModal('main', ${arrIdx})">${row.title}</h3>
             <button class="card-menu-btn" title="Manage" onclick="event.stopPropagation(); openCardMenu(${arrIdx}, this)">&#8942;</button>
@@ -5485,6 +5535,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   wirePanelPagerTracks();
   fitPanelRowLines();
   fitTopPanelToWindow();
+  fitPairText();
   updateCarouselArrows();
   wireHoverStabilization();
   tickAirCountdowns();
