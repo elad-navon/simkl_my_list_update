@@ -98,6 +98,19 @@
         watched: [[1, 1, -6]] },
     );
   }
+  // ?scenario=order: My List's order. Uno was already waiting (S01E02 out
+  // ten days ago) when S01E03 came out two hours ago - it stays put; Dos had
+  // nothing to watch until its S01E02 came out three hours ago - it comes
+  // first.
+  if (window.__SCENARIO === "order") {
+    const ep = (number, x) => ({ season: 1, number, ...x });
+    SHOWS.push(
+      { title: "Uno", simkl: 31, tmdb: 121, tvmaze: 1021, status: "watching", ended: false,
+        eps: [ep(1, { day: -20 }), ep(2, { day: -10 }), ep(3, { at: -2 * 3600000 })], watched: [[1, 1, -15]] },
+      { title: "Dos", simkl: 32, tmdb: 122, tvmaze: 1022, status: "watching", ended: false,
+        eps: [ep(1, { day: -20 }), ep(2, { at: -3 * 3600000 })], watched: [[1, 1, -19]] },
+    );
+  }
   for (const s of SHOWS) {
     s.imdb = `tt${s.tmdb}`;
     s.tvdb = 9000 + s.tmdb;
