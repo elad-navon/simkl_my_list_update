@@ -312,6 +312,11 @@
   /* Whole names (fitPairText sizes them). */
   .poster-pair .card-body h3 { max-height: none; overflow: visible; }
   .panel-pair .list-row-title { display: block; -webkit-line-clamp: none; overflow: visible; }
+  /* The bottom pairs' boxes are short: the network chip and the air date's
+     spacing a few pixels slimmer, so an episode's name gets a second line. */
+  .panel-pair .list-row-sub.network-sub { min-height: 17px; }
+  .panel-pair .network-logo { height: 12px; padding: 2px 5px; }
+  .panel-pair .list-row-airdate { margin-top: 1px; }
 
   /* Type: Fraunces (a warm editorial serif) for every heading and show
      name, in title case; Work Sans for all other text (body, above). The

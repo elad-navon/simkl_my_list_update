@@ -18,12 +18,11 @@
 // never from the whole history.
 // The library is read only when there's something to mark.
 //
-// It also tells the site what's playing (meta "emby", for the "now
-// watching" ribbon on the top cards): the episodes playing now, and the
-// ones stopped partway (Emby's resume points), each with its position to
-// the minute. Written only when that changes, or every minute while
-// something is on (so the site can tell a stale "playing" - the computer
-// went off - from a live one).
+// It also tells the site what's on (meta "emby", for the "now watching"
+// ribbon on the top cards): the episodes open on a TV right now, playing or
+// paused, each with its position to the minute. Written only when that
+// changes, or every minute while something is on (so the site can tell a
+// stale report - the computer went off - from a live one).
 "use strict";
 
 const { createShowTaker } = require("../../simkl-bridge.js");
@@ -61,8 +60,6 @@ function seriesIds(series) {
 // - emby.playedSince(iso): episodes marked played since then, each with
 //   UserData.LastPlayedDate
 // - emby.series(id): a series item (Name, ProductionYear, ProviderIds)
-// - emby.resume(): episodes stopped partway (optional), each with
-//   UserData.PlaybackPositionTicks
 // - backend: getMeta(name) / setMeta(name, data)
 function createEmbyBridge({ core, store, adapter, backend, emby, now = () => Date.now(), threshold = 0.9 }) {
   const takeShow = createShowTaker({ core, store, adapter, prefix: "emby-bridge", by: "emby" });
@@ -97,14 +94,9 @@ function createEmbyBridge({ core, store, adapter, backend, emby, now = () => Dat
       const e = await entryFor(s.item, s.positionTicks, s.paused).catch(() => null);
       if (e) playing.push(e);
     }
-    const resume = [];
-    for (const item of (emby.resume ? await emby.resume().catch(() => []) : []) || []) {
-      const e = await entryFor(item, item.UserData && item.UserData.PlaybackPositionTicks).catch(() => null);
-      if (e && !playing.some(p => p.s === e.s && p.e === e.e && p.docId === e.docId && p.tmdb === e.tmdb)) resume.push(e);
-    }
-    const state = JSON.stringify({ playing, resume });
+    const state = JSON.stringify({ playing });
     if (state === lastNow && !(playing.length && now() - lastNowAt >= 55000)) return;
-    await backend.setMeta(NOW_META, { playing, resume, updatedAt: new Date(now()).toISOString() });
+    await backend.setMeta(NOW_META, { playing, updatedAt: new Date(now()).toISOString() });
     lastNow = state;
     lastNowAt = now();
   }

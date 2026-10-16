@@ -465,10 +465,11 @@ async function runNowWatching() {
   check("playing: WATCHING ribbon and the minutes on its card",
     alpha.querySelector(".card-ribbon.tone-watching") && alpha.querySelector(".nw-time").textContent.trim() === "23 / 45 min",
     alpha.querySelector(".nw-time") && alpha.querySelector(".nw-time").textContent);
-  check("stopped partway: PAUSED, its bar where it stopped",
+  check("paused on the TV: PAUSED, its bar where it stopped",
     charlie.querySelector(".card-ribbon.tone-paused") && charlie.querySelector(".nw-bar i").style.width === "27%",
     charlie.querySelector(".nw-bar i") && charlie.querySelector(".nw-bar i").style.width);
-  check("other cards keep their own ribbon", hotel.querySelector(".card-ribbon:not(.nw-overlay)") && !hotel.querySelector(".nw-overlay"));
+  check("an episode only stopped partway some other time: nothing shown, its own ribbon stays",
+    hotel.querySelector(".card-ribbon:not(.nw-overlay)") && !hotel.querySelector(".nw-overlay"));
   await rerender(w, () => w.eval("main")());
   await waitFor(() => doc.querySelector(".card-ribbon.tone-watching"));
   check("still there after the page redraws", !!card("Alpha").querySelector(".card-ribbon.tone-watching"));
