@@ -779,12 +779,13 @@ async function openLibrary() {
 }
 
 // "Now watching" on the top cards: tools/emby-bridge (on the computer
-// running Emby) keeps meta "emby" up to date - the episodes playing now, and
-// the ones stopped partway, each with its position to the minute. A card
-// whose next episode is one of them gets a ribbon in its top-left corner
-// (WATCHING, or PAUSED - also when the report is over 3 minutes old: the
-// computer went off), clear of the premiere/finale ribbon on the right, and
-// a progress bar along the poster with the minutes in a box at its end.
+// running Emby) keeps meta "emby" up to date with the episodes open on a TV
+// right now, playing or paused, each with its position to the minute. A
+// card whose next episode is one of them gets a ribbon in its top-left
+// corner (WATCHING or PAUSED), clear of the premiere/finale ribbon on the
+// right, and a progress bar along the poster with the minutes in a box at
+// its end. Nothing for an episode merely stopped partway some other time,
+// and nothing once the report is over 3 minutes old (the computer went off).
 let embyNow = null;
 const EMBY_STALE_MS = 3 * 60 * 1000;
 
@@ -795,11 +796,9 @@ function nowWatchingFor(row) {
   const s = Number(m[1]), e = Number(m[2]);
   const same = x => x.s === s && x.e === e && ((x.docId != null && String(x.docId) === String(row.showId)) ||
     (x.tmdb != null && row.tmdbId != null && String(x.tmdb) === String(row.tmdbId)) || (!!x.imdb && x.imdb === row.imdbId));
-  const live = Date.now() - Date.parse(embyNow.updatedAt || 0) < EMBY_STALE_MS;
+  if (Date.now() - Date.parse(embyNow.updatedAt || 0) >= EMBY_STALE_MS) return null;
   const playing = (embyNow.playing || []).find(same);
-  if (playing) return { ...playing, paused: !!playing.paused || !live };
-  const stopped = (embyNow.resume || []).find(same);
-  return stopped ? { ...stopped, paused: true } : null;
+  return playing ? { ...playing, paused: !!playing.paused } : null;
 }
 
 function applyNowWatching() {
@@ -5276,9 +5275,11 @@ function fitPanelRowLines() {
   });
 }
 // The text boxes of the L-shaped pairs (top panel, and the bottom panels
-// with Panels to Posters) never cut a show's name: its type steps down a
-// pixel at a time until the box holds everything; if it still doesn't, the
-// network line, then the air date, then the episode's name give way.
+// with Panels to Posters) never cut a show's name, and give the episode's
+// name every line the box has room for: it starts unclamped and gives back
+// lines (down to one) while the box overflows; then the show name's type
+// steps down a pixel at a time; if it still doesn't fit, the network line,
+// then the air date, then the episode's name give way.
 const PAIR_TITLE_MIN_PX = 13;
 function fitPairText() {
   const boxes = [...document.querySelectorAll(".poster-pair .card-body, .panel-pair .list-row-body")];
@@ -5286,6 +5287,11 @@ function fitPairText() {
     const title = box.querySelector("h3, .list-row-title");
     if (title) title.style.removeProperty("font-size");
     box.querySelectorAll("[data-fit-dropped]").forEach(el => { el.style.removeProperty("display"); delete el.dataset.fitDropped; });
+    const ep = box.querySelector(".episode-title");
+    if (ep) {
+      Object.assign(ep.style, { whiteSpace: "normal", maxHeight: "none", display: "-webkit-box", webkitBoxOrient: "vertical" });
+      ep.style.setProperty("-webkit-line-clamp", "none");
+    }
   }
   for (const box of boxes) {
     const title = box.querySelector("h3, .list-row-title");
@@ -5301,6 +5307,12 @@ function fitPairText() {
     const fits = wrap
       ? () => wrap.scrollHeight <= room + 1
       : () => last.getBoundingClientRect().bottom <= box.getBoundingClientRect().bottom - parseFloat(cs.borderBottomWidth) - parseFloat(cs.paddingBottom) + 1;
+    const ep = box.querySelector(".episode-title");
+    if (ep && !fits()) {
+      const lineH = parseFloat(getComputedStyle(ep).lineHeight) || 16;
+      let lines = Math.max(1, Math.round(ep.getBoundingClientRect().height / lineH));
+      while (!fits() && lines > 1) { lines -= 1; ep.style.setProperty("-webkit-line-clamp", String(lines)); }
+    }
     let size = parseFloat(getComputedStyle(title).fontSize);
     while (!fits() && size > PAIR_TITLE_MIN_PX) { size -= 1; title.style.fontSize = `${size}px`; }
     for (const sel of [".network-sub, .network-imdb-row", ".list-row-airdate", ".episode-title"]) {

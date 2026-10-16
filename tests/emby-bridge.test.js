@@ -178,14 +178,14 @@ test("now watching: what's playing goes to the site, to the minute, with the lib
   assert.equal(backend.meta.get("emby").playing[0].paused, true);
 });
 
-test("now watching: stopped partway shows Emby's resume point; nothing on, nothing rewritten", async () => {
+test("now watching: only what's open on a TV - no old stopping points; nothing on, nothing rewritten", async () => {
   let t = NOW;
   const { bridge, backend, emby } = await setup({ 1: libShow(1, "watching") }, { clock: () => t });
   emby.resume = async () => [embyEp("e3", "s1", 1, 3, { UserData: { PlaybackPositionTicks: 12.2 * TICKS_PER_MIN } })];
   await bridge.run();
   const first = backend.meta.get("emby");
   assert.deepEqual(first.playing, []);
-  assert.equal(first.resume[0].pos, 12 * 60);
+  assert.equal(first.resume, undefined);
   t = NOW + 5 * MIN;
   await bridge.run();
   assert.equal(backend.meta.get("emby").updatedAt, first.updatedAt, "unchanged: not written again");

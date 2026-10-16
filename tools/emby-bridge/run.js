@@ -74,13 +74,7 @@ function embyClient({ embyUrl, embyApiKey, embyUser }) {
       const uid = await user();
       return (await get("/Sessions")).filter(s => s.UserId === uid && s.NowPlayingItem)
         .map(s => ({ item: s.NowPlayingItem, positionTicks: (s.PlayState && s.PlayState.PositionTicks) || 0, paused: !!(s.PlayState && s.PlayState.IsPaused) }));
-    },
-    // Episodes stopped partway, with where they stopped.
-    async resume() {
-      const page = await get(`/Users/${await user()}/Items/Resume`, {
-        IncludeItemTypes: "Episode", Recursive: "true", Fields: "ProviderIds", EnableUserData: "true", Limit: "30",
-      });
-      return page.Items || [];
+
     },
     // Episodes marked played, newest first, back to `sinceIso`.
     async playedSince(sinceIso) {

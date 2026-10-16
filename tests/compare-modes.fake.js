@@ -242,11 +242,13 @@
   let signedIn = true;
   const user = { uid: "test", email: "test@example.com" };
   // ?scenario=nowwatching: Alpha's next episode (S02E02) playing on Emby,
-  // Charlie's (S01E06) stopped partway.
+  // Charlie's (S01E06) open but paused; Hotel's (S01E01) only stopped
+  // partway some other time (an old-style resume entry - not shown).
   const embyMeta = window.__SCENARIO === "nowwatching" ? {
     updatedAt: new Date(BASE).toISOString(),
-    playing: [{ docId: "101", tmdb: 101, s: 2, e: 2, pos: 23 * 60, len: 45 * 60 }],
-    resume: [{ docId: "103", tmdb: 103, s: 1, e: 6, pos: 12 * 60, len: 45 * 60 }],
+    playing: [{ docId: "101", tmdb: 101, s: 2, e: 2, pos: 23 * 60, len: 45 * 60 },
+      { docId: "103", tmdb: 103, s: 1, e: 6, pos: 12 * 60, len: 45 * 60, paused: true }],
+    resume: [{ docId: "108", tmdb: 108, s: 1, e: 1, pos: 5 * 60, len: 45 * 60 }],
   } : null;
   window.__fakeFirebaseCreate = () => Object.assign(LibraryStore.memoryBackend(window.__libraryDocs), {
     watchMeta(name, cb) { setTimeout(() => cb(name === "emby" ? embyMeta : null), 0); return () => {}; },
