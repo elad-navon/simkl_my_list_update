@@ -34,6 +34,8 @@ page.
    Optional:
    - **MDBList API key**: IMDb, Rotten Tomatoes and Trakt ratings.
    - **Fanart.tv API key**: more posters and banners in the image picker.
+   - **TheTVDB API key**: more posters and backgrounds in the image picker
+     (the artwork SIMKL and Emby show). Free; the picker credits TheTVDB.
    - **SIMKL Client ID** plus **Connect SIMKL**: the auto-marking below.
      Only one device needs it, since what it copies goes into the
      shared library.
@@ -68,7 +70,7 @@ signed-in account.
   it, shows ratings, and opens the **episodes manager** (mark or unmark
   single episodes or whole seasons, then Save).
 - **Images**: click any poster or banner to pick another one (TMDB,
-  TVMaze, Metahub, and Fanart.tv with a key). The pick is remembered on
+  TVMaze, Metahub, and Fanart.tv and TheTVDB with a key). The pick is remembered on
   this device. Only English or no-language artwork is used, with a
   Hebrew fallback for shows that have nothing else.
 - **Network logos** from TMDB, with a small local set for Israeli

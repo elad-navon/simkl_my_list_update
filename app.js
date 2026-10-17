@@ -49,6 +49,8 @@ const LS_TOKEN = "simkl_access_token";
 const LS_CLIENT_ID_V2 = "simkl_client_id_v2";
 const LS_MDBLIST_KEY = "mdblist_api_key"; // optional: Rotten Tomatoes + Trakt ratings
 const LS_FANART_KEY = "fanart_api_key";   // optional: extra posters/banners in the image picker
+const LS_TVDB_KEY = "tvdb_api_key";       // optional: TheTVDB posters/backgrounds in the image picker
+const LS_TVDB_TOKEN = "tvdb_token";       // {key, token, at}: TheTVDB's month-long read token for that key
 const LS_AUTH_V2 = "simkl_auth_v2";
 const LS_IMAGE_MODE = "simkl_image_mode"; // "poster" | "banner"
 const LS_THEME = "simkl_theme"; // "light" | "dark"
@@ -187,6 +189,7 @@ function getConfig() {
     clientIdV2: localStorage.getItem(LS_CLIENT_ID_V2) || "",
     mdblistKey: localStorage.getItem(LS_MDBLIST_KEY) || "",
     fanartKey: localStorage.getItem(LS_FANART_KEY) || "",
+    tvdbKey: localStorage.getItem(LS_TVDB_KEY) || "",
     tmdbKey: localStorage.getItem(LS_TMDB_KEY) || "",
   };
 }
@@ -240,6 +243,9 @@ function showSettings(afterSaveCallback) {
       <label>Fanart.tv API Key &mdash; optional, adds more posters and banners to the image picker
         (<a href="https://fanart.tv/get-an-api-key/" target="_blank">get a free key</a>)</label>
       <input type="text" id="fanartKeyInput" value="${cfg.fanartKey}">
+      <label>TheTVDB API Key &mdash; optional, adds more posters and backgrounds to the image picker
+        (<a href="https://thetvdb.com/api-information" target="_blank">get a free key</a>)</label>
+      <input type="text" id="tvdbKeyInput" value="${cfg.tvdbKey}">
       ${librarySettingsHtml()}
       <div class="theme-toggle-wrap" style="margin-top:18px">
         <span class="nav-icon"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></span>
@@ -264,6 +270,7 @@ function showSettings(afterSaveCallback) {
     const tmdbKey = document.getElementById("tmdbKeyInput").value.trim();
     const mdblistKey = document.getElementById("mdblistKeyInput").value.trim();
     const fanartKey = document.getElementById("fanartKeyInput").value.trim();
+    const tvdbKey = document.getElementById("tvdbKeyInput").value.trim();
     if (!tmdbKey) {
       document.getElementById("settingsError").textContent = "The TMDB key is required.";
       return;
@@ -277,6 +284,8 @@ function showSettings(afterSaveCallback) {
     safeSetItem(LS_MDBLIST_KEY, mdblistKey);
     safeSetItem(LS_FANART_KEY, fanartKey);
     fanartKeyRejected = false;
+    safeSetItem(LS_TVDB_KEY, tvdbKey);
+    tvdbKeyRejected = false;
     if (mdblistKey !== cfg.mdblistKey) {
       mdblistCache.disabled = false;
       if (mdblistKey) {
@@ -4573,17 +4582,90 @@ async function fetchFanartImages(tvdbId) {
   return out;
 }
 
-// All extra images for the picker: Fanart.tv first (curated), then TVMaze
-// and Metahub.
+// TheTVDB: the artwork SIMKL and Emby show (often the newest key art, before
+// TMDB or Fanart.tv have it). Needs a free key (Settings) and the show's
+// TheTVDB id. The key buys a read token valid for a month, kept with the key
+// it belongs to; a 401 means the token ran out, so one fresh login and retry.
+// Posters (type 2) and 16:9 backgrounds (type 3) only - their "banners"
+// (type 1) are 758x140 strips that a 16:9 card would crop to nothing. Their
+// terms ask for a credit with a link, which the picker shows under the grid.
+const CACHE_TTL_TVDB_MS = 7 * 24 * 60 * 60 * 1000;
+const TVDB_API = "https://api4.thetvdb.com/v4";
+const TVDB_TOKEN_MS = 25 * 24 * 60 * 60 * 1000;
+let tvdbKeyRejected = false;
+async function tvdbToken(key, fresh) {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(LS_TVDB_TOKEN) || "null"); } catch (e) { /* unreadable */ }
+  if (!fresh && saved && saved.key === key && saved.token && Date.now() - saved.at < TVDB_TOKEN_MS) return saved.token;
+  const res = await fetch(`${TVDB_API}/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ apikey: key }),
+  });
+  if (res.status === 401 || res.status === 403) {
+    tvdbKeyRejected = true;
+    showToast("TheTVDB rejected the API key - check it in Settings.", true);
+    return null;
+  }
+  if (!res.ok) return null;
+  const token = ((await res.json()).data || {}).token;
+  if (token) safeSetItem(LS_TVDB_TOKEN, JSON.stringify({ key, token, at: Date.now() }));
+  return token || null;
+}
+async function fetchTvdbImages(tvdbId) {
+  const out = { poster: [], banner: [] };
+  const key = getConfig().tvdbKey;
+  if (!key || !tvdbId || tvdbKeyRejected) return out;
+  const cacheKey = `tvdb:${tvdbId}`;
+  const cached = readPersistedCache(cacheKey, CACHE_TTL_TVDB_MS);
+  if (cached !== undefined) return cached;
+  try {
+    let token = await tvdbToken(key, false);
+    if (!token) return out;
+    const artworks = async type => {
+      const url = `${TVDB_API}/series/${tvdbId}/artworks?type=${type}`;
+      let res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.status === 401 && (token = await tvdbToken(key, true))) {
+        res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      }
+      if (res.status === 404) return []; // not in their database
+      if (!res.ok) throw new Error(`TheTVDB ${res.status}`);
+      return ((await res.json()).data || {}).artworks || [];
+    };
+    const [posters, backgrounds] = await Promise.all([artworks(2), artworks(3)]);
+    const usable = x => x && x.image && (!x.language || x.language === "eng");
+    const byScore = (a, b) => (Number(b.score) || 0) - (Number(a.score) || 0);
+    for (const img of posters.filter(usable).sort(byScore)) {
+      out.poster.push({ url: resizedImage(img.image, 342), thumb: img.thumbnail || resizedImage(img.image, 200), src: "TheTVDB" });
+    }
+    for (const img of backgrounds.filter(usable).sort(byScore)) {
+      out.banner.push({ url: resizedImage(img.image, 780), thumb: img.thumbnail || resizedImage(img.image, 300), src: "TheTVDB" });
+    }
+    writePersistedCache(cacheKey, out);
+  } catch (e) {
+    // offline / blocked: no TheTVDB images this time
+  }
+  return out;
+}
+
+// All extra images for the picker: Fanart.tv first (curated), then TheTVDB,
+// then TVMaze and Metahub. The same picture can come from more than one of
+// them, so repeats are dropped.
 async function fetchExtraImages(imdbId, tmdbId) {
   const keyless = await fetchKeylessImages(imdbId);
+  const cfg = getConfig();
   let tvdbId = keyless.tvdbId;
-  if (!tvdbId && tmdbId && sharedCache && getConfig().fanartKey) {
+  if (!tvdbId && tmdbId && sharedCache && (cfg.fanartKey || cfg.tvdbKey)) {
     const detail = await sharedCache.getShow(tmdbId); // already cached; carries external_ids
     tvdbId = detail && detail.external_ids && detail.external_ids.tvdb_id;
   }
-  const fanart = await fetchFanartImages(tvdbId);
-  return { poster: fanart.poster.concat(keyless.poster), banner: fanart.banner.concat(keyless.banner) };
+  const [fanart, tvdb] = await Promise.all([fetchFanartImages(tvdbId), fetchTvdbImages(tvdbId)]);
+  const merged = list => {
+    const seen = new Set();
+    return list.filter(e => !seen.has(e.url) && seen.add(e.url));
+  };
+  return {
+    poster: merged(fanart.poster.concat(tvdb.poster, keyless.poster)),
+    banner: merged(fanart.banner.concat(tvdb.banner, keyless.banner)),
+  };
 }
 
 // Applies a pick that isn't one of TMDB's numbered candidates: same effect as
@@ -4648,7 +4730,8 @@ function openImagePicker(source, idx, mode) {
         </div>
       </div>
       <div class="picker-foot">
-        <span>Your pick is applied when you press Done</span>
+        <span>Your pick is applied when you press Done<span class="picker-credit" id="imagePickerCredit" hidden>
+          &middot; Images from <a href="https://thetvdb.com" target="_blank" rel="noopener">TheTVDB.com</a></span></span>
         <button class="picker-done" id="imagePickerDoneBtn">Done</button>
       </div>
     </div>`;
@@ -4694,6 +4777,8 @@ function openImagePicker(source, idx, mode) {
       if (!overlay.isConnected) return; // closed while loading
       extras = found[mode] || [];
       extrasState = "done";
+      const credit = document.getElementById("imagePickerCredit");
+      if (credit) credit.hidden = !extras.some(e => e.src === "TheTVDB");
       renderGrid();
     });
   }
