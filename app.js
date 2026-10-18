@@ -4522,18 +4522,31 @@ function fetchWithTimeout(url, options = {}) {
   return fetch(url, { ...options, signal: ctrl.signal }).finally(() => clearTimeout(timer));
 }
 
+// TVMaze allows about 20 calls per 10 seconds per address, and the episode
+// lists spend most of that while the page loads - so a picker opened soon
+// after got "429 Too Many Requests" and showed no TVMaze pictures until it
+// was opened again. A 429 now waits and tries again (1.5s, 3s, 6s).
+async function tvmazePickerGet(url) {
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetchWithTimeout(url);
+    if (res.status !== 429 || attempt >= 3) return res;
+    await new Promise(r => setTimeout(r, 1500 * 2 ** attempt));
+  }
+}
+
 async function fetchKeylessImages(imdbId) {
   const out = { poster: [], banner: [], tvdbId: null };
   if (!imdbId) return out;
   const cacheKey = `extraimages:${imdbId}`;
   const cached = readPersistedCache(cacheKey, CACHE_TTL_EXTRA_IMAGES_MS);
   if (cached !== undefined) return cached;
+  let partial = false;
   try {
-    const lookup = await fetchWithTimeout(`https://api.tvmaze.com/lookup/shows?imdb=${imdbId}`);
+    const lookup = await tvmazePickerGet(`https://api.tvmaze.com/lookup/shows?imdb=${imdbId}`);
     if (lookup.ok) {
       const show = await lookup.json();
       out.tvdbId = (show.externals && show.externals.thetvdb) || null; // lets Fanart.tv find the show too
-      const res = await fetchWithTimeout(`https://api.tvmaze.com/shows/${show.id}/images`);
+      const res = await tvmazePickerGet(`https://api.tvmaze.com/shows/${show.id}/images`);
       if (res.ok) {
         for (const img of await res.json()) {
           const original = img.resolutions && img.resolutions.original && img.resolutions.original.url;
@@ -4545,6 +4558,8 @@ async function fetchKeylessImages(imdbId) {
             out.banner.push({ url: resizedImage(original, 780), thumb: resizedImage(original, 300), src: "TVMaze" });
           }
         }
+      } else {
+        partial = true; // shown, but not kept: the next opening asks TVMaze again
       }
     } else if (lookup.status !== 404) {
       return out; // TVMaze hiccup: show what we have, try again next time
@@ -4555,7 +4570,7 @@ async function fetchKeylessImages(imdbId) {
   const meta = `https://images.metahub.space`;
   out.poster.push({ url: resizedImage(`${meta}/poster/medium/${imdbId}/img`, 342), thumb: `${meta}/poster/small/${imdbId}/img`, src: "Metahub" });
   out.banner.push({ url: resizedImage(`${meta}/background/medium/${imdbId}/img`, 780), thumb: resizedImage(`${meta}/background/medium/${imdbId}/img`, 300), src: "Metahub" });
-  writePersistedCache(cacheKey, out);
+  if (!partial) writePersistedCache(cacheKey, out);
   return out;
 }
 
