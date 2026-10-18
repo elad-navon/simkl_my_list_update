@@ -4511,18 +4511,58 @@ function resizedImage(url, width) {
 //   - Metahub: at most one poster and one background, and it doesn't have
 //     every show (a tile whose image fails to load is simply dropped).
 // Cached for a week per show; a network failure isn't cached.
+// The picker's extra sources are other people's servers, and one of them now
+// and then just doesn't answer: every request to them gives up after
+// EXTRA_IMAGES_TIMEOUT_MS (a failure, so nothing is cached and the next
+// opening tries again) instead of keeping "loading more…" up for good.
+const EXTRA_IMAGES_TIMEOUT_MS = 8000;
+function fetchWithTimeout(url, options = {}) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), EXTRA_IMAGES_TIMEOUT_MS);
+  return fetch(url, { ...options, signal: ctrl.signal }).finally(() => clearTimeout(timer));
+}
+
+// TVMaze allows about 20 calls per 10 seconds per address, and the episode
+// lists spend most of that while the page loads - so a picker opened soon
+// after was turned away and showed no TVMaze pictures until it was opened
+// again. Its "429 Too Many Requests" usually reaches the page as a plain
+// network error (the refusal lacks the header that lets a page read it), so
+// both wait and try again (1.5s, 3s, 6s); a timeout doesn't.
+async function tvmazePickerGet(url) {
+  for (let attempt = 0; ; attempt++) {
+    let res = null;
+    try {
+      res = await fetchWithTimeout(url);
+    } catch (e) {
+      if (e.name === "AbortError" || attempt >= 3) throw e;
+    }
+    if (res && (res.status !== 429 || attempt >= 3)) return res;
+    await new Promise(r => setTimeout(r, 1500 * 2 ** attempt));
+  }
+}
+
+// Metahub: at most one poster and one background per show, by IMDb id.
+function metahubImages(imdbId) {
+  const meta = `https://images.metahub.space`;
+  return {
+    poster: [{ url: resizedImage(`${meta}/poster/medium/${imdbId}/img`, 342), thumb: `${meta}/poster/small/${imdbId}/img`, src: "Metahub" }],
+    banner: [{ url: resizedImage(`${meta}/background/medium/${imdbId}/img`, 780), thumb: resizedImage(`${meta}/background/medium/${imdbId}/img`, 300), src: "Metahub" }],
+  };
+}
+
 async function fetchKeylessImages(imdbId) {
   const out = { poster: [], banner: [], tvdbId: null };
   if (!imdbId) return out;
   const cacheKey = `extraimages:${imdbId}`;
   const cached = readPersistedCache(cacheKey, CACHE_TTL_EXTRA_IMAGES_MS);
   if (cached !== undefined) return cached;
+  let partial = false;
   try {
-    const lookup = await fetch(`https://api.tvmaze.com/lookup/shows?imdb=${imdbId}`);
+    const lookup = await tvmazePickerGet(`https://api.tvmaze.com/lookup/shows?imdb=${imdbId}`);
     if (lookup.ok) {
       const show = await lookup.json();
       out.tvdbId = (show.externals && show.externals.thetvdb) || null; // lets Fanart.tv find the show too
-      const res = await fetch(`https://api.tvmaze.com/shows/${show.id}/images`);
+      const res = await tvmazePickerGet(`https://api.tvmaze.com/shows/${show.id}/images`);
       if (res.ok) {
         for (const img of await res.json()) {
           const original = img.resolutions && img.resolutions.original && img.resolutions.original.url;
@@ -4534,6 +4574,8 @@ async function fetchKeylessImages(imdbId) {
             out.banner.push({ url: resizedImage(original, 780), thumb: resizedImage(original, 300), src: "TVMaze" });
           }
         }
+      } else {
+        partial = true; // shown, but not kept: the next opening asks TVMaze again
       }
     } else if (lookup.status !== 404) {
       return out; // TVMaze hiccup: show what we have, try again next time
@@ -4541,10 +4583,10 @@ async function fetchKeylessImages(imdbId) {
   } catch (e) {
     return out; // offline / blocked
   }
-  const meta = `https://images.metahub.space`;
-  out.poster.push({ url: resizedImage(`${meta}/poster/medium/${imdbId}/img`, 342), thumb: `${meta}/poster/small/${imdbId}/img`, src: "Metahub" });
-  out.banner.push({ url: resizedImage(`${meta}/background/medium/${imdbId}/img`, 780), thumb: resizedImage(`${meta}/background/medium/${imdbId}/img`, 300), src: "Metahub" });
-  writePersistedCache(cacheKey, out);
+  const meta = metahubImages(imdbId);
+  out.poster.push(...meta.poster);
+  out.banner.push(...meta.banner);
+  if (!partial) writePersistedCache(cacheKey, out);
   return out;
 }
 
@@ -4563,7 +4605,7 @@ async function fetchFanartImages(tvdbId) {
   const cached = readPersistedCache(cacheKey, CACHE_TTL_FANART_MS);
   if (cached !== undefined) return cached;
   try {
-    const res = await fetch(`https://webservice.fanart.tv/v3/tv/${tvdbId}?api_key=${encodeURIComponent(key)}`);
+    const res = await fetchWithTimeout(`https://webservice.fanart.tv/v3/tv/${tvdbId}?api_key=${encodeURIComponent(key)}`);
     if (res.status === 401 || res.status === 403) {
       fanartKeyRejected = true;
       showToast("Fanart.tv rejected the API key - check it in Settings.", true);
@@ -4605,7 +4647,7 @@ async function tvdbToken(key, fresh) {
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(LS_TVDB_TOKEN) || "null"); } catch (e) { /* unreadable */ }
   if (!fresh && saved && saved.key === key && saved.token && Date.now() - saved.at < TVDB_TOKEN_MS) return saved.token;
-  const res = await fetch(`${TVDB_API}/login`, {
+  const res = await fetchWithTimeout(`${TVDB_API}/login`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ apikey: key }),
   });
   if (res.status === 401 || res.status === 403) {
@@ -4630,9 +4672,9 @@ async function fetchTvdbImages(tvdbId) {
     if (!token) return out;
     const artworks = async type => {
       const url = `${TVDB_API}/series/${tvdbId}/artworks?type=${type}`;
-      let res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      let res = await fetchWithTimeout(url, { headers: { Authorization: `Bearer ${token}` } });
       if (res.status === 401 && (token = await tvdbToken(key, true))) {
-        res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+        res = await fetchWithTimeout(url, { headers: { Authorization: `Bearer ${token}` } });
       }
       if (res.status === 404) return []; // not in their database
       if (!res.ok) throw new Error(`TheTVDB ${res.status}`);
@@ -4656,24 +4698,44 @@ async function fetchTvdbImages(tvdbId) {
 
 // All extra images for the picker: Fanart.tv first (curated), then TheTVDB,
 // then TVMaze and Metahub. The same picture can come from more than one of
-// them, so repeats are dropped.
-async function fetchExtraImages(imdbId, tmdbId) {
-  const keyless = await fetchKeylessImages(imdbId);
-  const cfg = getConfig();
-  let tvdbId = keyless.tvdbId;
-  if (!tvdbId && tmdbId && sharedCache && (cfg.fanartKey || cfg.tvdbKey)) {
-    const detail = await sharedCache.getShow(tmdbId); // already cached; carries external_ids
-    tvdbId = detail && detail.external_ids && detail.external_ids.tvdb_id;
-  }
-  const [fanart, tvdb] = await Promise.all([fetchFanartImages(tvdbId), fetchTvdbImages(tvdbId)]);
-  const merged = list => {
+// them, so repeats are dropped. The sources load side by side, not one after
+// another, and `onUpdate` gets the list so far each time one of them
+// arrives, so the picker fills in as they come. Fanart.tv and TheTVDB need
+// the show's TheTVDB id: TMDB's (already cached) when it has one, so they
+// needn't wait for TVMaze, else TVMaze's.
+async function fetchExtraImages(imdbId, tmdbId, onUpdate = () => {}) {
+  const empty = { poster: [], banner: [] };
+  const parts = { fanart: empty, tvdb: empty, keyless: empty, metahub: empty };
+  const merged = kind => {
     const seen = new Set();
-    return list.filter(e => !seen.has(e.url) && seen.add(e.url));
+    return parts.fanart[kind].concat(parts.tvdb[kind], parts.keyless[kind], parts.metahub[kind]).filter(e => !seen.has(e.url) && seen.add(e.url));
   };
-  return {
-    poster: merged(fanart.poster.concat(tvdb.poster, keyless.poster)),
-    banner: merged(fanart.banner.concat(tvdb.banner, keyless.banner)),
-  };
+  const result = () => ({ poster: merged("poster"), banner: merged("banner") });
+  const arrive = name => found => { parts[name] = found; onUpdate(result()); return found; };
+  // Metahub's pictures are plain links by IMDb id - nothing to ask first - so
+  // they show at once instead of waiting behind TVMaze (which still lists
+  // them too, for its cache; repeats are dropped).
+  if (imdbId) arrive("metahub")(metahubImages(imdbId));
+
+  const keylessLoad = fetchKeylessImages(imdbId).then(arrive("keyless"));
+  const cfg = getConfig();
+  const keyed = (async () => {
+    if (!cfg.fanartKey && !cfg.tvdbKey) return;
+    let tvdbId = null;
+    if (tmdbId && sharedCache) {
+      try {
+        const detail = await sharedCache.getShow(tmdbId); // already cached; carries external_ids
+        tvdbId = detail && detail.external_ids && detail.external_ids.tvdb_id;
+      } catch (e) { /* TMDB unreachable: TVMaze's id below */ }
+    }
+    if (!tvdbId) tvdbId = (await keylessLoad).tvdbId;
+    await Promise.all([
+      fetchFanartImages(tvdbId).then(arrive("fanart")),
+      fetchTvdbImages(tvdbId).then(arrive("tvdb")),
+    ]);
+  })();
+  await Promise.all([keylessLoad, keyed]);
+  return result();
 }
 
 // Applies a pick that isn't one of TMDB's numbered candidates: same effect as
@@ -4781,14 +4843,17 @@ function openImagePicker(source, idx, mode) {
   };
 
   if (row.imdbId) {
-    fetchExtraImages(row.imdbId, row.tmdbId).then(found => {
+    // Each source's pictures join the grid as soon as that source answers.
+    const show = (found, done) => {
       if (!overlay.isConnected) return; // closed while loading
       extras = found[mode] || [];
-      extrasState = "done";
+      if (done) extrasState = "done";
       const credit = document.getElementById("imagePickerCredit");
       if (credit) credit.hidden = !extras.some(e => e.src === "TheTVDB");
       renderGrid();
-    });
+    };
+    fetchExtraImages(row.imdbId, row.tmdbId, found => show(found, false))
+      .then(found => show(found, true), () => show({ poster: extras, banner: extras }, true));
   }
 
   document.getElementById("imagePickerCloseBtn").onclick = closeImagePicker;
