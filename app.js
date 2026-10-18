@@ -220,8 +220,10 @@ function showSettings(afterSaveCallback) {
       ${closeBtnHtml}
       <h2>Setup</h2>
       <p style="color:var(--muted);font-size:0.85rem">
-        These are stored only in this browser's local storage - never written
-        into this HTML file, so it's safe to keep this file in a public repo.
+        These are stored in this browser and with your account (in your own
+        private database, so a new device or the Android app gets them once
+        you sign in) - never written into the site's files, so it's safe to
+        keep them in a public repo.
       </p>
       <label>SIMKL Client ID &mdash; optional, only to copy episodes marked watched on SIMKL
         (e.g. by the Emby plugin) into your list &mdash; AUTH V2
@@ -756,7 +758,8 @@ async function libraryShowMeta(tmdbId) {
 // Signs in and loads the library once per page load (every later change
 // goes through the store, which keeps its copy current). Resolves to false
 // while the sign-in screen is showing instead.
-async function openLibrary() {
+// The library's backend (Google sign-in + the database), created once.
+function ensureLibrary() {
   if (!library) {
     const backend = FirebaseBackend.create();
     library = { backend, store: null, source: libraryEpisodeSource(), adapter: null };
@@ -770,6 +773,50 @@ async function openLibrary() {
       if (document.visibilityState === "visible") runSimklBridge();
     });
   }
+}
+
+// The API keys travel with your account (users/{uid}/meta/keys, private to
+// you like the library): a device that has them saves them there, and a new
+// one - another browser, or the Android app - gets them from there once
+// signed in, instead of having them typed again.
+const ACCOUNT_KEY_FIELDS = { tmdbKey: LS_TMDB_KEY, mdblistKey: LS_MDBLIST_KEY, fanartKey: LS_FANART_KEY, tvdbKey: LS_TVDB_KEY, clientId: LS_CLIENT_ID, clientIdV2: LS_CLIENT_ID_V2 };
+function localAccountKeys() {
+  const cfg = getConfig();
+  return Object.fromEntries(Object.keys(ACCOUNT_KEY_FIELDS).map(k => [k, cfg[k] || ""]));
+}
+// Resolves to "restored" (the keys are now on this device), "signin" (the
+// sign-in screen is showing; signing in runs main again) or "none".
+async function restoreKeysFromAccount() {
+  ensureLibrary();
+  subtitle.textContent = "Signing in…";
+  await library.backend.ready();
+  if (!library.backend.currentUser()) {
+    showLibrarySignIn();
+    return "signin";
+  }
+  const saved = await library.backend.getMeta("keys").catch(() => null);
+  if (!saved || !saved.tmdbKey) return "none";
+  for (const [field, lsKey] of Object.entries(ACCOUNT_KEY_FIELDS)) {
+    if (typeof saved[field] === "string" && saved[field]) safeSetItem(lsKey, saved[field]);
+  }
+  return getConfig().tmdbKey ? "restored" : "none";
+}
+// Saves this device's keys to the account when they differ from what's there.
+async function saveKeysToAccount() {
+  if (!library || !library.backend.currentUser()) return;
+  const mine = localAccountKeys();
+  if (!mine.tmdbKey) return;
+  try {
+    const saved = (await library.backend.getMeta("keys")) || {};
+    if (Object.keys(mine).every(k => (saved[k] || "") === mine[k])) return;
+    await library.backend.setMeta("keys", { ...mine, savedAt: Date.now() });
+  } catch (e) {
+    console.warn("Couldn't save the keys to your account:", e.message);
+  }
+}
+
+async function openLibrary() {
+  ensureLibrary();
   subtitle.textContent = "Signing in…";
   await library.backend.ready();
   if (!library.backend.currentUser()) {
@@ -5872,10 +5919,14 @@ function showToast(message, isError) {
 // Main
 // ---------------------------------------------------------------------
 async function main() {
-  const { tmdbKey } = getConfig();
-  if (!tmdbKey) {
-    showSettings(main);
-    return;
+  if (!getConfig().tmdbKey) {
+    // A new device: the keys may already be saved with the account.
+    const restored = await restoreKeysFromAccount().catch(() => "none");
+    if (restored === "signin") return;
+    if (restored !== "restored") {
+      showSettings(main);
+      return;
+    }
   }
 
   app.innerHTML = filmLoaderHtml();
@@ -5885,6 +5936,7 @@ async function main() {
   try {
     sharedCache = new TmdbCache();
     if (!(await openLibrary())) return; // the sign-in screen is showing
+    saveKeysToAccount(); // in the background; this device's keys for the next one
     sharedEpisodeCache = newEpisodeCache();
     app.innerHTML = filmLoaderHtml();
     subtitle.textContent = "Fetching your My List\u2026";

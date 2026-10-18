@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">My Watch List</string>
+    <string name="title_activity_main">My Watch List</string>
+    <string name="package_name">com.eladnavon.watchlist</string>
+    <string name="custom_url_scheme">com.eladnavon.watchlist</string>
+</resources>

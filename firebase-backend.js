@@ -38,8 +38,27 @@
     return 1;
   }
 
-  // `sdk` (tests only) stands in for the Firebase modules.
-  function create(config = FIREBASE_CONFIG, { sdk: testSdk } = {}) {
+  // Inside the Android app (android-app/), Google won't sign in from a page
+  // in the app's WebView, so the phone's own Google sign-in fetches an ID
+  // token and the Firebase SDK signs in with that. The plugin's API is loaded
+  // only there (native/vendor/capacitor-auth.js); a browser never loads it.
+  // The plugin comes back wrapped in an object: a Capacitor plugin answers
+  // every property, `then` included, so awaiting it directly never ends.
+  function isNativeApp() {
+    const cap = root.Capacitor;
+    return !!(cap && typeof cap.isNativePlatform === "function" && cap.isNativePlatform());
+  }
+  async function loadNativeAuth() {
+    const base = typeof document !== "undefined" ? document.baseURI : undefined;
+    const mod = await import(new URL("native/vendor/capacitor-auth.js", base).href);
+    return { plugin: mod.FirebaseAuthentication };
+  }
+
+  // `sdk` (tests only) stands in for the Firebase modules; `nativeAuth`
+  // (tests only) for loadNativeAuth - null in a browser.
+  function create(config = FIREBASE_CONFIG, { sdk: testSdk, nativeAuth = isNativeApp() ? loadNativeAuth : null } = {}) {
+    let native = null;
+    const nativeAuthPlugin = async () => (native = native || (nativeAuth ? await nativeAuth() : null));
     let sdk = null;
     let auth = null, db = null, user = null;
     let readyPromise = null;
@@ -80,6 +99,23 @@
       currentUser: () => (user ? { uid: user.uid, email: user.email, name: user.displayName } : null),
       async signIn() {
         await ready();
+        const nativeApp = await nativeAuthPlugin();
+        if (nativeApp) {
+          let result;
+          try {
+            result = await nativeApp.plugin.signInWithGoogle();
+          } catch (e) {
+            if (/cancel/i.test(String((e && (e.message || e.code)) || ""))) {
+              throw Object.assign(new Error("Sign-in was cancelled."), { cancelled: true });
+            }
+            throw e;
+          }
+          const idToken = result && result.credential && result.credential.idToken;
+          if (!idToken) throw new Error("Google didn't return a sign-in token - try again.");
+          const signedIn = await sdk.signInWithCredential(auth, sdk.GoogleAuthProvider.credential(idToken));
+          user = signedIn.user;
+          return this.currentUser();
+        }
         const result = await sdk.signInWithPopup(auth, new sdk.GoogleAuthProvider());
         user = result.user;
         return this.currentUser();
@@ -88,6 +124,10 @@
         await ready();
         await sdk.signOut(auth);
         user = null;
+        // In the app, the phone's Google sign-in too, so the next sign-in
+        // offers the choice of account again. Its failure isn't fatal.
+        const nativeApp = await nativeAuthPlugin();
+        if (nativeApp) await nativeApp.plugin.signOut().catch(() => {});
       },
 
       async loadAll() {

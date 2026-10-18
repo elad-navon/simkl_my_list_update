@@ -1,0 +1,67 @@
+<!doctype html>
+<!--
+  The only page packaged inside the Android app (capacitor.config.json: webDir, server.errorPath).
+  The app itself is the live website; this shows only when it can't be reached.
+-->
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>My Watch List</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #111820;
+        color: #e8eef5;
+        font-family: system-ui, sans-serif;
+      }
+      main {
+        min-height: 100%;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 24px;
+        text-align: center;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.4rem;
+      }
+      p {
+        margin: 0;
+        color: #9aa7b4;
+        max-width: 22rem;
+        line-height: 1.5;
+      }
+      button {
+        margin-top: 8px;
+        min-height: 48px;
+        padding: 0 28px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 12px;
+        background: #1b2633;
+        color: #e8eef5;
+        font: inherit;
+        font-size: 1.05rem;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>רשימת הסדרות לא זמינה כרגע</h1>
+      <p>האפליקציה נטענת מהאתר של My Watch List, והוא לא נגיש עכשיו. כדאי לבדוק את החיבור לאינטרנט ולנסות שוב.</p>
+      <button type="button" id="retry">לנסות שוב</button>
+    </main>
+    <script>
+      document.getElementById('retry').addEventListener('click', () => {
+        location.href = 'https://elad-navon.github.io/simkl_my_list_update/';
+      });
+    </script>
+  </body>
+</html>
