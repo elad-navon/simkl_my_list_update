@@ -4142,6 +4142,11 @@ function displaySrcFor(source, row) {
 function posterGlowHtml(src) {
   return src ? `<div class="pp-glow" aria-hidden="true"><i style="background-image:url('${src}')"></i></div>` : "";
 }
+// The same poster as a variable on the text box itself: the rounded inside
+// corner (the box's ::before, just outside it) paints its glass from it.
+function posterGlowStyle(src) {
+  return src ? ` style="--pp-img:url('${src}')"` : "";
+}
 
 // Updates every currently-rendered <img> for a show directly, in place -
 // used after a cycle instead of a full renderRows()/renderAiringRows()
@@ -4169,7 +4174,10 @@ function patchImagesForTmdbId(tmdbId) {
       if (newSrc && img.src !== newSrc) img.src = newSrc;
       const tile = newSrc && wrap.closest(".card, .list-row");
       const glow = tile && tile.querySelector(".pp-glow i");
-      if (glow) glow.style.backgroundImage = `url('${newSrc}')`;
+      if (glow) {
+        glow.style.backgroundImage = `url('${newSrc}')`;
+        glow.parentElement.parentElement.style.setProperty("--pp-img", `url('${newSrc}')`);
+      }
     });
   }
 }
@@ -5034,7 +5042,7 @@ function pairedPanelHtml(list, rowHtmlFn, { byShow = false } = {}) {
 // the poster's glow (posterGlowHtml) - `src`, the poster shown beside it.
 function rowDetailsHtml(inner, src) {
   const wrap = `<div class="list-row-title-wrap">${inner}</div>`;
-  return panelPosters() ? `<div class="list-row-body">${posterGlowHtml(src)}${wrap}</div>` : wrap;
+  return panelPosters() ? `<div class="list-row-body"${posterGlowStyle(src)}>${posterGlowHtml(src)}${wrap}</div>` : wrap;
 }
 
 // Bottom-panel row frames alternate between the top panel's two pair colors
@@ -5580,7 +5588,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
     return `
       <div class="card carousel-card${isWide ? " banner-mode" : ""}${isWide && onePage ? " framed " + rowToneClass(arrIdx) : ""}" data-row="${arrIdx}">
         ${wrapHtml}
-        <div class="card-body">
+        <div class="card-body"${pairPosters ? posterGlowStyle(displaySrcFor("main", row)) : ""}>
           ${pairPosters ? posterGlowHtml(displaySrcFor("main", row)) : ""}
           <div class="card-title-row">
             <h3 title="View cast" onclick="event.stopPropagation(); openCastModal('main', ${arrIdx})">${row.title}</h3>

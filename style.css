@@ -324,6 +324,30 @@
   body:not(.light-theme) .panel-pair > .list-row:nth-child(2) .pp-glow::after {
     background: linear-gradient(to left, rgba(6, 9, 13, 0.09), rgba(6, 9, 13, 0.2) 42%);
   }
+  /* The rounded inside corner (::before, just outside the box) on the same glass: the poster's edge from
+     --pp-img (posterGlowStyle in app.js), lined up with the poster, under the same light wash; the groove
+     inside the curve and the frame line along it as before. Falls back to the plain tint without a poster. */
+  body:not(.light-theme) .poster-pair .card-body::before, body:not(.light-theme) .panel-pair .list-row-body::before {
+    z-index: 1;
+    --pp-curve: #070b10 calc(var(--pp-r) - var(--pp-line) - 0.5px), var(--pp-frame) calc(var(--pp-r) - var(--pp-line)),
+      var(--pp-frame) calc(var(--pp-r) - 0.5px), transparent var(--pp-r);
+  }
+  body:not(.light-theme) .poster-pair > .card:nth-child(1) .card-body::before,
+  body:not(.light-theme) .panel-pair > .list-row:nth-child(1) .list-row-body::before {
+    background-image: radial-gradient(circle at 100% 100%, var(--pp-curve)),
+      linear-gradient(rgba(6, 9, 13, 0.1), rgba(6, 9, 13, 0.1)), var(--pp-img, none);
+    background-position: 0 0, 0 0, right 0 top calc(2 * var(--pp-line) - var(--pp-half));
+    background-size: auto, auto, 4000% calc(var(--pp-h) - 2 * var(--pp-line)); background-repeat: no-repeat;
+    background-color: var(--pp-tint);
+  }
+  body:not(.light-theme) .poster-pair > .card:nth-child(2) .card-body::before,
+  body:not(.light-theme) .panel-pair > .list-row:nth-child(2) .list-row-body::before {
+    background-image: radial-gradient(circle at 0 0, var(--pp-curve)),
+      linear-gradient(rgba(6, 9, 13, 0.1), rgba(6, 9, 13, 0.1)), var(--pp-img, none);
+    background-position: 0 0, 0 0, left 0 top calc(var(--pp-r) - var(--pp-half) - var(--pp-gap));
+    background-size: auto, auto, 4000% calc(var(--pp-h) - 2 * var(--pp-line)); background-repeat: no-repeat;
+    background-color: var(--pp-tint);
+  }
   /* The glass is lighter now, so the text carries its own shadow. */
   body:not(.light-theme) .poster-pair .card-body > :not(.pp-glow),
   body:not(.light-theme) .panel-pair .list-row-body > :not(.pp-glow) { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85), 0 0 1px rgba(0, 0, 0, 0.9); }
@@ -332,7 +356,8 @@
   body:not(.light-theme) .poster-pair .watch-progress-track { background: rgba(0, 0, 0, 0.45); }
   /* Whole names (fitPairText sizes them). */
   .poster-pair .card-body h3 { max-height: none; overflow: visible; }
-  .panel-pair .list-row-title { display: block; -webkit-line-clamp: none; overflow: visible; }
+  /* (.list-rows-paged in front: the paged lists' 2-line clamp, later on, would clip the letters' outline.) */
+  .list-rows-paged .panel-pair .list-row-title, .panel-pair .list-row-title { display: block; -webkit-line-clamp: none; overflow: visible; }
   /* The bottom pairs' boxes are short: the network chip and the air date's
      spacing a few pixels slimmer, so an episode's name gets a second line. */
   .panel-pair .list-row-sub.network-sub { min-height: 17px; }
