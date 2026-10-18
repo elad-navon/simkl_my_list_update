@@ -175,7 +175,24 @@ new MutationObserver(() => {
   if (el) el.textContent = subtitle.textContent;
 }).observe(subtitle, { childList: true, characterData: true, subtree: true });
 
+// Phones (touch, and a narrow screen or a short one turned sideways) get a
+// layout of their own, set by how the phone is held instead of by the
+// Posters/Banners buttons (hidden there): upright, every panel is a row of
+// banners swiped sideways; sideways, the posters in L-shaped pairs across
+// the whole screen. A desktop window, however narrow, keeps its own
+// settings: it has no coarse pointer.
+const PHONE_PORTRAIT_QUERY = "(pointer: coarse) and (max-width: 720px)";
+const PHONE_LANDSCAPE_QUERY = "(pointer: coarse) and (orientation: landscape) and (max-height: 500px)";
+function phoneLayout() {
+  if (typeof window === "undefined" || !window.matchMedia) return null;
+  if (window.matchMedia(PHONE_PORTRAIT_QUERY).matches) return "portrait";
+  if (window.matchMedia(PHONE_LANDSCAPE_QUERY).matches) return "landscape";
+  return null;
+}
+
 function getImageMode() {
+  const phone = phoneLayout();
+  if (phone) return phone === "portrait" ? "banner" : "poster";
   return localStorage.getItem(LS_IMAGE_MODE) === "banner" ? "banner" : "poster";
 }
 
@@ -4069,6 +4086,8 @@ function updateImageModeButton() {
 // its panel is cut at the edge and comes in with a drag. Only in the
 // one-page layout; the older scrolling panels stay with banners.
 function panelPosters() {
+  const phone = phoneLayout();
+  if (phone) return phone === "landscape";
   return localStorage.getItem(LS_PANEL_IMAGES) === "poster" && !isScrollLayout();
 }
 
@@ -4102,6 +4121,8 @@ function updateThemeToggleButton() {
 }
 
 function isScrollLayout() {
+  const phone = phoneLayout();
+  if (phone) return phone === "portrait"; // upright: every panel one swipeable row
   return localStorage.getItem(LS_PANEL_LAYOUT) === "scroll";
 }
 
@@ -5573,6 +5594,16 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitP
 const TOP_IMG_MIN = { banner: 120, poster: 300 };
 function fitTopPanelToWindow() {
   const root = document.documentElement;
+  // A phone on its side shows one panel (a tab) at a time: its pairs take
+  // the whole screen below the header - the top panel's and the others'.
+  if (phoneLayout() === "landscape") {
+    const header = document.querySelector(".topbar");
+    const h = Math.max(200, Math.floor(window.innerHeight - (header ? header.getBoundingClientRect().height : 0) - 24));
+    root.style.setProperty("--top-img-h", h + "px");
+    root.style.setProperty("--phone-pair-h", h + "px");
+    return;
+  }
+  root.style.removeProperty("--phone-pair-h");
   const track = document.getElementById("myListCarouselTrack");
   const main = document.querySelector(".main-content");
   const img = track && track.querySelector(".poster-wrap");
@@ -5688,6 +5719,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
     fitPanelRowLines();
     fitTopPanelToWindow();
     fitPairText();
+    updatePhoneTabCounts();
     tickAirCountdowns();
     scheduleAirRefresh();
     return;
@@ -5804,6 +5836,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   fitPanelRowLines();
   fitTopPanelToWindow();
   fitPairText();
+  updatePhoneTabCounts();
   updateCarouselArrows();
   wireHoverStabilization();
   tickAirCountdowns();
@@ -5999,6 +6032,85 @@ updateViewModeButton();
 updatePageTitle();
 applyStoredTheme();
 applyPanelLayout();
+
+// A phone turned the other way gets the other phone layout (phoneLayout):
+// redrawn at once from what's loaded. body.phone-portrait / .phone-landscape
+// let the stylesheet follow the same decision.
+function applyPhoneLayout() {
+  const phone = phoneLayout();
+  document.body.classList.toggle("phone-portrait", phone === "portrait");
+  document.body.classList.toggle("phone-landscape", phone === "landscape");
+  if (phone === "landscape") {
+    ensurePhoneTabs();
+    showPhoneTab();
+  }
+}
+
+// Sideways, the panels are tabs in the header: one panel at a time, across
+// the whole screen. The last one picked is remembered on this device.
+const PHONE_TABS = [["ready", "Ready to Watch"], ["airing", "Airing Next"], ["watched", "Recently Watched"], ["plan", "Plan to Watch"]];
+const LS_PHONE_TAB = "phone_tab";
+function phoneTab() {
+  const tab = localStorage.getItem(LS_PHONE_TAB);
+  return PHONE_TABS.some(([key]) => key === tab) ? tab : "ready";
+}
+function ensurePhoneTabs() {
+  if (document.getElementById("phoneTabs")) return;
+  const nav = document.createElement("nav");
+  nav.id = "phoneTabs";
+  nav.className = "phone-tabs";
+  nav.setAttribute("aria-label", "Panels");
+  nav.innerHTML = PHONE_TABS.map(([key, label]) => `<button type="button" data-tab="${key}">${label}</button>`).join("");
+  nav.onclick = e => {
+    const btn = e.target.closest("button[data-tab]");
+    if (!btn) return;
+    safeSetItem(LS_PHONE_TAB, btn.dataset.tab);
+    showPhoneTab();
+    window.scrollTo(0, 0);
+  };
+  document.querySelector(".topbar-left").after(nav);
+}
+// Each tab carries its panel's count (what the panel's own header shows on a
+// larger screen), as a small tag inside the button.
+function updatePhoneTabCounts() {
+  const nav = document.getElementById("phoneTabs");
+  if (!nav) return;
+  const counts = {
+    ready: (lastRows || []).length, airing: (lastAiringPreview || []).length,
+    watched: (lastRecentlyWatched || []).length, plan: (lastPlanToWatch || []).length,
+  };
+  nav.querySelectorAll("button[data-tab]").forEach(btn => {
+    let tag = btn.querySelector(".phone-tab-count");
+    if (!tag) {
+      tag = document.createElement("span");
+      tag.className = "phone-tab-count";
+      btn.append(tag);
+    }
+    tag.textContent = String(counts[btn.dataset.tab]);
+  });
+}
+function showPhoneTab() {
+  updatePhoneTabCounts();
+  const tab = phoneTab();
+  document.body.dataset.phoneTab = tab;
+  document.querySelectorAll("#phoneTabs button").forEach(b => b.setAttribute("aria-pressed", b.dataset.tab === tab ? "true" : "false"));
+  // A panel that was hidden measured nothing: fit its pairs now it shows.
+  requestAnimationFrame(() => { fitTopPanelToWindow(); fitPairText(); });
+}
+applyPhoneLayout();
+if (window.matchMedia) {
+  for (const query of [PHONE_PORTRAIT_QUERY, PHONE_LANDSCAPE_QUERY]) {
+    window.matchMedia(query).addEventListener("change", () => {
+      const before = document.body.classList.contains("phone-portrait") ? "portrait"
+        : document.body.classList.contains("phone-landscape") ? "landscape" : null;
+      applyPhoneLayout();
+      if (phoneLayout() === before) return;
+      applyPanelLayout();
+      if (currentView === "airing" && airingRows) renderAiringRows(airingRows);
+      else if (currentView === "list" && lastRows) renderRows(lastRows, lastTotalEps, lastTotalMinutes);
+    });
+  }
+}
 
 (function enableCarouselDragScroll() {
   let dragTrack = null;

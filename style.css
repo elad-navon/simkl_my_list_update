@@ -1869,3 +1869,70 @@
     .panel-shows-flip-inner { width: 100%; height: 198px; }
     .panel-shows-item.flipped .panel-shows-flip-inner { width: 100%; height: 190px; }
   }
+
+  /* ===================== Phones (app.js: phoneLayout) =====================
+     Touch screens only - a narrow desktop window keeps the layout above.
+     body.phone-portrait: every panel one row of banners, swiped sideways;
+     body.phone-landscape: the posters in L-shaped pairs across the screen.
+     How the phone is held decides, so the Posters/Banners buttons go. */
+  body.phone-portrait #imageModeBtn, body.phone-portrait #panelImagesBtn,
+  body.phone-landscape #imageModeBtn, body.phone-landscape #panelImagesBtn { display: none; }
+
+  /* Upright: one header row - the logo, then Search, Settings and the avatar. */
+  body.phone-portrait .topbar { flex-wrap: nowrap; align-items: center; padding: 8px 12px; gap: 8px; }
+  body.phone-portrait .topbar-left { flex: 1 1 auto; min-width: 0; }
+  body.phone-portrait .logo-icon svg { width: 34px; height: 34px; }
+  body.phone-portrait .topbar-controls { width: auto; gap: 8px; }
+  body.phone-portrait .navbar-nav { flex: none; gap: 8px; }
+  body.phone-portrait .nav-item.icon-only { flex: none; width: 44px; height: 44px; padding: 0; justify-content: center; }
+  body.phone-portrait .profile-greeting-hi { display: none; }
+  body.phone-portrait .profile-greeting-inline { margin-left: 2px; }
+  body.phone-portrait .profile-pic-small { width: 40px; height: 40px; }
+  /* Ready to Watch: a card a little narrower than the screen, so the next
+     one shows at the edge - the cue that the row swipes. */
+  body.phone-portrait .card.carousel-card, body.phone-portrait .card.carousel-card.banner-mode { width: 78vw; max-width: 340px; }
+
+  /* Sideways: one slim header row - the logo, the panels as tabs, Search and
+     Settings - and under it only the chosen tab's panel (app.js: showPhoneTab),
+     no panel box, title or arrows: its posters in L-shaped pairs as tall as
+     the screen allows (--phone-pair-h, fitTopPanelToWindow), swiped sideways. */
+  body.phone-landscape .topbar { flex-wrap: nowrap; align-items: center; gap: 12px; padding: 6px 14px; min-height: 0; }
+  body.phone-landscape .topbar-slogan-sep, body.phone-landscape .topbar-slogan,
+  body.phone-landscape .topbar-clock, body.phone-landscape .profile-greeting-inline { display: none; }
+  body.phone-landscape .logo-icon svg { width: 26px; height: 26px; }
+  /* The four tabs need the width: the logo's triangle stays, its words go. */
+  body.phone-landscape .logo-text { display: none; }
+  body.phone-landscape .topbar-controls { margin-left: auto; gap: 8px; }
+  body.phone-landscape .navbar-nav { gap: 8px; }
+  body.phone-landscape .nav-item.icon-only { width: 42px; height: 42px; padding: 0; gap: 0; justify-content: center; }
+  body.phone-landscape .nav-item.icon-only .nav-icon, body.phone-portrait .nav-item.icon-only .nav-icon { display: flex; align-items: center; justify-content: center; }
+  .phone-tabs { display: none; }
+  body.phone-landscape .phone-tabs { display: flex; gap: 10px; flex: 1 1 auto; justify-content: center; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  body.phone-landscape .phone-tabs button {
+    flex: none; min-height: 36px; padding: 0 14px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--card); color: var(--text);
+    font: 600 0.82rem "Work Sans", "Segoe UI", sans-serif; white-space: nowrap;
+  }
+  body.phone-landscape .phone-tabs button[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: #14100a; font-weight: 700; }
+  body.phone-landscape .phone-tabs button { display: flex; align-items: center; gap: 7px; padding: 0 6px 0 14px; min-height: 40px; font-size: 0.86rem; }
+  body.phone-landscape .phone-tab-count {
+    min-width: 1.6em; padding: 2px 7px; border-radius: 999px; box-sizing: border-box; text-align: center;
+    background: var(--border); color: var(--gold); font-weight: 700; font-size: 0.8rem; font-variant-numeric: tabular-nums;
+  }
+  body.phone-landscape .phone-tabs button[aria-pressed="true"] .phone-tab-count { background: #14100a; color: var(--gold); }
+
+  body.phone-landscape .main-content { padding: 10px 14px 12px; }
+  body.phone-landscape .series-panel, body.phone-landscape .bottom-panels-row .list-panel {
+    background: none; border: 0; box-shadow: none; padding: 0;
+  }
+  body.phone-landscape .series-panel-header, body.phone-landscape .list-panel-header-row,
+  body.phone-landscape .carousel-arrow, body.phone-landscape .list-pager { display: none; }
+  body.phone-landscape .bottom-panels-row { flex-direction: column; margin-top: 0; }
+  body.phone-landscape .bottom-panels-row .list-panel { flex: none; width: 100%; }
+  body.phone-landscape .panel-pair { --pp-h: var(--phone-pair-h, 280px); }
+  /* One panel at a time. */
+  body.phone-landscape[data-phone-tab="ready"] .bottom-panels-row,
+  body.phone-landscape:not([data-phone-tab="ready"]) .series-panel,
+  body.phone-landscape[data-phone-tab="airing"] .bottom-panels-row .list-panel:not(.list-panel--airing),
+  body.phone-landscape[data-phone-tab="watched"] .bottom-panels-row .list-panel:not(.list-panel--watched),
+  body.phone-landscape[data-phone-tab="plan"] .bottom-panels-row .list-panel:not(.list-panel--plan) { display: none; }
