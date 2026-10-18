@@ -4524,14 +4524,30 @@ function fetchWithTimeout(url, options = {}) {
 
 // TVMaze allows about 20 calls per 10 seconds per address, and the episode
 // lists spend most of that while the page loads - so a picker opened soon
-// after got "429 Too Many Requests" and showed no TVMaze pictures until it
-// was opened again. A 429 now waits and tries again (1.5s, 3s, 6s).
+// after was turned away and showed no TVMaze pictures until it was opened
+// again. Its "429 Too Many Requests" usually reaches the page as a plain
+// network error (the refusal lacks the header that lets a page read it), so
+// both wait and try again (1.5s, 3s, 6s); a timeout doesn't.
 async function tvmazePickerGet(url) {
   for (let attempt = 0; ; attempt++) {
-    const res = await fetchWithTimeout(url);
-    if (res.status !== 429 || attempt >= 3) return res;
+    let res = null;
+    try {
+      res = await fetchWithTimeout(url);
+    } catch (e) {
+      if (e.name === "AbortError" || attempt >= 3) throw e;
+    }
+    if (res && (res.status !== 429 || attempt >= 3)) return res;
     await new Promise(r => setTimeout(r, 1500 * 2 ** attempt));
   }
+}
+
+// Metahub: at most one poster and one background per show, by IMDb id.
+function metahubImages(imdbId) {
+  const meta = `https://images.metahub.space`;
+  return {
+    poster: [{ url: resizedImage(`${meta}/poster/medium/${imdbId}/img`, 342), thumb: `${meta}/poster/small/${imdbId}/img`, src: "Metahub" }],
+    banner: [{ url: resizedImage(`${meta}/background/medium/${imdbId}/img`, 780), thumb: resizedImage(`${meta}/background/medium/${imdbId}/img`, 300), src: "Metahub" }],
+  };
 }
 
 async function fetchKeylessImages(imdbId) {
@@ -4567,9 +4583,9 @@ async function fetchKeylessImages(imdbId) {
   } catch (e) {
     return out; // offline / blocked
   }
-  const meta = `https://images.metahub.space`;
-  out.poster.push({ url: resizedImage(`${meta}/poster/medium/${imdbId}/img`, 342), thumb: `${meta}/poster/small/${imdbId}/img`, src: "Metahub" });
-  out.banner.push({ url: resizedImage(`${meta}/background/medium/${imdbId}/img`, 780), thumb: resizedImage(`${meta}/background/medium/${imdbId}/img`, 300), src: "Metahub" });
+  const meta = metahubImages(imdbId);
+  out.poster.push(...meta.poster);
+  out.banner.push(...meta.banner);
   if (!partial) writePersistedCache(cacheKey, out);
   return out;
 }
@@ -4689,13 +4705,17 @@ async function fetchTvdbImages(tvdbId) {
 // needn't wait for TVMaze, else TVMaze's.
 async function fetchExtraImages(imdbId, tmdbId, onUpdate = () => {}) {
   const empty = { poster: [], banner: [] };
-  const parts = { fanart: empty, tvdb: empty, keyless: empty };
+  const parts = { fanart: empty, tvdb: empty, keyless: empty, metahub: empty };
   const merged = kind => {
     const seen = new Set();
-    return parts.fanart[kind].concat(parts.tvdb[kind], parts.keyless[kind]).filter(e => !seen.has(e.url) && seen.add(e.url));
+    return parts.fanart[kind].concat(parts.tvdb[kind], parts.keyless[kind], parts.metahub[kind]).filter(e => !seen.has(e.url) && seen.add(e.url));
   };
   const result = () => ({ poster: merged("poster"), banner: merged("banner") });
   const arrive = name => found => { parts[name] = found; onUpdate(result()); return found; };
+  // Metahub's pictures are plain links by IMDb id - nothing to ask first - so
+  // they show at once instead of waiting behind TVMaze (which still lists
+  // them too, for its cache; repeats are dropped).
+  if (imdbId) arrive("metahub")(metahubImages(imdbId));
 
   const keylessLoad = fetchKeylessImages(imdbId).then(arrive("keyless"));
   const cfg = getConfig();
