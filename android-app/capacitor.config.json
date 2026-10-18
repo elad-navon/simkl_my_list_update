@@ -1,0 +1,18 @@
+{
+  "appId": "com.eladnavon.watchlist",
+  "appName": "My Watch List",
+  "webDir": "android-shell",
+  "server": {
+    "url": "https://elad-navon.github.io/simkl_my_list_update/",
+    "errorPath": "index.html"
+  },
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "FirebaseAuthentication": {
+      "skipNativeAuth": true,
+      "providers": ["google.com"]
+    }
+  }
+}

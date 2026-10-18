@@ -1,0 +1,23 @@
+{
+  "name": "my-watch-list-android",
+  "private": true,
+  "description": "The Android app for My Watch List: a Capacitor shell around the live website, with Google sign-in through the phone. The website itself (the repository root) stays a static site with no build step.",
+  "type": "module",
+  "scripts": {
+    "build:native": "node scripts/build-native.mjs",
+    "icons": "node scripts/make-icons.mjs",
+    "android:debug": "node scripts/android-release.mjs --debug",
+    "android:release": "node scripts/android-release.mjs",
+    "android:dev": "node scripts/android-release.mjs --debug --dev-server=http://localhost:8099/"
+  },
+  "dependencies": {
+    "@capacitor-firebase/authentication": "8.5.2",
+    "@capacitor/android": "8.5.3",
+    "@capacitor/core": "8.5.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3",
+    "esbuild": "0.28.2",
+    "sharp": "0.35.5"
+  }
+}

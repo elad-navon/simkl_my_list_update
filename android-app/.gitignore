@@ -1,0 +1,10 @@
+# Installed packages
+node_modules/
+
+# Built APKs (npm run android:release) and signing material - the key and its passwords live in
+# C:\Elad\keys, never in this public repository. More rules in android/.gitignore.
+/release/
+*.jks
+*.keystore
+keystore.properties
+*-keystore.properties
