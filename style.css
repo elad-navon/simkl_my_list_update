@@ -329,8 +329,21 @@
      inside the curve and the frame line along it as before. Falls back to the plain tint without a poster. */
   body:not(.light-theme) .poster-pair .card-body::before, body:not(.light-theme) .panel-pair .list-row-body::before {
     z-index: 1;
-    --pp-curve: #070b10 calc(var(--pp-r) - var(--pp-line) - 0.5px), var(--pp-frame) calc(var(--pp-r) - var(--pp-line)),
+    --pp-curve: transparent calc(var(--pp-r) - var(--pp-line) - 0.5px), var(--pp-frame) calc(var(--pp-r) - var(--pp-line)),
       var(--pp-frame) calc(var(--pp-r) - 0.5px), transparent var(--pp-r);
+    --pp-hole: transparent calc(var(--pp-r) - var(--pp-line) - 0.5px), #000 calc(var(--pp-r) - var(--pp-line));
+  }
+  /* The groove between the two tiles shows the panel behind the pair, not a near-black band: against the
+     lighter glass a dark groove read as holes, worst in the rounded corners. The corner's curve is cut out
+     (mask) so the same panel color shows inside it. */
+  body:not(.light-theme) .poster-pair:not(.single), body:not(.light-theme) .panel-pair:not(.single) { background: transparent; }
+  body:not(.light-theme) .poster-pair > .card:nth-child(1) .card-body::before,
+  body:not(.light-theme) .panel-pair > .list-row:nth-child(1) .list-row-body::before {
+    -webkit-mask-image: radial-gradient(circle at 100% 100%, var(--pp-hole)); mask-image: radial-gradient(circle at 100% 100%, var(--pp-hole));
+  }
+  body:not(.light-theme) .poster-pair > .card:nth-child(2) .card-body::before,
+  body:not(.light-theme) .panel-pair > .list-row:nth-child(2) .list-row-body::before {
+    -webkit-mask-image: radial-gradient(circle at 0 0, var(--pp-hole)); mask-image: radial-gradient(circle at 0 0, var(--pp-hole));
   }
   body:not(.light-theme) .poster-pair > .card:nth-child(1) .card-body::before,
   body:not(.light-theme) .panel-pair > .list-row:nth-child(1) .list-row-body::before {
