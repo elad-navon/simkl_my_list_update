@@ -690,9 +690,26 @@ function libraryListCache() {
   return libraryCache;
 }
 
+// One pace for every TVMaze call on the page (about 20 per 10 seconds per
+// address is all it allows): the episode lists and the image picker each
+// take the next free slot, so a picker opened while the lists load slots in
+// between them instead of being turned away.
+const TVMAZE_GAP_MS = 520;
+let tvmazeNextAt = 0;
+function tvmazeSlot() {
+  const now = Date.now();
+  const at = Math.max(now, tvmazeNextAt);
+  tvmazeNextAt = at + TVMAZE_GAP_MS;
+  return at > now ? new Promise(r => setTimeout(r, at - now)) : Promise.resolve();
+}
+async function pacedFetch(url, options) {
+  if (String(url).startsWith("https://api.tvmaze.com/")) await tvmazeSlot();
+  return fetch(url, options);
+}
+
 function libraryEpisodeSource() {
   return EpisodeSource.createEpisodeSource({
-    fetch: (...args) => fetch(...args),
+    fetch: (...args) => pacedFetch(...args),
     tmdbGet: libraryTmdbGet,
     cache: libraryListCache(),
     useUpdates: true,
@@ -4532,6 +4549,7 @@ async function tvmazePickerGet(url) {
   for (let attempt = 0; ; attempt++) {
     let res = null;
     try {
+      await tvmazeSlot();
       res = await fetchWithTimeout(url);
     } catch (e) {
       if (e.name === "AbortError" || attempt >= 3) throw e;
