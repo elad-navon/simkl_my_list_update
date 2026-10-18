@@ -690,9 +690,26 @@ function libraryListCache() {
   return libraryCache;
 }
 
+// One pace for every TVMaze call on the page (about 20 per 10 seconds per
+// address is all it allows): the episode lists and the image picker each
+// take the next free slot, so a picker opened while the lists load slots in
+// between them instead of being turned away.
+const TVMAZE_GAP_MS = 520;
+let tvmazeNextAt = 0;
+function tvmazeSlot() {
+  const now = Date.now();
+  const at = Math.max(now, tvmazeNextAt);
+  tvmazeNextAt = at + TVMAZE_GAP_MS;
+  return at > now ? new Promise(r => setTimeout(r, at - now)) : Promise.resolve();
+}
+async function pacedFetch(url, options) {
+  if (String(url).startsWith("https://api.tvmaze.com/")) await tvmazeSlot();
+  return fetch(url, options);
+}
+
 function libraryEpisodeSource() {
   return EpisodeSource.createEpisodeSource({
-    fetch: (...args) => fetch(...args),
+    fetch: (...args) => pacedFetch(...args),
     tmdbGet: libraryTmdbGet,
     cache: libraryListCache(),
     useUpdates: true,
@@ -4516,9 +4533,9 @@ function resizedImage(url, width) {
 // EXTRA_IMAGES_TIMEOUT_MS (a failure, so nothing is cached and the next
 // opening tries again) instead of keeping "loading more…" up for good.
 const EXTRA_IMAGES_TIMEOUT_MS = 8000;
-function fetchWithTimeout(url, options = {}) {
+function fetchWithTimeout(url, options = {}, timeoutMs = EXTRA_IMAGES_TIMEOUT_MS) {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), EXTRA_IMAGES_TIMEOUT_MS);
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   return fetch(url, { ...options, signal: ctrl.signal }).finally(() => clearTimeout(timer));
 }
 
@@ -4528,11 +4545,12 @@ function fetchWithTimeout(url, options = {}) {
 // again. Its "429 Too Many Requests" usually reaches the page as a plain
 // network error (the refusal lacks the header that lets a page read it), so
 // both wait and try again (1.5s, 3s, 6s); a timeout doesn't.
-async function tvmazePickerGet(url) {
+async function tvmazePickerGet(url, timeoutMs) {
   for (let attempt = 0; ; attempt++) {
     let res = null;
     try {
-      res = await fetchWithTimeout(url);
+      await tvmazeSlot();
+      res = await fetchWithTimeout(url, {}, timeoutMs);
     } catch (e) {
       if (e.name === "AbortError" || attempt >= 3) throw e;
     }
@@ -4553,7 +4571,7 @@ function metahubImages(imdbId) {
 async function fetchKeylessImages(imdbId) {
   const out = { poster: [], banner: [], tvdbId: null };
   if (!imdbId) return out;
-  const cacheKey = `extraimages:${imdbId}`;
+  const cacheKey = `extraimages2:${imdbId}`; // 2: TVMaze poster tiles from the full-size file
   const cached = readPersistedCache(cacheKey, CACHE_TTL_EXTRA_IMAGES_MS);
   if (cached !== undefined) return cached;
   let partial = false;
@@ -4562,14 +4580,20 @@ async function fetchKeylessImages(imdbId) {
     if (lookup.ok) {
       const show = await lookup.json();
       out.tvdbId = (show.externals && show.externals.thetvdb) || null; // lets Fanart.tv find the show too
-      const res = await tvmazePickerGet(`https://api.tvmaze.com/shows/${show.id}/images`);
+      // TVMaze builds a show's image list on the first request in a while,
+      // which takes 5-10 seconds (then it's quick): a longer wait for this one.
+      const res = await tvmazePickerGet(`https://api.tvmaze.com/shows/${show.id}/images`, 25000);
       if (res.ok) {
         for (const img of await res.json()) {
           const original = img.resolutions && img.resolutions.original && img.resolutions.original.url;
           if (!original) continue;
           if (img.type === "poster") {
-            const medium = img.resolutions.medium && img.resolutions.medium.url;
-            out.poster.push({ url: resizedImage(original, 342), thumb: medium || resizedImage(original, 200), src: "TVMaze" });
+            // The gallery tile is made from the same full-size file the card
+            // will show, not TVMaze's ready small copy: TVMaze has dropped the
+            // full size of some posters but kept the small one, which made a
+            // fine-looking tile that broke once picked. Now such a tile fails
+            // to load and drops out of the gallery.
+            out.poster.push({ url: resizedImage(original, 342), thumb: resizedImage(original, 200), src: "TVMaze" });
           } else if (img.type === "background") {
             out.banner.push({ url: resizedImage(original, 780), thumb: resizedImage(original, 300), src: "TVMaze" });
           }
@@ -4838,7 +4862,21 @@ function openImagePicker(source, idx, mode) {
     pendingEntry = entry;
     pendingUrl = entry.url;
     const preview = document.getElementById("imagePickerPreview");
-    if (preview) preview.src = entry.url;
+    if (preview) {
+      // A picture that turns out to be gone (the source dropped it) leaves
+      // the gallery, and the selection goes back to what the card shows.
+      preview.onerror = () => {
+        if (pendingEntry !== entry) return;
+        extras = extras.filter(x => x !== entry);
+        pendingEntry = null;
+        pendingUrl = originalUrl;
+        preview.onerror = null;
+        preview.src = originalUrl || row.posterUrl || "";
+        renderGrid();
+        showToast("That picture is no longer available - pick another.", true);
+      };
+      preview.src = entry.url;
+    }
     renderGrid();
   };
 
