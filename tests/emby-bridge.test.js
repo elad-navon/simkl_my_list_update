@@ -202,3 +202,16 @@ test("marked live, then Emby marks it played: the library isn't read a second ti
   await bridge.run();
   assert.equal(loads(), after);
 });
+
+test("what was just marked goes to meta embyMarked, for a site open on a screen", async () => {
+  const { bridge, backend, emby } = await setup({ 1: libShow(1, "watching") });
+  await bridge.run(); // starts the read point
+  assert.equal(backend.meta.get("embyMarked"), undefined);
+  emby.state.sessions = [{ item: embyEp("e3", "s1", 1, 3), positionTicks: 41 * TICKS_PER_MIN }];
+  await bridge.run();
+  assert.deepEqual(backend.meta.get("embyMarked"), { at: iso(NOW), episodes: [{ title: "Show 1", s: 1, e: 3, tmdb: 1, imdb: "tt1" }] });
+  // Already marked: nothing new to say.
+  backend.meta.delete("embyMarked");
+  await bridge.run();
+  assert.equal(backend.meta.get("embyMarked"), undefined);
+});

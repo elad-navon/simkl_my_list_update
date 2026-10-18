@@ -4,7 +4,7 @@
 //   npm run build:native
 //
 // Run again after upgrading @capacitor/core. The website loads this file only inside the Android app
-// (firebase-backend.js, signIn), never in a browser.
+// (firebase-backend.js, signIn; native/episode-alerts.js), never in a browser.
 import { build } from 'esbuild';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

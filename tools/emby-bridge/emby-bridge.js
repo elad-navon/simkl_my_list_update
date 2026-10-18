@@ -23,12 +23,15 @@
 // paused, each with its position to the minute. Written only when that
 // changes, or every minute while something is on (so the site can tell a
 // stale report - the computer went off - from a live one).
+// And what it just marked (meta "embyMarked": { at, episodes }), so a site
+// open on a screen says so for a few seconds.
 "use strict";
 
 const { createShowTaker } = require("../../simkl-bridge.js");
 
 const META = "embyBridge";
 const NOW_META = "emby";
+const MARKED_META = "embyMarked";
 const TICKS_PER_SEC = 1e7;
 const OVERLAP_MS = 10 * 60 * 1000;
 // A series that couldn't be marked is tried again after this long (each try
@@ -154,6 +157,7 @@ function createEmbyBridge({ core, store, adapter, backend, emby, now = () => Dat
       if (!bySeries.has(t.item.SeriesId)) bySeries.set(t.item.SeriesId, []);
       bySeries.get(t.item.SeriesId).push(t);
     }
+    const justMarked = [];
     for (const [seriesId, list] of bySeries) {
       const label = list[0].item.SeriesName || "?";
       try {
@@ -164,13 +168,21 @@ function createEmbyBridge({ core, store, adapter, backend, emby, now = () => Dat
         for (const t of list) for (const ep of episodesOf(t.item)) newly.push({ ...ep, at: t.at });
         const before = summary.added;
         await takeShow({ title: (series && series.Name) || label, year: series && series.ProductionYear, ids }, newly, summary);
-        if (summary.added > before) summary.marked = (summary.marked || []).concat(list.map(t =>
-          `${label} ${core.episodeCode(t.item.ParentIndexNumber, t.item.IndexNumber)} (${t.how})`));
+        if (summary.added > before) {
+          summary.marked = (summary.marked || []).concat(list.map(t =>
+            `${label} ${core.episodeCode(t.item.ParentIndexNumber, t.item.IndexNumber)} (${t.how})`));
+          for (const t of list) justMarked.push({ title: label, s: t.item.ParentIndexNumber, e: t.item.IndexNumber,
+            tmdb: ids.tmdb != null ? ids.tmdb : null, imdb: ids.imdb || null });
+        }
         list.forEach(t => { handled.add(t.key); handled.add(`done:${t.item.Id}`); });
       } catch (e) {
         summary.problems.push(`${label}: ${e.message}`);
         list.forEach(t => retryAt.set(t.key, now() + RETRY_MS));
       }
+    }
+    // Only a message for the site: a failure here changes nothing else.
+    if (justMarked.length) {
+      await backend.setMeta(MARKED_META, { at: nowIso, episodes: justMarked }).catch(() => {});
     }
     // Only a clean pass moves the starting point on; otherwise the same
     // episodes are tried again next time (nothing is ever recorded twice).
@@ -184,4 +196,4 @@ function createEmbyBridge({ core, store, adapter, backend, emby, now = () => Dat
   return { run };
 }
 
-module.exports = { createEmbyBridge, episodesOf, seriesIds, META, NOW_META };
+module.exports = { createEmbyBridge, episodesOf, seriesIds, META, NOW_META, MARKED_META };

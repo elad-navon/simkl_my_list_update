@@ -20,16 +20,16 @@ const DARK = '#111820';
 
 // The triangle as on icons/icon-512.png, framed by BOX (its own bounds).
 const BOX = { x: 85, y: 64, w: 362, h: 383 };
-const glyph = `<polygon points="85,64 447,256 85,447" fill="${YELLOW}"/>`;
+const glyph = (fill = YELLOW) => `<polygon points="85,64 447,256 85,447" fill="${fill}"/>`;
 
 /** width x height, the triangle centred at `size` x the shorter side tall; background: none or 'full'. */
-function svg({ width, height = width, size, background = null }) {
+function svg({ width, height = width, size, background = null, fill }) {
   const side = Math.min(width, height);
   const h = side * size;
   const w = (h * BOX.w) / BOX.h;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
   ${background ? `<rect width="${width}" height="${height}" fill="${DARK}"/>` : ''}
-  <svg x="${(width - w) / 2}" y="${(height - h) / 2}" width="${w}" height="${h}" viewBox="${BOX.x} ${BOX.y} ${BOX.w} ${BOX.h}">${glyph}</svg>
+  <svg x="${(width - w) / 2}" y="${(height - h) / 2}" width="${w}" height="${h}" viewBox="${BOX.x} ${BOX.y} ${BOX.w} ${BOX.h}">${glyph(fill)}</svg>
 </svg>`;
 }
 
@@ -44,6 +44,8 @@ for (const [density, scale] of Object.entries({ mdpi: 1, hdpi: 1.5, xhdpi: 2, xx
   await png(join(RES, `mipmap-${density}`, 'ic_launcher_foreground.png'), { width: 108 * scale, size: 0.5 });
   await png(join(RES, `mipmap-${density}`, 'ic_launcher.png'), { width: 48 * scale, size: 0.64 });
   await png(join(RES, `mipmap-${density}`, 'ic_launcher_round.png'), { width: 48 * scale, size: 0.64 });
+  // The status-bar icon of the episode alerts: white, Android tints it.
+  await png(join(RES, `drawable-${density}`, 'ic_stat_wl.png'), { width: 24 * scale, size: 0.8, fill: '#FFFFFF' });
 }
 const splashes = {
   drawable: [480, 320],

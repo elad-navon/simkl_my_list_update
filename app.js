@@ -858,6 +858,7 @@ async function openLibrary() {
     // What's playing on Emby (tools/emby-bridge), for the top cards.
     if (library.backend.watchMeta) {
       library.backend.watchMeta("emby", data => { embyNow = data; applyNowWatching(); });
+      library.backend.watchMeta("embyMarked", onEmbyMarked);
     }
     library.bridge = SimklBridge.createSimklBridge({
       core: LibraryCore, store, adapter: library.adapter, backend: library.backend,
@@ -905,6 +906,68 @@ function applyNowWatching() {
       <div class="nw-overlay nw-time${nw.paused ? " paused" : ""}" title="">${Math.floor(nw.pos / 60)} / ${Math.round(nw.len / 60)} min</div>
       <div class="nw-overlay nw-bar${nw.paused ? " paused" : ""}" title=""><i style="width:${pct}%"></i></div>`);
   });
+}
+
+// "Marked as watched" from Emby: tools/emby-bridge writes meta "embyMarked"
+// ({ at, episodes }) whenever it marks an episode. A site open on a screen
+// reloads its panels quietly and says so for a few seconds in the top
+// corner, with the show's next episode once it's known. The first report
+// (already there when the site opened) and stale ones are skipped.
+let embyMarkedSeen = null;
+const EMBY_MARKED_FRESH_MS = 3 * 60 * 1000;
+
+async function onEmbyMarked(data) {
+  const first = embyMarkedSeen === null;
+  const at = data && data.at;
+  if (!at || at === embyMarkedSeen) { if (first) embyMarkedSeen = at || ""; return; }
+  embyMarkedSeen = at;
+  if (first || Date.now() - Date.parse(at) > EMBY_MARKED_FRESH_MS) return;
+  const episodes = (data.episodes || []).filter(x => x && x.s != null && x.e != null);
+  if (!episodes.length) return;
+  await refreshPanelsQuietly();
+  const code = (s, e) => `S${String(s).padStart(2, "0")}E${String(e).padStart(2, "0")}`;
+  const lines = episodes.map(x => {
+    const row = (lastRows || []).find(r => (x.tmdb != null && r.tmdbId != null && String(r.tmdbId) === String(x.tmdb))
+      || (!!x.imdb && r.imdbId === x.imdb));
+    const next = row && row.nextLabel && row.nextLabel !== code(x.s, x.e) ? ` · Next: ${row.nextLabel}` : "";
+    return { title: x.title || (row && row.title) || "", text: `Marked ${code(x.s, x.e)} as watched${next}` };
+  });
+  showCornerToast(lines);
+}
+
+let cornerToastTimer = null;
+function showCornerToast(lines) {
+  let el = document.getElementById("cornerToast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "cornerToast";
+    el.className = "corner-toast";
+    el.setAttribute("role", "status");
+    el.addEventListener("click", () => el.classList.remove("show"));
+    document.body.appendChild(el);
+  }
+  el.replaceChildren(...lines.map(l => {
+    const item = document.createElement("div");
+    item.className = "corner-toast-item";
+    item.innerHTML = `<span class="corner-toast-icon" aria-hidden="true">✓</span><span><b></b><br><span></span></span>`;
+    item.querySelector("b").textContent = l.title;
+    item.querySelector("br + span").textContent = l.text;
+    return item;
+  }));
+  clearTimeout(cornerToastTimer);
+  requestAnimationFrame(() => el.classList.add("show"));
+  cornerToastTimer = setTimeout(() => el.classList.remove("show"), 7000);
+}
+
+// Premiere / finale / new-series alerts on the phone: inside the Android
+// app only (native/episode-alerts.js), every time fresh Airing Next rows
+// arrive. A browser never loads it.
+let episodeAlertsModule = null;
+function syncEpisodeAlerts(rows) {
+  const cap = window.Capacitor;
+  if (!(cap && typeof cap.isNativePlatform === "function" && cap.isNativePlatform())) return;
+  episodeAlertsModule = episodeAlertsModule || import(new URL("native/episode-alerts.js", document.baseURI).href);
+  episodeAlertsModule.then(m => m.sync(rows || [])).catch(e => console.warn("Episode alerts:", e && e.message));
 }
 
 // SIMKL as an inbox only: whatever marks episodes watched on SIMKL (the Emby
@@ -5693,7 +5756,10 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   lastTotalMinutes = totalRemainingMinutes;
   if (recentlyWatched !== undefined) lastRecentlyWatched = recentlyWatched;
   if (planToWatch !== undefined) lastPlanToWatch = planToWatch;
-  if (airingPreview !== undefined) lastAiringPreview = airingPreview;
+  if (airingPreview !== undefined) {
+    lastAiringPreview = airingPreview;
+    syncEpisodeAlerts(airingPreview);
+  }
   rememberLoaderPosters();
   currentView = "list";
   safeSetItem(LS_VIEW_MODE, "list");
