@@ -935,8 +935,22 @@ async function onEmbyMarked(data) {
   showCornerToast(lines);
 }
 
+// While the tab isn't on the screen (another tab or window in front), the
+// message waits and shows once the site is back in view.
+let cornerToastWaiting = [];
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden || !cornerToastWaiting.length) return;
+  const lines = cornerToastWaiting;
+  cornerToastWaiting = [];
+  showCornerToast(lines);
+});
+
 let cornerToastTimer = null;
 function showCornerToast(lines) {
+  if (document.hidden) {
+    cornerToastWaiting = cornerToastWaiting.concat(lines);
+    return;
+  }
   let el = document.getElementById("cornerToast");
   if (!el) {
     el = document.createElement("div");
