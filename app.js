@@ -910,7 +910,7 @@ function applyNowWatching() {
 
 // "Marked as watched" from Emby: tools/emby-bridge writes meta "embyMarked"
 // ({ at, episodes }) whenever it marks an episode. A site open on a screen
-// reloads its panels quietly and says so for a few seconds in the top
+// reloads its panels quietly and says so for 10 seconds, large, in the top
 // corner, with the show's next episode once it's known. The first report
 // (already there when the site opened) and stale ones are skipped.
 let embyMarkedSeen = null;
@@ -935,8 +935,22 @@ async function onEmbyMarked(data) {
   showCornerToast(lines);
 }
 
+// While the tab isn't on the screen (another tab or window in front), the
+// message waits and shows once the site is back in view.
+let cornerToastWaiting = [];
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden || !cornerToastWaiting.length) return;
+  const lines = cornerToastWaiting;
+  cornerToastWaiting = [];
+  showCornerToast(lines);
+});
+
 let cornerToastTimer = null;
 function showCornerToast(lines) {
+  if (document.hidden) {
+    cornerToastWaiting = cornerToastWaiting.concat(lines);
+    return;
+  }
   let el = document.getElementById("cornerToast");
   if (!el) {
     el = document.createElement("div");
@@ -956,7 +970,7 @@ function showCornerToast(lines) {
   }));
   clearTimeout(cornerToastTimer);
   requestAnimationFrame(() => el.classList.add("show"));
-  cornerToastTimer = setTimeout(() => el.classList.remove("show"), 7000);
+  cornerToastTimer = setTimeout(() => el.classList.remove("show"), 10000);
 }
 
 // Premiere / finale / new-series alerts on the phone: inside the Android
