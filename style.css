@@ -1171,22 +1171,22 @@
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .toast.error { color: var(--danger); }
 
-  /* "Marked as watched" from Emby (onEmbyMarked), top right for a few seconds. */
+  /* "Marked as watched" from Emby (onEmbyMarked), top right for 10 seconds. */
   .corner-toast {
-    position: fixed; top: 16px; right: 16px; z-index: 210;
-    display: flex; flex-direction: column; gap: 8px; max-width: min(360px, calc(100vw - 32px));
+    position: fixed; top: 20px; right: 20px; z-index: 210;
+    display: flex; flex-direction: column; gap: 14px; width: min(560px, calc(100vw - 40px));
     background: var(--card); color: var(--text); border: 1px solid var(--border);
-    border-left: 4px solid var(--gold); border-radius: 12px; padding: 12px 16px;
-    box-shadow: 0 12px 32px rgba(0,0,0,0.45); font-size: 0.88rem; line-height: 1.4;
-    opacity: 0; transform: translateY(-12px); pointer-events: none; cursor: pointer;
-    transition: opacity 0.25s ease, transform 0.25s ease;
+    border-left: 8px solid var(--gold); border-radius: 18px; padding: 22px 26px;
+    box-shadow: 0 18px 48px rgba(0,0,0,0.55); font-size: 1.25rem; font-weight: 600; line-height: 1.45;
+    opacity: 0; transform: translateY(-16px); pointer-events: none; cursor: pointer;
+    transition: opacity 0.3s ease, transform 0.3s ease;
   }
   .corner-toast.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
-  .corner-toast-item { display: flex; gap: 10px; align-items: flex-start; }
-  .corner-toast-item b { color: var(--gold); font-size: 0.95rem; }
+  .corner-toast-item { display: flex; gap: 18px; align-items: center; }
+  .corner-toast-item b { color: var(--gold); font-family: 'Fraunces', Georgia, serif; font-size: 1.7rem; font-weight: 800; line-height: 1.2; }
   .corner-toast-icon {
-    flex: none; width: 22px; height: 22px; border-radius: 50%; margin-top: 2px;
-    background: var(--gold); color: #14100a; font-weight: 800; font-size: 0.8rem;
+    flex: none; width: 48px; height: 48px; border-radius: 50%;
+    background: var(--gold); color: #14100a; font-weight: 800; font-size: 1.6rem;
     display: flex; align-items: center; justify-content: center;
   }
 
