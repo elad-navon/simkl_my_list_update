@@ -86,6 +86,8 @@
      the 23px icon + 10px). */
   @media (min-width: 721px) { .nav-item:has(.nav-label) { padding-top: 5px; padding-bottom: 5px; min-height: 45px; } }
   .nav-label { line-height: 1.15; }
+  /* Search Show's and Settings' names, shown only in the box beside the top panel (body.equal-panels). */
+  .nav-label-home { display: none; }
   .nav-item[hidden] { display: none; }
   /* Search Show and Settings: the icon alone (the name shows on hover). */
   @media (min-width: 721px) { .nav-item.icon-only { padding-left: 12px; padding-right: 12px; } }
@@ -1045,6 +1047,53 @@
     body:not(.panels-scroll) .series-panel-header { margin-bottom: 12px; }
     body:not(.panels-scroll) .bottom-panels-row { margin-top: 16px; }
     body:not(.panels-scroll) .card.carousel-card.banner-mode { width: calc(var(--top-img-h, 206px) * 16 / 9 + 2px); }
+    /* body.equal-panels (fitTopPanelToWindow): the bottom panels' rows as
+       tall as --bot-h, so their boxes match the top one - the poster pairs
+       that tall, or each of the two framed banner rows half of it (less
+       the 10px gap and its 8px padding + 2px frame), the banner 16:9 while
+       the row has the width and cropped to the row's 55% after that. */
+    /* The top box's title and stats the bottom titles' size (1.2rem, the
+       same frame padding and gap under them) - the height they give up
+       goes to the top box's posters / banners. */
+    body.equal-panels:not(.panels-scroll) .series-panel .series-panel-title { font-size: 1.2rem; padding: 7px 12px; gap: 7px; }
+    body.equal-panels:not(.panels-scroll) .series-panel-header-left { padding: 7px 12px; gap: 16px; }
+    body.equal-panels:not(.panels-scroll) .series-panel-stat .num,
+    body.equal-panels:not(.panels-scroll) .series-panel-stat .label { font-size: 1.2rem; line-height: 1; }
+    body.equal-panels:not(.panels-scroll) .series-panel-header { margin-bottom: 10px; }
+    body.equal-panels:not(.panels-scroll) .panel-pair { --pp-h: var(--bot-h, 280px); }
+    /* No top bar: what it held is a box of its own left of the top panel,
+       as tall as it (--top-box-h) - the logo and slogan, the four buttons
+       as wide as the box, each with its name, and the greeting at the
+       bottom, all centred. The date and clock go. */
+    body.equal-panels:not(.panels-scroll) { --home-w: 250px; }
+    body.equal-panels:not(.panels-scroll) .topbar {
+      position: absolute; top: 14px; left: 22px; z-index: 5; box-sizing: border-box;
+      width: var(--home-w); height: var(--top-box-h, auto);
+      display: flex; flex-direction: column; align-items: stretch; gap: 16px;
+      padding: 18px 16px 16px; border: 1px solid var(--border); border-radius: 12px;
+    }
+    body.equal-panels:not(.panels-scroll):not(.light-theme) .topbar { background: var(--card); }
+    body.equal-panels:not(.panels-scroll) .series-panel { margin-left: calc(var(--home-w) + 16px); margin-right: 0; }
+    body.equal-panels:not(.panels-scroll) .topbar-left { flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+    body.equal-panels:not(.panels-scroll) .logo-icon svg { width: 40px; height: 40px; }
+    body.equal-panels:not(.panels-scroll) .logo-text .logo-tv, body.equal-panels:not(.panels-scroll) .logo-accent { font-size: 1.6rem; }
+    body.equal-panels:not(.panels-scroll) .topbar-slogan { font-size: 1.2rem; }
+    body.equal-panels:not(.panels-scroll) .topbar-slogan-sep, body.equal-panels:not(.panels-scroll) .topbar-clock { display: none; }
+    body.equal-panels:not(.panels-scroll) .topbar-controls { flex: 1 1 auto; min-height: 0; flex-direction: column; align-items: stretch; }
+    body.equal-panels:not(.panels-scroll) .navbar-nav { flex: 1 1 auto; flex-direction: column; gap: 10px; }
+    body.equal-panels:not(.panels-scroll) .nav-item,
+    body.equal-panels:not(.panels-scroll) .nav-item.icon-only { min-height: 44px; padding: 8px 14px; }
+    body.equal-panels:not(.panels-scroll) .nav-label br { display: none; }
+    body.equal-panels:not(.panels-scroll) .nav-label-home { display: inline; }
+    body.equal-panels:not(.panels-scroll) .profile-greeting-inline {
+      margin: auto 0 0; padding-top: 14px; border-top: 1px solid var(--border);
+      justify-content: center; gap: 10px;
+    }
+    body.equal-panels:not(.panels-scroll) .list-page:not(.list-page--pair) .list-row > .list-thumb-wrap { max-width: 55%; }
+    body.equal-panels:not(.panels-scroll) .list-page:not(.list-page--pair) .list-row .list-thumb {
+      --bt-h: calc((var(--bot-h, 280px) - 10px) / 2 - 20px);
+      height: var(--bt-h); width: calc(var(--bt-h) * 16 / 9); max-width: 100%;
+    }
   }
   body.panels-scroll .main-content { padding-bottom: 60px; }
   body.panels-scroll .bottom-panels-row { align-items: flex-start; }
@@ -1409,8 +1458,12 @@
     box-shadow: inset 0 0 0 2px rgba(251,191,36,0.5), inset 0 0 50px rgba(251,191,36,0.18);
     border-left: 4px solid var(--gold);
     padding: 10px 14px; display: flex; flex-direction: column; justify-content: center;
-    overflow-y: auto;
+    /* No scrollbar: the blurred banner behind (inset -8px) always overflows
+       by a few px, which drew one even when the text fits. A text that
+       really doesn't fit still scrolls with the wheel. */
+    overflow-y: auto; scrollbar-width: none;
   }
+  .panel-shows-flip-back::-webkit-scrollbar { display: none; }
   .panel-shows-flip-back-bg {
     position: absolute; inset: -8px; z-index: 0;
     background-size: cover; background-position: center;
