@@ -3535,8 +3535,7 @@ function openEpisodesModal(arrIdx) {
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay";
   overlay.id = "episodesModalOverlay";
-  const headerEl = document.querySelector("header");
-  overlay.style.paddingTop = `${(headerEl ? headerEl.offsetHeight : 0) + 24}px`;
+  overlay.style.paddingTop = `${modalTopGap()}px`;
   overlay.innerHTML = `
     <div class="modal-box episodes-modal">
       <div class="episodes-modal-head">
@@ -3677,8 +3676,7 @@ async function openCastModal(source, idx) {
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay";
   overlay.id = "castModalOverlay";
-  const headerEl = document.querySelector("header");
-  overlay.style.paddingTop = `${(headerEl ? headerEl.offsetHeight : 0) + 24}px`;
+  overlay.style.paddingTop = `${modalTopGap()}px`;
 
   const gridHtml = top.length
     ? top.map((person, i) => {
@@ -3826,8 +3824,7 @@ function openPanelShowsModal(source) {
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay";
   overlay.id = "panelShowsModalOverlay";
-  const headerEl = document.querySelector("header");
-  overlay.style.paddingTop = `${(headerEl ? headerEl.offsetHeight : 0) + 24}px`;
+  overlay.style.paddingTop = `${modalTopGap()}px`;
 
   // Each card is a flip card, not a link: clicking the poster (front) does
   // a half-turn to a wider, horizontal back face holding the exact same
@@ -3932,8 +3929,7 @@ function openSearchModal() {
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay";
   overlay.id = "searchModalOverlay";
-  const headerEl = document.querySelector("header");
-  overlay.style.paddingTop = `${(headerEl ? headerEl.offsetHeight : 0) + 24}px`;
+  overlay.style.paddingTop = `${modalTopGap()}px`;
   overlay.innerHTML = `
     <div class="modal-box">
       <h2><span id="modalTitle">Search a TV show (English or Hebrew)</span> <button class="modal-close-btn" id="searchModalCloseBtn">&times;</button></h2>
@@ -4153,7 +4149,7 @@ function updateImageModeButton() {
   const mode = getImageMode();
   const nextLabel = mode === "poster" ? "Banners" : "Posters";
   const icon = mode === "poster" ? ICON_BANNER_SHAPE : ICON_POSTER_SHAPE;
-  btn.innerHTML = `<span class="nav-icon">${icon}</span><span class="nav-label">Switch to<br>${nextLabel}</span>`;
+  btn.innerHTML = `<span class="nav-icon">${icon}</span><span class="nav-label">Switch to <br>${nextLabel}</span>`;
 }
 
 // The bottom panels' thumbnails: banners (two shows stacked per page) or
@@ -4175,7 +4171,7 @@ function applyPanelImages() {
   btn.hidden = isScrollLayout();
   const posters = panelPosters();
   btn.title = posters ? "Show banners in the panels below" : "Show posters in the panels below";
-  btn.innerHTML = `<span class="nav-icon">${posters ? ICON_BANNER_SHAPE : ICON_POSTER_SHAPE}</span><span class="nav-label">Panels to<br>${posters ? "Banners" : "Posters"}</span>`;
+  btn.innerHTML = `<span class="nav-icon">${posters ? ICON_BANNER_SHAPE : ICON_POSTER_SHAPE}</span><span class="nav-label">Panels to <br>${posters ? "Banners" : "Posters"}</span>`;
 }
 
 // A bottom-panel thumbnail's image: the kind the panels show, else the other.
@@ -4949,8 +4945,7 @@ function openImagePicker(source, idx, mode) {
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay";
   overlay.id = "imagePickerOverlay";
-  const headerEl = document.querySelector("header");
-  overlay.style.paddingTop = `${(headerEl ? headerEl.offsetHeight : 0) + 24}px`;
+  overlay.style.paddingTop = `${modalTopGap()}px`;
   overlay.innerHTML = `
     <div class="modal-box picker-box">
       <div class="picker-head">
@@ -5549,7 +5544,11 @@ function updatePagerUiForTrack(track) {
 // height: a row that doesn't fit first gets a smaller show-name font (two
 // steps, ROW_TITLE_SIZES), and only at the smallest size are lines cut.
 // Each size step is batched as clamp-1 reads, unclamped reads, then writes.
+// With body.equal-panels the rows (and thumbnails) are taller: up to 8
+// lines, the show name up to 4 of them, the thumbnail's height the limit.
 const ROW_LINE_BUDGET = 6;
+const ROW_LINE_BUDGET_TALL = 8;
+const ROW_TITLE_LINES_TALL = 4;
 const ROW_TITLE_SIZES = ["", "title-fs-1", "title-fs-2"];
 function fitPanelRowLines() {
   // (Rows in poster pairs are fitted whole instead - fitPairText.)
@@ -5565,6 +5564,8 @@ function fitPanelRowLines() {
     items.forEach(it => it.title.classList.remove(...sizeClasses));
     return;
   }
+  const tall = document.body.classList.contains("equal-panels");
+  const budget = tall ? ROW_LINE_BUDGET_TALL : ROW_LINE_BUDGET;
   let pending = items;
   ROW_TITLE_SIZES.forEach((cls, level) => {
     if (!pending.length) return;
@@ -5597,9 +5598,11 @@ function fitPanelRowLines() {
 
     const next = [];
     pending.forEach(it => {
-      let t = need.get(it.title);
+      // A name longer than its lines tries the smaller fonts before it's cut.
+      if (tall && need.get(it.title) > ROW_TITLE_LINES_TALL && !smallest) { next.push(it); return; }
+      let t = tall ? Math.min(ROW_TITLE_LINES_TALL, need.get(it.title)) : need.get(it.title);
       let e = it.ep ? need.get(it.ep) : 0;
-      while (t + e + it.fixedLines > ROW_LINE_BUDGET && (t > 1 || e > 1)) [t, e] = shrink(t, e);
+      while (t + e + it.fixedLines > budget && (t > 1 || e > 1)) [t, e] = shrink(t, e);
       if (textH(it, t, e) > it.maxH) {
         let [ct, ce] = [t, e];
         while (textH(it, ct, ce) > it.maxH && (ct > 1 || ce > 1)) [ct, ce] = shrink(ct, ce);
@@ -5607,7 +5610,7 @@ function fitPanelRowLines() {
         if (level === 0) it.fallback = [ct, ce];
         if (!smallest) { next.push(it); return; }
         it.title.classList.remove(...sizeClasses);
-        [t, e] = it.fallback;
+        [t, e] = it.fallback || [ct, ce];
       }
       it.title.style.setProperty("-webkit-line-clamp", String(t));
       if (it.ep) it.ep.style.setProperty("-webkit-line-clamp", String(e));
@@ -5664,16 +5667,33 @@ function fitPairText() {
 }
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitPairText());
 
-// One-page layout on desktop: grows or shrinks the top panel's posters /
-// banners (--top-img-h) so the page fills the window exactly - no scrolling,
-// whatever the screen height. A few passes, since a banner's width follows
-// its height and can rewrap the card text under it.
+// A dialog opens just under the top bar - or, with the bar as a box beside
+// the top panel (body.equal-panels), near the top of the screen.
+function modalTopGap() {
+  const headerEl = document.querySelector("header");
+  const barH = headerEl && !document.body.classList.contains("equal-panels") ? headerEl.offsetHeight : 0;
+  return barH + 24;
+}
+
+// One-page layout on desktop: sizes the top panel's posters / banners
+// (--top-img-h) and the bottom panels' rows (--bot-h, body.equal-panels)
+// so the top box and the bottom boxes are equally tall and the page fills
+// the window exactly - no scrolling, whatever the screen height. A few
+// passes, since a banner's width follows its height and can rewrap the
+// card text under it.
 const TOP_IMG_MIN = { banner: 120, poster: 300 };
+const BOTTOM_ROWS_MIN = 200;
+function clearEqualPanels() {
+  document.body.classList.remove("equal-panels");
+  document.documentElement.style.removeProperty("--bot-h");
+  document.documentElement.style.removeProperty("--top-box-h");
+}
 function fitTopPanelToWindow() {
   const root = document.documentElement;
   // A phone on its side shows one panel (a tab) at a time: its pairs take
   // the whole screen below the header - the top panel's and the others'.
   if (phoneLayout() === "landscape") {
+    clearEqualPanels();
     const header = document.querySelector(".topbar");
     const h = Math.max(200, Math.floor(window.innerHeight - (header ? header.getBoundingClientRect().height : 0) - 24));
     root.style.setProperty("--top-img-h", h + "px");
@@ -5686,9 +5706,33 @@ function fitTopPanelToWindow() {
   const img = track && track.querySelector(".poster-wrap");
   if (!img || !main || currentView !== "list" || isScrollLayout() || window.matchMedia("(max-width: 720px)").matches) {
     root.style.removeProperty("--top-img-h");
+    clearEqualPanels();
     return;
   }
   const min = TOP_IMG_MIN[getImageMode() === "banner" ? "banner" : "poster"];
+  const topBox = document.querySelector(".series-panel");
+  const bottomBoxes = [...document.querySelectorAll(".bottom-panels-row .list-panel")];
+  if (topBox && bottomBoxes.length) {
+    document.body.classList.add("equal-panels");
+    for (let pass = 0; pass < 4; pass++) {
+      const slack = window.innerHeight - (main.getBoundingClientRect().bottom + window.scrollY) - 1;
+      const topH = topBox.getBoundingClientRect().height;
+      const botH = Math.max(...bottomBoxes.map(b => b.getBoundingClientRect().height));
+      if (Math.abs(slack) < 1 && Math.abs(topH - botH) < 1) break;
+      // Half of everything below the header each: the top box and the
+      // bottom ones grow or shrink by what they're off that height.
+      const target = (topH + botH + slack) / 2;
+      const rowsH = parseFloat(root.style.getPropertyValue("--bot-h")) || 280;
+      root.style.setProperty("--top-img-h", Math.max(min, Math.floor(img.getBoundingClientRect().height + target - topH)) + "px");
+      root.style.setProperty("--bot-h", Math.max(BOTTOM_ROWS_MIN, Math.floor(rowsH + target - botH)) + "px");
+    }
+    // The top bar sits as a box beside the top panel, exactly as tall.
+    root.style.setProperty("--top-box-h", topBox.getBoundingClientRect().height + "px");
+    // The rows' text was fitted to the thumbnails' height before it changed.
+    fitPanelRowLines();
+    return;
+  }
+  clearEqualPanels();
   for (let pass = 0; pass < 3; pass++) {
     const slack = window.innerHeight - (main.getBoundingClientRect().bottom + window.scrollY) - 1;
     if (Math.abs(slack) < 1) break;
