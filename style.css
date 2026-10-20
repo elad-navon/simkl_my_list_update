@@ -1061,10 +1061,11 @@
     body.equal-panels:not(.panels-scroll) .series-panel-stat .label { font-size: 1.2rem; line-height: 1; }
     body.equal-panels:not(.panels-scroll) .series-panel-header { margin-bottom: 10px; }
     body.equal-panels:not(.panels-scroll) .panel-pair { --pp-h: var(--bot-h, 280px); }
-    /* In a narrow panel one show (its poster + its details box) fits the
-       panel's width: the details box gives way, down to 120px (100cqw =
-       the panel's inside width, .list-panel being the container). */
-    body.equal-panels:not(.panels-scroll) .bottom-panels-row .panel-pair { --pp-text: clamp(120px, calc(100cqw - var(--pp-w) - 2px), 210px); }
+    /* Panels to Posters: Airing Next exactly one pair wide (two L tiles a
+       page), the other two exactly one show (poster + details box) each -
+       --airing-w and the details' width --bot-text from fitBottomPairWidths. */
+    body.equal-panels:not(.panels-scroll) .bottom-panels-row .panel-pair { --pp-text: var(--bot-text, 210px); }
+    body.equal-panels:not(.panels-scroll) .bottom-panels-row:has(.panel-pair) .list-panel--airing { flex: 0 0 var(--airing-w, 50%); box-sizing: border-box; }
     /* No top bar: what it held is a box of its own left of the top panel,
        as tall as it (--top-box-h) - the logo and slogan, the four buttons
        as wide as the box, each with its name, and the greeting at the
@@ -1092,6 +1093,18 @@
     body.equal-panels:not(.panels-scroll) .profile-greeting-inline {
       margin: auto 0 0; padding-top: 14px; border-top: 1px solid var(--border);
       justify-content: center; gap: 10px;
+    }
+    /* A short screen: the box beside the top panel a little more compact,
+       so all it holds still fits its height. */
+    @media (max-height: 860px) {
+      body.equal-panels:not(.panels-scroll) .topbar { padding: 12px 14px; gap: 10px; }
+      body.equal-panels:not(.panels-scroll) .logo-icon svg { width: 32px; height: 32px; }
+      body.equal-panels:not(.panels-scroll) .topbar-slogan { font-size: 1.05rem; }
+      body.equal-panels:not(.panels-scroll) .navbar-nav { gap: 7px; }
+      body.equal-panels:not(.panels-scroll) .nav-item,
+      body.equal-panels:not(.panels-scroll) .nav-item.icon-only { min-height: 38px; padding: 6px 12px; }
+      body.equal-panels:not(.panels-scroll) .profile-greeting-inline { padding-top: 10px; }
+      body.equal-panels:not(.panels-scroll) .profile-pic-small { width: 44px; height: 44px; }
     }
     body.equal-panels:not(.panels-scroll) .list-page:not(.list-page--pair) .list-row > .list-thumb-wrap { max-width: 55%; }
     body.equal-panels:not(.panels-scroll) .list-page:not(.list-page--pair) .list-row .list-thumb {

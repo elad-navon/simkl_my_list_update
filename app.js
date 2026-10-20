@@ -5688,11 +5688,46 @@ function modalTopGap() {
 // passes, since a banner's width follows its height and can rewrap the
 // card text under it.
 const TOP_IMG_MIN = { banner: 120, poster: 300 };
+// With equal panels a short screen lets the posters go lower - the boxes
+// stay equal and the page doesn't scroll.
+const EQUAL_TOP_IMG_MIN = { banner: 120, poster: 180 };
 const BOTTOM_ROWS_MIN = 200;
 function clearEqualPanels() {
   document.body.classList.remove("equal-panels");
   document.documentElement.style.removeProperty("--bot-h");
   document.documentElement.style.removeProperty("--top-box-h");
+  document.documentElement.style.removeProperty("--bot-text");
+  document.documentElement.style.removeProperty("--airing-w");
+}
+// Panels to Posters with equal panels: Airing Next as wide as one pair
+// (two posters + the details column between them + the pair's gap), each
+// other panel as wide as one show (a poster + its details box) - the
+// details box the same width everywhere, exactly filling the room (at
+// least 120px), so the next show's box, half hidden at a panel's right
+// edge, ends level with the shown one's.
+const BOTTOM_TEXT_MIN = 120, PAIR_GAP = 12;
+function fitBottomPairWidths() {
+  const root = document.documentElement;
+  const row = document.querySelector(".bottom-panels-row");
+  const airing = row && row.querySelector(".list-panel--airing");
+  const track = airing && airing.querySelector(".list-rows-paged");
+  if (!track || !row.querySelector(".panel-pair")) {
+    root.style.removeProperty("--bot-text");
+    root.style.removeProperty("--airing-w");
+    return;
+  }
+  const panels = [...row.children].filter(el => el.classList.contains("list-panel"));
+  const others = panels.length - 1;
+  const gap = parseFloat(getComputedStyle(row).columnGap) || 0;
+  // The panel's own padding + border around its track.
+  const chrome = airing.getBoundingClientRect().width - track.clientWidth;
+  const posterW = (parseFloat(root.style.getPropertyValue("--bot-h")) || 280) * 2 / 3;
+  const room = row.clientWidth - gap * others - chrome * panels.length;
+  // room = (2 posters + text + gap) + others x (poster + text)
+  const text = Math.floor((room - (2 + others) * posterW - PAIR_GAP) / (1 + others));
+  const t = Math.max(BOTTOM_TEXT_MIN, text);
+  root.style.setProperty("--bot-text", t + "px");
+  root.style.setProperty("--airing-w", Math.ceil(2 * posterW + t + PAIR_GAP + chrome) + "px");
 }
 function fitTopPanelToWindow() {
   const root = document.documentElement;
@@ -5720,6 +5755,7 @@ function fitTopPanelToWindow() {
   const bottomBoxes = [...document.querySelectorAll(".bottom-panels-row .list-panel")];
   if (topBox && bottomBoxes.length) {
     document.body.classList.add("equal-panels");
+    const eqMin = EQUAL_TOP_IMG_MIN[getImageMode() === "banner" ? "banner" : "poster"];
     for (let pass = 0; pass < 4; pass++) {
       const slack = window.innerHeight - (main.getBoundingClientRect().bottom + window.scrollY) - 1;
       const topH = topBox.getBoundingClientRect().height;
@@ -5729,11 +5765,12 @@ function fitTopPanelToWindow() {
       // bottom ones grow or shrink by what they're off that height.
       const target = (topH + botH + slack) / 2;
       const rowsH = parseFloat(root.style.getPropertyValue("--bot-h")) || 280;
-      root.style.setProperty("--top-img-h", Math.max(min, Math.floor(img.getBoundingClientRect().height + target - topH)) + "px");
+      root.style.setProperty("--top-img-h", Math.max(eqMin, Math.floor(img.getBoundingClientRect().height + target - topH)) + "px");
       root.style.setProperty("--bot-h", Math.max(BOTTOM_ROWS_MIN, Math.floor(rowsH + target - botH)) + "px");
     }
     // The top bar sits as a box beside the top panel, exactly as tall.
     root.style.setProperty("--top-box-h", topBox.getBoundingClientRect().height + "px");
+    fitBottomPairWidths();
     // The rows' text was fitted to the thumbnails' height before it changed.
     fitPanelRowLines();
     return;
