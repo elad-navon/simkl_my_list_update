@@ -1061,6 +1061,10 @@
     body.equal-panels:not(.panels-scroll) .series-panel-stat .label { font-size: 1.2rem; line-height: 1; }
     body.equal-panels:not(.panels-scroll) .series-panel-header { margin-bottom: 10px; }
     body.equal-panels:not(.panels-scroll) .panel-pair { --pp-h: var(--bot-h, 280px); }
+    /* In a narrow panel one show (its poster + its details box) fits the
+       panel's width: the details box gives way, down to 120px (100cqw =
+       the panel's inside width, .list-panel being the container). */
+    body.equal-panels:not(.panels-scroll) .bottom-panels-row .panel-pair { --pp-text: clamp(120px, calc(100cqw - var(--pp-w) - 2px), 210px); }
     /* No top bar: what it held is a box of its own left of the top panel,
        as tall as it (--top-box-h) - the logo and slogan, the four buttons
        as wide as the box, each with its name, and the greeting at the

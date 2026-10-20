@@ -5480,7 +5480,8 @@ function pagerArrowClick(btn, dir) {
 // Where the arrows stop: [{ left, range }] - each page (a full page, one
 // half-width column of Airing Next, or a pair of posters), or in a by-show
 // track each show (a pair's first show at the pair, its second where its
-// details box starts). A stop past the end lands on the end; of stops that
+// details box starts - or, if the panel is narrower than that show, where
+// its poster ends at the panel's right edge). A stop past the end lands on the end; of stops that
 // land together, the first one's range is kept.
 function trackStops(track) {
   const base = track.getBoundingClientRect().left - track.scrollLeft;
@@ -5489,8 +5490,13 @@ function trackStops(track) {
   if (track.classList.contains("by-show")) {
     const rows = [...track.querySelectorAll(".list-row")];
     rows.forEach((row, i) => {
-      const anchor = row.previousElementSibling ? row.querySelector(".list-row-body") : row.parentElement;
-      stops.push({ left: leftOf(anchor), range: pagedRangeLabel(i, i + 1, rows.length) });
+      const second = !!row.previousElementSibling;
+      const anchor = second ? row.querySelector(".list-row-body") : row.parentElement;
+      let left = leftOf(anchor);
+      // A second show wider than the panel: its poster whole, at the right edge.
+      const thumb = second && row.querySelector(".list-thumb-wrap");
+      if (thumb) left = Math.max(left, leftOf(thumb) + thumb.getBoundingClientRect().width - track.clientWidth);
+      stops.push({ left, range: pagedRangeLabel(i, i + 1, rows.length) });
     });
   } else {
     for (const page of track.children) stops.push({ left: leftOf(page), range: page.dataset.range });
