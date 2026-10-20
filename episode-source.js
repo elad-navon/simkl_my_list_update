@@ -36,11 +36,12 @@
   }
 
   // Not aired yet by `now` (same rule as LibraryCore.isAired): undated, a
-  // future moment, or a date-only episode from today on.
+  // future moment, or a date-only episode from today on (today's until 10:00).
   function isUpcoming(ep, now) {
     if (!ep.date) return true;
     if (ep.date.length > 10) { const ts = Date.parse(ep.date); return isNaN(ts) || ts > now; }
-    return ep.date >= localDate(now);
+    const today = localDate(now);
+    return ep.date > today || (ep.date === today && new Date(now).getHours() < 10);
   }
 
   // `base` plus the episodes only `extra` knows about that haven't aired
@@ -80,6 +81,32 @@
       if (isNaN(ts) || ts < now - windowDays * DAY_MS) return ep;
       moved++;
       return { ...ep, date: ep.date.length > 10 ? new Date(ts + diff * DAY_MS).toISOString() : day, heldBy: "tvdb" };
+    });
+    return { episodes: out, moved };
+  }
+
+  // The other way: an episode the main source dates at least 2 days LATER
+  // than TheTVDB (`check`) moves to TheTVDB's day, keeping its time of day -
+  // but only when TMDB (`confirm`) agrees with TheTVDB within a day, two
+  // sources against one, since an early date is the costlier mistake. Only
+  // for a day no older than `windowDays`. Same shapes as holdForLaterDates.
+  function advanceToEarlierDates(episodes, check, confirm, now, { windowDays = 14 } = {}) {
+    const dayMap = list => new Map((list || []).filter(c => c && c.date).map(c => [`${c.season}-${c.episode}`, c.date.slice(0, 10)]));
+    const earlier = dayMap(check), agree = dayMap(confirm);
+    let moved = 0;
+    const out = (episodes || []).map(ep => {
+      if (!ep || !ep.date || ep.season == null || ep.season === 0) return ep;
+      const key = `${ep.season}-${ep.episode}`;
+      const day = earlier.get(key), second = agree.get(key);
+      const own = ep.date.slice(0, 10);
+      const diff = dayDiff(own, day);
+      if (!day || day >= own || diff == null || diff < 2) return ep;
+      const sd = dayDiff(day, second);
+      if (sd == null || sd > 1) return ep;
+      if (Date.parse(day + "T00:00:00") < now - windowDays * DAY_MS) return ep;
+      const ts = ep.date.length > 10 ? Date.parse(ep.date) : NaN;
+      moved++;
+      return { ...ep, date: ep.date.length > 10 && !isNaN(ts) ? new Date(ts - diff * DAY_MS).toISOString() : day, heldBy: "tvdb+tmdb" };
     });
     return { episodes: out, moved };
   }
@@ -350,5 +377,5 @@
     };
   }
 
-  return { createEpisodeSource, memoryCache, fromTvmaze, fromTmdb, appendUpcoming, appendAfter, holdForLaterDates, isUpcoming, realTitle };
+  return { createEpisodeSource, memoryCache, fromTvmaze, fromTmdb, appendUpcoming, appendAfter, holdForLaterDates, advanceToEarlierDates, isUpcoming, realTitle };
 });

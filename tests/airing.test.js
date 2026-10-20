@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { loadAppFunctions } = require("./app-helpers.js");
 
-const app = loadAppFunctions(["episodeAirWindow", "airCountdown", "episodeAvailableAt"]);
+const app = loadAppFunctions(["episodeAirWindow", "airCountdown", "episodeAvailableAt"], { LibraryCore: require("../library-core.js") });
 const MIN = 60000, HOUR = 60 * MIN;
 const NOW = Date.parse("2026-10-12T19:00:00Z");
 
@@ -48,12 +48,11 @@ test("airCountdown: NOW, minutes, hours up to 48 (rounded up), then calendar day
   assert.equal(app.airCountdown(null, null, NOW, null), null, "no date at all: no chip");
 });
 
-test("episodeAvailableAt: the end of the broadcast, or the next day for a date-only episode", () => {
+test("episodeAvailableAt: the end of the broadcast, or 10:00 that day for a date-only episode", () => {
   assert.equal(app.episodeAvailableAt({ date: "2026-10-12T19:00:00+00:00", runtime: 45 }, 60), NOW + 45 * MIN);
   assert.equal(app.episodeAvailableAt({ date: "2026-10-12T19:00:00+00:00" }, 60), NOW + 60 * MIN, "the show's average");
   assert.equal(app.episodeAvailableAt({ date: "2026-10-12T19:00:00+00:00" }, null), NOW + 30 * MIN);
-  const next = new Date("2026-10-12T00:00:00"); next.setDate(next.getDate() + 1);
-  assert.equal(app.episodeAvailableAt({ date: "2026-10-12" }), next.getTime(), "date only: from the next local day");
+  assert.equal(app.episodeAvailableAt({ date: "2026-10-12" }), new Date("2026-10-12T10:00:00").getTime(), "date only: from 10:00 local time");
   assert.equal(app.episodeAvailableAt({ date: null }), null);
 });
 

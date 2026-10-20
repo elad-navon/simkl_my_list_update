@@ -82,16 +82,16 @@ test("dropped shows need no episode list (Recently Watched reads only the last w
   assert.equal(source.calls.length, 0);
 });
 
-test("a date-only episode airing today is not aired yet; tomorrow it is", async () => {
-  const { adapter } = await setup({ 2: show(2, "watching", W(1, 1, iso(-4))) });
-  let [item] = await adapter.items("watching");
-  assert.equal(item.next_to_watch, null, "S01E02 airs today with no time - not available yet");
-  assert.equal(item.not_aired_episodes_count, 2);
-  const later = createLibraryAdapter({
+test("a date-only episode airing today is not aired before 10:00; from 10:00 it is", async () => {
+  const at = h => { const d = new Date(NOW); d.setHours(h, 0, 0, 0); return d.getTime(); };
+  const make = now => createLibraryAdapter({
     core, store: { view: () => new Map([["2", show(2, "watching", W(1, 1, iso(-4)))]]) },
-    source: fakeSource(), appendAfter, now: () => NOW + DAY,
+    source: fakeSource(), appendAfter, now: () => now,
   });
-  [item] = await later.items("watching");
+  let [item] = await make(at(8)).items("watching");
+  assert.equal(item.next_to_watch, null, "S01E02 airs today with no time - not available at 08:00");
+  assert.equal(item.not_aired_episodes_count, 2);
+  [item] = await make(at(10)).items("watching");
   assert.equal(item.next_to_watch, "S01E02");
 });
 

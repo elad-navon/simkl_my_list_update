@@ -748,9 +748,11 @@ function libraryAirTimes() {
 
 // TheTVDB (the source SIMKL uses) as a second opinion on air dates, with
 // the TheTVDB key from Settings: a show with an episode out in the past two
-// weeks or due in the next two has TheTVDB's dates looked up, and an
-// episode they put days later waits for that day (holdForLaterDates) - so a
-// wrong early date on TVMaze doesn't put it on Ready to Watch too soon.
+// weeks or due in the next two has TheTVDB's dates looked up. An episode
+// they put days later waits for that day (holdForLaterDates), so a wrong
+// early date on TVMaze doesn't put it on Ready to Watch too soon; one they
+// put days earlier - with TMDB agreeing - comes forward to that day
+// (advanceToEarlierDates), so a wrong late date doesn't hold it back.
 // Without the key, or the show's TheTVDB id, nothing changes.
 const TVDB_CHECK_NEAR_MS = 14 * 24 * 60 * 60 * 1000;
 function withTvdbAirCheck(airTimes) {
@@ -761,7 +763,12 @@ function withTvdbAirCheck(airTimes) {
     const near = timed.some(ep => ep.date && ep.season && Math.abs(Date.parse(ep.date.length > 10 ? ep.date : ep.date + "T00:00:00") - now) < TVDB_CHECK_NEAR_MS);
     if (!near) return timed;
     const check = await tvdbRecentEpisodes(ids.tvdb).catch(() => null);
-    return check ? EpisodeSource.holdForLaterDates(timed, check, now).episodes : timed;
+    if (!check) return timed;
+    const held = EpisodeSource.holdForLaterDates(timed, check, now).episodes;
+    // Earlier only with TMDB agreeing (its list is already cached from the
+    // episode source's own lookup).
+    const tmdb = ids.tmdb != null ? ((await library.source.getSourceLists(ids).catch(() => null)) || {}).tmdb : null;
+    return tmdb ? EpisodeSource.advanceToEarlierDates(held, check, tmdb, now).episodes : held;
   };
 }
 
@@ -1362,7 +1369,7 @@ function newEpisodeCache() {
 
 // Has an episode (from the episode cache) aired by `now`? An exact air time
 // counts once the broadcast has ended (its runtime, else fallbackMinutes -
-// the show's average); a date-only one from the next local day
+// the show's average); a date-only one from 10:00 local time that day
 // (LibraryCore.isAired).
 function episodeHasAired(ep, now, fallbackMinutes) {
   return LibraryCore.isAired(ep, now, fallbackMinutes);
@@ -2494,7 +2501,7 @@ async function nextAiringEpisodeFromList(showId, episodeCache, fallbackMinutes) 
   // Preferred path: the show's episode list, with an exact date+time per
   // episode where the source has one. Uses the same aired rule as My List's
   // remaining count (episodeHasAired: an exact time once its broadcast has
-  // ended, a date-only episode from the next day), so an episode is never in
+  // ended, a date-only episode from 10:00 that day), so an episode is never in
   // both places at once: while on the air it's here (marked onAir, shown
   // first), and moves to My List as it ends.
   // airEnd: when an exact-time episode ends (null for a date-only one).
@@ -2532,7 +2539,7 @@ async function nextAiringEpisodeFromList(showId, episodeCache, fallbackMinutes) 
 // 30 minutes.
 // When an episode became available to watch: the end of its broadcast for an
 // exact air time (its runtime, else fallbackMinutes, else 30 minutes), the
-// start of the next local day for a date-only one; null without a date.
+// that day's 10:00 local time for a date-only one; null without a date.
 // The same moments LibraryCore.isAired uses.
 function episodeAvailableAt(ep, fallbackMinutes) {
   if (!ep || typeof ep.date !== "string" || !ep.date) return null;
@@ -2542,10 +2549,10 @@ function episodeAvailableAt(ep, fallbackMinutes) {
     const minutes = ep.runtime > 0 ? ep.runtime : fallbackMinutes > 0 ? fallbackMinutes : 30;
     return start + minutes * 60000;
   }
-  const next = new Date(ep.date + "T00:00:00");
-  if (isNaN(next.getTime())) return null;
-  next.setDate(next.getDate() + 1);
-  return next.getTime();
+  const at = new Date(ep.date + "T00:00:00");
+  if (isNaN(at.getTime())) return null;
+  at.setHours(LibraryCore.DATE_ONLY_HOUR, 0, 0, 0);
+  return at.getTime();
 }
 
 function episodeAirWindow(ep, fallbackMinutes) {
@@ -5466,12 +5473,13 @@ function scheduleAirRefresh() {
   const now = Date.now();
   const moments = [];
   for (const r of lastAiringPreview || []) moments.push(r.airStart, r.airEnd);
-  // A date-only episode counts as aired from the next local day: refresh
-  // just after midnight while any is listed.
+  // A date-only episode counts as aired from 10:00 local time that day:
+  // refresh then (today's or tomorrow's) while any is listed.
   if ((lastAiringPreview || []).some(r => r.airDay)) {
-    const midnight = new Date(now);
-    midnight.setHours(24, 0, 0, 0);
-    moments.push(midnight.getTime());
+    const at = new Date(now);
+    at.setHours(LibraryCore.DATE_ONLY_HOUR, 0, 0, 0);
+    if (at.getTime() <= now) at.setDate(at.getDate() + 1);
+    moments.push(at.getTime());
   }
   let next = Infinity;
   for (const t of moments) {
