@@ -262,7 +262,8 @@ function showSettings(afterSaveCallback) {
       <label>Fanart.tv API Key &mdash; optional, adds more posters and banners to the image picker
         (<a href="https://fanart.tv/get-an-api-key/" target="_blank">get a free key</a>)</label>
       <input type="text" id="fanartKeyInput" value="${cfg.fanartKey}">
-      <label>TheTVDB API Key &mdash; optional, adds more posters and backgrounds to the image picker
+      <label>TheTVDB API Key &mdash; optional, adds more posters and backgrounds to the image picker, and checks
+        new episodes' air dates against <a href="https://thetvdb.com" target="_blank">TheTVDB</a>
         (<a href="https://thetvdb.com/api-information" target="_blank">get a free key</a>)</label>
       <input type="text" id="tvdbKeyInput" value="${cfg.tvdbKey}">
       ${librarySettingsHtml()}
@@ -745,6 +746,61 @@ function libraryAirTimes() {
   });
 }
 
+// TheTVDB (the source SIMKL uses) as a second opinion on air dates, with
+// the TheTVDB key from Settings: a show with an episode out in the past two
+// weeks or due in the next two has TheTVDB's dates looked up, and an
+// episode they put days later waits for that day (holdForLaterDates) - so a
+// wrong early date on TVMaze doesn't put it on Ready to Watch too soon.
+// Without the key, or the show's TheTVDB id, nothing changes.
+const TVDB_CHECK_NEAR_MS = 14 * 24 * 60 * 60 * 1000;
+function withTvdbAirCheck(airTimes) {
+  return async (ids, eps) => {
+    const timed = airTimes ? await airTimes(ids, eps).catch(() => eps) : eps;
+    if (!ids.tvdb || !getConfig().tvdbKey || tvdbKeyRejected) return timed;
+    const now = Date.now();
+    const near = timed.some(ep => ep.date && ep.season && Math.abs(Date.parse(ep.date.length > 10 ? ep.date : ep.date + "T00:00:00") - now) < TVDB_CHECK_NEAR_MS);
+    if (!near) return timed;
+    const check = await tvdbRecentEpisodes(ids.tvdb).catch(() => null);
+    return check ? EpisodeSource.holdForLaterDates(timed, check, now).episodes : timed;
+  };
+}
+
+// A show's episodes on TheTVDB from a month back on, as
+// [{ season, episode, date }], cached 12 hours; null if TheTVDB couldn't
+// answer (not cached - the next load asks again). One show at a time.
+const CACHE_TTL_TVDB_EPS_MS = 12 * 60 * 60 * 1000;
+let tvdbEpisodesQueue = Promise.resolve();
+function tvdbRecentEpisodes(tvdbId) {
+  const cacheKey = `tvdb-eps:${tvdbId}`;
+  const cached = readPersistedCache(cacheKey, CACHE_TTL_TVDB_EPS_MS);
+  if (cached !== undefined) return Promise.resolve(cached);
+  const run = tvdbEpisodesQueue.then(async () => {
+    const key = getConfig().tvdbKey;
+    let token = key && await tvdbToken(key, false);
+    if (!token) return null;
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const out = [];
+    for (let page = 0; page < 20; page++) {
+      const url = `${TVDB_API}/series/${tvdbId}/episodes/default?page=${page}`;
+      let res = await fetchWithTimeout(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.status === 401 && (token = await tvdbToken(key, true))) {
+        res = await fetchWithTimeout(url, { headers: { Authorization: `Bearer ${token}` } });
+      }
+      if (res.status === 404) break; // not in their database
+      if (!res.ok) return null;
+      const body = await res.json();
+      for (const ep of ((body.data || {}).episodes) || []) {
+        if (ep.aired && ep.aired >= since) out.push({ season: ep.seasonNumber, episode: ep.number, date: ep.aired });
+      }
+      if (!body.links || !body.links.next) break;
+    }
+    writePersistedCache(cacheKey, out);
+    return out;
+  });
+  tvdbEpisodesQueue = run.catch(() => null);
+  return run;
+}
+
 // The episode source asks TMDB for a show and its seasons - the same two
 // requests TmdbCache already makes (and keeps) for the cards, so they're
 // shared instead of repeated.
@@ -850,7 +906,7 @@ async function openLibrary() {
     library.adapter = LibraryAdapter.createLibraryAdapter({
       core: LibraryCore, store, source: library.source, appendAfter: EpisodeSource.appendAfter,
       showMeta: libraryShowMeta,
-      airTimes: libraryAirTimes(),
+      airTimes: withTvdbAirCheck(libraryAirTimes()),
       onProgress: (done, total) => {
         if (total > 5 && done < total) subtitle.textContent = `Loading episode lists… ${done}/${total}`;
       },
