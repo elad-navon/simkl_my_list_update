@@ -14,8 +14,8 @@ function extractFunction(name) {
   return m[1];
 }
 
-function loadAppFunctions(names) {
-  const context = {};
+function loadAppFunctions(names, globals = {}) {
+  const context = { ...globals };
   vm.createContext(context);
   vm.runInContext(names.map(extractFunction).join("\n"), context);
   const out = {};

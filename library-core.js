@@ -40,9 +40,10 @@
   // - exact date + time: once it has finished airing - its start plus its
   //   runtime (else fallbackMinutes, the show's average, else 30 minutes).
   //   While it's on the air it isn't available yet;
-  // - date only: from the following local day - on the day itself the time
-  //   is unknown, so it isn't counted as aired yet;
+  // - date only: from DATE_ONLY_HOUR (10:00) local time that day - the time
+  //   is unknown, and streaming services mostly release in the morning;
   // - no date: never (unknown is not aired).
+  const DATE_ONLY_HOUR = 10;
   function isAired(ep, now, fallbackMinutes) {
     if (!ep || !ep.date) return false;
     if (hasTime(ep.date)) {
@@ -51,7 +52,8 @@
       const minutes = ep.runtime > 0 ? ep.runtime : fallbackMinutes > 0 ? fallbackMinutes : 30;
       return ts + minutes * 60000 <= now;
     }
-    return ep.date < localDateStr(now);
+    const today = localDateStr(now);
+    return ep.date < today || (ep.date === today && new Date(now).getHours() >= DATE_ONLY_HOUR);
   }
 
   // The average runtime (minutes, rounded) of a list's regular episodes that
@@ -98,7 +100,7 @@
 
   // The next episode still to air: the earliest regular episode with a
   // known date that hasn't aired by `now` (a date-only episode airing today
-  // counts as upcoming - see isAired). Null when none is scheduled.
+  // counts as upcoming until 10:00 - see isAired). Null when none is scheduled.
   function nextUpcoming(episodes, now) {
     let best = null, bestTs = Infinity;
     for (const ep of episodes || []) {
@@ -440,7 +442,7 @@
 
   return {
     SCHEMA_VERSION, STATUSES,
-    hasTime, localDateStr, isAired, averageRuntime, isRegular, episodeCode,
+    hasTime, localDateStr, isAired, DATE_ONLY_HOUR, averageRuntime, isRegular, episodeCode,
     dayDiff, titlesAgree, nextUpcoming, mapWatched,
     showDocId, createShow, findEpisodeForRecord, toSimklShape,
     applyOp, checkConflict,

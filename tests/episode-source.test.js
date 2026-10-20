@@ -349,3 +349,22 @@ test("holdForLaterDates: a date-only episode takes TheTVDB's day; no second opin
   assert.equal(episodes[0].date, "2026-10-25");
   assert.deepEqual(holdForLaterDates(pim, null, NOW_OCT20).episodes, pim);
 });
+
+test("advanceToEarlierDates: earlier only when TMDB agrees with TheTVDB, 2+ days, recent", () => {
+  const { advanceToEarlierDates } = require("../episode-source.js");
+  const eps = [
+    { season: 1, episode: 1, date: "2026-10-24T01:00:00+00:00" }, // TVMaze 4 days late, both others agree
+    { season: 1, episode: 2, date: "2026-10-24T01:00:00+00:00" }, // TMDB disagrees
+    { season: 1, episode: 3, date: "2026-10-21T01:00:00+00:00" }, // a day apart: time zones
+    { season: 1, episode: 4, date: "2026-10-24" },                // date only
+  ];
+  const tvdb = [{ season: 1, episode: 1, date: "2026-10-20" }, { season: 1, episode: 2, date: "2026-10-20" }, { season: 1, episode: 3, date: "2026-10-20" }, { season: 1, episode: 4, date: "2026-10-19" }];
+  const tmdb = [{ season: 1, episode: 1, date: "2026-10-21" }, { season: 1, episode: 2, date: "2026-10-24" }, { season: 1, episode: 3, date: "2026-10-20" }, { season: 1, episode: 4, date: "2026-10-19" }];
+  const { episodes, moved } = advanceToEarlierDates(eps, tvdb, tmdb, NOW_OCT20);
+  assert.equal(moved, 2);
+  assert.equal(episodes[0].date, "2026-10-20T01:00:00.000Z");
+  assert.equal(episodes[1].date, eps[1].date);
+  assert.equal(episodes[2].date, eps[2].date);
+  assert.equal(episodes[3].date, "2026-10-19");
+  assert.equal(advanceToEarlierDates(eps, tvdb, null, NOW_OCT20).moved, 0, "no TMDB, no move");
+});

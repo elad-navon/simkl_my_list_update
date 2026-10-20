@@ -35,7 +35,9 @@ test("isAired: exact time, date-only and missing dates", () => {
   assert.equal(core.isAired({ date: iso(NOW - 50 * MIN) }, NOW, 60), false, "the show's average when it has none");
   assert.equal(core.isAired({ date: iso(NOW + 1000) }, NOW), false);
   assert.equal(core.isAired({ date: localDate(NOW - DAY) }, NOW), true, "yesterday, date only");
-  assert.equal(core.isAired({ date: localDate(NOW) }, NOW), false, "today, date only: aired only from tomorrow");
+  const at = h => { const d = new Date(NOW); d.setHours(h, 0, 0, 0); return d.getTime(); };
+  assert.equal(core.isAired({ date: localDate(NOW) }, at(9)), false, "today, date only: not before 10:00");
+  assert.equal(core.isAired({ date: localDate(NOW) }, at(10)), true, "today, date only: from 10:00");
   assert.equal(core.isAired({ date: localDate(NOW + DAY) }, NOW), false);
   assert.equal(core.isAired({ date: null }, NOW), false, "unknown date is not aired");
   assert.equal(core.isAired({}, NOW), false);
@@ -72,9 +74,10 @@ test("toSimklShape: next episode not aired yet -> no next_to_watch", () => {
   assert.equal(item.not_aired_episodes_count, 1);
 });
 
-test("toSimklShape: a date-only episode airing today isn't counted as aired yet", () => {
+test("toSimklShape: a date-only episode airing today isn't counted as aired before 10:00", () => {
   const eps = [ep(1, 1, localDate(NOW - 7 * DAY)), ep(1, 2, localDate(NOW))];
-  const item = core.toSimklShape(show({ watched: watched(1, 1, NOW - DAY) }), eps, NOW);
+  const morning = new Date(NOW); morning.setHours(8, 0, 0, 0);
+  const item = core.toSimklShape(show({ watched: watched(1, 1, NOW - DAY) }), eps, morning.getTime());
   assert.equal(item.next_to_watch, null);
   assert.equal(item.not_aired_episodes_count, 1);
 });
@@ -291,9 +294,10 @@ test("mapWatched: without the old service's list, only exact numbers map", () =>
   assert.deepEqual(r.map(x => x.method), ["number", "unmapped"]);
 });
 
-test("nextUpcoming: earliest not-yet-aired episode; a date-only episode today still counts", () => {
+test("nextUpcoming: earliest not-yet-aired episode; a date-only episode today still counts before 10:00", () => {
   const eps = [ep(1, 1, iso(NOW - DAY)), ep(1, 3, iso(NOW + 3 * DAY)), ep(1, 2, localDate(NOW)), ep(0, 1, iso(NOW + DAY)), ep(1, 4, null)];
-  assert.equal(core.nextUpcoming(eps, NOW).episode, 2);
+  const morning = new Date(NOW); morning.setHours(8, 0, 0, 0);
+  assert.equal(core.nextUpcoming(eps, morning.getTime()).episode, 2);
   assert.equal(core.nextUpcoming([ep(1, 1, iso(NOW - DAY))], NOW), null);
 });
 
