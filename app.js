@@ -4001,6 +4001,13 @@ function cardMenuScrollHandler() {
   closeCardMenu();
 }
 
+// Opens under its button - or above it when there isn't room below (a
+// bottom-panel row near the window's bottom edge).
+function fitCardMenuOnScreen(menu, rect) {
+  const h = menu.offsetHeight;
+  if (rect.bottom + 6 + h > window.innerHeight - 8) menu.style.top = `${Math.max(8, rect.top - 6 - h)}px`;
+}
+
 function openCardMenu(arrIdx, btnEl) {
   const alreadyOpenForThisBtn = cardMenuOpenerBtn === btnEl;
   closeCardMenu();
@@ -4033,6 +4040,7 @@ function openCardMenu(arrIdx, btnEl) {
     <button class="card-menu-item danger" id="cardMenuRemoveBtn">Remove from list</button>
   `;
   document.body.appendChild(menu);
+  fitCardMenuOnScreen(menu, rect);
   cardMenuOpenerBtn = btnEl;
 
   menu.querySelectorAll("[data-status]").forEach(b => {
@@ -4118,6 +4126,7 @@ function openPlanCardMenu(idx, btnEl) {
     <button class="card-menu-item danger" id="cardMenuRemoveBtn">Remove from list</button>
   `;
   document.body.appendChild(menu);
+  fitCardMenuOnScreen(menu, rect);
   cardMenuOpenerBtn = btnEl;
 
   menu.querySelectorAll("[data-status]").forEach(b => {
