@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>השוואת מקורות הפרקים</title>
+<style>
+  :root { --bg: #111820; --card: #1a2430; --border: #334255; --text: #eef3f8; --muted: #93a4b8; --accent: #7dd3fc; --ok: #6ee7b7; --bad: #fca5a5; --warn: #fcd34d; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: "Segoe UI", system-ui, sans-serif; line-height: 1.5; }
+  main { max-width: 1280px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 1.5rem; margin: 0 0 6px; }
+  h2 { font-size: 1.1rem; margin: 0 0 10px; }
+  p.lead { color: var(--muted); max-width: 70ch; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 14px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  button { background: var(--accent); color: #04121c; border: 0; border-radius: 8px; padding: 9px 16px; font-weight: 700; font-size: .95rem; cursor: pointer; }
+  button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  .muted { color: var(--muted); } .ok { color: var(--ok); } .bad { color: var(--bad); } .warn { color: var(--warn); }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .85rem; direction: ltr; }
+  th, td { border-bottom: 1px solid var(--border); padding: 5px 8px; text-align: left; white-space: nowrap; vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--card); }
+  td.flag { color: var(--warn); white-space: normal; min-width: 220px; }
+  tr.same td { color: var(--muted); }
+  .sum td, .sum th { font-size: .9rem; }
+  textarea { width: 100%; height: 140px; background: #0b1016; color: var(--text); border: 1px solid var(--border); border-radius: 8px; direction: ltr; font: 12px/1.4 Consolas, monospace; }
+  label { display: inline-flex; gap: 6px; align-items: center; }
+</style>
+</head>
+<body>
+<main>
+  <h1>השוואת מקורות הפרקים</h1>
+  <p class="lead">לכל סדרה בספרייה, הבדיקה מביאה את רשימת הפרקים מ־TVMaze, מ־TMDB ומ־TheTVDB ומשווה ביניהן: כמה פרקים שודרו, מה הפרק הבא ומתי, כמה פרקים יש עם שעה מדויקת, וכמה מהפרקים שראית נמצאים בכל רשימה לפי המספור. הבדיקה רק קוראת, ושום דבר בספרייה לא משתנה.</p>
+  <div class="card">
+    <p id="who" class="muted">בודק התחברות…</p>
+    <p id="keys" class="muted"></p>
+    <div class="row">
+      <button id="signInBtn" hidden>התחברות עם גוגל</button>
+      <label><input type="checkbox" id="allStatuses"> כל הסדרות, לא רק Watching</label>
+      <button id="runBtn" disabled>הרצת הבדיקה</button>
+      <span id="progress" class="muted"></span>
+    </div>
+  </div>
+  <div class="card" id="summaryCard" hidden>
+    <h2>סיכום</h2>
+    <div class="scroll"><table class="sum" id="summary"></table></div>
+    <p id="summaryNotes" class="muted"></p>
+  </div>
+  <div class="card" id="tableCard" hidden>
+    <div class="row" style="justify-content: space-between">
+      <h2>סדרה אחרי סדרה</h2>
+      <label><input type="checkbox" id="onlyDiff" checked> רק סדרות שהמקורות לא מסכימים עליהן</label>
+    </div>
+    <div class="scroll"><table id="table"></table></div>
+  </div>
+  <div class="card" id="exportCard" hidden>
+    <div class="row" style="justify-content: space-between">
+      <h2>התוצאות כטקסט</h2>
+      <button class="ghost" id="copyBtn">העתקה</button>
+    </div>
+    <p class="muted">להעביר לי: להעתיק ולהדביק בשיחה.</p>
+    <textarea id="export" readonly></textarea>
+  </div>
+</main>
+<script src="../library-core.js"></script>
+<script src="../library-store.js"></script>
+<script src="../firebase-backend.js"></script>
+<script src="../episode-source.js"></script>
+<script>
+"use strict";
+(async function () {
+  const $ = id => document.getElementById(id);
+  const backend = FirebaseBackend.create();
+  const tmdbKey = localStorage.getItem("tmdb_api_key") || "";
+  const tvdbKey = localStorage.getItem("tvdb_api_key") || "";
+  const NOW = Date.now();
+  const DAY = 86400000;
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  $("keys").textContent = `מפתח TMDB: ${tmdbKey ? "יש" : "אין"} · מפתח TheTVDB: ${tvdbKey ? "יש" : "אין - בלעדיו אין השוואה מול TheTVDB"}`;
+
+  // ---- sources ----
+  async function tmdbGet(path, params) {
+    if (!tmdbKey) return null;
+    const res = await fetch(`https://api.themoviedb.org/3${path}?${new URLSearchParams({ api_key: tmdbKey, ...(params || {}) })}`);
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`TMDB ${res.status}`);
+    return res.json();
+  }
+  const source = EpisodeSource.createEpisodeSource({ fetch: (...a) => fetch(...a), tmdbGet, cache: EpisodeSource.memoryCache() });
+
+  let tvdbTok = null, tvdbNextAt = 0;
+  async function tvdbFetch(url) {
+    const wait = tvdbNextAt - Date.now();
+    tvdbNextAt = Math.max(Date.now(), tvdbNextAt) + 250;
+    if (wait > 0) await sleep(wait);
+    if (!tvdbTok) {
+      try { const s = JSON.parse(localStorage.getItem("tvdb_token") || "null"); if (s && s.key === tvdbKey && Date.now() - s.at < 25 * DAY) tvdbTok = s.token; } catch (e) { /* none */ }
+    }
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (!tvdbTok) {
+        const r = await fetch("https://api4.thetvdb.com/v4/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ apikey: tvdbKey }) });
+        if (!r.ok) throw new Error(`TheTVDB login ${r.status}`);
+        tvdbTok = ((await r.json()).data || {}).token;
+      }
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${tvdbTok}` } });
+      if (res.status === 401) { tvdbTok = null; continue; }
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error(`TheTVDB ${res.status}`);
+      return res.json();
+    }
+    throw new Error("TheTVDB refused the key");
+  }
+  async function tvdbEpisodes(tvdbId) {
+    if (!tvdbKey || !tvdbId) return null;
+    const out = [];
+    for (let page = 0; page < 30; page++) {
+      const body = await tvdbFetch(`https://api4.thetvdb.com/v4/series/${tvdbId}/episodes/default?page=${page}`);
+      if (!body) return out.length ? out : null;
+      for (const ep of ((body.data || {}).episodes) || []) out.push({ season: ep.seasonNumber, episode: ep.number, date: ep.aired || null, title: ep.name || null });
+      if (!body.links || !body.links.next) break;
+    }
+    return out.length ? out : null;
+  }
+
+  // ---- measures ----
+  const regular = list => (list || []).filter(e => e && e.season != null && e.season !== 0 && e.episode != null);
+  function measure(list, watchedSE) {
+    if (!list) return null;
+    const reg = regular(list);
+    const have = new Set(reg.map(e => `${e.season}-${e.episode}`));
+    const aired = reg.filter(e => LibraryCore.isAired(e, NOW));
+    let next = null;
+    for (const e of reg) {
+      if (!e.date || LibraryCore.isAired(e, NOW)) continue;
+      const t = Date.parse(e.date.length > 10 ? e.date : e.date + "T00:00:00");
+      if (!next || t < next.t) next = { t, code: LibraryCore.episodeCode(e.season, e.episode), day: e.date.slice(0, 10) };
+    }
+    const fit = watchedSE.length ? watchedSE.filter(k => have.has(k)).length : null;
+    return { total: reg.length, aired: aired.length, timed: reg.filter(e => e.date && e.date.length > 10).length,
+      undated: reg.filter(e => !e.date).length, next, fit };
+  }
+  const nextTxt = m => !m ? "—" : m.next ? `${m.next.code} ${m.next.day}` : "none";
+
+  function flagsFor(r) {
+    const f = [];
+    const a = r.tvmaze, b = r.tvdb, c = r.tmdb;
+    const days = (x, y) => Math.round((Date.parse(x) - Date.parse(y)) / DAY);
+    if (a && b) {
+      if (a.next && b.next && (a.next.code !== b.next.code || Math.abs(days(a.next.day, b.next.day)) >= 2)) f.push(`next: TVMaze ${nextTxt(a)} / TheTVDB ${nextTxt(b)}`);
+      else if (!!a.next !== !!b.next) f.push(`next: TVMaze ${nextTxt(a)} / TheTVDB ${nextTxt(b)}`);
+      if (a.aired !== b.aired) f.push(`aired: TVMaze ${a.aired} / TheTVDB ${b.aired}`);
+      if (a.fit != null && a.fit !== b.fit) f.push(`history fit: TVMaze ${a.fit} / TheTVDB ${b.fit} of ${r.watched}`);
+    }
+    if (!a && b) f.push("missing on TVMaze");
+    if (a && !b && tvdbKey) f.push(r.tvdbId ? "missing on TheTVDB" : "no TheTVDB id");
+    if (!a && !b && !c) f.push("in no source");
+    return f;
+  }
+
+  // ---- run ----
+  function showUser() {
+    const u = backend.currentUser();
+    $("who").textContent = u ? `מחובר כ־${u.email}` : "לא מחובר";
+    $("signInBtn").hidden = !!u;
+    $("runBtn").disabled = !u;
+  }
+  try { await backend.ready(); } catch (e) { $("who").textContent = `טעינת השירות נכשלה: ${e.message}`; return; }
+  showUser();
+  $("signInBtn").onclick = async () => {
+    try { await backend.signIn(); } catch (e) { $("who").textContent = `ההתחברות נכשלה: ${e.message}`; return; }
+    showUser();
+  };
+
+  let rows = [];
+  $("runBtn").onclick = async () => {
+    $("runBtn").disabled = true;
+    rows = [];
+    try {
+      const docs = (await backend.loadAll()).docs;
+      const all = $("allStatuses").checked;
+      const shows = Object.entries(docs).filter(([id, s]) => s && s.ids && !id.startsWith("_") && (all || s.status === "watching"));
+      let i = 0;
+      for (const [docId, s] of shows) {
+        $("progress").textContent = `${++i}/${shows.length} · ${s.title}`;
+        const ids = { tmdb: s.ids.tmdb, imdb: s.ids.imdb || null, tvdb: s.ids.tvdb || null, tvmaze: s.ids.tvmaze || null };
+        const watchedSE = Object.values(s.watched || {}).filter(w => w && w.s != null && w.s !== 0).map(w => `${w.s}-${w.e}`);
+        const [lists, tvdb] = await Promise.all([
+          source.getSourceLists(ids).catch(e => ({ errors: [e.message] })),
+          tvdbEpisodes(ids.tvdb).catch(e => { console.warn(s.title, e); return undefined; }),
+        ]);
+        const r = { title: s.title, status: s.status, site: s.episodeSource || "tvmaze", tvdbId: ids.tvdb, watched: watchedSE.length,
+          tvmaze: measure(lists.tvmaze, watchedSE), tmdb: measure(lists.tmdb, watchedSE), tvdb: tvdb === undefined ? null : measure(tvdb, watchedSE),
+          tvdbError: tvdb === undefined };
+        r.flags = flagsFor(r);
+        rows.push(r);
+        if (i % 10 === 0 || i === shows.length) render();
+      }
+      $("progress").textContent = `הסתיים: ${shows.length} סדרות`;
+    } catch (e) {
+      $("progress").textContent = `שגיאה: ${e.message}`;
+    } finally {
+      $("runBtn").disabled = false;
+      render();
+    }
+  };
+
+  function render() {
+    const n = rows.length;
+    const cnt = f => rows.filter(f).length;
+    const src = [["TVMaze", "tvmaze"], ["TMDB", "tmdb"], ["TheTVDB", "tvdb"]];
+    const withHist = rows.filter(r => r.watched > 0);
+    const fullFit = k => withHist.filter(r => r[k] && r[k].fit === r.watched).length;
+    const timedShows = k => cnt(r => r[k] && r[k].total && r[k].timed / r[k].total > 0.5);
+    $("summary").innerHTML = `<tr><th></th>${src.map(([l]) => `<th>${l}</th>`).join("")}</tr>` +
+      `<tr><td>has the show</td>${src.map(([, k]) => `<td>${cnt(r => r[k])} / ${n}</td>`).join("")}</tr>` +
+      `<tr><td>every watched episode found by number</td>${src.map(([, k]) => `<td>${fullFit(k)} / ${withHist.length}</td>`).join("")}</tr>` +
+      `<tr><td>most episodes have an exact time</td>${src.map(([, k]) => `<td>${timedShows(k)}</td>`).join("")}</tr>` +
+      `<tr><td>next episode known</td>${src.map(([, k]) => `<td>${cnt(r => r[k] && r[k].next)}</td>`).join("")}</tr>`;
+    const nextDis = cnt(r => r.flags.some(f => f.startsWith("next:")));
+    const airDis = cnt(r => r.flags.some(f => f.startsWith("aired:")));
+    const fitDis = cnt(r => r.flags.some(f => f.startsWith("history fit:")));
+    $("summaryNotes").textContent = `TVMaze ו־TheTVDB לא מסכימים על הפרק הבא ב־${nextDis} סדרות, על מספר הפרקים ששודרו ב־${airDis}, ועל התאמת המספור להיסטוריה ב־${fitDis}.` + (cnt(r => r.tvdbError) ? ` ב־${cnt(r => r.tvdbError)} סדרות TheTVDB לא ענה.` : "");
+    const only = $("onlyDiff").checked;
+    const cell = m => !m ? "<td>—</td><td></td><td></td>" : `<td>${m.aired}/${m.total}</td><td>${nextTxt(m)}</td><td>${m.fit == null ? "" : m.fit}</td>`;
+    $("table").innerHTML = `<tr><th>show</th><th>site uses</th><th>watched</th>` +
+      src.map(([l]) => `<th>${l} aired/total</th><th>${l} next</th><th>${l} fit</th>`).join("") + `<th>differences</th></tr>` +
+      rows.filter(r => !only || r.flags.length).map(r => `<tr class="${r.flags.length ? "" : "same"}"><td>${esc(r.title)}</td><td>${r.site}</td><td>${r.watched}</td>` +
+        src.map(([, k]) => cell(r[k])).join("") + `<td class="flag">${r.flags.map(esc).join("<br>")}</td></tr>`).join("");
+    $("export").value = JSON.stringify({ at: new Date(NOW).toISOString(), shows: n, rows: rows.map(r => ({ t: r.title, st: r.status, site: r.site, w: r.watched,
+      tvm: r.tvmaze && [r.tvmaze.aired, r.tvmaze.total, nextTxt(r.tvmaze), r.tvmaze.fit, r.tvmaze.timed],
+      tmdb: r.tmdb && [r.tmdb.aired, r.tmdb.total, nextTxt(r.tmdb), r.tmdb.fit],
+      tvdb: r.tvdb && [r.tvdb.aired, r.tvdb.total, nextTxt(r.tvdb), r.tvdb.fit, r.tvdb.undated], f: r.flags })) });
+    $("summaryCard").hidden = $("tableCard").hidden = $("exportCard").hidden = !n;
+  }
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  $("onlyDiff").onchange = render;
+  $("copyBtn").onclick = () => { $("export").select(); navigator.clipboard.writeText($("export").value).catch(() => document.execCommand("copy")); };
+})();
+</script>
+</body>
+</html>
