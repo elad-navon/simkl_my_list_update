@@ -297,6 +297,17 @@
     display: block; position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none;
     border-radius: inherit;
   }
+  /* The glass sits inside the box's frame line, so its rounded corners are
+     that much tighter than the box's - with the box's own radius a dark
+     sliver of the ground showed in each corner, worst on a light poster. */
+  body:not(.light-theme) .poster-pair > .card:nth-child(1) .pp-glow,
+  body:not(.light-theme) .panel-pair > .list-row:nth-child(1) .pp-glow {
+    border-radius: 0 calc(var(--pp-r) - var(--pp-line)) calc(var(--pp-r) - var(--pp-line)) 0;
+  }
+  body:not(.light-theme) .poster-pair > .card:nth-child(2) .pp-glow,
+  body:not(.light-theme) .panel-pair > .list-row:nth-child(2) .pp-glow {
+    border-radius: calc(var(--pp-r) - var(--pp-line)) 0 0 calc(var(--pp-r) - var(--pp-line));
+  }
   /* The glass is the poster's own edge, not its middle: the outermost few percent of the picture stretched
      across the box and blurred, lined up with the poster's height, so the colors at the seam are the
      poster's own and the two read as one surface. It reaches 40px past the seam so the blur has picture to
