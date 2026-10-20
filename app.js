@@ -987,6 +987,10 @@ async function onEmbyMarked(data) {
   if (first || Date.now() - Date.parse(at) > EMBY_MARKED_FRESH_MS) return;
   const episodes = (data.episodes || []).filter(x => x && x.s != null && x.e != null);
   if (!episodes.length) return;
+  // The bridge saved the watch to the library (from the Emby computer)
+  // before sending this message: reload the library so the boxes show it -
+  // the episode in Just Watched, the next one in Ready to Watch.
+  if (library && library.store) await library.store.load().catch(() => {});
   await refreshPanelsQuietly();
   const code = (s, e) => `S${String(s).padStart(2, "0")}E${String(e).padStart(2, "0")}`;
   const lines = episodes.map(x => {
