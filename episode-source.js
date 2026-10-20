@@ -60,6 +60,30 @@
     return { episodes: [...base, ...added], added: added.length };
   }
 
+  // A second opinion on recent air dates (TheTVDB, the source SIMKL uses):
+  // an episode the main source dates at least 2 days earlier than `check`
+  // does - and that hasn't been out longer than `windowDays` - moves to the
+  // later day, keeping its time of day, so it isn't counted as aired (or
+  // counted down to) before it really airs. Only ever later: a wrong early
+  // date is the costly mistake, and a day apart is often just time zones.
+  // `check` is [{ season, episode, date: "YYYY-MM-DD" }].
+  function holdForLaterDates(episodes, check, now, { windowDays = 14 } = {}) {
+    const later = new Map((check || []).filter(c => c && c.date).map(c => [`${c.season}-${c.episode}`, c.date.slice(0, 10)]));
+    let moved = 0;
+    const out = (episodes || []).map(ep => {
+      if (!ep || !ep.date || ep.season == null || ep.season === 0) return ep;
+      const day = later.get(`${ep.season}-${ep.episode}`);
+      const own = ep.date.slice(0, 10);
+      const diff = dayDiff(own, day);
+      if (!day || day <= own || diff == null || diff < 2) return ep;
+      const ts = ep.date.length > 10 ? Date.parse(ep.date) : Date.parse(own + "T00:00:00");
+      if (isNaN(ts) || ts < now - windowDays * DAY_MS) return ep;
+      moved++;
+      return { ...ep, date: ep.date.length > 10 ? new Date(ts + diff * DAY_MS).toISOString() : day, heldBy: "tvdb" };
+    });
+    return { episodes: out, moved };
+  }
+
   // A fixed snapshot of an older episode list (`base`) plus every episode
   // `extra` lists after it - aired or not, so a new season's episodes stay
   // once they air: dated after the snapshot's last dated episode, or undated
@@ -326,5 +350,5 @@
     };
   }
 
-  return { createEpisodeSource, memoryCache, fromTvmaze, fromTmdb, appendUpcoming, appendAfter, isUpcoming, realTitle };
+  return { createEpisodeSource, memoryCache, fromTvmaze, fromTmdb, appendUpcoming, appendAfter, holdForLaterDates, isUpcoming, realTitle };
 });

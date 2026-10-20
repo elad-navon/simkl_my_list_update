@@ -305,3 +305,47 @@ test("appendAfter: a snapshot keeps every later episode of the other source, air
   assert.deepEqual(r.episodes.slice(3).map(e => `${e.season}x${e.episode}`), ["7x1", "7x2", "7x3"]);
   assert.equal(r.added, 3);
 });
+
+// ---------------------------------------------------------------------
+// holdForLaterDates: TheTVDB's later date wins for recent episodes
+// ---------------------------------------------------------------------
+const { holdForLaterDates } = require("../episode-source.js");
+const NOW_OCT20 = Date.parse("2026-10-20T12:00:00Z");
+const pim = [ // People I've Met as TVMaze listed it
+  { season: 1, episode: 5, date: "2026-10-18T19:00:00+00:00" },
+  { season: 1, episode: 6, date: "2026-10-19T19:00:00+00:00" },
+  { season: 1, episode: 7, date: "2026-10-26T20:00:00+00:00" },
+];
+
+test("holdForLaterDates: an episode TheTVDB dates days later moves there, keeping its time", () => {
+  const { episodes, moved } = holdForLaterDates(pim, [
+    { season: 1, episode: 5, date: "2026-10-18" }, { season: 1, episode: 6, date: "2026-10-25" }, { season: 1, episode: 7, date: "2026-11-01" },
+  ], NOW_OCT20);
+  assert.equal(moved, 2);
+  assert.equal(episodes[0].date, pim[0].date);
+  assert.equal(episodes[1].date, "2026-10-25T19:00:00.000Z");
+  assert.equal(episodes[1].heldBy, "tvdb");
+  assert.equal(episodes[2].date, "2026-11-01T20:00:00.000Z");
+});
+
+test("holdForLaterDates: never earlier, never for a day apart, never for long-past episodes", () => {
+  const { episodes, moved } = holdForLaterDates([
+    { season: 1, episode: 1, date: "2026-10-19T19:00:00+00:00" },
+    { season: 1, episode: 2, date: "2026-10-19T22:30:00+00:00" },
+    { season: 1, episode: 3, date: "2026-08-01" },
+    { season: 0, episode: 1, date: "2026-10-19" },
+  ], [
+    { season: 1, episode: 1, date: "2026-10-12" },
+    { season: 1, episode: 2, date: "2026-10-20" },
+    { season: 1, episode: 3, date: "2026-12-01" },
+    { season: 0, episode: 1, date: "2026-12-01" },
+  ], NOW_OCT20);
+  assert.equal(moved, 0);
+  assert.equal(episodes[3].date, "2026-10-19");
+});
+
+test("holdForLaterDates: a date-only episode takes TheTVDB's day; no second opinion changes nothing", () => {
+  const { episodes } = holdForLaterDates([{ season: 2, episode: 1, date: "2026-10-19" }], [{ season: 2, episode: 1, date: "2026-10-25" }], NOW_OCT20);
+  assert.equal(episodes[0].date, "2026-10-25");
+  assert.deepEqual(holdForLaterDates(pim, null, NOW_OCT20).episodes, pim);
+});
