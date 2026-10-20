@@ -989,10 +989,12 @@
     font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
     font-weight: 700; font-size: 1.05rem; color: #111820;
   }
+  /* The unit (MINUTES / HOURS / DAYS) in a strong blue, big enough to read
+     at a glance next to the number. */
   .air-count-u {
-    display: block; margin-top: 1px;
-    font-family: "Montserrat", sans-serif; font-weight: 800; font-size: 7px;
-    letter-spacing: 0.06em; text-transform: uppercase; color: #4b5563;
+    display: block; margin-top: 2px;
+    font-family: "Montserrat", sans-serif; font-weight: 900; font-size: 11px;
+    letter-spacing: 0.04em; text-transform: uppercase; color: #0b63a8;
   }
   .air-count.live .air-count-n { color: #dc2626; font-size: 0.95rem; }
   .air-count.day .air-count-n { color: #1d6fa5; }
