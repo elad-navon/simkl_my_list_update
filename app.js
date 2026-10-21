@@ -992,13 +992,7 @@ async function onEmbyMarked(data) {
   // the episode in Just Watched, the next one in Ready to Watch.
   if (library && library.store) await library.store.load().catch(() => {});
   await refreshPanelsQuietly();
-  const code = (s, e) => `S${String(s).padStart(2, "0")}E${String(e).padStart(2, "0")}`;
-  const lines = episodes.map(x => {
-    const row = (lastRows || []).find(r => (x.tmdb != null && r.tmdbId != null && String(r.tmdbId) === String(x.tmdb))
-      || (!!x.imdb && r.imdbId === x.imdb));
-    const next = row && row.nextLabel && row.nextLabel !== code(x.s, x.e) ? ` · Next: ${row.nextLabel}` : "";
-    return { title: x.title || (row && row.title) || "", text: `Marked ${code(x.s, x.e)} as watched${next}` };
-  });
+  const lines = await Promise.all(episodes.map(x => watchedToastLine(x)));
   showCornerToast(lines);
 }
 
@@ -1013,6 +1007,36 @@ document.addEventListener("visibilitychange", () => {
 });
 
 let cornerToastTimer = null;
+// One line of the message: the show's poster, name, the episode's code and
+// title, and the season so far - from the Just Watched row the quiet refresh
+// just drew, and the show's episode list for how many the season has.
+async function watchedToastLine(x) {
+  const sameShow = r => (x.tmdb != null && r.tmdbId != null && String(r.tmdbId) === String(x.tmdb)) || (!!x.imdb && r.imdbId === x.imdb);
+  const row = (lastRecentlyWatched || []).find(r => sameShow(r) && r.season === x.s && r.episode === x.e)
+    || (lastRecentlyWatched || []).find(sameShow) || (lastRows || []).find(sameShow) || {};
+  let seasonEps = null;
+  if (row.showId && library && library.adapter) {
+    const eps = await library.adapter.showEpisodes(row.showId).catch(() => null);
+    const nums = (eps || []).filter(e => e.season === x.s && e.episode != null).map(e => e.episode);
+    if (nums.length && Math.max(...nums) >= x.e) seasonEps = Math.max(...nums);
+  }
+  return {
+    title: x.title || row.title || "", season: x.s, episode: x.e,
+    episodeTitle: row.season === x.s && row.episode === x.e ? row.episodeTitle || null : null,
+    poster: row.posterUrl || null, seasonEps,
+  };
+}
+
+// The season as segments: those before in blue, this one in gold (it fills
+// and pulses), the rest dim - or, when the season's length isn't known,
+// nothing after this one.
+function watchedToastSegmentsHtml(l) {
+  const total = l.seasonEps || l.episode;
+  if (total > 40) return ""; // a long season: a bar of hairlines says nothing
+  return `<div class="wt-segs" style="--wt-n:${total}">` + Array.from({ length: total }, (_, i) =>
+    `<i class="${i + 1 < l.episode ? "on" : i + 1 === l.episode ? "now" : ""}"></i>`).join("") + `</div>`;
+}
+
 function showCornerToast(lines) {
   if (document.hidden) {
     cornerToastWaiting = cornerToastWaiting.concat(lines);
@@ -1027,12 +1051,19 @@ function showCornerToast(lines) {
     el.addEventListener("click", () => el.classList.remove("show"));
     document.body.appendChild(el);
   }
+  const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const code = (a, b) => `S${String(a).padStart(2, "0")}E${String(b).padStart(2, "0")}`;
   el.replaceChildren(...lines.map(l => {
     const item = document.createElement("div");
     item.className = "corner-toast-item";
-    item.innerHTML = `<span class="corner-toast-icon" aria-hidden="true">✓</span><span><b></b><br><span></span></span>`;
-    item.querySelector("b").textContent = l.title;
-    item.querySelector("br + span").textContent = l.text;
+    item.innerHTML =
+      (l.poster
+        ? `<div class="wt-poster" style="background-image:url('${esc(l.poster)}')"><span class="wt-badge" aria-hidden="true">✓</span></div>`
+        : `<span class="corner-toast-icon" aria-hidden="true">✓</span>`) +
+      `<div class="wt-body"><div class="wt-kicker">Watched</div><b>${esc(l.title)}</b>` +
+      `<div class="wt-ep">${code(l.season, l.episode)}${l.episodeTitle ? ` · <i>${esc(l.episodeTitle)}</i>` : ""}</div>` +
+      watchedToastSegmentsHtml(l) +
+      (l.seasonEps ? `<div class="wt-meta">${l.episode} of ${l.seasonEps} this season</div>` : "") + `</div>`;
     return item;
   }));
   clearTimeout(cornerToastTimer);
