@@ -2034,7 +2034,19 @@ function parseNextEpisode(nextToWatch) {
 // ---------------------------------------------------------------------
 // Build rows (mirrors the Python core logic)
 // ---------------------------------------------------------------------
-const LS_IMAGE_OVERRIDES = "simkl_image_overrides"; // { [tmdbId]: { posterPath, bannerPath } }
+// { [tmdbId]: { posterPath, bannerPath, panelPosterPath, panelBannerPath } } -
+// the top panel's picks and the bottom panels' (panel...) apart, so a
+// banner with the show's name can go on the big top card and a clean one
+// on the small bottom rows. A show moving between them takes that side's.
+const LS_IMAGE_OVERRIDES = "simkl_image_overrides";
+const IMAGE_AREA_KEYS = {
+  top: { poster: "posterPath", banner: "bannerPath" },
+  panel: { poster: "panelPosterPath", banner: "panelBannerPath" },
+};
+// Where a card's picks belong: the top panel ("main") or the bottom ones.
+function imageAreaOf(source) {
+  return source === "main" ? "top" : "panel";
+}
 
 function getImageOverrides() {
   try {
@@ -2043,6 +2055,24 @@ function getImageOverrides() {
     return {};
   }
 }
+
+// Picks saved before the two sides were apart applied to both: the bottom
+// panels start from them too (once), then each side changes on its own.
+(function splitImageOverrides() {
+  try {
+    if (localStorage.getItem(LS_IMAGE_OVERRIDES + "_split")) return;
+    const overrides = getImageOverrides();
+    for (const entry of Object.values(overrides)) {
+      if (!entry) continue;
+      if (entry.posterPath && entry.panelPosterPath == null) entry.panelPosterPath = entry.posterPath;
+      if (entry.bannerPath && entry.panelBannerPath == null) entry.panelBannerPath = entry.bannerPath;
+    }
+    safeSetItem(LS_IMAGE_OVERRIDES, JSON.stringify(overrides));
+    safeSetItem(LS_IMAGE_OVERRIDES + "_split", "1");
+  } catch (e) {
+    // Not split this time - the bottom panels show TMDB's picks until it is.
+  }
+})();
 
 // Remembers a manually-picked poster/banner (from clicking to cycle) so it
 // survives a refresh instead of resetting to TMDB's default pick. Not
@@ -2053,22 +2083,22 @@ function getImageOverrides() {
 // touched the DOM: the flip-out/flip-in classes would still get added and
 // stripped by the old cycling code's cleanup, so it visibly flashed through
 // the motion of changing, while the image itself silently never did.
-function saveImageOverride(tmdbId, mode, path) {
+function saveImageOverride(tmdbId, mode, path, area = "top") {
   if (!tmdbId) return;
   try {
     const overrides = getImageOverrides();
     const entry = overrides[tmdbId] || {};
-    if (mode === "banner") entry.bannerPath = path;
-    else entry.posterPath = path;
+    entry[IMAGE_AREA_KEYS[area][mode === "banner" ? "banner" : "poster"]] = path;
     overrides[tmdbId] = entry;
-    localStorage.setItem(LS_IMAGE_OVERRIDES, JSON.stringify(overrides));
+    // A full quota drops old cached lookups to make room (safeSetItem).
+    safeSetItem(LS_IMAGE_OVERRIDES, JSON.stringify(overrides));
   } catch (e) {
     // Doesn't persist across a reload this time, but the cycle itself
     // (row state + the visible DOM patch) must still go through.
   }
 }
 
-function computeImages(showDetail, tmdbId) {
+function computeImages(showDetail, tmdbId, area = "top") {
   // Shared by getMyListRows and getAiringNextRows - returns the initial
   // poster/banner URLs plus the full filtered candidate lists (for the
   // per-card cycle button). Prefers English or no-language artwork; if a
@@ -2112,7 +2142,9 @@ function computeImages(showDetail, tmdbId) {
   // cycle) takes over from TMDB's default pick, as long as that path is
   // still among this show's current images.
   if (tmdbId) {
-    const saved = getImageOverrides()[tmdbId];
+    const entry = getImageOverrides()[tmdbId];
+    const keys = IMAGE_AREA_KEYS[area];
+    const saved = entry && { posterPath: entry[keys.poster], bannerPath: entry[keys.banner] };
     if (saved) {
       // A pick from another source (see fetchExtraImages) is saved as a full
       // URL and isn't one of TMDB's candidates (index -1).
@@ -2207,7 +2239,7 @@ async function getRecentlyWatchedEpisodes(items, cache, episodeCache, droppedIte
     let firstAirDate = null;
     if (c.tmdbId) {
       const showDetail = await cache.getShow(c.tmdbId); // cached, no extra request if already fetched
-      Object.assign(c, computeImages(showDetail, c.tmdbId));
+      Object.assign(c, computeImages(showDetail, c.tmdbId, "panel"));
       const network = latestNetwork(showDetail);
       c.network = network ? network.name : null;
       tmdbLogoPath = network ? network.logo_path : null;
@@ -2279,7 +2311,7 @@ async function getPlanToWatchRows(cache) {
     if (tmdbId) {
       try {
         const showDetail = await cache.getShow(tmdbId);
-        images = computeImages(showDetail, tmdbId);
+        images = computeImages(showDetail, tmdbId, "panel");
         showStatus = showDetail ? showDetail.status : null;
         const showNetwork = latestNetwork(showDetail);
         network = showNetwork ? showNetwork.name : null;
@@ -2745,7 +2777,7 @@ async function buildAiringRow(item, cache, episodeCache, requirePremiere) {
   // just hasn't started isn't a "premiere", it's backlog, so it's excluded.
   if (requirePremiere && !(next.season === 1 && next.episode === 1)) return null;
 
-  const images = computeImages(showDetail, tmdbId);
+  const images = computeImages(showDetail, tmdbId, "panel");
   const nextLabel = (next.season != null && next.episode != null)
     ? `S${String(next.season).padStart(2, "0")}E${String(next.episode).padStart(2, "0")}`
     : "";
@@ -4374,21 +4406,24 @@ function cycleImage(source, idx, modeOverride, direction, explicitIndex) {
     : (row[cfg.indexKey] + (direction || 1) + paths.length) % paths.length;
   const newPath = paths[row[cfg.indexKey]];
   row[cfg.urlKey] = cfg.base + newPath;
-  saveImageOverride(row.tmdbId, mode, newPath); // survives the next refresh
-  syncImageAcrossCards(row.tmdbId, cfg, row[cfg.indexKey], row[cfg.urlKey]);
+  saveImageOverride(row.tmdbId, mode, newPath, imageAreaOf(source)); // survives the next refresh
+  syncImageAcrossCards(row.tmdbId, cfg, row[cfg.indexKey], row[cfg.urlKey], imageAreaOf(source));
   patchImagesForTmdbId(row.tmdbId);
 }
 
-// The same show can appear in the top carousel and in any of the three
-// bottom panels at once, each with its own separate row object (see
-// getCycleRows) - without this, cycling the poster/banner in one place
-// would only change that one card, leaving the others showing the old
-// image until the next full refresh. computeImages always populates both
+// The same show can appear in more than one of the three bottom panels at
+// once, each with its own separate row object (see getCycleRows) - without
+// this, cycling the poster/banner in one place would only change that one
+// card, leaving the others showing the old image until the next full
+// refresh. The top carousel keeps its own pick. computeImages always populates both
 // posterPaths and backdropPaths on every row regardless of that row's own
 // display mode, so the same index/url is valid to apply everywhere.
-function syncImageAcrossCards(tmdbId, cfg, index, url) {
+function syncImageAcrossCards(tmdbId, cfg, index, url, area = "top") {
   if (tmdbId == null) return;
-  for (const arr of [lastRows, lastRecentlyWatched, lastPlanToWatch, lastAiringPreview, airingRows]) {
+  // Only that side's cards: the top panel and the bottom ones keep their
+  // own picks (IMAGE_AREA_KEYS). airingRows are Airing Next's own rows.
+  const lists = area === "top" ? [lastRows] : [lastRecentlyWatched, lastPlanToWatch, lastAiringPreview, airingRows];
+  for (const arr of lists) {
     if (!arr) continue;
     for (const r of arr) {
       if (r && r.tmdbId === tmdbId) {
@@ -4501,8 +4536,8 @@ function handleThumbError(imgEl, source, idx, mode) {
   const nextUrl = cfg.base + paths[nextIndex];
   row[cfg.indexKey] = nextIndex;
   row[cfg.urlKey] = nextUrl;
-  saveImageOverride(row.tmdbId, mode, paths[nextIndex]);
-  syncImageAcrossCards(row.tmdbId, cfg, nextIndex, nextUrl);
+  saveImageOverride(row.tmdbId, mode, paths[nextIndex], imageAreaOf(source));
+  syncImageAcrossCards(row.tmdbId, cfg, nextIndex, nextUrl, imageAreaOf(source));
   imgEl.src = nextUrl;
 }
 
@@ -5044,8 +5079,8 @@ function applyExternalImage(source, idx, mode, url) {
   const cfg = IMAGE_MODE_CONFIG[mode];
   row[cfg.indexKey] = -1; // not one of the TMDB candidates
   row[cfg.urlKey] = url;
-  saveImageOverride(row.tmdbId, mode, url);
-  syncImageAcrossCards(row.tmdbId, cfg, -1, url);
+  saveImageOverride(row.tmdbId, mode, url, imageAreaOf(source));
+  syncImageAcrossCards(row.tmdbId, cfg, -1, url, imageAreaOf(source));
   patchImagesForTmdbId(row.tmdbId);
 }
 
