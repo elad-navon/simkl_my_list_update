@@ -920,7 +920,7 @@ async function openLibrary() {
     });
     // What's playing on Emby (tools/emby-bridge), for the top cards.
     if (library.backend.watchMeta) {
-      library.backend.watchMeta("emby", data => { embyNow = data; applyNowWatching(); });
+      library.backend.watchMeta("emby", data => { embyNow = data; syncWatchingOrder() || applyNowWatching(); });
       library.backend.watchMeta("embyMarked", onEmbyMarked);
     }
     library.bridge = SimklBridge.createSimklBridge({
@@ -958,6 +958,30 @@ function nowWatchingFor(row, season, episode) {
   if (Date.now() - Date.parse(embyNow.updatedAt || 0) >= EMBY_STALE_MS) return null;
   const playing = (embyNow.playing || []).find(same);
   return playing ? { ...playing, paused: !!playing.paused } : null;
+}
+
+// The top panel's shows being watched (WATCHING or PAUSED) go first, the
+// rest keep their order.
+function watchingFirst(rows) {
+  const watching = rows.filter(row => nowWatchingFor(row));
+  return watching.length ? [...watching, ...rows.filter(row => !watching.includes(row))] : rows;
+}
+
+// When a show starts or stops being watched, the top panel is drawn again
+// in the new order - scrolled back to the start when a show moved to the
+// front, so it's in view. Returns whether it re-rendered.
+function syncWatchingOrder() {
+  if (currentView !== "list" || !lastRows || !lastBaseRows) return false;
+  const next = watchingFirst(lastBaseRows);
+  if (next.length === lastRows.length && next.every((row, i) => row === lastRows[i])) return false;
+  const movedToFront = next[0] !== lastRows[0] && !!nowWatchingFor(next[0]);
+  renderRows(lastRows, lastTotalEps, lastTotalMinutes);
+  const track = document.getElementById("myListCarouselTrack");
+  if (movedToFront && track) {
+    track.scrollLeft = 0;
+    updateCarouselArrows();
+  }
+  return true;
 }
 
 function applyNowWatching() {
@@ -4285,6 +4309,9 @@ function openPlanCardMenu(idx, btnEl) {
 // Render
 // ---------------------------------------------------------------------
 let lastRows = null;
+// The top panel's rows in their own order, before a show being watched on
+// Emby moves to the front (watchingFirst) - so it goes back when it ends.
+let lastBaseRows = null;
 let lastTotalEps = 0;
 let lastTotalMinutes = 0;
 let lastRecentlyWatched = [];
@@ -5554,7 +5581,8 @@ function paintAirCount(el, now) {
 function tickAirCountdowns() {
   const now = Date.now();
   document.querySelectorAll(".air-count").forEach(el => paintAirCount(el, now));
-  if (embyNow) applyNowWatching(); // a report going stale turns WATCHING into PAUSED
+  // A report going stale ends the watch: its show goes back to its place.
+  if (embyNow) syncWatchingOrder() || applyNowWatching();
 }
 
 // At the next moment something changes state - an episode starting (NOW in
@@ -6023,6 +6051,9 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   const prevTrack = document.getElementById("myListCarouselTrack");
   const prevCarouselScrollLeft = prevTrack ? prevTrack.scrollLeft : 0;
   const prevPanelScrollPositions = capturePanelScrollPositions();
+  // A re-render of the same rows keeps their own order underneath.
+  if (!(rows === lastRows && lastBaseRows)) lastBaseRows = rows;
+  rows = watchingFirst(lastBaseRows);
   lastRows = rows;
   panelsRenderedAt = Date.now();
   lastTotalEps = totalRemainingEps;
