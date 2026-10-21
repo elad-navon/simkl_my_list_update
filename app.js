@@ -943,11 +943,16 @@ async function openLibrary() {
 let embyNow = null;
 const EMBY_STALE_MS = 3 * 60 * 1000;
 
-function nowWatchingFor(row) {
+// A top card's episode is its next one (nextLabel); a Just Watched row's,
+// the one it shows (season/episode) - marked at 90%, it's still playing.
+function nowWatchingFor(row, season, episode) {
   if (!embyNow) return null;
-  const m = /S(\d+)E(\d+)/.exec(row.nextLabel || "");
-  if (!m) return null;
-  const s = Number(m[1]), e = Number(m[2]);
+  let s = season, e = episode;
+  if (s == null) {
+    const m = /S(\d+)E(\d+)/.exec(row.nextLabel || "");
+    if (!m) return null;
+    s = Number(m[1]); e = Number(m[2]);
+  }
   const same = x => x.s === s && x.e === e && ((x.docId != null && String(x.docId) === String(row.showId)) ||
     (x.tmdb != null && row.tmdbId != null && String(x.tmdb) === String(row.tmdbId)) || (!!x.imdb && x.imdb === row.imdbId));
   if (Date.now() - Date.parse(embyNow.updatedAt || 0) >= EMBY_STALE_MS) return null;
@@ -957,18 +962,25 @@ function nowWatchingFor(row) {
 
 function applyNowWatching() {
   document.querySelectorAll(".nw-overlay").forEach(el => el.remove());
-  if (currentView !== "list" || !lastRows) return;
-  lastRows.forEach((row, i) => {
-    const nw = nowWatchingFor(row);
-    const wrap = nw && document.querySelector(`.carousel-card[data-row="${i}"] .poster-wrap`);
-    if (!wrap) return;
-    const pct = nw.len ? Math.min(100, Math.round((nw.pos / nw.len) * 100)) : 0;
-    const word = nw.paused ? "PAUSED" : "WATCHING";
-    wrap.insertAdjacentHTML("beforeend", `
-      <div class="card-ribbon nw-left nw-overlay tone-${nw.paused ? "paused" : "watching"}" title=""><span><i class="nw-dot"></i>${word}</span></div>
-      <div class="nw-overlay nw-time${nw.paused ? " paused" : ""}" title="">${Math.floor(nw.pos / 60)} / ${Math.round(nw.len / 60)} min</div>
-      <div class="nw-overlay nw-bar${nw.paused ? " paused" : ""}" title=""><i style="width:${pct}%"></i></div>`);
+  if (currentView !== "list") return;
+  (lastRows || []).forEach((row, i) => {
+    paintNowWatching(nowWatchingFor(row), document.querySelector(`.carousel-card[data-row="${i}"] .poster-wrap`));
   });
+  // An episode already marked (at 90%) and still playing: the same ribbon
+  // and bar on its Just Watched thumbnail, the watch carrying on there.
+  (lastRecentlyWatched || []).forEach((ep, i) => {
+    paintNowWatching(nowWatchingFor(ep, ep.season, ep.episode), document.querySelector(`.list-panel--watched [data-cycle-key="watched-${i}"]`));
+  });
+}
+
+function paintNowWatching(nw, wrap) {
+  if (!nw || !wrap) return;
+  const pct = nw.len ? Math.min(100, Math.round((nw.pos / nw.len) * 100)) : 0;
+  const word = nw.paused ? "PAUSED" : "WATCHING";
+  wrap.insertAdjacentHTML("beforeend", `
+    <div class="card-ribbon nw-left nw-overlay tone-${nw.paused ? "paused" : "watching"}" title=""><span><i class="nw-dot"></i>${word}</span></div>
+    <div class="nw-overlay nw-time${nw.paused ? " paused" : ""}" title="">${Math.floor(nw.pos / 60)} / ${Math.round(nw.len / 60)} min</div>
+    <div class="nw-overlay nw-bar${nw.paused ? " paused" : ""}" title=""><i style="width:${pct}%"></i></div>`);
 }
 
 // "Marked as watched" from Emby: tools/emby-bridge writes meta "embyMarked"

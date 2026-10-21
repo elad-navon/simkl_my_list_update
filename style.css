@@ -1153,6 +1153,9 @@
       background: linear-gradient(90deg, rgba(8,12,18,0.55) 0%, rgba(8,12,18,0.35) 30%, rgba(8,12,18,0) 40%);
     }
     body.equal-panels:not(.panels-scroll) .list-page:not(.list-page--pair) .list-thumb-bar { left: auto; right: 0; }
+    /* Still watching an episode already in Just Watched (applyNowWatching):
+       its progress bar runs under the banner, clear of the text's third. */
+    body.equal-panels:not(.panels-scroll) .list-page:not(.list-page--pair) .nw-bar { left: 33.333%; }
     body.equal-panels:not(.panels-scroll) .list-page:not(.list-page--pair) .list-row > .list-row-title-wrap {
       position: absolute; left: 0; bottom: 0; z-index: 12; pointer-events: none;
       width: 33.333%; box-sizing: border-box; padding: 9px 0 9px 12px;
