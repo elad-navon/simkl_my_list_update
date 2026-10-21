@@ -4447,6 +4447,19 @@ function patchImagesForTmdbId(tmdbId) {
   }
 }
 
+// A bottom-panel banner row paints its background from the banner itself
+// (blurred - see the banner-row rules in style.css): whenever a row's
+// banner loads - first render, a cycle, an error fallback - its wrap takes
+// that image as --row-img.
+document.addEventListener("load", e => {
+  const img = e.target;
+  if (!(img instanceof HTMLImageElement) || !img.classList.contains("list-thumb")) return;
+  const wrap = img.parentElement;
+  if (wrap && wrap.classList.contains("list-thumb-wrap") && wrap.parentElement.classList.contains("list-row")) {
+    wrap.style.setProperty("--row-img", `url("${img.currentSrc || img.src}")`);
+  }
+}, true);
+
 // Wired as the onerror handler on every poster/banner <img> (both the top
 // carousel card and the three bottom-panel thumbnails) - covers the case
 // the picker's own thumbnails can't: a show's *default*
@@ -5658,11 +5671,12 @@ function updatePagerUiForTrack(track) {
 // height: a row that doesn't fit first gets a smaller show-name font (two
 // steps, ROW_TITLE_SIZES), and only at the smallest size are lines cut.
 // Each size step is batched as clamp-1 reads, unclamped reads, then writes.
-// With body.equal-panels the rows (and thumbnails) are taller: up to 8
-// lines, the show name up to 4 of them, the thumbnail's height the limit.
+// With body.equal-panels the banner fills the row and the text sits on it
+// in the row's left third: up to 8 lines, the show name up to 3 of them,
+// as high as the row.
 const ROW_LINE_BUDGET = 6;
 const ROW_LINE_BUDGET_TALL = 8;
-const ROW_TITLE_LINES_TALL = 4;
+const ROW_TITLE_LINES_TALL = 3;
 const ROW_TITLE_SIZES = ["", "title-fs-1", "title-fs-2"];
 function fitPanelRowLines() {
   // (Rows in poster pairs are fitted whole instead - fitPairText.)
@@ -5700,6 +5714,9 @@ function fitPanelRowLines() {
       if (box) {
         const cs = getComputedStyle(box);
         it.maxH = box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) + 0.5;
+      } else if (tall) {
+        // The text over the banner, padding included (fixedH has it).
+        it.maxH = it.wrap.parentElement.clientHeight + 0.5;
       } else {
         const thumb = it.wrap.parentElement.querySelector(".list-thumb-wrap");
         it.maxH = (thumb ? thumb.getBoundingClientRect().height : 0) + 0.5;

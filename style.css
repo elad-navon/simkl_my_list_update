@@ -1067,8 +1067,8 @@
     /* body.equal-panels (fitTopPanelToWindow): the bottom panels' rows as
        tall as --bot-h, so their boxes match the top one - the poster pairs
        that tall, or each of the two framed banner rows half of it (less
-       the 10px gap and its 8px padding + 2px frame), the banner 16:9 while
-       the row has the width and cropped to the row's 55% after that. */
+       the 10px gap), the banner filling the whole framed row behind its
+       text (rules further down). */
     /* The top box's title and stats the bottom titles' size (1.2rem, the
        same frame padding and gap under them) - the height they give up
        goes to the top box's posters / banners. */
@@ -1123,11 +1123,46 @@
       body.equal-panels:not(.panels-scroll) .profile-greeting-inline { padding-top: 10px; }
       body.equal-panels:not(.panels-scroll) .profile-pic-small { width: 44px; height: 44px; }
     }
-    body.equal-panels:not(.panels-scroll) .list-page:not(.list-page--pair) .list-row > .list-thumb-wrap { max-width: 55%; }
-    body.equal-panels:not(.panels-scroll) .list-page:not(.list-page--pair) .list-row .list-thumb {
-      --bt-h: calc((var(--bot-h, 280px) - 10px) / 2 - 20px);
-      height: var(--bt-h); width: calc(var(--bt-h) * 16 / 9); max-width: 100%;
+    /* Banner rows: the banner whole, as tall as the framed row, at its
+       right edge (cropped only if the row is too narrow for it); the rest
+       of the row is the same banner blown up, blurred and darkened
+       (--row-img, set as each banner loads - app.js), the banner's left
+       edge fading into it. The text sits in the row's left third, from the
+       bottom up, as high as the row (fitPanelRowLines in app.js). The IMDb
+       badge and tag move to the bottom-right corner, out of its way. */
+    body.equal-panels:not(.panels-scroll) .list-page:not(.list-page--pair) .list-row {
+      position: relative; height: calc((var(--bot-h, 280px) - 10px) / 2); box-sizing: border-box;
+      padding: 0; overflow: hidden;
     }
+    body.equal-panels:not(.panels-scroll) .list-page:not(.list-page--pair) .list-row > .list-thumb-wrap {
+      position: absolute; inset: 0; border-radius: 8px;
+    }
+    body.equal-panels:not(.panels-scroll) .list-page:not(.list-page--pair) .list-row .list-thumb {
+      position: absolute; top: 0; right: 0; z-index: 1;
+      height: 100%; width: auto; aspect-ratio: 16 / 9; max-width: 100%; border-radius: 0;
+      -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 48px);
+      mask-image: linear-gradient(90deg, transparent 0, #000 48px);
+    }
+    body.equal-panels:not(.panels-scroll) .list-page:not(.list-page--pair) .list-row > .list-thumb-wrap::before {
+      content: ""; position: absolute; inset: -24px; z-index: 0; pointer-events: none;
+      background: var(--row-img) center / cover no-repeat;
+      filter: blur(16px) brightness(0.5) saturate(1.2);
+    }
+    body.equal-panels:not(.panels-scroll) .list-page:not(.list-page--pair) .list-row > .list-thumb-wrap::after {
+      content: ""; position: absolute; inset: 0; z-index: 5; pointer-events: none;
+      background: linear-gradient(90deg, rgba(8,12,18,0.55) 0%, rgba(8,12,18,0.35) 30%, rgba(8,12,18,0) 40%);
+    }
+    body.equal-panels:not(.panels-scroll) .list-page:not(.list-page--pair) .list-thumb-bar { left: auto; right: 0; }
+    body.equal-panels:not(.panels-scroll) .list-page:not(.list-page--pair) .list-row > .list-row-title-wrap {
+      position: absolute; left: 0; bottom: 0; z-index: 12; pointer-events: none;
+      width: 33.333%; box-sizing: border-box; padding: 9px 0 9px 12px;
+      overflow-wrap: anywhere;
+      --text: #eef3f8; --muted: #b8c4d2;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+    }
+    body.equal-panels:not(.panels-scroll) .list-page:not(.list-page--pair) .list-row-title-wrap > * { pointer-events: auto; }
+    body.equal-panels:not(.panels-scroll) .list-panel--plan .list-page:not(.list-page--pair) .list-row-title { padding-right: 0; }
+    body.equal-panels:not(.panels-scroll) .list-page:not(.list-page--pair) .plan-menu-btn { z-index: 13; }
   }
   body.panels-scroll .main-content { padding-bottom: 60px; }
   body.panels-scroll .bottom-panels-row { align-items: flex-start; }
