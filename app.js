@@ -96,6 +96,88 @@ function filmLoaderHtml() {
     </div>`;
 }
 
+// The loading screen appears only once a load has taken LOADER_DELAY_MS:
+// a quick load goes straight to the page, fading in, with no flash of
+// film. Shown, it ends by easing to a stop and fading out (LOADER_EXIT_MS)
+// before the page fades in.
+const LOADER_DELAY_MS = 800;
+const LOADER_EXIT_MS = 400;
+let loaderTimer = null;
+function showLoaderSoon() {
+  if (!app.querySelector(".film-loader")) app.innerHTML = filmLoaderHtml();
+  const el = app.querySelector(".film-loader");
+  if (el.classList.contains("shown")) return;
+  clearTimeout(loaderTimer);
+  loaderTimer = setTimeout(() => el.classList.add("shown"), LOADER_DELAY_MS);
+}
+async function finishLoader() {
+  clearTimeout(loaderTimer);
+  const el = app.querySelector(".film-loader.shown");
+  if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  // The film keeps rolling a little further, slowing to a stop.
+  const track = el.querySelector(".film-track");
+  if (track) {
+    const m = new DOMMatrix(getComputedStyle(track).transform);
+    track.style.animation = "none";
+    track.style.transform = `translateX(${m.m41}px)`;
+    void track.offsetWidth;
+    track.style.transition = `transform ${LOADER_EXIT_MS}ms cubic-bezier(0.2, 0.7, 0.3, 1)`;
+    track.style.transform = `translateX(${m.m41 - 90}px)`;
+  }
+  el.classList.add("leaving");
+  await new Promise(r => setTimeout(r, LOADER_EXIT_MS));
+}
+function fadeInPage() {
+  app.classList.remove("app-enter");
+  void app.offsetWidth;
+  app.classList.add("app-enter");
+  setTimeout(() => app.classList.remove("app-enter"), 600);
+}
+
+// What the panels showed last time (kept in IndexedDB) is drawn at once on
+// the next load while the fresh data loads behind it, which then replaces
+// it in place - the loading screen only when there's none (a first visit,
+// a new device). Until then nothing on the page can be clicked
+// (body.panels-stale, a thin bar moving along the top): a change made on
+// the old data could be saved wrong.
+const PANELS_SNAPSHOT_KEY = "panels-snapshot";
+const PANELS_SNAPSHOT_MAX_MS = 7 * 24 * 60 * 60 * 1000;
+let panelsFromSnapshot = false;
+// Only when the page opens: a later main() (after a change, a restore)
+// would otherwise put back panels from before that change for a moment.
+let snapshotTried = false;
+let snapshotSaveTimer = null;
+function savePanelsSnapshotSoon() {
+  clearTimeout(snapshotSaveTimer);
+  snapshotSaveTimer = setTimeout(() => {
+    if (panelsFromSnapshot || !lastBaseRows) return;
+    writePersistedCache(PANELS_SNAPSHOT_KEY, {
+      rows: lastBaseRows, totalEps: lastTotalEps, totalMinutes: lastTotalMinutes,
+      recentlyWatched: lastRecentlyWatched, planToWatch: lastPlanToWatch, airingPreview: lastAiringPreview,
+    });
+  }, 1500);
+}
+async function showPanelsSnapshot() {
+  if (snapshotTried) return false;
+  snapshotTried = true;
+  const snap = await Promise.race([readPersistedCache(PANELS_SNAPSHOT_KEY, PANELS_SNAPSHOT_MAX_MS), sleep(1000)]);
+  if (!snap || !Array.isArray(snap.rows)) return false;
+  panelsFromSnapshot = true;
+  document.body.classList.add("panels-stale");
+  try {
+    renderRows(snap.rows, snap.totalEps, snap.totalMinutes, snap.recentlyWatched || [], snap.planToWatch || [], snap.airingPreview || []);
+  } catch (e) {
+    endPanelsSnapshot();
+    return false;
+  }
+  fadeInPage();
+  return true;
+}
+function endPanelsSnapshot() {
+  panelsFromSnapshot = false;
+  document.body.classList.remove("panels-stale");
+}
+
 // Keeps the posters on screen for the next loading screen.
 function rememberLoaderPosters() {
   const urls = [];
@@ -1242,6 +1324,7 @@ function wireLibrarySettings() {
   document.getElementById("librarySignOutBtn").onclick = async () => {
     if (library.store.status().pending && !confirm("Some changes aren't saved yet and will be lost. Sign out anyway?")) return;
     await library.backend.signOut();
+    writePersistedCache(PANELS_SNAPSHOT_KEY, null); // not shown to whoever signs in next
     library.store = null;
     library.adapter = null;
     main();
@@ -5957,6 +6040,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
     syncEpisodeAlerts(airingPreview);
   }
   rememberLoaderPosters();
+  if (!panelsFromSnapshot) savePanelsSnapshotSoon();
   currentView = "list";
   safeSetItem(LS_VIEW_MODE, "list");
   updateViewModeButton();
@@ -6224,16 +6308,16 @@ async function main() {
     }
   }
 
-  app.innerHTML = filmLoaderHtml();
+  if (!(await showPanelsSnapshot())) showLoaderSoon();
   subtitle.textContent = "Fetching your My List\u2026";
 
   watchingListLoad = null;
   try {
     sharedCache = new TmdbCache();
-    if (!(await openLibrary())) return; // the sign-in screen is showing
+    if (!(await openLibrary())) { endPanelsSnapshot(); return; } // the sign-in screen is showing
     saveKeysToAccount(); // in the background; this device's keys for the next one
     sharedEpisodeCache = newEpisodeCache();
-    app.innerHTML = filmLoaderHtml();
+    if (!panelsFromSnapshot) showLoaderSoon();
     subtitle.textContent = "Fetching your My List\u2026";
     const [[rows, totalEps, totalMinutes, recentlyWatched], planToWatchRows, airingNextRows] = await Promise.all([
       getMyListRows(sharedCache, sharedEpisodeCache),
@@ -6241,12 +6325,20 @@ async function main() {
       getAiringNextRows(sharedCache, sharedEpisodeCache),
     ]);
     airingRows = airingNextRows; // also primes the separate Airing Next tab's cache, so opening it doesn't re-fetch
-    renderRows(rows, totalEps, totalMinutes, recentlyWatched, planToWatchRows, airingNextRows);
+    if (panelsFromSnapshot) {
+      endPanelsSnapshot();
+      renderRows(rows, totalEps, totalMinutes, recentlyWatched, planToWatchRows, airingNextRows);
+    } else {
+      await finishLoader();
+      renderRows(rows, totalEps, totalMinutes, recentlyWatched, planToWatchRows, airingNextRows);
+      fadeInPage();
+    }
     runSimklBridge();
     const missing = library.adapter.failures();
     if (missing.length) showToast(`Couldn't load the episode list of ${missing.length} show${missing.length === 1 ? "" : "s"} (${missing.slice(0, 3).join(", ")}${missing.length > 3 ? "…" : ""}) - try Refresh later.`, true);
     autoStartAiredPremieres(planToWatchRows);
   } catch (err) {
+    endPanelsSnapshot();
     showError(err);
   }
 }

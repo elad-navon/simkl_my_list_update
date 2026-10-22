@@ -1275,6 +1275,30 @@
   @media (prefers-reduced-motion: reduce) {
     .film-strip::before, .film-strip::after, .film-track { animation: none; }
   }
+  /* Hidden until the load has taken a moment (showLoaderSoon in app.js),
+     then fades in; on its way out the holes stop with the film and it
+     fades out a touch smaller (finishLoader). The page then fades in. */
+  .film-loader { opacity: 0; transition: opacity 0.3s ease; }
+  .film-loader.shown { opacity: 1; }
+  .film-loader.leaving { opacity: 0; transform: scale(0.97); transition: opacity 0.4s ease-in, transform 0.4s ease-in; }
+  .film-loader.leaving .film-strip::before, .film-loader.leaving .film-strip::after { animation-play-state: paused; }
+  /* The panels as they were last time while the fresh ones load
+     (showPanelsSnapshot in app.js): nothing clickable, a thin bar moving
+     along the top. */
+  body.panels-stale #app, body.panels-stale .topbar { pointer-events: none; }
+  body.panels-stale::after {
+    content: ""; position: fixed; top: 0; left: 0; z-index: 3000; width: 30vw; height: 3px;
+    background: var(--accent); border-radius: 0 2px 2px 0; pointer-events: none;
+    animation: stale-bar 1.1s ease-in-out infinite;
+  }
+  @keyframes stale-bar { from { transform: translateX(-30vw); } to { transform: translateX(100vw); } }
+  @media (prefers-reduced-motion: reduce) { body.panels-stale::after { animation: none; width: 100vw; opacity: 0.5; } }
+  #app.app-enter { animation: app-enter 0.45s ease-out both; }
+  @keyframes app-enter { from { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .film-loader, .film-loader.leaving { transition: none; }
+    #app.app-enter { animation: none; }
+  }
   .error-box { color: var(--danger); font-size: 0.85rem; margin-top: 10px; white-space: pre-wrap; }
   a { color: var(--accent2); }
 
