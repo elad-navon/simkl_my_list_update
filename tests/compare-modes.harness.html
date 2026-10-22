@@ -491,9 +491,85 @@ async function runOrder() {
   return results;
 }
 
+// ?scenario=stats: the My Stats window - opens, every tab draws with no
+// NaN / Infinity / undefined and no errors, the toggles and the pace slider
+// work, the last tab comes back, Escape and the Back button close it, and
+// an empty library shows empty states.
+async function runStats() {
+  const { w } = await loadMode("library", false, "");
+  const results = [];
+  const check = (name, ok, detail) => results.push({ name, ok: !!ok, detail: detail === undefined ? null : detail });
+  const doc = w.document;
+  const $ = s => doc.querySelector(s);
+  const errors = [];
+  w.addEventListener("error", e => errors.push(String(e.message)));
+  w.addEventListener("unhandledrejection", e => errors.push(String(e.reason && e.reason.message || e.reason)));
+  const text = () => ($("#sxPanel") ? $("#sxPanel").textContent : "");
+  const clean = () => !/NaN|Infinity|undefined/.test(text());
+  // A close steps history back - let that land before opening again.
+  const open = async () => { await sleep(300); $("#statsBtn").click(); await waitFor(() => $("#sxPanel") && !$("#sxPanel .sx-loading")); };
+
+  await open();
+  check("opens on the first tab", $(".sx-tab[aria-selected='true']").dataset.tab === "summary" && !!$(".sx-kpis"));
+  const tabs = ["summary", "time", "shows", "taste", "queue"];
+  const drawn = {};
+  for (const t of tabs) {
+    $(`.sx-tab[data-tab='${t}']`).click();
+    drawn[t] = { ok: $(`.sx-tab[data-tab='${t}']`).getAttribute("aria-selected") === "true" && text().length > 50 && clean() };
+  }
+  check("all five tabs draw, with no NaN / Infinity / undefined", Object.values(drawn).every(x => x.ok), drawn);
+  $(".sx-tab[data-tab='time']").click();
+  $(".sx-tab[data-tab='time']").dispatchEvent(new w.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+  check("arrow keys move between tabs", $(".sx-tab[aria-selected='true']").dataset.tab === "shows");
+  for (const [group, value] of [["top", "all"], ["binge", "all"]]) {
+    $(`[data-sx-seg='${group}'][data-value='${value}']`).click();
+    check(`toggle ${group}`, !!$(`[data-sx-seg='${group}'][data-value='${value}'].on`) && clean());
+  }
+  $(".sx-tab[data-tab='taste']").click();
+  $("[data-sx-seg='genres'][data-value='hours']").click();
+  $("[data-sx-seg='networks'][data-value='hours']").click();
+  check("taste toggles", !!$("[data-sx-seg='genres'][data-value='hours'].on") && !!$("[data-sx-seg='networks'][data-value='hours'].on") && clean());
+  $(".sx-tab[data-tab='queue']").click();
+  const pace = $("#sxPace");
+  if (pace) { pace.value = "8"; pace.dispatchEvent(new w.Event("input", { bubbles: true })); }
+  check("pace slider updates the clear date", !pace || ($("#sxPaceVal").textContent === "8.0" && !/NaN|Invalid/.test($("#sxClearDate").textContent)),
+    pace ? $("#sxClearDate").textContent : "no queue");
+  check("the tab is remembered", w.localStorage.getItem("stats_tab") === "queue");
+
+  doc.dispatchEvent(new w.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  check("Escape closes it, the page scrolls again", !$("#statsPage") && !doc.body.classList.contains("stats-open"));
+  await open();
+  check("reopens on the last tab", $(".sx-tab[aria-selected='true']").dataset.tab === "queue");
+  w.history.back();
+  await waitFor(() => !$("#statsPage"), 5000);
+  check("Back closes it", !$("#statsPage"));
+  for (let i = 0; i < 3; i++) { await open(); $("#statsCloseBtn").click(); }
+  check("open and close again and again", !$("#statsPage") && !doc.body.classList.contains("stats-open"));
+
+  // An empty library.
+  const store = w.eval("library").store;
+  const view = store.view;
+  store.view = () => new Map();
+  w.eval("statsState").tab = "summary";
+  await open();
+  const empties = {};
+  for (const t of tabs) { $(`.sx-tab[data-tab='${t}']`).click(); empties[t] = clean() && (!!$("#sxPanel .sx-empty") || /no data/.test(text())); }
+  check("an empty library: every tab shows its empty state", Object.values(empties).every(Boolean), empties);
+  $("#statsCloseBtn").click();
+  store.view = view;
+  check("no errors in the page", !errors.length, errors);
+  return results;
+}
+
 (async () => {
   const out = document.getElementById("result");
   try {
+    if (params.get("scenario") === "stats") {
+      const results = await runStats();
+      out.dataset.done = "1";
+      out.textContent = JSON.stringify({ writes: results }, null, 1);
+      return;
+    }
     if (params.get("scenario") === "order") {
       const results = await runOrder();
       out.dataset.done = "1";
