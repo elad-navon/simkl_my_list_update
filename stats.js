@@ -1,4 +1,4 @@
-// My Stats: a window of five tabs (Summary, Time, Shows, Taste, Queue) on
+// My Stats: a full page of five tabs (Summary, Time, Shows, Taste, Queue) on
 // everything watched - computed here from the library (every watched record
 // carries its time) and one light TMDB lookup per show (runtime, genres,
 // countries, networks, release year, poster), kept for 30 days. Three
