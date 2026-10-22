@@ -350,7 +350,7 @@ function statsWeekdayMetrics(data) {
   for (const r of recs) wd[new Date(r.t).getDay()] += r.min;
   const perDay = wd.map(v => v / 52);
   const all = statsSum(wd, v => v);
-  const weekend = wd[0] + wd[6];
+  const weekend = wd[5] + wd[6]; // Friday and Saturday - the weekend in Israel
   const activeKeys = [...days.keys()].filter(k => statsKeyToTime(k) >= statsDayStart(yearAgo)).sort();
   const months = new Array(12).fill(0);
   for (const r of recs) months[new Date(r.t).getMonth()] += r.min;
@@ -695,7 +695,7 @@ function statsTabSummary(data) {
 function statsHourMatrix(data) {
   const h = statsHourMetrics(data);
   if (!h.count) return statsEmpty("Nothing watched in the past year.");
-  const order = [1, 2, 3, 4, 5, 6, 0];
+  const order = [0, 1, 2, 3, 4, 5, 6]; // Sunday first
   const rows = order.map(d => `
     <div class="sx-hm-row"><span class="sx-hm-day">${STATS_WEEKDAYS[d]}</span>
       ${h.grid[d].map((v, hr) => `<i style="--a:${v ? 0.15 + 0.85 * (v / h.max) : 0}" data-tip="${STATS_WEEKDAYS_LONG[d]} ${String(hr).padStart(2, "0")}:00 · ${v} episode${v === 1 ? "" : "s"}"></i>`).join("")}
@@ -709,7 +709,7 @@ function statsMonthCalendars(data, cal) {
   for (let i = 11; i >= 0; i--) {
     const first = new Date(end.getFullYear(), end.getMonth() - i, 1);
     const daysIn = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
-    const lead = (first.getDay() + 6) % 7; // Monday first
+    const lead = first.getDay(); // Sunday first
     let cells = "<i class=\"pad\"></i>".repeat(lead);
     let monthMin = 0;
     for (let d = 1; d <= daysIn; d++) {
@@ -764,7 +764,7 @@ function statsTabTime(data) {
   const cal = statsCalendarMetrics(data);
   const years = statsYearRows(data);
   const s = statsSummaryMetrics(data);
-  const order = [1, 2, 3, 4, 5, 6, 0];
+  const order = [0, 1, 2, 3, 4, 5, 6]; // Sunday first
   const dow = statsBars(order.map(d => ({
     label: STATS_WEEKDAYS_LONG[d], value: w.perDay[d], text: statsHM(w.perDay[d]),
     color: d === w.peak ? "var(--gold)" : null, tip: `${STATS_WEEKDAYS_LONG[d]} · ${statsHM(w.perDay[d])} a day on average`,
@@ -777,7 +777,7 @@ function statsTabTime(data) {
       ${statsSection("Average per weekday", `${dow}
         <div class="sx-split">${w.weekdayPct == null ? STATS_NO_DATA : `
           <div class="sx-split-bar"><i style="flex:${w.weekdayPct}"></i><i class="b" style="flex:${100 - w.weekdayPct}"></i></div>
-          <div class="sx-split-legend"><span><span class="sx-swatch" style="background:var(--accent)"></span>Mon–Fri <b>${w.weekdayPct}%</b></span><span><span class="sx-swatch" style="background:var(--gold)"></span>Sat–Sun <b>${100 - w.weekdayPct}%</b></span><span class="dim">${w.weekendHeavy ? "Weekend-heavy" : "Weekday-heavy"}</span></div>`}
+          <div class="sx-split-legend"><span><span class="sx-swatch" style="background:var(--accent)"></span>Sun–Thu <b>${w.weekdayPct}%</b></span><span><span class="sx-swatch" style="background:var(--gold)"></span>Fri–Sat <b>${100 - w.weekdayPct}%</b></span><span class="dim">${w.weekendHeavy ? "Weekend-heavy" : "Weekday-heavy"}</span></div>`}
         </div>
         <dl class="sx-facts tight">
           <div><dt>Days with 6h+</dt><dd>${w.marathonDays}</dd></div>
