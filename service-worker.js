@@ -1,9 +1,10 @@
-const CACHE_NAME = "tvseries-shell-v44";
+const CACHE_NAME = "tvseries-shell-v45";
 const SHELL_FILES = [
   "./",
   "./index.html",
   "./style.css",
   "./app.js",
+  "./stats.js",
   "./library-core.js",
   "./episode-source.js",
   "./library-store.js",
