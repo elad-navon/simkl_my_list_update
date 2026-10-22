@@ -59,41 +59,6 @@ const LS_PANEL_IMAGES = "panel_image_mode"; // "banner" (default) | "poster" - t
 const LS_LOADER_POSTERS = "loader_posters"; // the posters the loading screen rolls past (the last ones shown)
 const LS_VIEW_MODE = "simkl_view_mode";   // "list" or "airing" (not restored on load - always starts on "list")
 
-// How much of the origin's localStorage the persisted API cache may take. A browser gives a whole address
-// (name.github.io - shared by every page of that user site) only about 5 million characters, so a cache that
-// grows until the quota is full leaves nothing for anything else: other apps on the same address then fail to
-// save even a tiny value (QuotaExceededError). Staying under this budget (about 70% of the quota) keeps the
-// cache useful and the rest of the storage free.
-const API_CACHE_BUDGET_CHARS = 3500000;
-// key -> { t: when it was stored, size: characters in key + value }. Kept in memory so the budget check never
-// has to re-read (and re-parse) hundreds of kilobytes per entry.
-const persistedIndex = new Map();
-let persistedChars = 0;
-
-function indexPersisted(key, t, size) {
-  const previous = persistedIndex.get(key);
-  if (previous) persistedChars -= previous.size;
-  persistedIndex.set(key, { t, size });
-  persistedChars += size;
-}
-
-function unindexPersisted(key) {
-  const previous = persistedIndex.get(key);
-  if (!previous) return;
-  persistedChars -= previous.size;
-  persistedIndex.delete(key);
-}
-
-// Removes the oldest persisted entries until the cache is back under its budget.
-function enforceCacheBudget() {
-  if (persistedChars <= API_CACHE_BUDGET_CHARS) return;
-  const oldestFirst = [...persistedIndex.entries()].sort((a, b) => a[1].t - b[1].t);
-  for (const [key] of oldestFirst) {
-    if (persistedChars <= API_CACHE_BUDGET_CHARS) break;
-    try { localStorage.removeItem(key); } catch (e) { /* storage unavailable */ }
-    unindexPersisted(key);
-  }
-}
 
 // A plain localStorage.setItem() throws QuotaExceededError once the
 // origin's whole quota is full - which used to be able to abort renderRows
@@ -106,36 +71,8 @@ function safeSetItem(key, value) {
   try {
     localStorage.setItem(key, value);
   } catch (e) {
-    // Quota full: the persisted API cache is what fills it, and it's only a
-    // speed-up, so make room by dropping its oldest entries and try again -
-    // a setting or token must not be lost to make way for cached lookups.
-    // (If storage is unavailable altogether, this just fails quietly.)
-    dropOldCacheUntil(() => localStorage.setItem(key, value));
+    // Full or unavailable: this one write is lost, nothing else.
   }
-}
-
-// Removes persisted API-cache entries oldest-first, retrying `write` after
-// each one, until it goes through. Returns whether it did.
-function dropOldCacheUntil(write) {
-  try {
-    const entries = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (!k || !k.startsWith(API_CACHE_PREFIX)) continue;
-      let age = 0;
-      try { age = JSON.parse(localStorage.getItem(k)).t || 0; } catch (e) { /* corrupt: treat as oldest */ }
-      entries.push([age, k]);
-    }
-    entries.sort((a, b) => a[0] - b[0]);
-    for (const [, k] of entries) {
-      localStorage.removeItem(k);
-      unindexPersisted(k);
-      try { write(); return true; } catch (e) { /* still full - drop the next one */ }
-    }
-  } catch (e) {
-    // localStorage unavailable
-  }
-  return false;
 }
 
 const app = document.getElementById("app");
@@ -793,9 +730,7 @@ async function tvdbEpisodesSlot(fn) {
 }
 function tvdbRecentEpisodes(tvdbId) {
   const cacheKey = `tvdb-eps:${tvdbId}`;
-  const cached = readPersistedCache(cacheKey, CACHE_TTL_TVDB_EPS_MS);
-  if (cached !== undefined) return Promise.resolve(cached);
-  return tvdbEpisodesSlot(async () => {
+  return readPersistedCache(cacheKey, CACHE_TTL_TVDB_EPS_MS).then(cached => cached !== undefined ? cached : tvdbEpisodesSlot(async () => {
     const key = getConfig().tvdbKey;
     let token = key && await tvdbToken(key, false);
     if (!token) return null;
@@ -817,7 +752,7 @@ function tvdbRecentEpisodes(tvdbId) {
     }
     writePersistedCache(cacheKey, out);
     return out;
-  });
+  }));
 }
 
 // The episode source asks TMDB for a show and its seasons - the same two
@@ -1535,73 +1470,42 @@ const CACHE_TTL_TMDB_EPISODE_IDS_MS = 7 * 24 * 60 * 60 * 1000; // an episode's I
 const CACHE_TTL_TMDB_CREDITS_MS = 24 * 60 * 60 * 1000;
 const CACHE_TTL_TMDB_PERSON_IDS_MS = 7 * 24 * 60 * 60 * 1000; // a person's IMDb id never changes
 
+// The cache lives in IndexedDB (LibraryAdapter.idbCache): localStorage's
+// ~5 million characters held a fraction of it - the shows' full image
+// lists and the seasons' casts alone are megabytes - so every load evicted
+// the oldest entries (the small TheTVDB and rating ones among them) and the
+// next load fetched them all again. A read resolves to the value, or
+// undefined if missing or older than ttlMs.
+let apiCache = null;
+function apiCacheStore() {
+  if (!apiCache) apiCache = LibraryAdapter.idbCache({ name: "tv-api-cache" });
+  return apiCache;
+}
 function readPersistedCache(key, ttlMs) {
-  try {
-    const raw = localStorage.getItem(API_CACHE_PREFIX + key);
-    if (!raw) return undefined;
-    const entry = JSON.parse(raw);
-    if (!entry || typeof entry.t !== "number" || Date.now() - entry.t > ttlMs) return undefined;
-    return entry.v;
-  } catch (e) {
-    return undefined;
-  }
+  return Promise.resolve(apiCacheStore().get(key, ttlMs)).catch(() => undefined);
 }
-
 function writePersistedCache(key, value) {
-  const storageKey = API_CACHE_PREFIX + key;
-  const t = Date.now();
-  const json = JSON.stringify({ t, v: value });
-  const write = () => localStorage.setItem(storageKey, json);
-  let stored = false;
-  try {
-    write();
-    stored = true;
-  } catch (e) {
-    // Full: drop the oldest cached entries to fit this newer one. If storage
-    // is unavailable or the entry is bigger than everything, the in-memory
-    // cache for this session still works, just nothing persists.
-    stored = dropOldCacheUntil(write);
-  }
-  if (stored) {
-    indexPersisted(storageKey, t, storageKey.length + json.length);
-    enforceCacheBudget(); // never let the cache grow until the whole quota is full
-  }
+  Promise.resolve(apiCacheStore().set(key, value)).catch(() => {});
 }
 
-// A read here already ignores anything past its own TTL, but never
-// deletes it - so months of browsing quietly leaves every expired entry
-// sitting in localStorage forever, until the origin's whole quota fills
-// up. At that point *every* localStorage.setItem() on this origin starts
-// throwing QuotaExceededError, including totally unrelated ones (like
-// saveImageOverride) - which is exactly how cycling a poster/banner once
-// silently stopped actually changing anything. Run once per page load;
-// 7 days covers the longest TTL any entry actually uses, so nothing still
-// legitimately in use is ever removed early.
+// Once per load: the old copies in localStorage go (they only took the
+// space settings need), and a while after the page is up, entries past the
+// longest time any of them is used (7 days) are deleted from IndexedDB.
 const MAX_PERSISTED_CACHE_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 function prunePersistedCache() {
   try {
-    const toRemove = [];
+    const old = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (!key || !key.startsWith(API_CACHE_PREFIX)) continue;
-      let stale = true;
-      try {
-        const raw = localStorage.getItem(key);
-        const entry = JSON.parse(raw);
-        stale = !entry || typeof entry.t !== "number" || Date.now() - entry.t > MAX_PERSISTED_CACHE_AGE_MS;
-        if (!stale) indexPersisted(key, entry.t, key.length + raw.length);
-      } catch (e) {
-        stale = true; // corrupt entry - just as well gone
-      }
-      if (stale) toRemove.push(key);
+      if (key && key.startsWith(API_CACHE_PREFIX)) old.push(key);
     }
-    toRemove.forEach(key => localStorage.removeItem(key));
-    // What is left may still be more than the budget allows (many shows, big responses): trim the oldest.
-    enforceCacheBudget();
+    old.forEach(key => localStorage.removeItem(key));
   } catch (e) {
-    // localStorage unavailable - nothing to prune anyway
+    // localStorage unavailable - nothing to remove
   }
+  setTimeout(() => { Promise.resolve(apiCacheStore().prune(MAX_PERSISTED_CACHE_AGE_MS)).catch(() => {}); }, 30000);
 }
+
 
 class TmdbCache {
   constructor() {
@@ -1619,14 +1523,9 @@ class TmdbCache {
       // to append_to_response below - otherwise every show already
       // persisted from before that change (up to 24h old, per
       // CACHE_TTL_TMDB_SHOW_MS) would keep serving its old response, minus
-      // content_ratings, straight out of localStorage until it naturally
+      // content_ratings, straight out of the cache until it naturally
       // expired, silently hiding the new rating badge for up to a day.
       const cacheKey = `tmdbshow2:${tmdbId}`;
-      const cached = readPersistedCache(cacheKey, CACHE_TTL_TMDB_SHOW_MS);
-      if (cached !== undefined) {
-        this.show.set(tmdbId, Promise.resolve(cached));
-        return this.show.get(tmdbId);
-      }
       // append_to_response=images,external_ids,content_ratings pulls ALL
       // available posters/backdrops (for the cycle-through-alternates
       // feature), this show's imdb id (for the search-detail modal's title
@@ -1641,14 +1540,14 @@ class TmdbCache {
       // TMDB is purely supplementary now (images/external id/runtime
       // estimate only, never episode counts) - a failure here degrades
       // gracefully to null rather than crashing whichever show triggered it.
-      const promise = tmdbGet(`/tv/${tmdbId}`, {
+      const promise = readPersistedCache(cacheKey, CACHE_TTL_TMDB_SHOW_MS).then(cached => cached !== undefined ? cached : tmdbGet(`/tv/${tmdbId}`, {
         append_to_response: "images,external_ids,content_ratings",
         language: "en-US",
         include_image_language: "en,null,he",
       }).then(data => {
         if (data) writePersistedCache(cacheKey, data);
         return data;
-      }).catch(() => null);
+      })).catch(() => null);
       this.show.set(tmdbId, promise);
     }
     return this.show.get(tmdbId);
@@ -1657,15 +1556,10 @@ class TmdbCache {
     const key = `${tmdbId}:${seasonNum}`;
     if (!this.season.has(key)) {
       const cacheKey = `tmdbseason:${key}`;
-      const cached = readPersistedCache(cacheKey, CACHE_TTL_TMDB_SEASON_MS);
-      if (cached !== undefined) {
-        this.season.set(key, Promise.resolve(cached));
-        return this.season.get(key);
-      }
-      const promise = tmdbGet(`/tv/${tmdbId}/season/${seasonNum}`).then(data => {
+      const promise = readPersistedCache(cacheKey, CACHE_TTL_TMDB_SEASON_MS).then(cached => cached !== undefined ? cached : tmdbGet(`/tv/${tmdbId}/season/${seasonNum}`).then(data => {
         if (data) writePersistedCache(cacheKey, data);
         return data;
-      }).catch(() => null);
+      })).catch(() => null);
       this.season.set(key, promise);
     }
     return this.season.get(key);
@@ -1678,15 +1572,10 @@ class TmdbCache {
     const key = `${tmdbId}:${season}:${episode}`;
     if (!this.episodeIds.has(key)) {
       const cacheKey = `tmdbepids:${key}`;
-      const cached = readPersistedCache(cacheKey, CACHE_TTL_TMDB_EPISODE_IDS_MS);
-      if (cached !== undefined) {
-        this.episodeIds.set(key, Promise.resolve(cached));
-        return this.episodeIds.get(key);
-      }
-      const promise = tmdbGet(`/tv/${tmdbId}/season/${season}/episode/${episode}/external_ids`).then(data => {
+      const promise = readPersistedCache(cacheKey, CACHE_TTL_TMDB_EPISODE_IDS_MS).then(cached => cached !== undefined ? cached : tmdbGet(`/tv/${tmdbId}/season/${season}/episode/${episode}/external_ids`).then(data => {
         if (data) writePersistedCache(cacheKey, data);
         return data;
-      }).catch(() => null);
+      })).catch(() => null);
       this.episodeIds.set(key, promise);
     }
     return this.episodeIds.get(key);
@@ -1698,15 +1587,10 @@ class TmdbCache {
   getCredits(tmdbId) {
     if (!this.credits.has(tmdbId)) {
       const cacheKey = `tmdbcredits:${tmdbId}`;
-      const cached = readPersistedCache(cacheKey, CACHE_TTL_TMDB_CREDITS_MS);
-      if (cached !== undefined) {
-        this.credits.set(tmdbId, Promise.resolve(cached));
-        return this.credits.get(tmdbId);
-      }
-      const promise = tmdbGet(`/tv/${tmdbId}/aggregate_credits`).then(data => {
+      const promise = readPersistedCache(cacheKey, CACHE_TTL_TMDB_CREDITS_MS).then(cached => cached !== undefined ? cached : tmdbGet(`/tv/${tmdbId}/aggregate_credits`).then(data => {
         if (data) writePersistedCache(cacheKey, data);
         return data;
-      }).catch(() => null);
+      })).catch(() => null);
       this.credits.set(tmdbId, promise);
     }
     return this.credits.get(tmdbId);
@@ -1716,15 +1600,10 @@ class TmdbCache {
   getPersonExternalIds(personId) {
     if (!this.personIds.has(personId)) {
       const cacheKey = `tmdbpersonids:${personId}`;
-      const cached = readPersistedCache(cacheKey, CACHE_TTL_TMDB_PERSON_IDS_MS);
-      if (cached !== undefined) {
-        this.personIds.set(personId, Promise.resolve(cached));
-        return this.personIds.get(personId);
-      }
-      const promise = tmdbGet(`/person/${personId}/external_ids`).then(data => {
+      const promise = readPersistedCache(cacheKey, CACHE_TTL_TMDB_PERSON_IDS_MS).then(cached => cached !== undefined ? cached : tmdbGet(`/person/${personId}/external_ids`).then(data => {
         if (data) writePersistedCache(cacheKey, data);
         return data;
-      }).catch(() => null);
+      })).catch(() => null);
       this.personIds.set(personId, promise);
     }
     return this.personIds.get(personId);
@@ -1845,13 +1724,9 @@ class MdblistCache {
     if (!key || !imdbId || this.disabled) return Promise.resolve(null);
     if (!this.map.has(imdbId)) {
       const cacheKey = `mdblist:${imdbId}`;
-      const cached = readPersistedCache(cacheKey, recent ? CACHE_TTL_RECENT_SHOW_MS : CACHE_TTL_MDBLIST_MS);
-      if (cached !== undefined) {
-        this.map.set(imdbId, Promise.resolve(cached));
-        return this.map.get(imdbId);
-      }
-      const promise = this.fetchOne(imdbId, key)
-        .then(data => { if (data) writePersistedCache(cacheKey, data); return data; })
+      const promise = readPersistedCache(cacheKey, recent ? CACHE_TTL_RECENT_SHOW_MS : CACHE_TTL_MDBLIST_MS)
+        .then(cached => cached !== undefined ? cached :
+          this.fetchOne(imdbId, key).then(data => { if (data) writePersistedCache(cacheKey, data); return data; }))
         .catch(() => null);
       this.map.set(imdbId, promise);
     }
@@ -2113,8 +1988,8 @@ function getImageOverrides() {
 // Remembers a manually-picked poster/banner (from clicking to cycle) so it
 // survives a refresh instead of resetting to TMDB's default pick. Not
 // critical to the click actually succeeding - a QuotaExceededError here
-// (typically from the much larger persisted API cache below filling up
-// the origin's whole localStorage quota, see prunePersistedCache) used to
+// (from the API cache filling the origin's whole localStorage quota, when
+// it still lived there - see readPersistedCache) used to
 // bubble all the way up and abort the in-progress cycle before it ever
 // touched the DOM: the flip-out/flip-in classes would still get added and
 // stripped by the old cycling code's cleanup, so it visibly flashed through
@@ -2126,7 +2001,6 @@ function saveImageOverride(tmdbId, mode, path, area = "top") {
     const entry = overrides[tmdbId] || {};
     entry[IMAGE_AREA_KEYS[area][mode === "banner" ? "banner" : "poster"]] = path;
     overrides[tmdbId] = entry;
-    // A full quota drops old cached lookups to make room (safeSetItem).
     safeSetItem(LS_IMAGE_OVERRIDES, JSON.stringify(overrides));
   } catch (e) {
     // Doesn't persist across a reload this time, but the cycle itself
@@ -4919,7 +4793,7 @@ async function fetchKeylessImages(imdbId) {
   const out = { poster: [], banner: [], tvdbId: null };
   if (!imdbId) return out;
   const cacheKey = `extraimages2:${imdbId}`; // 2: TVMaze poster tiles from the full-size file
-  const cached = readPersistedCache(cacheKey, CACHE_TTL_EXTRA_IMAGES_MS);
+  const cached = await readPersistedCache(cacheKey, CACHE_TTL_EXTRA_IMAGES_MS);
   if (cached !== undefined) return cached;
   let partial = false;
   try {
@@ -4973,7 +4847,7 @@ async function fetchFanartImages(tvdbId) {
   const key = getConfig().fanartKey;
   if (!key || !tvdbId || fanartKeyRejected) return out;
   const cacheKey = `fanart:${tvdbId}`;
-  const cached = readPersistedCache(cacheKey, CACHE_TTL_FANART_MS);
+  const cached = await readPersistedCache(cacheKey, CACHE_TTL_FANART_MS);
   if (cached !== undefined) return cached;
   try {
     const res = await fetchWithTimeout(`https://webservice.fanart.tv/v3/tv/${tvdbId}?api_key=${encodeURIComponent(key)}`);
@@ -5042,7 +4916,7 @@ async function fetchTvdbImages(tvdbId) {
   const key = getConfig().tvdbKey;
   if (!key || !tvdbId || tvdbKeyRejected) return out;
   const cacheKey = `tvdb:${tvdbId}`;
-  const cached = readPersistedCache(cacheKey, CACHE_TTL_TVDB_MS);
+  const cached = await readPersistedCache(cacheKey, CACHE_TTL_TVDB_MS);
   if (cached !== undefined) return cached;
   try {
     let token = await tvdbToken(key, false);

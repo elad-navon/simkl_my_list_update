@@ -290,6 +290,22 @@
         if (!d) return;
         try { d.transaction("kv", "readwrite").objectStore("kv").put(entry, key); } catch (e) { /* memory copy still serves */ }
       },
+      // Deletes what was stored more than maxAgeMs ago (from disk only).
+      async prune(maxAgeMs) {
+        const d = await db();
+        if (!d) return;
+        const cutoff = Date.now() - maxAgeMs;
+        try {
+          const req = d.transaction("kv", "readwrite").objectStore("kv").openCursor();
+          req.onsuccess = () => {
+            const cursor = req.result;
+            if (!cursor) return;
+            const entry = cursor.value;
+            if (!entry || typeof entry.t !== "number" || entry.t < cutoff) cursor.delete();
+            cursor.continue();
+          };
+        } catch (e) { /* left for next time */ }
+      },
     };
   }
 
