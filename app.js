@@ -774,14 +774,28 @@ function withTvdbAirCheck(airTimes) {
 
 // A show's episodes on TheTVDB from a month back on, as
 // [{ season, episode, date }], cached 12 hours; null if TheTVDB couldn't
-// answer (not cached - the next load asks again). One show at a time.
+// answer (not cached - the next load asks again). Five shows at a time:
+// one at a time, a load with 40-odd shows to check waited ~12 seconds.
 const CACHE_TTL_TVDB_EPS_MS = 12 * 60 * 60 * 1000;
-let tvdbEpisodesQueue = Promise.resolve();
+const TVDB_EPS_PARALLEL = 5;
+let tvdbEpisodesActive = 0;
+const tvdbEpisodesWaiting = [];
+async function tvdbEpisodesSlot(fn) {
+  if (tvdbEpisodesActive >= TVDB_EPS_PARALLEL) await new Promise(r => tvdbEpisodesWaiting.push(r));
+  tvdbEpisodesActive++;
+  try {
+    return await fn();
+  } finally {
+    tvdbEpisodesActive--;
+    const next = tvdbEpisodesWaiting.shift();
+    if (next) next();
+  }
+}
 function tvdbRecentEpisodes(tvdbId) {
   const cacheKey = `tvdb-eps:${tvdbId}`;
   const cached = readPersistedCache(cacheKey, CACHE_TTL_TVDB_EPS_MS);
   if (cached !== undefined) return Promise.resolve(cached);
-  const run = tvdbEpisodesQueue.then(async () => {
+  return tvdbEpisodesSlot(async () => {
     const key = getConfig().tvdbKey;
     let token = key && await tvdbToken(key, false);
     if (!token) return null;
@@ -804,8 +818,6 @@ function tvdbRecentEpisodes(tvdbId) {
     writePersistedCache(cacheKey, out);
     return out;
   });
-  tvdbEpisodesQueue = run.catch(() => null);
-  return run;
 }
 
 // The episode source asks TMDB for a show and its seasons - the same two
@@ -5002,10 +5014,16 @@ const CACHE_TTL_TVDB_MS = 7 * 24 * 60 * 60 * 1000;
 const TVDB_API = "https://api4.thetvdb.com/v4";
 const TVDB_TOKEN_MS = 25 * 24 * 60 * 60 * 1000;
 let tvdbKeyRejected = false;
+// Several lookups at once share one login rather than each logging in.
+let tvdbLoginPending = null;
 async function tvdbToken(key, fresh) {
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(LS_TVDB_TOKEN) || "null"); } catch (e) { /* unreadable */ }
   if (!fresh && saved && saved.key === key && saved.token && Date.now() - saved.at < TVDB_TOKEN_MS) return saved.token;
+  if (!tvdbLoginPending) tvdbLoginPending = tvdbLogin(key).finally(() => { tvdbLoginPending = null; });
+  return tvdbLoginPending;
+}
+async function tvdbLogin(key) {
   const res = await fetchWithTimeout(`${TVDB_API}/login`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ apikey: key }),
   });
