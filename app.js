@@ -1026,14 +1026,23 @@ function applyNowWatching() {
   });
 }
 
+// Seconds as a player shows them: 29:12, or 1:05:09 past an hour.
+function playerTime(sec) {
+  sec = Math.max(0, Math.floor(sec || 0));
+  const h = Math.floor(sec / 3600), m = Math.floor(sec / 60) % 60, s = String(sec % 60).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${m}:${s}`;
+}
+
 function paintNowWatching(nw, wrap) {
   if (!nw || !wrap) return;
   const pct = nw.len ? Math.min(100, Math.round((nw.pos / nw.len) * 100)) : 0;
+  const left = Math.max(0, Math.ceil((nw.len - nw.pos) / 60));
   wrap.insertAdjacentHTML("beforeend", `
     <div class="nw-overlay nw-dim${nw.paused ? " paused" : ""}" title="">
       <div class="nw-eq"><i></i><i></i><i></i><i></i></div>
       <div class="nw-word">${nw.paused ? "PAUSED" : "WATCHING"}</div>
-      <div class="nw-min">${Math.floor(nw.pos / 60)} / ${Math.round(nw.len / 60)} · ${pct}%</div>
+      <div class="nw-min">${playerTime(nw.pos)} / ${playerTime(nw.len)}</div>
+      <div class="nw-sub">${pct}% · ${left} MIN LEFT</div>
     </div>`);
 }
 
