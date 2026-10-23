@@ -449,7 +449,7 @@
   .card-ribbon.tone-premiere { background: #2fa84f; color: #fff; }
   /* "Now watching" (applyNowWatching in app.js): the poster dims, and in
      its middle bordeaux bars bounce like a sound meter, over the word
-     (WATCHING / PAUSED) and the minutes. Paused, the bars give way to a
+     (WATCHING / PAUSED), the minutes and how far in, in percent. Paused, the bars give way to a
      pause sign. Sized from the poster (cqmin), so a small Just Watched
      thumbnail gets the same picture, smaller. */
   .nw-dim {
@@ -470,6 +470,7 @@
   @media (prefers-reduced-motion: reduce) { .nw-eq i { animation: none; height: 60%; } }
   .nw-word { font-size: 7.6cqmin; letter-spacing: 0.12em; }
   .nw-min { font-size: 10.5cqmin; font-variant-numeric: tabular-nums; }
+  .nw-pct { font-size: 7.6cqmin; color: #f3a6bb; font-variant-numeric: tabular-nums; }
   .card-ribbon.tone-finale { background: #c1502e; color: #fff; }
   .remaining-badge {
     /* Flush into the bottom-right corner, square rather than merged with
