@@ -1033,8 +1033,7 @@ function paintNowWatching(nw, wrap) {
     <div class="nw-overlay nw-dim${nw.paused ? " paused" : ""}" title="">
       <div class="nw-eq"><i></i><i></i><i></i><i></i></div>
       <div class="nw-word">${nw.paused ? "PAUSED" : "WATCHING"}</div>
-      <div class="nw-min">${Math.floor(nw.pos / 60)} / ${Math.round(nw.len / 60)}</div>
-      <div class="nw-pct">${pct}%</div>
+      <div class="nw-min">${Math.floor(nw.pos / 60)} / ${Math.round(nw.len / 60)} · ${pct}%</div>
     </div>`);
 }
 

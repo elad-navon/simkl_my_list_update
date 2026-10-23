@@ -466,11 +466,11 @@ async function runNowWatching() {
   await waitFor(() => doc.querySelector(".nw-dim:not(.paused)"));
   const alpha = card("Alpha"), charlie = card("Charlie"), hotel = card("Hotel");
   check("playing: WATCHING, the minutes and the percent on its card",
-    alpha.querySelector(".nw-dim:not(.paused)") && text(alpha, ".nw-word") === "WATCHING" && text(alpha, ".nw-min") === "23 / 45" && text(alpha, ".nw-pct") === "51%",
-    text(alpha, ".nw-word") + " " + text(alpha, ".nw-min") + " " + text(alpha, ".nw-pct"));
+    alpha.querySelector(".nw-dim:not(.paused)") && text(alpha, ".nw-word") === "WATCHING" && text(alpha, ".nw-min") === "23 / 45 · 51%",
+    text(alpha, ".nw-word") + " " + text(alpha, ".nw-min"));
   check("paused on the TV: PAUSED, where it stopped",
-    charlie.querySelector(".nw-dim.paused") && text(charlie, ".nw-word") === "PAUSED" && text(charlie, ".nw-pct") === "27%",
-    text(charlie, ".nw-word") + " " + text(charlie, ".nw-min") + " " + text(charlie, ".nw-pct"));
+    charlie.querySelector(".nw-dim.paused") && text(charlie, ".nw-word") === "PAUSED" && text(charlie, ".nw-min") === "12 / 45 · 27%",
+    text(charlie, ".nw-word") + " " + text(charlie, ".nw-min"));
   check("an episode only stopped partway some other time: nothing shown, its own ribbon stays",
     hotel.querySelector(".card-ribbon:not(.nw-overlay)") && !hotel.querySelector(".nw-overlay"));
   await rerender(w, () => w.eval("main")());
