@@ -1019,8 +1019,8 @@ function applyNowWatching() {
   (lastRows || []).forEach((row, i) => {
     paintNowWatching(nowWatchingFor(row), document.querySelector(`.carousel-card[data-row="${i}"] .poster-wrap`));
   });
-  // An episode already marked (at 90%) and still playing: the same ribbon
-  // and bar on its Just Watched thumbnail, the watch carrying on there.
+  // An episode already marked (at 90%) and still playing: the same dimmed
+  // picture on its Just Watched thumbnail, the watch carrying on there.
   (lastRecentlyWatched || []).forEach((ep, i) => {
     paintNowWatching(nowWatchingFor(ep, ep.season, ep.episode), document.querySelector(`.list-panel--watched [data-cycle-key="watched-${i}"]`));
   });
@@ -1028,12 +1028,12 @@ function applyNowWatching() {
 
 function paintNowWatching(nw, wrap) {
   if (!nw || !wrap) return;
-  const pct = nw.len ? Math.min(100, Math.round((nw.pos / nw.len) * 100)) : 0;
-  const word = nw.paused ? "PAUSED" : "WATCHING";
   wrap.insertAdjacentHTML("beforeend", `
-    <div class="card-ribbon nw-left nw-overlay tone-${nw.paused ? "paused" : "watching"}" title=""><span><i class="nw-dot"></i>${word}</span></div>
-    <div class="nw-overlay nw-time${nw.paused ? " paused" : ""}" title="">${Math.floor(nw.pos / 60)} / ${Math.round(nw.len / 60)} min</div>
-    <div class="nw-overlay nw-bar${nw.paused ? " paused" : ""}" title=""><i style="width:${pct}%"></i></div>`);
+    <div class="nw-overlay nw-dim${nw.paused ? " paused" : ""}" title="">
+      <div class="nw-eq"><i></i><i></i><i></i><i></i></div>
+      <div class="nw-word">${nw.paused ? "PAUSED" : "WATCHING"}</div>
+      <div class="nw-min">${Math.floor(nw.pos / 60)} / ${Math.round(nw.len / 60)}</div>
+    </div>`);
 }
 
 // "Marked as watched" from Emby: tools/emby-bridge writes meta "embyMarked"

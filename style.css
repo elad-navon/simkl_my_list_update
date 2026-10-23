@@ -447,32 +447,29 @@
     box-shadow: inset 0 0 0 2px rgba(255,255,255,0.35), 0 3px 8px rgba(0,0,0,0.45);
   }
   .card-ribbon.tone-premiere { background: #2fa84f; color: #fff; }
-  /* "Now watching" (applyNowWatching in app.js): its ribbon mirrors the
-     premiere/finale one into the top-left corner, so both can show - over
-     the network logo there while it's on - and a bar with the minutes
-     runs along the poster just above its bottom badges. */
-  .card-ribbon.nw-left { right: auto; left: -46px; transform: rotate(-40deg); z-index: 14; }
-  /* Bordeaux, playing or stopped - only the words change (WATCHING /
-     PAUSED), and the dot stops pulsing. */
-  .card-ribbon.tone-watching, .card-ribbon.tone-paused { background: #8c1c3a; color: #fde8ec; }
-  .card-ribbon .nw-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: currentColor; margin-right: 6px; vertical-align: 1px; animation: nw-pulse 1.2s ease-in-out infinite; }
-  .card-ribbon.tone-paused .nw-dot { animation: none; }
-  @keyframes nw-pulse { 50% { opacity: 0.25; } }
-  @media (prefers-reduced-motion: reduce) { .card-ribbon .nw-dot { animation: none; } }
-  .nw-bar { position: absolute; left: 0; right: 0; bottom: 22px; height: 6px; background: rgba(0, 0, 0, 0.6); z-index: 11; pointer-events: none; }
-  .nw-bar i { display: block; height: 100%; background: #a8204a; }
-  /* The minutes in a dark box edged in the ribbon's color at the bar's
-     right end, its pointer down at the bar. */
-  .nw-time {
-    position: absolute; right: 6px; bottom: 33px; z-index: 11; pointer-events: none; white-space: nowrap;
-    background: rgba(5, 8, 12, 0.88); color: #fff; border: 2px solid #a8204a; border-radius: 6px; padding: 2px 8px 1px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
-    font-family: "Montserrat", sans-serif; font-weight: 800; font-size: 12px; line-height: 1.2; font-variant-numeric: tabular-nums;
+  /* "Now watching" (applyNowWatching in app.js): the poster dims, and in
+     its middle bordeaux bars bounce like a sound meter, over the word
+     (WATCHING / PAUSED) and the minutes. Paused, the bars give way to a
+     pause sign. Sized from the poster (cqmin), so a small Just Watched
+     thumbnail gets the same picture, smaller. */
+  .nw-dim {
+    position: absolute; inset: 0; z-index: 11; pointer-events: none; container-type: size;
+    background: rgba(8, 4, 8, 0.62); color: #fff;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4cqmin;
+    font-family: "Montserrat", sans-serif; font-weight: 800; line-height: 1; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
   }
-  .nw-time::after {
-    content: ""; position: absolute; left: 50%; bottom: -7px; margin-left: -5px;
-    border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 5px solid #a8204a;
-  }
+  .nw-eq { display: flex; align-items: flex-end; gap: 2.4cqmin; height: 22cqmin; }
+  .nw-eq i { width: 4.3cqmin; height: 20%; background: #d23a64; border-radius: 1cqmin; animation: nw-eq 0.9s ease-in-out infinite; }
+  .nw-eq i:nth-child(2) { animation-delay: -0.3s; }
+  .nw-eq i:nth-child(3) { animation-delay: -0.6s; }
+  .nw-eq i:nth-child(4) { animation-delay: -0.15s; }
+  @keyframes nw-eq { 0%, 100% { height: 20%; } 50% { height: 100%; } }
+  .nw-dim.paused .nw-eq i { animation: none; background: #cfd6de; width: 6.7cqmin; height: 100%; }
+  .nw-dim.paused .nw-eq i:nth-child(n+3) { display: none; }
+  .nw-dim.paused .nw-eq { gap: 4.3cqmin; }
+  @media (prefers-reduced-motion: reduce) { .nw-eq i { animation: none; height: 60%; } }
+  .nw-word { font-size: 7.6cqmin; letter-spacing: 0.12em; }
+  .nw-min { font-size: 10.5cqmin; font-variant-numeric: tabular-nums; }
   .card-ribbon.tone-finale { background: #c1502e; color: #fff; }
   .remaining-badge {
     /* Flush into the bottom-right corner, square rather than merged with
@@ -1154,8 +1151,8 @@
     }
     body.equal-panels:not(.panels-scroll) .list-page:not(.list-page--pair) .list-thumb-bar { left: auto; right: 0; }
     /* Still watching an episode already in Just Watched (applyNowWatching):
-       its progress bar runs under the banner, clear of the text's third. */
-    body.equal-panels:not(.panels-scroll) .list-page:not(.list-page--pair) .nw-bar { left: 33.333%; }
+       the dimmed picture sits beside the text's third, not over it. */
+    body.equal-panels:not(.panels-scroll) .list-page:not(.list-page--pair) .nw-dim { left: 33.333%; }
     body.equal-panels:not(.panels-scroll) .list-page:not(.list-page--pair) .list-row > .list-row-title-wrap {
       position: absolute; left: 0; bottom: 0; z-index: 12; pointer-events: none;
       width: 33.333%; box-sizing: border-box; padding: 9px 0 9px 12px;
