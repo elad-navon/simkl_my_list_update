@@ -1057,6 +1057,8 @@ async function onEmbyMarked(data) {
   // the episode in Just Watched, the next one in Ready to Watch.
   if (library && library.store) await library.store.load().catch(() => {});
   await refreshPanelsQuietly();
+  // My Stats, if it's open, counts the episode too (stats.js).
+  if (typeof statsRefreshIfOpen === "function") statsRefreshIfOpen();
   const lines = await Promise.all(episodes.map(x => watchedToastLine(x)));
   showCornerToast(lines);
 }

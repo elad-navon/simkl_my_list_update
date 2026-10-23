@@ -543,6 +543,11 @@ async function runStats() {
   w.history.back();
   await waitFor(() => !$("#statsPage"), 5000);
   check("Back closes it", !$("#statsPage"));
+  await open();
+  $(".sx-tab[data-tab='time']").click();
+  await w.eval("statsRefreshIfOpen")();
+  check("an episode marked while it's open: redrawn in place, same tab", !!$("#statsPage") && $(".sx-tab[aria-selected='true']").dataset.tab === "time" && clean());
+  $("#statsCloseBtn").click();
   for (let i = 0; i < 3; i++) { await open(); $("#statsCloseBtn").click(); }
   check("open and close again and again", !$("#statsPage") && !doc.body.classList.contains("stats-open"));
 

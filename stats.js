@@ -993,14 +993,41 @@ async function openStatsPage() {
       if (progress && total > 20) progress.textContent = `Gathering show details… ${done}/${total}`;
     });
     if (!document.getElementById("statsPage")) return; // closed meanwhile
-    const sub = overlay.querySelector("#sxSubtitle");
-    const first = statsData.records.length ? new Date(statsData.records[0].t).getFullYear() : null;
-    sub.textContent = `${statsNum(statsSum(statsData.shows, s => s.eps))} episodes${first ? ` · since ${first}` : ""}`;
+    statsSetSubtitle();
     statsRenderTab();
   } catch (err) {
     const body = document.getElementById("sxPanel");
     if (body) body.innerHTML = statsEmpty(`Couldn't build your stats: ${statsEsc(err.message || err)}`);
   }
+}
+
+// An episode marked while the page is open (Emby, via app.js's
+// onEmbyMarked): gathered again and redrawn in place - same tab, toggles,
+// pace and scroll position. The shows' TMDB facts come from the cache.
+let statsRefreshing = false;
+async function statsRefreshIfOpen() {
+  if (!document.getElementById("statsPage") || !statsData || statsRefreshing) return;
+  statsRefreshing = true;
+  try {
+    const fresh = await statsGather();
+    if (!document.getElementById("statsPage")) return;
+    statsData = fresh;
+    statsSetSubtitle();
+    const body = document.getElementById("sxPanel");
+    const y = body ? body.scrollTop : 0;
+    statsRenderTab();
+    if (body) body.scrollTop = y;
+  } catch (e) {
+    // Left as it was - the next opening has it.
+  } finally {
+    statsRefreshing = false;
+  }
+}
+function statsSetSubtitle() {
+  const sub = document.getElementById("sxSubtitle");
+  if (!sub || !statsData) return;
+  const first = statsData.records.length ? new Date(statsData.records[0].t).getFullYear() : null;
+  sub.textContent = `${statsNum(statsSum(statsData.shows, s => s.eps))} episodes${first ? ` · since ${first}` : ""}`;
 }
 
 function statsRenderTab() {
