@@ -448,7 +448,7 @@
   }
   .card-ribbon.tone-premiere { background: #2fa84f; color: #fff; }
   /* "Now watching" (applyNowWatching in app.js): the poster dims, and in
-     its middle bordeaux bars bounce like a sound meter, over the word
+     its middle yellow bars (the progress bars' #fbbf24, kept in the light theme too) bounce like a sound meter, over the word
      (WATCHING / PAUSED), the time as a player shows it (29:12 / 47:05)
      and, smaller, how far in and the minutes left. Paused, the bars give
      way to a pause sign. Sized from the poster (cqmin), so a small Just Watched
@@ -463,7 +463,7 @@
   /* The bars bounce by scaling (scaleY), not by height: the graphics card
      moves them, with no redrawing of the poster - by height, a tab kept
      two of the computer's cores busy while an episode played. */
-  .nw-eq i { width: 4.3cqmin; height: 100%; background: #d23a64; border-radius: 1cqmin; transform-origin: bottom; transform: scaleY(0.2); animation: nw-eq 0.9s ease-in-out infinite; will-change: transform; }
+  .nw-eq i { width: 4.3cqmin; height: 100%; background: #fbbf24; border-radius: 1cqmin; transform-origin: bottom; transform: scaleY(0.2); animation: nw-eq 0.9s ease-in-out infinite; will-change: transform; }
   .nw-eq i:nth-child(2) { animation-delay: -0.3s; }
   .nw-eq i:nth-child(3) { animation-delay: -0.6s; }
   .nw-eq i:nth-child(4) { animation-delay: -0.15s; }
@@ -474,7 +474,7 @@
   @media (prefers-reduced-motion: reduce) { .nw-eq i { animation: none; transform: scaleY(0.6); } }
   .nw-word { font-size: 7.6cqmin; letter-spacing: 0.12em; }
   .nw-min { font-size: 8.6cqmin; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .nw-sub { font-size: 6.6cqmin; color: #f3a6bb; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .nw-sub { font-size: 6.6cqmin; color: #fbbf24; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .card-ribbon.tone-finale { background: #c1502e; color: #fff; }
   .remaining-badge {
     /* Flush into the bottom-right corner, square rather than merged with
