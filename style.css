@@ -459,15 +459,18 @@
     font-family: "Montserrat", sans-serif; font-weight: 800; line-height: 1; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
   }
   .nw-eq { display: flex; align-items: flex-end; gap: 2.4cqmin; height: 22cqmin; }
-  .nw-eq i { width: 4.3cqmin; height: 20%; background: #d23a64; border-radius: 1cqmin; animation: nw-eq 0.9s ease-in-out infinite; }
+  /* The bars bounce by scaling (scaleY), not by height: the graphics card
+     moves them, with no redrawing of the poster - by height, a tab kept
+     two of the computer's cores busy while an episode played. */
+  .nw-eq i { width: 4.3cqmin; height: 100%; background: #d23a64; border-radius: 1cqmin; transform-origin: bottom; transform: scaleY(0.2); animation: nw-eq 0.9s ease-in-out infinite; will-change: transform; }
   .nw-eq i:nth-child(2) { animation-delay: -0.3s; }
   .nw-eq i:nth-child(3) { animation-delay: -0.6s; }
   .nw-eq i:nth-child(4) { animation-delay: -0.15s; }
-  @keyframes nw-eq { 0%, 100% { height: 20%; } 50% { height: 100%; } }
-  .nw-dim.paused .nw-eq i { animation: none; background: #cfd6de; width: 6.7cqmin; height: 100%; }
+  @keyframes nw-eq { 0%, 100% { transform: scaleY(0.2); } 50% { transform: scaleY(1); } }
+  .nw-dim.paused .nw-eq i { animation: none; transform: none; will-change: auto; background: #cfd6de; width: 6.7cqmin; }
   .nw-dim.paused .nw-eq i:nth-child(n+3) { display: none; }
   .nw-dim.paused .nw-eq { gap: 4.3cqmin; }
-  @media (prefers-reduced-motion: reduce) { .nw-eq i { animation: none; height: 60%; } }
+  @media (prefers-reduced-motion: reduce) { .nw-eq i { animation: none; transform: scaleY(0.6); } }
   .nw-word { font-size: 7.6cqmin; letter-spacing: 0.12em; }
   .nw-min { font-size: 10.5cqmin; font-variant-numeric: tabular-nums; }
   .card-ribbon.tone-finale { background: #c1502e; color: #fff; }
