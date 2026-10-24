@@ -2392,3 +2392,15 @@
     .sx-nets { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .sx-net-logo { height: 70px; }
   }
+
+  /* Dark theme: the page's boxes (the top bar / home box, Ready to Watch,
+     the bottom panels) edged in gold, with a faint gold glow outside - a
+     shadow, so no box changes size and the fitted layouts hold. Not on
+     a phone held sideways, whose panels have no frame at all, nor on the
+     shows window's grid (a .list-panel too). */
+  body:not(.light-theme):not(.phone-landscape) .series-panel,
+  body:not(.light-theme):not(.phone-landscape) .list-panel:not(.panel-shows-grid-wrap),
+  body:not(.light-theme):not(.phone-landscape) .topbar {
+    border-color: rgba(251, 191, 36, 0.8);
+    box-shadow: 0 0 10px rgba(251, 191, 36, 0.14);
+  }
