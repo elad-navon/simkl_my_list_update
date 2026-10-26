@@ -25,16 +25,29 @@ body:not(.light-theme) .list-panel .list-panel-header,
 body:not(.light-theme) .series-panel .series-panel-title,
 body:not(.light-theme):not(.panels-scroll) .list-panel .list-panel-header,
 body:not(.light-theme):not(.panels-scroll) .series-panel .series-panel-title {
-  --accent2: var(--cine-ink); --card: #f6c21c;
   background: url("brush-paint.webp") center / 100% 100% no-repeat;
-  border: none; border-radius: 0; padding: 10px 34px 10px 22px; margin-left: -10px;
+  border: none; border-radius: 0; padding: 12px 44px 12px 30px; margin-left: -12px; gap: 13px;
   overflow: visible;
   color: var(--cine-ink); font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
-  font-style: italic; font-weight: 700; font-size: 1.5rem; letter-spacing: 0.01em;
+  font-style: italic; font-weight: 800; font-size: 1.55rem; letter-spacing: 0.01em;
   -webkit-text-stroke: 0; text-shadow: none;
 }
-body:not(.light-theme):not(.panels-scroll) .series-panel .series-panel-title { font-size: 1.7rem; padding: 11px 40px 11px 24px; }
-body:not(.light-theme) .list-panel-header svg { width: 22px; height: 22px; }
+body:not(.light-theme):not(.panels-scroll) .series-panel .series-panel-title { font-size: 1.75rem; padding: 13px 50px 13px 32px; }
+/* The solid title icons (titleIcons in app.js), in the title's ink. */
+body:not(.light-theme) .title-icon-usual { display: none; }
+body:not(.light-theme) .title-icon-cine { display: inline-flex; color: var(--cine-ink); }
+body:not(.light-theme) .title-icon-cine svg { width: 25px; height: 25px; }
+
+/* Airing Next: a strip of gold film behind the rest of its title row,
+   fading in after the title and out before the page counter. */
+body:not(.light-theme) .list-panel--airing .list-panel-header-row { position: relative; }
+body:not(.light-theme) .list-panel--airing .list-panel-header-row::before {
+  content: ""; position: absolute; inset: 2px 0; z-index: 0; pointer-events: none;
+  background: url("strip.webp") center / cover no-repeat; border-radius: 6px;
+  -webkit-mask-image: linear-gradient(90deg, transparent 18%, #000 32%, #000 58%, transparent 74%);
+  mask-image: linear-gradient(90deg, transparent 18%, #000 32%, #000 58%, transparent 74%);
+}
+body:not(.light-theme) .list-panel--airing .list-panel-header-row > * { position: relative; z-index: 1; }
 
 /* ---- Ready to Watch's stats: a framed strip, gold icons, slanted rules
    between them. */

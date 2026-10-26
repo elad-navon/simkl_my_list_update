@@ -4766,6 +4766,19 @@ const BOOKMARK_ICON_SVG = `<svg viewBox="0 0 24 24" width="17" height="17" fill=
 // The top panel's title icon: a screen with a play mark (the logo's).
 const READY_ICON_SVG = `<svg viewBox="0 0 24 24" width="18" height="18"><rect x="3" y="3" width="18" height="15" rx="3.5" fill="var(--accent2)"></rect><polygon points="10,7.6 10,13.4 15,10.5" fill="var(--card)"></polygon><rect x="8" y="20" width="8" height="2" rx="1" fill="var(--accent2)"></rect></svg>`;
 const CALENDAR_ICON_SVG = `<svg viewBox="0 0 24 24" width="17" height="17"><rect x="3" y="5" width="18" height="16" rx="2" fill="var(--accent2)"></rect><rect x="3" y="9" width="18" height="1.8" fill="var(--card)"></rect><rect x="7" y="2.5" width="1.8" height="4" rx="0.9" fill="var(--card)"></rect><rect x="15.2" y="2.5" width="1.8" height="4" rx="0.9" fill="var(--card)"></rect></svg>`;
+// The cinematic look's title icons (theme/cinematic.css): solid, in the
+// title's ink on its gold brush stroke - a play mark, a calendar of days,
+// a film reel and a star. Each title carries both its usual icon and this
+// one; the stylesheet shows the one its theme wants.
+const CINE_TITLE_ICONS = {
+  ready: `<svg viewBox="0 0 24 24" width="24" height="24"><polygon points="5,3 21,12 5,21" fill="currentColor"></polygon></svg>`,
+  airing: `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><rect x="6" y="1.5" width="2.4" height="5" rx="1.2"></rect><rect x="15.6" y="1.5" width="2.4" height="5" rx="1.2"></rect><path fill-rule="evenodd" d="M4.5 4h15A2.5 2.5 0 0 1 22 6.5v13a2.5 2.5 0 0 1-2.5 2.5h-15A2.5 2.5 0 0 1 2 19.5v-13A2.5 2.5 0 0 1 4.5 4zM4.4 9.2v10.2c0 .2.1.3.3.3h14.6c.2 0 .3-.1.3-.3V9.2z"></path><rect x="6" y="11" width="3.2" height="3" rx="0.5"></rect><rect x="10.4" y="11" width="3.2" height="3" rx="0.5"></rect><rect x="14.8" y="11" width="3.2" height="3" rx="0.5"></rect><rect x="6" y="15.3" width="3.2" height="3" rx="0.5"></rect><rect x="10.4" y="15.3" width="3.2" height="3" rx="0.5"></rect><rect x="14.8" y="15.3" width="3.2" height="3" rx="0.5"></rect></svg>`,
+  watched: `<svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" fill-rule="evenodd" d="M12 1.5a10.5 10.5 0 1 1 0 21 10.5 10.5 0 0 1 0-21zM12 4a2.7 2.7 0 1 0 0 5.4A2.7 2.7 0 0 0 12 4zM6.2 8.4a2.7 2.7 0 1 0 0 5.4 2.7 2.7 0 0 0 0-5.4zM17.8 8.4a2.7 2.7 0 1 0 0 5.4 2.7 2.7 0 0 0 0-5.4zM8.4 14.9a2.7 2.7 0 1 0 0 5.4 2.7 2.7 0 0 0 0-5.4zM15.6 14.9a2.7 2.7 0 1 0 0 5.4 2.7 2.7 0 0 0 0-5.4zM12 11a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2z"></path></svg>`,
+  plan: `<svg viewBox="0 0 24 24" width="24" height="24"><polygon points="12,1.8 14.9,8.6 22.3,9.2 16.7,14.1 18.4,21.4 12,17.5 5.6,21.4 7.3,14.1 1.7,9.2 9.1,8.6" fill="currentColor"></polygon></svg>`,
+};
+const titleIcons = (usual, cine) =>
+  `<span class="title-icon-usual">${usual}</span><span class="title-icon-cine">${CINE_TITLE_ICONS[cine]}</span>`;
+
 // Same "pile of episodes" stack icon as the top stat row, in black to sit
 // on the remaining-badge's yellow background.
 const STAT_STACK_ICON_BLACK_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#000000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 3 21 8 12 13 3 8 12 3"></polygon><polyline points="3 12 12 17 21 12"></polyline><polyline points="3 16 12 21 21 16"></polyline></svg>`;
@@ -5501,7 +5514,7 @@ function renderRecentlyWatchedHtml(list) {
   return `
     <div class="list-panel list-panel--watched">
       <div class="list-panel-header-row">
-        <div class="list-panel-header">${CLOCK_ICON_SOLID_SVG}<span>Just Watched</span></div>
+        <div class="list-panel-header">${titleIcons(CLOCK_ICON_SOLID_SVG, "watched")}<span>Just Watched</span></div>
         ${pagerHtml}
         ${listPanelCountHtml(list.length, "watched")}
       </div>
@@ -5531,7 +5544,7 @@ function renderPlanToWatchHtml(list) {
   return `
     <div class="list-panel list-panel--plan">
       <div class="list-panel-header-row">
-        <div class="list-panel-header">${BOOKMARK_ICON_SVG}<span>Plan to Watch</span></div>
+        <div class="list-panel-header">${titleIcons(BOOKMARK_ICON_SVG, "plan")}<span>Plan to Watch</span></div>
         ${pagerHtml}
         ${listPanelCountHtml(list.length, "plan")}
       </div>
@@ -5644,7 +5657,7 @@ function renderAiringNextPreviewHtml(list) {
   return `
     <div class="list-panel list-panel--airing">
       <div class="list-panel-header-row">
-        <div class="list-panel-header">${CALENDAR_ICON_SVG}<span>Airing Next</span></div>
+        <div class="list-panel-header">${titleIcons(CALENDAR_ICON_SVG, "airing")}<span>Airing Next</span></div>
         ${pagerHtml}
         ${listPanelCountHtml(list.length, "airing")}
       </div>
@@ -6174,7 +6187,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
   app.innerHTML = `
     <div class="series-panel">
       <div class="series-panel-header">
-        <div class="list-panel-header series-panel-title">${READY_ICON_SVG}<span>Ready to Watch</span></div>
+        <div class="list-panel-header series-panel-title">${titleIcons(READY_ICON_SVG, "ready")}<span>Ready to Watch</span></div>
         <div class="series-panel-header-left">
           <button type="button" class="series-panel-stat-group series-panel-stat-clickable" onclick="openPanelShowsModal('main')">
             ${STAT_TV_ICON_SVG}

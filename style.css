@@ -417,6 +417,10 @@
 
   body:not(.panels-scroll) .list-panel .list-panel-header { padding: 7px 10px; gap: 7px; }
   .list-panel-header svg { flex: 0 0 auto; }
+  /* A box title's two icons (titleIcons in app.js): the usual one here,
+     the cinematic look's (theme/cinematic.css) only there. */
+  .title-icon-usual, .title-icon-cine { display: inline-flex; flex: 0 0 auto; }
+  .title-icon-cine { display: none; }
   body .list-pager-range { min-width: 42px; }
   body .list-panel .list-panel-header-row { gap: 7px; }
   body .list-panel .list-pager { gap: 4px; }
