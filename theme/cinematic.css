@@ -27,18 +27,26 @@ body:not(.light-theme):not(.panels-scroll) .list-panel .list-panel-header,
 body:not(.light-theme):not(.panels-scroll) .series-panel .series-panel-title {
   /* (Any older title icon, drawn in --accent2 with --card cut-outs, in ink too.) */
   --accent2: var(--cine-ink); --card: #f6c21c;
-  background: url("brush-paint.webp") center / 100% 100% no-repeat;
-  border: none; border-radius: 0; padding: 12px 44px 12px 30px; margin-left: -12px; gap: 13px;
-  overflow: visible;
+  /* Exactly as tall as the plain title (35px), so the fitted layout gives
+     the posters and banners just as much room; the stroke is drawn a
+     little bigger than the box (::before), over the margins round it. */
+  box-sizing: border-box; height: 35px; padding: 0 30px 0 22px; margin-left: -8px; gap: 10px;
+  position: relative; isolation: isolate; background: none;
+  border: none; border-radius: 0; overflow: visible;
   color: var(--cine-ink); font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
-  font-style: italic; font-weight: 800; font-size: 1.55rem; letter-spacing: 0.01em;
+  font-style: italic; font-weight: 800; font-size: 1.4rem; line-height: 1; letter-spacing: 0.01em;
   -webkit-text-stroke: 0; text-shadow: none;
 }
-body:not(.light-theme):not(.panels-scroll) .series-panel .series-panel-title { font-size: 1.75rem; padding: 13px 50px 13px 32px; }
+body:not(.light-theme) .list-panel .list-panel-header::before,
+body:not(.light-theme) .series-panel .series-panel-title::before {
+  content: ""; position: absolute; inset: -5px -8px -5px -4px; z-index: -1; pointer-events: none;
+  background: url("brush-paint.webp") center / 100% 100% no-repeat;
+}
+body:not(.light-theme):not(.panels-scroll) .series-panel .series-panel-title { font-size: 1.45rem; padding: 0 32px 0 24px; }
 /* The solid title icons (titleIcons in app.js), in the title's ink. */
 body:not(.light-theme) .title-icon-usual { display: none; }
 body:not(.light-theme) .title-icon-cine { display: inline-flex; color: var(--cine-ink); }
-body:not(.light-theme) .title-icon-cine svg { width: 25px; height: 25px; }
+body:not(.light-theme) .title-icon-cine svg { width: 21px; height: 21px; }
 
 /* Airing Next: a strip of gold film behind the rest of its title row,
    fading in after the title and out before the page counter. */
@@ -56,9 +64,9 @@ body:not(.light-theme) .list-panel--airing .list-panel-header-row > * { position
 body:not(.light-theme) .series-panel-header-left {
   --accent2: var(--gold);
   border: 1px solid rgba(251, 191, 36, 0.75); border-radius: 10px;
-  background: rgba(5, 8, 12, 0.55); padding: 7px 16px;
+  background: rgba(5, 8, 12, 0.55);
 }
-body:not(.light-theme) .series-panel-header-left svg { width: 22px; height: 22px; }
+body:not(.light-theme) .series-panel-header-left svg { width: 18px; height: 18px; }
 body:not(.light-theme) .stats-divider { background: rgba(251, 191, 36, 0.55); transform: skewX(-22deg); }
 
 
