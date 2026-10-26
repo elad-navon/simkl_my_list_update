@@ -94,3 +94,22 @@ body:not(.light-theme).equal-panels:not(.panels-scroll) .profile-greeting-inline
 }
 body:not(.light-theme).equal-panels:not(.panels-scroll) .profile-greeting-hi { color: var(--cine-ink); font-size: 1.1rem; }
 body:not(.light-theme).equal-panels:not(.panels-scroll) .profile-pic-small { width: 38px; height: 38px; }
+
+/* ---- Every frame softly lit: a gold edge that blurs into a glow, on the
+   boxes and on each poster / banner frame inside them. Static (no
+   animation), so the blur is painted once. Pairs and rows are drawn from
+   several pieces, so they glow by their outline (drop-shadow), not their
+   box. */
+body:not(.light-theme):not(.phone-landscape) .series-panel,
+body:not(.light-theme):not(.phone-landscape) .list-panel:not(.panel-shows-grid-wrap),
+body:not(.light-theme):not(.phone-landscape) .topbar {
+  box-shadow: 0 0 3px rgba(251, 191, 36, 0.75), 0 0 14px rgba(251, 191, 36, 0.3), 0 12px 30px rgba(0, 0, 0, 0.6);
+}
+/* (Not round a frame with something moving inside - the "now watching"
+   bars, a pulsing air dot: the blur would be painted again every frame.) */
+body:not(.light-theme) .poster-pair:not(:has(.nw-overlay, .air-dot)),
+body:not(.light-theme) .panel-pair:not(:has(.nw-overlay, .air-dot)),
+body:not(.light-theme) .card.framed:not(:has(.nw-overlay, .air-dot)),
+body:not(.light-theme) .list-rows-paged .list-row:not(:has(.nw-overlay, .air-dot)) {
+  filter: drop-shadow(0 0 2px rgba(251, 191, 36, 0.7)) drop-shadow(0 0 8px rgba(251, 191, 36, 0.3));
+}
