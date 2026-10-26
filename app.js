@@ -2502,6 +2502,17 @@ async function getMyListRows(cache, episodeCache) {
       }
     }
 
+    // How many episodes the season you're in has (the card's ring), and
+    // the show's seasons in order (the banner card's segments).
+    let seasonEps = null;
+    let seasons = null;
+    if (showId && nextSeason != null) {
+      const eps = (await episodeCache.get(showId)) || [];
+      const nums = eps.filter(e => e.season === nextSeason && e.episode != null).map(e => e.episode);
+      if (nums.length && Math.max(...nums) >= nextEpisode) seasonEps = Math.max(...nums);
+      seasons = [...new Set(eps.filter(e => e.season > 0 && e.episode != null).map(e => e.season))].sort((a, b) => a - b);
+    }
+
     const [hours, mins] = formatTime(remainingMinutes);
     const [nextHours, nextMins] = formatTime(nextEpisodeMinutes);
     const recentShow = isRecentShow(showDetail && showDetail.first_air_date);
@@ -2511,7 +2522,7 @@ async function getMyListRows(cache, episodeCache) {
     const row = {
       title, imdbId, imdbRating, ratings, showId, tmdbId, year: show.year, ...images, network, networkLogoPath,
       totalEpisodes, available, watched, remaining,
-      hours, mins, nextHours, nextMins, nextLabel, nextSeason, nextEpisode, episodeTitle, nextAirDate, badge,
+      hours, mins, nextHours, nextMins, nextLabel, nextSeason, nextEpisode, seasonEps, seasons, episodeTitle, nextAirDate, badge,
       episodesLeft, lastWatchedAt: mostRecentWatchedAt(item), joinedAt, yearRangeLabel,
       firstAirDate: showDetail && showDetail.first_air_date ? showDetail.first_air_date : null,
     };
@@ -5824,6 +5835,7 @@ function fitPairText() {
     const title = box.querySelector("h3, .list-row-title");
     if (title) title.style.removeProperty("font-size");
     box.querySelectorAll("[data-fit-dropped]").forEach(el => { el.style.removeProperty("display"); delete el.dataset.fitDropped; });
+    box.querySelectorAll(".watch-ring.compact").forEach(el => el.classList.remove("compact"));
     const ep = box.querySelector(".episode-title");
     if (ep) {
       Object.assign(ep.style, { whiteSpace: "normal", maxHeight: "none", display: "-webkit-box", webkitBoxOrient: "vertical" });
@@ -5850,6 +5862,10 @@ function fitPairText() {
       let lines = Math.max(1, Math.round(ep.getBoundingClientRect().height / lineH));
       while (!fits() && lines > 1) { lines -= 1; ep.style.setProperty("-webkit-line-clamp", String(lines)); }
     }
+    // Then the season ring goes small, its count beside it on one line -
+    // about the old bar's height - before the name gets any smaller.
+    const ring = box.querySelector(".watch-ring");
+    if (ring && !fits()) ring.classList.add("compact");
     let size = parseFloat(getComputedStyle(title).fontSize);
     while (!fits() && size > PAIR_TITLE_MIN_PX) { size -= 1; title.style.fontSize = `${size}px`; }
     for (const sel of [".network-sub, .network-imdb-row", ".list-row-airdate", ".episode-title"]) {
@@ -6109,7 +6125,27 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
     // position relative to sibling cards in the same row - see .card-fill-spacer.
     const episodeTitle = `<div class="episode-title">${row.episodeTitle || "&nbsp;"}</div>`;
     const progressPct = row.available > 0 ? Math.min(100, Math.round((row.watched / row.available) * 100)) : 0;
-    const progressHtml = row.available > 0
+    // A ring for the season you're in (a bar for the whole show barely
+    // moves on a long one), the season and the show's share beside it -
+    // on a banner, one segment per season instead, the current one filling.
+    // The old bar when the season's length isn't known.
+    const ringC = 2 * Math.PI * 15;
+    const seasonPct = row.seasonEps ? Math.round((row.nextEpisode - 1) / row.seasonEps * 100) : 0;
+    const progressHtml = isWide && row.available > 0 && row.seasonEps && row.seasons && row.seasons.includes(row.nextSeason)
+      ? `<div class="watch-segs">${row.seasons.map(s =>
+            s < row.nextSeason ? `<i class="on"></i>`
+            : s === row.nextSeason ? `<i class="now"><b style="width:${seasonPct}%"></b></i>` : `<i></i>`).join("")}</div>
+        <div class="watch-segs-label"><span>Season ${row.nextSeason} · <b>${row.nextEpisode - 1}/${row.seasonEps}</b></span><span>${row.watched}/${row.available} · ${progressPct}% of show</span></div>`
+      : row.available > 0 && row.seasonEps
+      ? `<div class="watch-ring">
+          <svg viewBox="0 0 38 38" aria-hidden="true">
+            <circle class="watch-ring-track" cx="19" cy="19" r="15"/>
+            <circle class="watch-ring-fill" cx="19" cy="19" r="15" stroke-dasharray="${(ringC * (row.nextEpisode - 1) / row.seasonEps).toFixed(1)} ${ringC.toFixed(1)}"/>
+            <text x="19" y="22">${row.nextEpisode - 1}/${row.seasonEps}</text>
+          </svg>
+          <div class="watch-ring-side"><b>Season ${row.nextSeason}<em class="watch-ring-count"> · ${row.nextEpisode - 1}/${row.seasonEps}</em></b><span>${row.watched}/${row.available} · ${progressPct}% of show</span></div>
+        </div>`
+      : row.available > 0
       ? `<div class="watch-progress">
           <div class="watch-progress-track">
             <div class="watch-progress-fill" style="width:${progressPct}%"></div>
