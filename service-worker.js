@@ -1,4 +1,4 @@
-const CACHE_NAME = "tvseries-shell-v46";
+const CACHE_NAME = "tvseries-shell-v47";
 const SHELL_FILES = [
   "./",
   "./index.html",
@@ -11,7 +11,6 @@ const SHELL_FILES = [
   "./firebase-backend.js",
   "./air-times.js",
   "./library-adapter.js",
-  "./simkl-bridge.js",
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png"

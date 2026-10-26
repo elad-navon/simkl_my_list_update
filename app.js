@@ -654,6 +654,8 @@ async function throttlePost() {
 // either the daily allowance (reported as such) or a per-second burst
 // (waits it out once).
 async function simklApi(method, path, token, { params, body } = {}) {
+  // SIMKL is read for air times and nothing else: nothing is ever sent to it.
+  if (method !== "GET") throw new Error("SIMKL is read-only here");
   const qs = new URLSearchParams({
     client_id: activeClientId(), "app-name": APP_NAME, "app-version": APP_VERSION,
     ...(params || {}),
