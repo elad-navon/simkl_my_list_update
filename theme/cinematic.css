@@ -1,0 +1,101 @@
+/* The cinematic look (dark theme only): the page on a film-noir backdrop
+   (gold film strips, a reel and a spotlight round its edges), the boxes a
+   little see-through over it, every box title on a gold brush stroke, and
+   the icons gold. Pictures in theme/ (made from the generated originals:
+   the brush strokes keyed off their black, all shrunk to webp). Loaded
+   after style.css; the light theme doesn't use any of it. */
+
+body:not(.light-theme) {
+  --cine-ink: #14100a;           /* text and icons on gold */
+  --cine-box: rgba(12, 19, 28, 0.84);
+  background: #05080c url("backdrop.webp") center / cover no-repeat fixed;
+}
+
+/* The boxes: dark glass over the backdrop (no blur - it costs every frame). */
+body:not(.light-theme):not(.phone-landscape) .series-panel,
+body:not(.light-theme):not(.phone-landscape) .list-panel:not(.panel-shows-grid-wrap),
+body:not(.light-theme).equal-panels:not(.panels-scroll) .topbar {
+  background: var(--cine-box);
+}
+
+/* ---- Box titles on a brush stroke: dark italic letters on gold, the
+   title's icon in the same ink (its cut-outs gold - the icons draw them in
+   --card). Two strokes, so neighbouring titles don't look stamped. */
+body:not(.light-theme) .list-panel .list-panel-header,
+body:not(.light-theme) .series-panel .series-panel-title,
+body:not(.light-theme):not(.panels-scroll) .list-panel .list-panel-header,
+body:not(.light-theme):not(.panels-scroll) .series-panel .series-panel-title {
+  --accent2: var(--cine-ink); --card: #f6c21c;
+  background: url("brush-paint.webp") center / 100% 100% no-repeat;
+  border: none; border-radius: 0; padding: 10px 34px 10px 22px; margin-left: -10px;
+  overflow: visible;
+  color: var(--cine-ink); font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
+  font-style: italic; font-weight: 700; font-size: 1.5rem; letter-spacing: 0.01em;
+  -webkit-text-stroke: 0; text-shadow: none;
+}
+body:not(.light-theme):not(.panels-scroll) .series-panel .series-panel-title { font-size: 1.7rem; padding: 11px 40px 11px 24px; }
+body:not(.light-theme) .list-panel-header svg { width: 22px; height: 22px; }
+
+/* ---- Ready to Watch's stats: a framed strip, gold icons, slanted rules
+   between them. */
+body:not(.light-theme) .series-panel-header-left {
+  --accent2: var(--gold);
+  border: 1px solid rgba(251, 191, 36, 0.75); border-radius: 10px;
+  background: rgba(5, 8, 12, 0.55); padding: 7px 16px;
+}
+body:not(.light-theme) .series-panel-header-left svg { width: 22px; height: 22px; }
+body:not(.light-theme) .stats-divider { background: rgba(251, 191, 36, 0.55); transform: skewX(-22deg); }
+
+/* A film reel between the title and the stats, on a thin gold swipe. */
+body:not(.light-theme) .series-panel-header { position: relative; }
+body:not(.light-theme) .series-panel-header::before,
+body:not(.light-theme) .series-panel-header::after {
+  content: ""; position: absolute; pointer-events: none; z-index: 0;
+}
+body:not(.light-theme) .series-panel-header::before {
+  left: 30%; right: 34%; top: 50%; height: 26px; transform: translateY(-50%);
+  background: url("brush-thin.webp") center / 100% 100% no-repeat; opacity: 0.55;
+}
+body:not(.light-theme) .series-panel-header::after {
+  left: calc(50% - 30px); top: -14px; width: 62px; height: 62px;
+  background: url("reel.webp") center / contain no-repeat;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
+}
+body:not(.light-theme) .series-panel-header > * { position: relative; z-index: 1; }
+/* On a phone the title and the stats stack: no room for the reel there. */
+@media (max-width: 720px) {
+  body:not(.light-theme) .series-panel-header::before,
+  body:not(.light-theme) .series-panel-header::after { display: none; }
+}
+
+/* ---- The logo: white name, gold slogan. */
+body:not(.light-theme) .logo-text .logo-tv,
+body:not(.light-theme) .logo-accent { color: #ffffff; }
+body:not(.light-theme) .topbar-slogan { color: var(--gold); }
+
+/* ---- The buttons: each icon on a small gold tile, the name in white;
+   in the box beside the top panel, thin rules between them instead of
+   separate raised buttons. */
+body:not(.light-theme) .nav-item .nav-icon {
+  background: linear-gradient(180deg, #fcd34d, #e0a512); color: var(--cine-ink);
+  border-radius: 7px; padding: 5px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+body:not(.light-theme) .nav-item .nav-icon svg { width: 20px; height: 20px; }
+body:not(.light-theme) .nav-item { color: #ffffff; }
+body:not(.light-theme) .nav-item.active { color: var(--gold); border-color: rgba(251, 191, 36, 0.6); box-shadow: inset 3px 0 0 0 var(--gold), inset 0 2px 5px rgba(0, 0, 0, 0.35); }
+body:not(.light-theme) .nav-item.active .nav-icon { color: var(--cine-ink); }
+body:not(.light-theme).equal-panels:not(.panels-scroll) .nav-item,
+body:not(.light-theme).equal-panels:not(.panels-scroll) .nav-item:hover:not(.active) {
+  background: transparent; border: none; border-bottom: 1px solid rgba(251, 191, 36, 0.22);
+  border-radius: 0; box-shadow: none; transform: none;
+}
+body:not(.light-theme).equal-panels:not(.panels-scroll) .nav-item:hover:not(.active) { background: rgba(251, 191, 36, 0.08); }
+body:not(.light-theme).equal-panels:not(.panels-scroll) .nav-item.active { background: rgba(251, 191, 36, 0.12); border-radius: 6px; }
+
+/* The greeting: a gold plate. */
+body:not(.light-theme).equal-panels:not(.panels-scroll) .profile-greeting-inline {
+  background: linear-gradient(180deg, #fcd34d, #e0a512); border: none; border-radius: 10px;
+  padding: 8px 12px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+body:not(.light-theme).equal-panels:not(.panels-scroll) .profile-greeting-hi { color: var(--cine-ink); }
