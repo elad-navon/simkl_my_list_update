@@ -1,7 +1,11 @@
-const CACHE_NAME = "tvseries-shell-v47";
+// The cache is named after the site version (version.js), so each deploy
+// starts a fresh one.
+importScripts("./version.js");
+const CACHE_NAME = `tvseries-shell-v${self.SITE_VERSION.number}`;
 const SHELL_FILES = [
   "./",
   "./index.html",
+  "./version.js",
   "./style.css",
   "./app.js",
   "./stats.js",

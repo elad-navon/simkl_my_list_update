@@ -241,6 +241,30 @@ function returnToPreviousView() {
   }
 }
 
+// The settings screen's top-left corner: the version this page runs
+// (version.js) and its date, and whether the site has a newer one live -
+// read fresh from the server - so a deploy that hasn't reached this
+// device yet shows.
+function siteVersionHtml() {
+  const v = window.SITE_VERSION || {};
+  const date = v.date
+    ? new Date(v.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    : "";
+  return `<div class="settings-version"><b>Version ${v.number != null ? v.number : "?"}</b><span>${date}</span><em id="settingsVersionLive"></em></div>`;
+}
+
+async function checkLiveVersion() {
+  const mine = window.SITE_VERSION && window.SITE_VERSION.number;
+  try {
+    const text = await (await fetch(`version.js?_v=${Date.now()}`, { cache: "no-store" })).text();
+    const live = Number((text.match(/number:\s*(\d+)/) || [])[1]);
+    const el = document.getElementById("settingsVersionLive");
+    if (!el || !live || mine == null) return;
+    el.textContent = live > mine ? `Version ${live} is live - refresh` : "Up to date";
+    el.className = live > mine ? "behind" : "ok";
+  } catch (e) { /* offline: the version alone */ }
+}
+
 function showSettings(afterSaveCallback) {
   document.getElementById("settingsBtn").classList.add("active");
   const cfg = getConfig();
@@ -254,6 +278,7 @@ function showSettings(afterSaveCallback) {
   app.innerHTML = `
     <div class="center-box" style="position:relative">
       ${closeBtnHtml}
+      ${siteVersionHtml()}
       <h2>Setup</h2>
       <p style="color:var(--muted);font-size:0.85rem">
         These are stored in this browser and with your account (in your own
@@ -261,8 +286,7 @@ function showSettings(afterSaveCallback) {
         you sign in) - never written into the site's files, so it's safe to
         keep them in a public repo.
       </p>
-      <label>SIMKL Client ID &mdash; optional, only to copy episodes marked watched on SIMKL
-        (e.g. by the Emby plugin) into your list &mdash; AUTH V2
+      <label>SIMKL Client ID &mdash; optional, only for episodes' air times &mdash; AUTH V2
         (<a href="https://simkl.com/settings/developer/new/" target="_blank">create an app</a>,
         type &ldquo;TV, devices &amp; command line&rdquo;)</label>
       <input type="text" id="clientIdV2Input" value="${cfg.clientIdV2}">
@@ -382,6 +406,7 @@ function showSettings(afterSaveCallback) {
       showSettings(afterSaveCallback);
     }
   };
+  checkLiveVersion();
   if (canCancel) {
     document.getElementById("settingsCloseBtn").onclick = returnToPreviousView;
   }

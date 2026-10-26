@@ -1249,6 +1249,16 @@
   }
   .center-box label { display: block; text-align: left; font-size: 0.8rem; color: var(--muted); margin-top: 10px; }
   .center-box code { background: var(--bg); padding: 2px 6px; border-radius: 4px; }
+  /* Settings: the site version in the top-left corner (siteVersionHtml). */
+  .settings-version {
+    position: absolute; top: 14px; left: 16px; display: flex; flex-direction: column; align-items: flex-start;
+    text-align: left; font-size: 0.72rem; line-height: 1.35; color: var(--muted); font-variant-numeric: tabular-nums;
+  }
+  .settings-version b { color: var(--gold); font-size: 0.85rem; }
+  .settings-version em { font-style: normal; font-weight: 600; }
+  .settings-version em.ok { color: #4fc28a; }
+  body.light-theme .settings-version em.ok { color: #2f7d4f; }
+  .settings-version em.behind { color: var(--danger); }
   .pin-code {
     font-size: 2rem; letter-spacing: 6px; font-weight: 700; color: var(--accent);
     margin: 16px 0; font-family: monospace;
