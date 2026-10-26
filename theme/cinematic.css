@@ -25,6 +25,8 @@ body:not(.light-theme) .list-panel .list-panel-header,
 body:not(.light-theme) .series-panel .series-panel-title,
 body:not(.light-theme):not(.panels-scroll) .list-panel .list-panel-header,
 body:not(.light-theme):not(.panels-scroll) .series-panel .series-panel-title {
+  /* (Any older title icon, drawn in --accent2 with --card cut-outs, in ink too.) */
+  --accent2: var(--cine-ink); --card: #f6c21c;
   background: url("brush-paint.webp") center / 100% 100% no-repeat;
   border: none; border-radius: 0; padding: 12px 44px 12px 30px; margin-left: -12px; gap: 13px;
   overflow: visible;
