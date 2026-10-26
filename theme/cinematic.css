@@ -46,7 +46,7 @@ body:not(.light-theme):not(.panels-scroll) .series-panel .series-panel-title { f
 /* The solid title icons (titleIcons in app.js), in the title's ink. */
 body:not(.light-theme) .title-icon-usual { display: none; }
 body:not(.light-theme) .title-icon-cine { display: inline-flex; color: var(--cine-ink); }
-body:not(.light-theme) .title-icon-cine svg { width: 21px; height: 21px; }
+body:not(.light-theme) .title-icon-cine svg { width: 24px; height: 24px; }
 
 /* Airing Next: a strip of gold film behind the rest of its title row,
    fading in after the title and out before the page counter. */
