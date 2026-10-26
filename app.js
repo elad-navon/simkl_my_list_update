@@ -39,7 +39,7 @@ const ICON_POSTER_SHAPE = `<svg viewBox="0 0 24 24" width="23" height="23" fill=
 const ICON_BANNER_SHAPE = `<svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect></svg>`;
 // The "simkl_" prefix on several keys below is historical; they're kept so
 // existing settings and preferences carry over.
-const LS_CLIENT_ID = "simkl_client_id"; // SIMKL sign-in: only for the auto-marking bridge
+const LS_CLIENT_ID = "simkl_client_id"; // SIMKL sign-in: only for air times (libraryAirTimes)
 const LS_TMDB_KEY = "tmdb_api_key";
 const LS_TOKEN = "simkl_access_token";
 // AUTH V2 (see the "SIMKL auth" section): its own client id, plus one JSON
@@ -875,12 +875,6 @@ function ensureLibrary() {
     window.addEventListener("online", () => {
       if (library.store && library.store.status().pending) library.store.retry().then(afterLibraryRetry);
     });
-    // SIMKL auto-marking (see runSimklBridge): every 15 minutes while open,
-    // and whenever the page comes back to the foreground.
-    setInterval(() => runSimklBridge(), 15 * 60 * 1000);
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") runSimklBridge();
-    });
   }
 }
 
@@ -952,10 +946,6 @@ async function openLibrary() {
       library.backend.watchMeta("emby", data => { embyNow = data; syncWatchingOrder() || applyNowWatching(); });
       library.backend.watchMeta("embyMarked", onEmbyMarked);
     }
-    library.bridge = SimklBridge.createSimklBridge({
-      core: LibraryCore, store, adapter: library.adapter, backend: library.backend,
-      simkl: { get: (path, params) => simklGet(path, null, params) },
-    });
   }
   library.adapter.reset();
   return true;
@@ -1159,40 +1149,10 @@ function syncEpisodeAlerts(rows) {
   episodeAlertsModule.then(m => m.sync(rows || [])).catch(e => console.warn("Episode alerts:", e && e.message));
 }
 
-// SIMKL as an inbox only: whatever marks episodes watched on SIMKL (the Emby
-// plugin) is copied into the library - see simkl-bridge.js for the rules.
-// Runs only while this browser is still connected to SIMKL; without that the
-// library simply works on its own. At most one pass at a time, and not more
-// than once every 30 seconds (each refresh starts one).
-let simklBridgeRunning = false;
-let simklBridgeLastRun = 0;
-async function runSimklBridge() {
-  if (!library || !library.bridge || simklBridgeRunning) return;
-  if (Date.now() - simklBridgeLastRun < 30000) return;
-  simklBridgeRunning = true;
-  simklBridgeLastRun = Date.now();
-  try {
-    if (!(await currentToken())) return;
-    const r = await library.bridge.run();
-    const changes = r.added + r.created.length + r.moved.length;
-    if (r.problems.length) showToast(`SIMKL auto-marking: ${r.problems[0]}`, true);
-    if (changes) {
-      const parts = [];
-      if (r.added) parts.push(`${r.added} episode${r.added === 1 ? "" : "s"} marked watched`);
-      if (r.created.length) parts.push(`${r.created.length} show${r.created.length === 1 ? "" : "s"} added`);
-      if (r.moved.length) parts.push(`${r.moved.length} moved to Watching`);
-      showToast(`From SIMKL: ${parts.join(", ")}`);
-      main();
-    }
-  } catch (err) {
-    // SIMKL unreachable or the daily limit reached: the next pass tries again.
-    // A sign-in that expired needs the user, so that one is shown.
-    if (!simklConnected()) showToast(err.message, true);
-    else console.warn("SIMKL auto-marking skipped:", err.message);
-  } finally {
-    simklBridgeRunning = false;
-  }
-}
+// Watches marked on SIMKL never reach the library: the auto-marking bridge
+// (simkl-bridge.js) no longer runs here - a mark made on SIMKL's own site
+// can't be told from one its Emby plugin made. Emby marks come straight in
+// through tools/emby-bridge.
 
 function showLibrarySignIn() {
   app.innerHTML = `
@@ -6381,7 +6341,6 @@ async function main() {
       renderRows(rows, totalEps, totalMinutes, recentlyWatched, planToWatchRows, airingNextRows);
       fadeInPage();
     }
-    runSimklBridge();
     const missing = library.adapter.failures();
     if (missing.length) showToast(`Couldn't load the episode list of ${missing.length} show${missing.length === 1 ? "" : "s"} (${missing.slice(0, 3).join(", ")}${missing.length > 3 ? "…" : ""}) - try Refresh later.`, true);
     autoStartAiredPremieres(planToWatchRows);
