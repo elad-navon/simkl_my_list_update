@@ -172,3 +172,6 @@ body:not(.light-theme) .list-panel--airing .list-panel-header-row::before {
 }
 body:not(.light-theme) .series-panel-header > *,
 body:not(.light-theme) .list-panel--airing .list-panel-header-row > * { position: relative; z-index: 1; }
+/* Airing Next's row is narrower: its window runs wider, from just after
+   the title almost to the page counter. */
+body:not(.light-theme) .list-panel--airing .list-panel-header-row::before { left: 26%; width: 48%; background-position: left -10px top -10px; }
