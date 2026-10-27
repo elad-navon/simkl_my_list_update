@@ -133,3 +133,18 @@ body:not(.light-theme) .list-rows-paged .list-row:not(:has(.nw-overlay, .air-dot
    for its icons, so the blue is named here). */
 body:not(.light-theme) .series-panel-stat-clickable:hover .series-panel-stat .num,
 body:not(.light-theme) .series-panel-stat-clickable:hover .series-panel-stat .label { color: #7dd3fc; text-decoration: underline; }
+
+/* The box on the left in the titles' face (Ready to Watch's): the name,
+   the slogan, the buttons' names and the greeting - condensed, heavy,
+   italic. */
+body:not(.light-theme) .topbar .logo-text .logo-tv,
+body:not(.light-theme) .topbar .logo-accent,
+body:not(.light-theme) .topbar .topbar-slogan,
+body:not(.light-theme) .topbar .nav-label,
+body:not(.light-theme) .topbar .profile-greeting-hi {
+  font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif; font-style: italic; font-weight: 800;
+  letter-spacing: 0.01em; text-transform: none;
+}
+body:not(.light-theme) .topbar .logo-text .logo-tv,
+body:not(.light-theme) .topbar .logo-accent { font-size: 1.8rem; }
+body:not(.light-theme) .topbar .nav-label { font-size: 1.1rem; }
