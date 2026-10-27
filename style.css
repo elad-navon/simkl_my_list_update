@@ -2144,9 +2144,23 @@
   body.phone-portrait .profile-greeting-hi { display: none; }
   body.phone-portrait .profile-greeting-inline { margin-left: 2px; }
   body.phone-portrait .profile-pic-small { width: 40px; height: 40px; }
-  /* Ready to Watch: a card a little narrower than the screen, so the next
-     one shows at the edge - the cue that the row swipes. */
-  body.phone-portrait .card.carousel-card, body.phone-portrait .card.carousel-card.banner-mode { width: 78vw; max-width: 340px; }
+  /* Ready to Watch: exactly one card across the panel, snapping one at a
+     time, like the bottom panels below. */
+  body.phone-portrait .carousel-track { container-type: inline-size; }
+  /* Thinner side margins round and inside the panels, so the cards get the
+     width. */
+  body.phone-portrait .main-content { padding-left: 8px; padding-right: 8px; }
+  body.phone-portrait .series-panel, body.phone-portrait .list-panel { padding-left: 8px; padding-right: 8px; }
+  body.phone-portrait .card.carousel-card, body.phone-portrait .card.carousel-card.banner-mode {
+    width: 100cqw; max-width: none; box-sizing: border-box; scroll-snap-stop: always;
+  }
+  /* The three bottom panels: exactly one card across the panel - a whole
+     banner, snapping one at a time, no edge of the next one showing; the
+     menu button stays pinned just under the (now taller) banner. */
+  body.phone-portrait .list-rows-paged, body.phone-portrait .list-rows-scroll { scroll-snap-type: x mandatory; container-type: inline-size; }
+  body.phone-portrait .list-row { --row-w: 100cqw; width: var(--row-w); scroll-snap-align: start; scroll-snap-stop: always; }
+  body.phone-portrait .plan-menu-btn { top: calc(var(--row-w) * 9 / 16 + 8px); }
+  body.phone-portrait .list-rows-paged .plan-menu-btn { top: calc(var(--row-w) * 9 / 16 + 16px); }
 
   /* Sideways: one slim header row - the logo, the panels as tabs, Search and
      Settings - and under it only the chosen tab's panel (app.js: showPhoneTab),
