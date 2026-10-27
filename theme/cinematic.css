@@ -127,3 +127,9 @@ body:not(.light-theme) .card.framed:not(:has(.nw-overlay, .air-dot)),
 body:not(.light-theme) .list-rows-paged .list-row:not(:has(.nw-overlay, .air-dot)) {
   filter: drop-shadow(0 0 2px rgba(251, 191, 36, 0.7)) drop-shadow(0 0 8px rgba(251, 191, 36, 0.3));
 }
+
+/* "10 Shows" opens the shows window: on hover it turns blue, number and
+   word, as the bottom panels' counts do (the strip sets --accent2 to gold
+   for its icons, so the blue is named here). */
+body:not(.light-theme) .series-panel-stat-clickable:hover .series-panel-stat .num,
+body:not(.light-theme) .series-panel-stat-clickable:hover .series-panel-stat .label { color: #7dd3fc; text-decoration: underline; }
