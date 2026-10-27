@@ -151,3 +151,15 @@ body:not(.light-theme) .topbar .nav-label { font-size: 1.1rem; }
 /* (The gold tiles are taller than the plain icons: a little less padding
    round each button, so the greeting keeps its room at the box's foot.) */
 body:not(.light-theme).equal-panels:not(.panels-scroll) .topbar .nav-item { padding-top: 6px; padding-bottom: 6px; }
+
+/* The logo ("TV Series" and its play mark) on a gold brush stroke like the
+   box titles, in their ink - the stroke drawn round it (::before), so the
+   box keeps its size. */
+body:not(.light-theme) .topbar .navbar-logo { position: relative; isolation: isolate; padding: 4px 22px 4px 14px; }
+body:not(.light-theme) .topbar .navbar-logo::before {
+  content: ""; position: absolute; inset: -6px -10px -6px -8px; z-index: -1; pointer-events: none;
+  background: url("brush-paint.webp") center / 100% 100% no-repeat;
+}
+body:not(.light-theme) .topbar .logo-icon polygon { fill: var(--cine-ink); }
+body:not(.light-theme) .topbar .logo-text .logo-tv,
+body:not(.light-theme) .topbar .logo-accent { color: var(--cine-ink); -webkit-text-stroke: 0; text-shadow: none; }
