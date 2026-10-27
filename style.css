@@ -1257,6 +1257,14 @@
   }
   .center-box label { display: block; text-align: left; font-size: 0.8rem; color: var(--muted); margin-top: 10px; }
   .center-box code { background: var(--bg); padding: 2px 6px; border-radius: 4px; }
+  /* The settings box (the one with the error line) fits a screen without
+     scrolling: wider, so the long labels and the note take one line less
+     each, and a little tighter round the fields. */
+  .center-box:has(#settingsError) { max-width: 620px; padding: 22px 28px; }
+  .center-box:has(#settingsError) h2 { margin: 0 0 6px; }
+  .center-box:has(#settingsError) > p { margin: 0 0 4px; }
+  .center-box:has(#settingsError) label { margin-top: 7px; }
+  .center-box:has(#settingsError) input { padding: 7px 12px; margin: 5px 0; }
   /* Settings: the site version in the top-left corner (siteVersionHtml). */
   .settings-version {
     position: absolute; top: 14px; left: 16px; display: flex; flex-direction: column; align-items: flex-start;
