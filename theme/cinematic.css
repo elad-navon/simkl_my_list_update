@@ -9,7 +9,8 @@ body:not(.light-theme) {
   --cine-ink: #14100a;           /* text and icons on gold */
   --cine-box: rgba(12, 19, 28, 0.84);
   /* Gold film strips and light streaks in the corners, dark in the middle. */
-  background: #05070a url("backdrop.webp") center / cover no-repeat fixed;
+  /* (A dark veil over it, so its gold stays in the background.) */
+  background: linear-gradient(rgba(5, 7, 10, 0.5), rgba(5, 7, 10, 0.5)) fixed, #05070a url("backdrop.webp") center / cover no-repeat fixed;
 }
 
 /* The boxes: dark glass (no blur - it costs every frame). */
@@ -165,7 +166,7 @@ body:not(.light-theme) .list-panel--airing .list-panel-header-row::before {
      where its film strips are - the same piece whatever the row's width.) */
   content: ""; position: absolute; top: 0; bottom: 0; left: 30%; width: 24%; z-index: 0; pointer-events: none;
   background: url("backdrop.webp") left -10px top -14px / 1100px auto no-repeat;
-  opacity: 0.6;
+  opacity: 0.38;
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent);
   mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent);
 }
