@@ -2187,6 +2187,21 @@
   }
   body.phone-landscape .phone-tabs button[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: #14100a; font-weight: 700; }
   body.phone-landscape .phone-tabs button { display: flex; align-items: center; gap: 7px; padding: 0 6px 0 14px; min-height: 40px; font-size: 0.86rem; }
+  /* The full names in the titles' condensed face, on one line; where that
+     doesn't fit (app.js: fitPhoneTabs, .two-line), each on two lines. */
+  body.phone-landscape .phone-tabs { gap: 6px; }
+  body.phone-landscape .phone-tabs button {
+    font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif; font-weight: 700; font-size: 1.08rem;
+    letter-spacing: 0.01em; padding: 0 5px 0 12px; gap: 6px;
+  }
+  body.phone-landscape .phone-tabs button[aria-pressed="true"] { font-weight: 700; }
+  .phone-tab-label br { display: none; }
+  body.phone-landscape .phone-tabs.two-line .phone-tab-label br { display: inline; }
+  body.phone-landscape .phone-tabs.two-line button {
+    font-family: "Work Sans", "Segoe UI", sans-serif; font-weight: 600; font-size: 0.78rem; letter-spacing: 0;
+    line-height: 1.08; text-align: left; min-height: 46px; border-radius: 14px; padding: 0 6px 0 12px;
+  }
+  body.phone-landscape .phone-tabs.two-line button[aria-pressed="true"] { font-weight: 700; }
   body.phone-landscape .phone-tab-count {
     min-width: 1.6em; padding: 2px 7px; border-radius: 999px; box-sizing: border-box; text-align: center;
     background: var(--border); color: var(--gold); font-weight: 700; font-size: 0.8rem; font-variant-numeric: tabular-nums;

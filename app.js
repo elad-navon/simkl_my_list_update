@@ -6493,9 +6493,10 @@ function applyPhoneLayout() {
 }
 
 // Sideways, the panels are tabs in the header: one panel at a time, across
-// the whole screen. The last one picked is remembered on this device. One
-// word each, so the four fit across the header beside the logo and buttons.
-const PHONE_TABS = [["ready", "Ready"], ["airing", "Airing"], ["watched", "Watched"], ["plan", "Plan"]];
+// the whole screen. The last one picked is remembered on this device. The
+// full names, in the titles' condensed face; where the four still don't fit
+// across, each name goes on two lines (the <br>, shown only then - fitPhoneTabs).
+const PHONE_TABS = [["ready", "Ready to <br>Watch"], ["airing", "Airing <br>Next"], ["watched", "Recently <br>Watched"], ["plan", "Plan to <br>Watch"]];
 const LS_PHONE_TAB = "phone_tab";
 function phoneTab() {
   const tab = localStorage.getItem(LS_PHONE_TAB);
@@ -6507,7 +6508,7 @@ function ensurePhoneTabs() {
   nav.id = "phoneTabs";
   nav.className = "phone-tabs";
   nav.setAttribute("aria-label", "Panels");
-  nav.innerHTML = PHONE_TABS.map(([key, label]) => `<button type="button" data-tab="${key}">${label}</button>`).join("");
+  nav.innerHTML = PHONE_TABS.map(([key, label]) => `<button type="button" data-tab="${key}"><span class="phone-tab-label">${label}</span></button>`).join("");
   nav.onclick = e => {
     const btn = e.target.closest("button[data-tab]");
     if (!btn) return;
@@ -6535,7 +6536,18 @@ function updatePhoneTabCounts() {
     }
     tag.textContent = String(counts[btn.dataset.tab]);
   });
+  fitPhoneTabs();
 }
+// One line each if all four fit across, else two (measured again once the
+// condensed face has loaded - a fallback face is wider).
+function fitPhoneTabs() {
+  const nav = document.getElementById("phoneTabs");
+  if (!nav || !document.body.classList.contains("phone-landscape")) return;
+  nav.classList.remove("two-line");
+  nav.classList.toggle("two-line", nav.scrollWidth > nav.clientWidth + 1);
+}
+if (document.fonts) document.fonts.ready.then(fitPhoneTabs);
+window.addEventListener("resize", fitPhoneTabs);
 function showPhoneTab() {
   updatePhoneTabCounts();
   const tab = phoneTab();
