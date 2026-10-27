@@ -6419,6 +6419,16 @@ function updateTopbarClock() {
 }
 updateTopbarClock();
 setInterval(updateTopbarClock, 1000);
+
+// A poster/thumbnail's loading pulse stops once its image is in (or has
+// failed) - see .loaded in style.css. load/error don't bubble, so caught
+// on the way down.
+const markThumbLoaded = e => {
+  const t = e.target;
+  if (t.tagName === "IMG" && (t.classList.contains("poster") || t.classList.contains("list-thumb"))) t.classList.add("loaded");
+};
+document.addEventListener("load", markThumbLoaded, true);
+document.addEventListener("error", markThumbLoaded, true);
 setInterval(tickAirCountdowns, 30000);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") return;

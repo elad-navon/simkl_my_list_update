@@ -611,6 +611,12 @@
     50% { background-color: #32485e; }
   }
   .poster { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; background: #22303e; display: block; animation: thumb-loading-pulse 1.6s ease-in-out infinite; }
+  /* Hidden or not, a running pulse repaints the image (and any glow or
+     blur over it) every frame - stopped once it has loaded or failed
+     (.loaded, set in app.js), and never run on a letter placeholder. */
+  .poster.loaded:not(.flip-in):not(.flip-in-rev),
+  .list-thumb.loaded:not(.flip-in):not(.flip-in-rev),
+  .list-thumb.placeholder { animation: none; }
   .poster.banner-img { aspect-ratio: 16 / 9; }
   .poster.placeholder {
     display: flex; align-items: center; justify-content: center;
