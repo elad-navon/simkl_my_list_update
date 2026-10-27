@@ -47,17 +47,6 @@ body:not(.light-theme) .title-icon-usual { display: none; }
 body:not(.light-theme) .title-icon-cine { display: inline-flex; color: var(--cine-ink); }
 body:not(.light-theme) .title-icon-cine svg { width: 24px; height: 24px; }
 
-/* Airing Next: a strip of gold film behind the rest of its title row,
-   fading in after the title and out before the page counter. */
-body:not(.light-theme) .list-panel--airing .list-panel-header-row { position: relative; }
-body:not(.light-theme) .list-panel--airing .list-panel-header-row::before {
-  content: ""; position: absolute; inset: 2px 0; z-index: 0; pointer-events: none;
-  background: url("strip.webp") center / cover no-repeat; border-radius: 6px;
-  -webkit-mask-image: linear-gradient(90deg, transparent 18%, #000 32%, #000 58%, transparent 74%);
-  mask-image: linear-gradient(90deg, transparent 18%, #000 32%, #000 58%, transparent 74%);
-}
-body:not(.light-theme) .list-panel--airing .list-panel-header-row > * { position: relative; z-index: 1; }
-
 /* ---- Ready to Watch's stats: a framed strip, gold icons, slanted rules
    between them. */
 body:not(.light-theme) .series-panel-header-left {
