@@ -8,9 +8,19 @@
 body:not(.light-theme) {
   --cine-ink: #14100a;           /* text and icons on gold */
   --cine-box: rgba(12, 19, 28, 0.84);
-  /* Gold film strips and light streaks in the corners, dark in the middle. */
-  /* (A dark veil over it, so its gold stays in the background.) */
-  background: linear-gradient(rgba(5, 7, 10, 0.5), rgba(5, 7, 10, 0.5)) fixed, #05070a url("backdrop.webp") center / cover no-repeat fixed;
+  background: #05070a;
+}
+/* The backdrop (gold film strips and light streaks in the corners, dark in
+   the middle) on a layer of its own, fixed behind everything, with a dark
+   veil over it so its gold stays in the background. Not a "fixed"
+   background on the page: with that, the browser repainted the whole
+   screen - backdrop, glows and all - for every small movement on it (the
+   now-watching bars, a pulsing dot), and kept the PC busy. A fixed layer
+   is painted once and only moved. */
+body:not(.light-theme)::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(rgba(5, 7, 10, 0.5), rgba(5, 7, 10, 0.5)), url("backdrop.webp") center / cover no-repeat;
+  will-change: transform;
 }
 
 /* The boxes: dark glass (no blur - it costs every frame). */
