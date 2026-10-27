@@ -146,5 +146,8 @@ body:not(.light-theme) .topbar .profile-greeting-hi {
   letter-spacing: 0.01em; text-transform: none;
 }
 body:not(.light-theme) .topbar .logo-text .logo-tv,
-body:not(.light-theme) .topbar .logo-accent { font-size: 1.8rem; }
+body:not(.light-theme) .topbar .logo-accent { font-size: 1.7rem; line-height: 1; }
 body:not(.light-theme) .topbar .nav-label { font-size: 1.1rem; }
+/* (The gold tiles are taller than the plain icons: a little less padding
+   round each button, so the greeting keeps its room at the box's foot.) */
+body:not(.light-theme).equal-panels:not(.panels-scroll) .topbar .nav-item { padding-top: 6px; padding-bottom: 6px; }
