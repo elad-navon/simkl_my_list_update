@@ -175,3 +175,14 @@ body:not(.light-theme) .list-panel--airing .list-panel-header-row > * { position
 /* Airing Next's row is narrower: its window runs wider, from just after
    the title almost to the page counter. */
 body:not(.light-theme) .list-panel--airing .list-panel-header-row::before { left: 26%; width: 48%; background-position: left -10px top -10px; }
+
+/* A thin gold rule between the logo and slogan and the buttons under them,
+   drawn in the gap between them (no box grows). */
+body:not(.light-theme).equal-panels:not(.panels-scroll) .topbar-left { position: relative; }
+body:not(.light-theme).equal-panels:not(.panels-scroll) .topbar-left::after {
+  content: ""; position: absolute; left: 4px; right: 4px; bottom: -8px; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(251, 191, 36, 0.6) 15%, rgba(251, 191, 36, 0.6) 85%, transparent);
+}
+@media (max-height: 860px) {
+  body:not(.light-theme).equal-panels:not(.panels-scroll) .topbar-left::after { bottom: -5px; }
+}
