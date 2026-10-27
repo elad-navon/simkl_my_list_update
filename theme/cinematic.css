@@ -67,20 +67,12 @@ body:not(.light-theme) .series-panel-header-left {
   background: rgba(5, 8, 12, 0.55);
 }
 body:not(.light-theme) .series-panel-header-left svg { width: 19px; height: 19px; }
-/* Its solid icons (titleIcons' kind) in gold, and the numbers and words in
-   the titles' condensed face: gold numbers, white words, upright. */
+/* Its solid icons (titleIcons' kind) in gold; the numbers and words just
+   like the bottom panels' show counts ("26 Shows") - upright, the label
+   not italic. */
 body:not(.light-theme) .series-panel-header-left .title-icon-cine { color: var(--gold); }
 body:not(.light-theme) .series-panel-header-left .series-panel-stat-group { gap: 7px; }
-body:not(.light-theme) .series-panel-stat .num,
-body:not(.light-theme) .series-panel-stat .label,
-body:not(.light-theme).equal-panels:not(.panels-scroll) .series-panel-stat .num,
-body:not(.light-theme).equal-panels:not(.panels-scroll) .series-panel-stat .label {
-  font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif; font-style: normal;
-  font-size: 1.25rem; line-height: 1; letter-spacing: 0.02em; text-transform: none;
-  -webkit-text-stroke: 0; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-}
-body:not(.light-theme) .series-panel-stat .num { color: var(--gold); font-weight: 800; }
-body:not(.light-theme) .series-panel-stat .label { color: #ffffff; font-weight: 700; }
+body:not(.light-theme) .series-panel-stat .label { font-style: normal; font-weight: 800; }
 body:not(.light-theme) .stats-divider { background: rgba(251, 191, 36, 0.55); transform: skewX(-22deg); }
 
 
@@ -135,16 +127,3 @@ body:not(.light-theme) .card.framed:not(:has(.nw-overlay, .air-dot)),
 body:not(.light-theme) .list-rows-paged .list-row:not(:has(.nw-overlay, .air-dot)) {
   filter: drop-shadow(0 0 2px rgba(251, 191, 36, 0.7)) drop-shadow(0 0 8px rgba(251, 191, 36, 0.3));
 }
-/* (Half a pixel less padding than the plain strip, for the condensed
-   face's taller line: the strip stays 35px, like the titles.) */
-body:not(.light-theme):not(.panels-scroll) .series-panel .series-panel-header-left,
-body:not(.light-theme).equal-panels:not(.panels-scroll) .series-panel .series-panel-header-left { padding-top: 6.5px; padding-bottom: 6.5px; }
-
-/* The bottom panels' show counts ("26 Shows") in the same face as Ready to
-   Watch's stats: condensed, upright, a gold number and a white word. */
-body:not(.light-theme) .list-panel .list-panel-count {
-  font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif; font-style: normal; font-weight: 700;
-  font-size: 1.25rem; line-height: 1; letter-spacing: 0.02em; color: #ffffff;
-  -webkit-text-stroke: 0; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-}
-body:not(.light-theme) .list-panel .list-panel-count .list-panel-count-num { font-weight: 800; color: var(--gold); }
