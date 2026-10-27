@@ -3652,6 +3652,21 @@ window.addEventListener("popstate", () => {
   if (activeModalClose) history.pushState({ modal: true }, "");
 });
 
+// The Android app's back button (android-app MainActivity) asks this first
+// and closes the app only on false: it steps back out of whatever is open -
+// a card's menu, a show's details or episodes back to the search / list
+// they came from, a modal (through history, as above), Settings or
+// Clean up - the way that screen's own X or Back button does.
+window.appBackPressed = () => {
+  if (document.getElementById("cardMenuDropdown")) { closeCardMenu(); return true; }
+  const innerBack = activeModalClose && document.querySelector("[data-ep-back], #detailBackBtn");
+  if (innerBack) { innerBack.click(); return true; }
+  if (activeModalClose) { history.back(); return true; }
+  const screenClose = document.getElementById("cleanupCloseBtn") || document.getElementById("settingsCloseBtn");
+  if (screenClose) { screenClose.click(); return true; }
+  return false;
+};
+
 // Per-episode breakdown of a top-card show's remaining watch time -
 // opened by clicking the "Xh Ym left" line. episodesLeft was already
 // computed alongside the total (see estimateRemainingMinutes), so this
