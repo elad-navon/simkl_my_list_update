@@ -4784,6 +4784,12 @@ const CINE_NAV_ICONS = {
   stats: `<svg viewBox="0 0 24 24" width="23" height="23" fill="currentColor"><rect x="2.5" y="12" width="5" height="9.5" rx="1.5"></rect><rect x="9.5" y="3.5" width="5" height="18" rx="1.5"></rect><rect x="16.5" y="8" width="5" height="13.5" rx="1.5"></rect></svg>`,
   settings: `<svg viewBox="0 0 24 24" width="23" height="23"><path fill="currentColor" fill-rule="evenodd" d="M19.94 9.96 L22.46 10.28 L22.46 13.72 L19.94 14.04 L19.06 16.17 L20.61 18.18 L18.18 20.61 L16.17 19.06 L14.04 19.94 L13.72 22.46 L10.28 22.46 L9.96 19.94 L7.83 19.06 L5.82 20.61 L3.39 18.18 L4.94 16.17 L4.06 14.04 L1.54 13.72 L1.54 10.28 L4.06 9.96 L4.94 7.83 L3.39 5.82 L5.82 3.39 L7.83 4.94 L9.96 4.06 L10.28 1.54 L13.72 1.54 L14.04 4.06 L16.17 4.94 L18.18 3.39 L20.61 5.82 L19.06 7.83Z M15.4 12a3.4 3.4 0 1 0-6.8 0 3.4 3.4 0 1 0 6.8 0z"></path></svg>`,
 };
+// ...and Ready to Watch's three stats, solid like the rest.
+const CINE_STAT_ICONS = {
+  tv: `<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" fill-rule="evenodd"><path d="M8.2 1.6l3.8 3.2 3.8-3.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path><path d="M4 5.4h16A2.5 2.5 0 0 1 22.5 7.9v10.2a2.5 2.5 0 0 1-2.5 2.5H4a2.5 2.5 0 0 1-2.5-2.5V7.9A2.5 2.5 0 0 1 4 5.4zM4.3 8.1v9.8h15.4V8.1z"></path><polygon points="10,10.2 10,15.8 14.8,13"></polygon><rect x="6.5" y="21.3" width="11" height="1.9" rx="0.95"></rect></svg>`,
+  stack: `<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><polygon points="12 1.8 22 7.4 12 13 2 7.4"></polygon><polyline points="2.6 12 12 17.2 21.4 12" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></polyline><polyline points="2.6 16.6 12 21.8 21.4 16.6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>`,
+  clock: `<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" fill-rule="evenodd"><path d="M12 1.5a10.5 10.5 0 1 1 0 21 10.5 10.5 0 0 1 0-21zM11 5.4h2v6.1l3.9 2.3-1 1.7-4.9-2.9z"></path></svg>`,
+};
 const withCineIcon = (usual, cineSvg) =>
   `<span class="title-icon-usual">${usual}</span><span class="title-icon-cine">${cineSvg}</span>`;
 const titleIcons = (usual, cine) => withCineIcon(usual, CINE_TITLE_ICONS[cine]);
@@ -6204,17 +6210,17 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
         <div class="list-panel-header series-panel-title">${titleIcons(READY_ICON_SVG, "ready")}<span>Ready to Watch</span></div>
         <div class="series-panel-header-left">
           <button type="button" class="series-panel-stat-group series-panel-stat-clickable" onclick="openPanelShowsModal('main')">
-            ${STAT_TV_ICON_SVG}
+            ${withCineIcon(STAT_TV_ICON_SVG, CINE_STAT_ICONS.tv)}
             <div class="series-panel-stat"><span class="num">${rows.length}</span><span class="label">Shows</span></div>
           </button>
           <div class="stats-divider"></div>
           <div class="series-panel-stat-group">
-            ${STAT_STACK_ICON_SVG}
+            ${withCineIcon(STAT_STACK_ICON_SVG, CINE_STAT_ICONS.stack)}
             <div class="series-panel-stat"><span class="num">${totalRemainingEps}</span><span class="label">Episodes Left</span></div>
           </div>
           <div class="stats-divider"></div>
           <div class="series-panel-stat-group">
-            ${STAT_CLOCK_ICON_SVG}
+            ${withCineIcon(STAT_CLOCK_ICON_SVG, CINE_STAT_ICONS.clock)}
             <div class="series-panel-stat"><span class="num">${totalHours}h ${totalMins}m</span><span class="label">Watch Time Left</span></div>
           </div>
         </div>
