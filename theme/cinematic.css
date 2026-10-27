@@ -165,6 +165,10 @@ body:not(.light-theme) .topbar .navbar-logo::before {
   content: ""; position: absolute; inset: -6px -10px -6px -8px; z-index: -1; pointer-events: none;
   background: url("brush-paint.webp") center / 100% 100% no-repeat;
 }
+/* Sideways on a phone only the play mark shows: the stroke drawn just
+   round it, not spreading over the tabs. */
+body.phone-landscape:not(.light-theme) .topbar .navbar-logo { padding: 2px 10px 2px 8px; }
+body.phone-landscape:not(.light-theme) .topbar .navbar-logo::before { inset: -4px -6px; }
 body:not(.light-theme) .topbar .logo-icon polygon { fill: var(--cine-ink); }
 body:not(.light-theme) .topbar .logo-text .logo-tv,
 body:not(.light-theme) .topbar .logo-accent { color: var(--cine-ink); -webkit-text-stroke: 0; text-shadow: none; }

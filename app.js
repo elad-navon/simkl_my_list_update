@@ -6493,8 +6493,9 @@ function applyPhoneLayout() {
 }
 
 // Sideways, the panels are tabs in the header: one panel at a time, across
-// the whole screen. The last one picked is remembered on this device.
-const PHONE_TABS = [["ready", "Ready to Watch"], ["airing", "Airing Next"], ["watched", "Recently Watched"], ["plan", "Plan to Watch"]];
+// the whole screen. The last one picked is remembered on this device. One
+// word each, so the four fit across the header beside the logo and buttons.
+const PHONE_TABS = [["ready", "Ready"], ["airing", "Airing"], ["watched", "Watched"], ["plan", "Plan"]];
 const LS_PHONE_TAB = "phone_tab";
 function phoneTab() {
   const tab = localStorage.getItem(LS_PHONE_TAB);

@@ -2177,7 +2177,9 @@
   body.phone-landscape .nav-item.icon-only { width: 42px; height: 42px; padding: 0; gap: 0; justify-content: center; }
   body.phone-landscape .nav-item.icon-only .nav-icon, body.phone-portrait .nav-item.icon-only .nav-icon { display: flex; align-items: center; justify-content: center; }
   .phone-tabs { display: none; }
-  body.phone-landscape .phone-tabs { display: flex; gap: 10px; flex: 1 1 auto; justify-content: center; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  /* (safe center: if they ever overflow, they scroll from the first tab
+     instead of the first one being cut off at the left.) */
+  body.phone-landscape .phone-tabs { display: flex; gap: 10px; flex: 1 1 auto; justify-content: safe center; min-width: 0; overflow-x: auto; scrollbar-width: none; }
   body.phone-landscape .phone-tabs button {
     flex: none; min-height: 36px; padding: 0 14px; border-radius: 999px; cursor: pointer;
     border: 1px solid var(--border); background: var(--card); color: var(--text);
