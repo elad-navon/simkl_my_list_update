@@ -1133,6 +1133,10 @@
     }
     body.equal-panels:not(.panels-scroll):not(.light-theme) .topbar { background: var(--card); }
     body.equal-panels:not(.panels-scroll) .series-panel { margin-left: calc(var(--home-w) + 16px); margin-right: 0; }
+    /* Settings (and sign-in): the box's top in line with the box on the
+       left - no status line above it ("Setup required"), no margin. */
+    body.equal-panels:not(.panels-scroll) .page-header:has(+ #app > .center-box) { display: none; }
+    body.equal-panels:not(.panels-scroll) #app > .center-box { margin-top: 0; }
     body.equal-panels:not(.panels-scroll) .topbar-left { flex-direction: column; align-items: center; gap: 6px; text-align: center; }
     body.equal-panels:not(.panels-scroll) .logo-icon svg { width: 40px; height: 40px; }
     body.equal-panels:not(.panels-scroll) .logo-text .logo-tv, body.equal-panels:not(.panels-scroll) .logo-accent { font-size: 1.6rem; }
