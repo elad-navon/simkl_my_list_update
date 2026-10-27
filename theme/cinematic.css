@@ -1,17 +1,16 @@
-/* The cinematic look (dark theme only): the page on a film-noir backdrop
-   (gold film strips, a reel and a spotlight round its edges), the boxes a
-   little see-through over it, every box title on a gold brush stroke, and
-   the icons gold. Pictures in theme/ (made from the generated originals:
-   the brush strokes keyed off their black, all shrunk to webp). Loaded
-   after style.css; the light theme doesn't use any of it. */
+/* The cinematic look (dark theme only): the page's own dark background,
+   the boxes dark glass edged in softly glowing gold, every box title (and
+   the logo) on a gold brush stroke in dark ink, and the icons solid. The
+   pictures in theme/ were made from the generated originals (the brush
+   stroke keyed off its black, shrunk to webp). Loaded after style.css; the
+   light theme doesn't use any of it. */
 
 body:not(.light-theme) {
   --cine-ink: #14100a;           /* text and icons on gold */
   --cine-box: rgba(12, 19, 28, 0.84);
-  background: #05080c url("backdrop.webp") center / cover no-repeat fixed;
 }
 
-/* The boxes: dark glass over the backdrop (no blur - it costs every frame). */
+/* The boxes: dark glass (no blur - it costs every frame). */
 body:not(.light-theme):not(.phone-landscape) .series-panel,
 body:not(.light-theme):not(.phone-landscape) .list-panel:not(.panel-shows-grid-wrap),
 body:not(.light-theme).equal-panels:not(.panels-scroll) .topbar {
