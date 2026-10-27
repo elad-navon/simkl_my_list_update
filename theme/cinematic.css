@@ -161,11 +161,13 @@ body:not(.light-theme) .series-panel-header,
 body:not(.light-theme) .list-panel--airing .list-panel-header-row { position: relative; }
 body:not(.light-theme) .series-panel-header::before,
 body:not(.light-theme) .list-panel--airing .list-panel-header-row::before {
-  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
-  background: url("backdrop.webp") right 0 top -20px / 1100px auto no-repeat;
-  opacity: 0.55;
-  -webkit-mask-image: linear-gradient(90deg, transparent 22%, #000 34%, #000 52%, transparent 64%);
-  mask-image: linear-gradient(90deg, transparent 22%, #000 34%, #000 52%, transparent 64%);
+  /* (A window over the empty part, showing the backdrop's top-left corner,
+     where its film strips are - the same piece whatever the row's width.) */
+  content: ""; position: absolute; top: 0; bottom: 0; left: 30%; width: 24%; z-index: 0; pointer-events: none;
+  background: url("backdrop.webp") left -10px top -14px / 1100px auto no-repeat;
+  opacity: 0.6;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent);
 }
 body:not(.light-theme) .series-panel-header > *,
 body:not(.light-theme) .list-panel--airing .list-panel-header-row > * { position: relative; z-index: 1; }
