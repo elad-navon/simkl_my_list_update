@@ -819,10 +819,13 @@ function withTvdbAirCheck(airTimes) {
 }
 
 // A show's episodes on TheTVDB from a month back on, as
-// [{ season, episode, date }], cached 12 hours; null if TheTVDB couldn't
+// [{ season, episode, date }], cached 3 hours; null if TheTVDB couldn't
 // answer (not cached - the next load asks again). Five shows at a time:
 // one at a time, a load with 40-odd shows to check waited ~12 seconds.
-const CACHE_TTL_TVDB_EPS_MS = 12 * 60 * 60 * 1000;
+// Only shows with an episode within two weeks are asked, and TheTVDB fixes
+// those dates: a 12-hour copy held Dexter: Resurrection back to a day they
+// had already dropped.
+const CACHE_TTL_TVDB_EPS_MS = 3 * 60 * 60 * 1000;
 const TVDB_EPS_PARALLEL = 5;
 let tvdbEpisodesActive = 0;
 const tvdbEpisodesWaiting = [];
