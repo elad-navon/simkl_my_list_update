@@ -62,6 +62,10 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    // The Airing Next widget: its background sync, and the phone's own sign-in (the same Firebase Auth the
+    // sign-in plugin brings) to read the account with.
+    implementation "androidx.work:work-runtime:2.10.1"
+    implementation "com.google.firebase:firebase-auth:24.0.1"
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"

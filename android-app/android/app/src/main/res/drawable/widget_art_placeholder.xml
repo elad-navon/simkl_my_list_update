@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- In place of a show's picture that isn't on the phone (yet). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient android:angle="315" android:startColor="#FF2B2D38" android:endColor="#FF15161C" />
+    <corners android:radius="7dp" />
+</shape>

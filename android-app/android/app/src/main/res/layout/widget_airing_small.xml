@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Airing Next widget, one row: two text cards. Drawn by AiringWidgetProvider. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/widget_bg">
+
+    <LinearLayout android:id="@+id/content" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal">
+        <FrameLayout android:id="@+id/prev" android:layout_width="34dp" android:layout_height="match_parent"
+            android:contentDescription="Previous">
+            <ImageView android:id="@+id/prev_icon" android:layout_width="32dp" android:layout_height="32dp" android:layout_gravity="center"
+                android:background="@drawable/widget_arrow_bg" android:scaleType="center" android:src="@drawable/ic_widget_prev"
+                android:contentDescription="@null" />
+        </FrameLayout>
+        <LinearLayout android:id="@+id/cards" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+            android:orientation="horizontal" android:paddingTop="8dp" android:paddingBottom="10dp">
+        <LinearLayout android:id="@+id/card0" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+            android:layout_marginRight="5dp" android:background="@drawable/widget_card_text" android:orientation="vertical"
+            android:gravity="center_vertical" android:paddingLeft="9dp" android:paddingRight="6dp">
+            <TextView android:id="@+id/card0_title" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-condensed" android:textStyle="bold" android:textColor="#FFFFFFFF" android:textSize="15.5dp"
+                android:singleLine="true" android:ellipsize="end" android:includeFontPadding="false" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal"
+                android:gravity="center_vertical" android:layout_marginTop="2dp">
+                <TextView android:id="@+id/card0_ep" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textColor="#FFFBBF24" android:textSize="11dp" android:textStyle="bold" android:singleLine="true" android:includeFontPadding="false" />
+                <TextView android:id="@+id/card0_badge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginLeft="5dp"
+                android:background="@drawable/widget_chip" android:paddingLeft="4dp" android:paddingRight="4dp"
+                android:textColor="#FF111111" android:textSize="8.5dp" android:textStyle="bold" android:letterSpacing="0.05"
+                android:singleLine="true" android:visibility="gone" />
+            </LinearLayout>
+            <TextView android:id="@+id/card0_date" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="2dp" android:textColor="#BDFFFFFF" android:textSize="10.5dp" android:singleLine="true"
+                android:ellipsize="end" android:includeFontPadding="false" />
+        </LinearLayout>
+        <LinearLayout android:id="@+id/card1" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+            android:background="@drawable/widget_card_text" android:orientation="vertical"
+            android:gravity="center_vertical" android:paddingLeft="9dp" android:paddingRight="6dp">
+            <TextView android:id="@+id/card1_title" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-condensed" android:textStyle="bold" android:textColor="#FFFFFFFF" android:textSize="15.5dp"
+                android:singleLine="true" android:ellipsize="end" android:includeFontPadding="false" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal"
+                android:gravity="center_vertical" android:layout_marginTop="2dp">
+                <TextView android:id="@+id/card1_ep" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textColor="#FFFBBF24" android:textSize="11dp" android:textStyle="bold" android:singleLine="true" android:includeFontPadding="false" />
+                <TextView android:id="@+id/card1_badge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginLeft="5dp"
+                android:background="@drawable/widget_chip" android:paddingLeft="4dp" android:paddingRight="4dp"
+                android:textColor="#FF111111" android:textSize="8.5dp" android:textStyle="bold" android:letterSpacing="0.05"
+                android:singleLine="true" android:visibility="gone" />
+            </LinearLayout>
+            <TextView android:id="@+id/card1_date" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="2dp" android:textColor="#BDFFFFFF" android:textSize="10.5dp" android:singleLine="true"
+                android:ellipsize="end" android:includeFontPadding="false" />
+        </LinearLayout>
+        </LinearLayout>
+        <FrameLayout android:id="@+id/next" android:layout_width="34dp" android:layout_height="match_parent"
+            android:contentDescription="Next">
+            <ImageView android:id="@+id/next_icon" android:layout_width="32dp" android:layout_height="32dp" android:layout_gravity="center"
+                android:background="@drawable/widget_arrow_bg" android:scaleType="center" android:src="@drawable/ic_widget_next"
+                android:contentDescription="@null" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <TextView android:id="@+id/dots" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal" android:layout_marginBottom="1dp" android:textSize="5dp"
+        android:includeFontPadding="false" android:visibility="gone" />
+
+    <TextView android:id="@+id/stale" android:layout_width="14dp" android:layout_height="14dp" android:layout_gravity="top|left"
+        android:layout_margin="4dp" android:background="@drawable/widget_stale" android:gravity="center" android:text="!"
+        android:textColor="#FFFBBF24" android:textSize="9dp" android:textStyle="bold" android:includeFontPadding="false" android:visibility="gone" />
+
+    <LinearLayout android:id="@+id/msg" android:layout_width="match_parent" android:layout_height="match_parent"
+        android:orientation="horizontal" android:gravity="center" android:paddingLeft="16dp" android:paddingRight="16dp" android:visibility="gone">
+        <ImageView android:layout_width="wrap_content" android:layout_height="wrap_content" android:src="@drawable/widget_mark"
+            android:layout_marginRight="10dp" android:contentDescription="@null" />
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="vertical">
+            <TextView android:id="@+id/msg_title" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-condensed" android:textStyle="bold" android:textColor="#FFFFFFFF" android:textSize="16dp"
+                android:singleLine="true" android:ellipsize="end" android:text="Airing Next" />
+            <TextView android:id="@+id/msg_sub" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#A8FFFFFF" android:textSize="11dp" android:singleLine="true" android:ellipsize="end" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>
