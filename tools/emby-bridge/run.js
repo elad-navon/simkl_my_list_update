@@ -26,6 +26,7 @@ const EpisodeSource = require("../../episode-source.js");
 const { createLibraryAdapter } = require("../../library-adapter.js");
 const { createEmbyBridge } = require("./emby-bridge.js");
 const { createAiringNext } = require("./airing-next.js");
+const { createTvdbCheck } = require("./tvdb-check.js");
 
 const HERE = __dirname;
 const LOG_FILE = path.join(HERE, "emby-bridge.log");
@@ -193,9 +194,10 @@ async function main() {
   const store = createLibraryStore({ core, backend, storage: null });
   await store.load();
   // The TMDB key: config.json's, else the one the site keeps in the account
-  // (meta "keys") - the same key the site itself uses.
-  let tmdbKey = cfg.tmdbApiKey;
-  if (!tmdbKey) tmdbKey = ((await backend.getMeta("keys").catch(() => null)) || {}).tmdbKey || null;
+  // (meta "keys") - the same key the site itself uses. TheTVDB's comes from
+  // there too.
+  const accountKeys = (await backend.getMeta("keys").catch(() => null)) || {};
+  const tmdbKey = cfg.tmdbApiKey || accountKeys.tmdbKey || null;
   const source = EpisodeSource.createEpisodeSource({ fetch: (...a) => fetch(...a), tmdbGet: tmdbGetter(tmdbKey), cache: EpisodeSource.memoryCache() });
   // (tmdbGetter answers null without a key: TVMaze alone then.)
   // A series not in the library yet is added under its English TMDB title
@@ -207,7 +209,10 @@ async function main() {
     const ext = d.external_ids || {};
     return { title: d.name || d.original_name || null, year: d.first_air_date ? d.first_air_date.slice(0, 4) : null, imdb: ext.imdb_id || null, tvdb: ext.tvdb_id || null };
   } : undefined;
-  const adapter = createLibraryAdapter({ core, store, source, appendAfter: EpisodeSource.appendAfter, showMeta });
+  // TheTVDB's check on air dates, as the site runs it - so the widget's dates
+  // are the app's.
+  const airTimes = accountKeys.tvdbKey ? createTvdbCheck({ key: accountKeys.tvdbKey, EpisodeSource, source }) : undefined;
+  const adapter = createLibraryAdapter({ core, store, source, appendAfter: EpisodeSource.appendAfter, showMeta, airTimes });
   const airing = createAiringNext({ core, adapter, backend, tmdbGet: tmdbKey ? tmdbGet : null });
   let airingRunning = false;
   const airingPass = async ({ dryRun = false } = {}) => {
