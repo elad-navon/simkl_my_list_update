@@ -5,6 +5,12 @@
 //   node run.js           keep running (what the startup shortcut does)
 //   node run.js --check   test the connections and exit
 //   node run.js --once    one pass and exit
+//   node run.js --airing  work out Airing Next for the phone's widget once,
+//                         write it (meta "airingNext") and exit; with --dry it
+//                         only prints the list
+//
+// While it keeps running it also refreshes Airing Next for the widget every
+// half hour, and after a pass that marked or added something (airing-next.js).
 //
 // Needs config.json next to this file (see config.example.json) and the
 // Firebase service-account key it points to. Both stay on this computer
@@ -19,10 +25,13 @@ const { createLibraryStore } = require("../../library-store.js");
 const EpisodeSource = require("../../episode-source.js");
 const { createLibraryAdapter } = require("../../library-adapter.js");
 const { createEmbyBridge } = require("./emby-bridge.js");
+const { createAiringNext } = require("./airing-next.js");
+const { createTvdbCheck } = require("./tvdb-check.js");
 
 const HERE = __dirname;
 const LOG_FILE = path.join(HERE, "emby-bridge.log");
 const LOG_MAX_BYTES = 1024 * 1024;
+const AIRING_EVERY_MS = 30 * 60 * 1000;
 
 function log(...parts) {
   const line = `${new Date().toLocaleString("en-GB", { hour12: false })}  ${parts.join(" ")}`;
@@ -167,7 +176,8 @@ function tmdbGetter(key) {
 async function main() {
   const args = process.argv.slice(2);
   const cfg = readConfig();
-  const emby = embyClient(cfg);
+  const airingOnly = args.includes("--airing");
+  const emby = airingOnly ? null : embyClient(cfg);
   const { backend, uid } = await openLibrary(cfg);
 
   if (args.includes("--check")) {
@@ -183,18 +193,51 @@ async function main() {
 
   const store = createLibraryStore({ core, backend, storage: null });
   await store.load();
-  const source = EpisodeSource.createEpisodeSource({ fetch: (...a) => fetch(...a), tmdbGet: tmdbGetter(cfg.tmdbApiKey), cache: EpisodeSource.memoryCache() });
+  // The TMDB key: config.json's, else the one the site keeps in the account
+  // (meta "keys") - the same key the site itself uses. TheTVDB's comes from
+  // there too.
+  const accountKeys = (await backend.getMeta("keys").catch(() => null)) || {};
+  const tmdbKey = cfg.tmdbApiKey || accountKeys.tmdbKey || null;
+  const source = EpisodeSource.createEpisodeSource({ fetch: (...a) => fetch(...a), tmdbGet: tmdbGetter(tmdbKey), cache: EpisodeSource.memoryCache() });
   // (tmdbGetter answers null without a key: TVMaze alone then.)
   // A series not in the library yet is added under its English TMDB title
   // (as the site does), not Emby's - which may be in another language.
-  const tmdbGet = tmdbGetter(cfg.tmdbApiKey);
-  const showMeta = cfg.tmdbApiKey ? async tmdbId => {
+  const tmdbGet = tmdbGetter(tmdbKey);
+  const showMeta = tmdbKey ? async tmdbId => {
     const d = await tmdbGet(`/tv/${tmdbId}`, { append_to_response: "external_ids" });
     if (!d) return null;
     const ext = d.external_ids || {};
     return { title: d.name || d.original_name || null, year: d.first_air_date ? d.first_air_date.slice(0, 4) : null, imdb: ext.imdb_id || null, tvdb: ext.tvdb_id || null };
   } : undefined;
-  const adapter = createLibraryAdapter({ core, store, source, appendAfter: EpisodeSource.appendAfter, showMeta });
+  // TheTVDB's check on air dates, as the site runs it - so the widget's dates
+  // are the app's.
+  const airTimes = accountKeys.tvdbKey ? createTvdbCheck({ key: accountKeys.tvdbKey, EpisodeSource, source }) : undefined;
+  const adapter = createLibraryAdapter({ core, store, source, appendAfter: EpisodeSource.appendAfter, showMeta, airTimes });
+  const airing = createAiringNext({ core, adapter, backend, tmdbGet: tmdbKey ? tmdbGet : null });
+  let airingRunning = false;
+  const airingPass = async ({ dryRun = false } = {}) => {
+    if (airingRunning) return;
+    airingRunning = true;
+    try {
+      await store.load();
+      const r = await airing.run({ dryRun });
+      if (r.written) log(`Airing Next for the widget: ${r.shows.length} shows written.`);
+      return r;
+    } catch (e) {
+      log(`Airing Next skipped: ${e.message}`); // the document keeps the last good list
+    } finally {
+      airingRunning = false;
+    }
+  };
+
+  if (airingOnly) {
+    const r = await airingPass({ dryRun: args.includes("--dry") });
+    for (const s of (r && r.shows) || []) {
+      log(`  ${s.title}${s.plan ? " (plan)" : ""}: ${s.eps.map(e => `S${String(e.s).padStart(2, "0")}E${String(e.e).padStart(2, "0")} ${e.date}${e.badge ? " " + e.badge : ""}`).join(" | ")}${s.art ? "" : " [no art]"}`);
+    }
+    process.exit(r ? 0 : 1);
+  }
+
   const bridge = createEmbyBridge({ core, store, adapter, backend, emby, threshold: cfg.threshold });
 
   let running = false;
@@ -209,6 +252,7 @@ async function main() {
       if (r.moved.length) log(`Moved to Watching: ${r.moved.join(", ")}`);
       if (r.unplaced.length) log(`Kept by number (not in the episode list): ${r.unplaced.join(", ")}`);
       for (const p of r.problems) log(`Problem: ${p}`);
+      if ((r.marked || []).length || r.created.length || r.moved.length) airingPass();
     } catch (e) {
       log(`Pass skipped: ${e.message}`); // Emby or the internet away: next minute
     } finally {
@@ -220,6 +264,8 @@ async function main() {
   await pass();
   if (args.includes("--once")) { process.exit(0); }
   setInterval(pass, cfg.intervalSeconds * 1000);
+  airingPass();
+  setInterval(airingPass, AIRING_EVERY_MS);
 }
 
 main().catch(e => { log(`Stopped: ${e.message}`); process.exit(1); });

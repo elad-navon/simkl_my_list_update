@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 5x1 to start with; stretched to two rows it switches to the cards with pictures (AiringWidgetProvider).
+     No updatePeriodMillis: AiringSyncWorker fetches the list, and the widget wakes itself when a label changes. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="40dp"
+    android:targetCellWidth="5"
+    android:targetCellHeight="1"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="40dp"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen"
+    android:initialLayout="@layout/widget_airing_small"
+    android:previewLayout="@layout/widget_airing_preview"
+    android:previewImage="@mipmap/ic_launcher"
+    android:description="@string/widget_airing_description" />

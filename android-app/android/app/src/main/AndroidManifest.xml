@@ -33,6 +33,22 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <!-- The Airing Next home-screen widget (AiringWidgetProvider); its list comes from AiringSyncWorker. -->
+        <receiver
+            android:name=".AiringWidgetProvider"
+            android:label="@string/widget_airing_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.LOCALE_CHANGED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_airing_info" />
+        </receiver>
     </application>
 
     <!-- Permissions -->

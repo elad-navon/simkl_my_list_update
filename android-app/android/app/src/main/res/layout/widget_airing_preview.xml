@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What the widget picker shows (Android 12 and later). -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/widget_bg">
+
+    <LinearLayout android:id="@+id/msg" android:layout_width="match_parent" android:layout_height="match_parent"
+        android:orientation="horizontal" android:gravity="center" android:paddingLeft="16dp" android:paddingRight="16dp">
+        <ImageView android:layout_width="wrap_content" android:layout_height="wrap_content" android:src="@drawable/widget_mark"
+            android:layout_marginRight="10dp" android:contentDescription="@null" />
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="vertical">
+            <TextView android:id="@+id/msg_title" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-condensed" android:textStyle="bold" android:textColor="#FFFFFFFF" android:textSize="16dp"
+                android:singleLine="true" android:ellipsize="end" android:text="Airing Next" />
+            <TextView android:id="@+id/msg_sub" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#FFFBBF24" android:textSize="11dp" android:singleLine="true" android:ellipsize="end" android:text="Your shows&apos; next episodes" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

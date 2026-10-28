@@ -4,4 +4,6 @@
     <string name="title_activity_main">My Watch List</string>
     <string name="package_name">com.eladnavon.watchlist</string>
     <string name="custom_url_scheme">com.eladnavon.watchlist</string>
+    <string name="widget_airing_label">Airing Next</string>
+    <string name="widget_airing_description">Your shows\' next episodes. Stretch it to two rows for pictures.</string>
 </resources>
