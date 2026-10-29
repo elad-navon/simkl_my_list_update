@@ -783,13 +783,35 @@ function libraryEpisodeSource() {
 }
 
 // Air times from SIMKL for episodes the lists know only the date of (see
-// air-times.js) - only while this browser is connected to SIMKL.
+// air-times.js): asked of SIMKL while this browser is connected to it, else
+// the ones the computer's bridge took from SIMKL and keeps in the account -
+// so the phone app shows the same times as the computer.
 function libraryAirTimes() {
-  return AirTimes.createSimklAirTimes({
+  const simkl = AirTimes.createSimklAirTimes({
     get: (path, params) => simklGet(path, null, params),
     cache: libraryListCache(),
     connected: simklConnected,
   });
+  return async (ids, eps) => {
+    if (simklConnected()) return simkl(ids, eps);
+    const shared = await sharedAirTimes();
+    return AirTimes.applySharedTimes(eps, shared && shared[AirTimes.sharedKey(ids)]);
+  };
+}
+
+// The bridge's times (meta "airTimes"), read at most every 30 minutes;
+// null when there are none or they can't be read.
+const SHARED_AIR_TIMES_TTL_MS = 30 * 60 * 1000;
+let sharedAirTimesRead = null;
+function sharedAirTimes() {
+  if (!sharedAirTimesRead || Date.now() - sharedAirTimesRead.at > SHARED_AIR_TIMES_TTL_MS) {
+    const backend = library && library.backend;
+    const promise = (backend && backend.getMeta ? backend.getMeta("airTimes") : Promise.resolve(null))
+      .then(doc => (doc && typeof doc.json === "string" ? JSON.parse(doc.json).shows || null : null))
+      .catch(() => null);
+    sharedAirTimesRead = { at: Date.now(), promise };
+  }
+  return sharedAirTimesRead.promise;
 }
 
 // TheTVDB (the source SIMKL uses) as a second opinion on air dates, with

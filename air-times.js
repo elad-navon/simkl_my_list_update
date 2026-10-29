@@ -147,5 +147,49 @@
     };
   }
 
-  return { createSimklAirTimes, applyAirTimes, needsAirTimes, realTime };
+  // ---- Times shared through the account -----------------------------------
+  // The computer's bridge (tools/emby-bridge) has its own SIMKL sign-in and
+  // keeps the times it took from SIMKL in the account (meta "airTimes"), so a
+  // browser without one - the phone app - shows the same times:
+  //   { [sharedKey(ids)]: { "season-episode": ISO date-time } }
+
+  // The show's key there: its first id of TMDB, IMDb, TheTVDB.
+  function sharedKey(ids) {
+    if (!ids) return null;
+    if (ids.tmdb != null) return `tmdb:${ids.tmdb}`;
+    if (ids.imdb) return `imdb:${ids.imdb}`;
+    if (ids.tvdb) return `tvdb:${ids.tvdb}`;
+    return null;
+  }
+
+  // The times a list took from SIMKL (applyAirTimes), as { "s-e": ISO }; null if none.
+  function takenTimes(episodes) {
+    let out = null;
+    for (const ep of episodes || []) {
+      if (ep && ep.timeFrom === "simkl" && ep.season != null && ep.episode != null) {
+        (out || (out = {}))[`${ep.season}-${ep.episode}`] = ep.date;
+      }
+    }
+    return out;
+  }
+
+  // The episodes, each date-only one with its shared time - when that's
+  // within two days of its date (a guard against renumbered episodes; the
+  // bridge already held it to SIMKL's day rule).
+  function applySharedTimes(episodes, times) {
+    if (!times) return episodes;
+    let changed = 0;
+    const out = episodes.map(ep => {
+      if (!isDateOnly(ep)) return ep;
+      const iso = times[`${ep.season}-${ep.episode}`];
+      if (typeof iso !== "string" || isNaN(Date.parse(iso))) return ep;
+      const diff = dayDiff(iso, ep.date);
+      if (diff == null || diff > 2) return ep;
+      changed++;
+      return { ...ep, date: iso, hasTime: true, timeFrom: "simkl" };
+    });
+    return changed ? out : episodes;
+  }
+
+  return { createSimklAirTimes, applyAirTimes, needsAirTimes, realTime, sharedKey, takenTimes, applySharedTimes };
 });

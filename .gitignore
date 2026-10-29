@@ -20,6 +20,7 @@ dist/
 
 # Emby bridge: secrets, log and installed packages stay on this computer
 /tools/emby-bridge/config.json
+/tools/emby-bridge/simkl-token.json
 /tools/emby-bridge/service-account*.json
 /tools/emby-bridge/*.log
 /tools/emby-bridge/*.log.old

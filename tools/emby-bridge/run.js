@@ -27,9 +27,13 @@ const { createLibraryAdapter } = require("../../library-adapter.js");
 const { createEmbyBridge } = require("./emby-bridge.js");
 const { createAiringNext } = require("./airing-next.js");
 const { createTvdbCheck } = require("./tvdb-check.js");
+const AirTimes = require("../../air-times.js");
+const { createSimklClient } = require("./simkl-client.js");
+const { createSharedAirTimes } = require("./shared-air-times.js");
 
 const HERE = __dirname;
 const LOG_FILE = path.join(HERE, "emby-bridge.log");
+const SIMKL_TOKEN_FILE = path.join(HERE, "simkl-token.json");
 const LOG_MAX_BYTES = 1024 * 1024;
 const AIRING_EVERY_MS = 30 * 60 * 1000;
 
@@ -209,9 +213,22 @@ async function main() {
     const ext = d.external_ids || {};
     return { title: d.name || d.original_name || null, year: d.first_air_date ? d.first_air_date.slice(0, 4) : null, imdb: ext.imdb_id || null, tvdb: ext.tvdb_id || null };
   } : undefined;
-  // TheTVDB's check on air dates, as the site runs it - so the widget's dates
-  // are the app's.
-  const airTimes = accountKeys.tvdbKey ? createTvdbCheck({ key: accountKeys.tvdbKey, EpisodeSource, source }) : undefined;
+  // Air times as the site works them out: SIMKL's exact times for date-only
+  // episodes (the bridge's own SIMKL sign-in, with the site's SIMKL app id),
+  // then TheTVDB's check on the dates - so the widget's dates are the
+  // computer's. The SIMKL times also go to the account for the phone app.
+  const simkl = createSimklClient({ clientId: accountKeys.clientIdV2 || accountKeys.clientId, file: SIMKL_TOKEN_FILE, log });
+  if (args.includes("--simkl-login")) {
+    await simkl.login();
+    log("Signed in to SIMKL: air times from the next pass on.");
+    process.exit(0);
+  }
+  if (!simkl.signedIn()) log("Not signed in to SIMKL - air times without it (sign in: node run.js --simkl-login).");
+  const shared = createSharedAirTimes({ AirTimes, backend });
+  const simklTimes = shared.recording(AirTimes.createSimklAirTimes({
+    get: (p, params) => simkl.get(p, params), cache: EpisodeSource.memoryCache(), connected: () => simkl.signedIn(),
+  }));
+  const airTimes = accountKeys.tvdbKey ? createTvdbCheck({ key: accountKeys.tvdbKey, EpisodeSource, source, inner: simklTimes }) : simklTimes;
   const adapter = createLibraryAdapter({ core, store, source, appendAfter: EpisodeSource.appendAfter, showMeta, airTimes });
   const airing = createAiringNext({ core, adapter, backend, tmdbGet: tmdbKey ? tmdbGet : null });
   let airingRunning = false;
@@ -220,8 +237,13 @@ async function main() {
     airingRunning = true;
     try {
       await store.load();
+      // Fresh episode lists each pass (the source's cache still spares
+      // repeat downloads), so a changed date reaches the widget.
+      adapter.reset();
+      await shared.load();
       const r = await airing.run({ dryRun });
       if (r.written) log(`Airing Next for the widget: ${r.shows.length} shows written.`);
+      if (!dryRun && await shared.save().catch(e => { log(`Air times not saved: ${e.message}`); return false; })) log("Air times for the phone saved.");
       return r;
     } catch (e) {
       log(`Airing Next skipped: ${e.message}`); // the document keeps the last good list

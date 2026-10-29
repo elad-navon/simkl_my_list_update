@@ -145,3 +145,50 @@ test("adapter: the episode lists pass through airTimes, with the show's SIMKL id
   assert.equal(seen[0].simklLegacy, 77);
   assert.equal(seen[0].imdb, "tt5");
 });
+
+// ---- Times shared through the account (the bridge -> the phone app) ----
+const { sharedKey, takenTimes, applySharedTimes } = require("../air-times.js");
+const { createSharedAirTimes } = require("../tools/emby-bridge/shared-air-times.js");
+
+test("sharedKey: TMDB first, then IMDb, then TheTVDB", () => {
+  assert.equal(sharedKey({ tmdb: 5, imdb: "tt1", tvdb: "9" }), "tmdb:5");
+  assert.equal(sharedKey({ tmdb: null, imdb: "tt1", tvdb: "9" }), "imdb:tt1");
+  assert.equal(sharedKey({ tvdb: "9" }), "tvdb:9");
+  assert.equal(sharedKey({}), null);
+});
+
+test("takenTimes / applySharedTimes: SIMKL's times on one side are the same times on the other", () => {
+  const eps = [dateOnly(1, 1, 0), dateOnly(1, 2, 1), timed(1, 3, `${day(2)}T20:00:00.000Z`)];
+  const enriched = applyAirTimes(eps, [simkl(1, 1, `${day(0)}T21:00:00-04:00`)]);
+  const times = takenTimes(enriched);
+  assert.deepEqual(times, { "1-1": enriched[0].date });
+  assert.equal(takenTimes(eps), null);
+  const out = applySharedTimes(eps, times);
+  assert.deepEqual(out[0], enriched[0]);
+  assert.equal(out[1], eps[1]); // no time for it: unchanged
+  assert.equal(out[2], eps[2]); // already timed: unchanged
+});
+
+test("applySharedTimes: a time far from the episode's date is left out; nothing shared, nothing changes", () => {
+  const eps = [dateOnly(1, 1, 0)];
+  assert.equal(applySharedTimes(eps, { "1-1": new Date(NOW + 5 * DAY).toISOString() }), eps);
+  assert.equal(applySharedTimes(eps, null), eps);
+  assert.equal(applySharedTimes(eps, { "1-1": "garbage" }), eps);
+});
+
+test("createSharedAirTimes: records what enrich took, writes only on a change, drops week-old times", async () => {
+  const docs = {};
+  const backend = { getMeta: async n => docs[n] || null, setMeta: async (n, d) => { docs[n] = d; } };
+  let now = NOW;
+  const shared = createSharedAirTimes({ AirTimes: require("../air-times.js"), backend, now: () => now });
+  await shared.load();
+  const iso = new Date(NOW + 3600000).toISOString();
+  const enrich = shared.recording(async (ids, eps) => eps.map(e => ({ ...e, date: iso, hasTime: true, timeFrom: "simkl" })));
+  await enrich({ tmdb: 7 }, [dateOnly(2, 4, 0)]);
+  assert.equal(await shared.save(), true);
+  assert.deepEqual(JSON.parse(docs.airTimes.json).shows, { "tmdb:7": { "2-4": iso } });
+  assert.equal(await shared.save(), false);
+  now = NOW + 8 * DAY;
+  assert.equal(await shared.save(), true);
+  assert.deepEqual(JSON.parse(docs.airTimes.json).shows, {});
+});

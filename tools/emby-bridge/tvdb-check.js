@@ -7,8 +7,7 @@
 // ones and could differ from the app's. Without the key, or the show's
 // TheTVDB id, nothing changes.
 //
-// (The site also takes exact times from SIMKL, but only with a SIMKL sign-in
-// in the browser; SIMKL turns this computer away without one.)
+// `inner`: SIMKL's times first (AirTimes.createSimklAirTimes), as on the site.
 "use strict";
 
 const TVDB_API = "https://api4.thetvdb.com/v4";
@@ -19,9 +18,9 @@ const CHECK_NEAR_MS = 14 * DAY_MS;
 const CACHE_TTL_MS = 3 * 3600 * 1000;
 const TIMEOUT_MS = 15000;
 
-// createTvdbCheck({ key, EpisodeSource, source, fetch, now })
+// createTvdbCheck({ key, EpisodeSource, source, inner, fetch, now })
 // Returns airTimes(ids, episodes) for createLibraryAdapter.
-function createTvdbCheck({ key, EpisodeSource, source, fetch = (...a) => globalThis.fetch(...a), now = () => Date.now() }) {
+function createTvdbCheck({ key, EpisodeSource, source, inner, fetch = (...a) => globalThis.fetch(...a), now = () => Date.now() }) {
   let token = null;
   let loginPending = null;
   let rejected = false;
@@ -76,7 +75,8 @@ function createTvdbCheck({ key, EpisodeSource, source, fetch = (...a) => globalT
     return out;
   }
 
-  return async function airTimes(ids, eps) {
+  return async function airTimes(ids, listed) {
+    const eps = inner ? await inner(ids, listed).catch(() => listed) : listed;
     if (!key || rejected || !ids.tvdb) return eps;
     const at = now();
     const near = eps.some(ep => ep.date && ep.season && Math.abs(Date.parse(ep.date.length > 10 ? ep.date : ep.date + "T00:00:00") - at) < CHECK_NEAR_MS);
