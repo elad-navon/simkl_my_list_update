@@ -141,6 +141,20 @@ test("getEpisodes: a season TVMaze hasn't listed yet still comes from TMDB", asy
   assert.deepEqual(r.episodes.at(-1).keys, ["tmdb:921"]);
 });
 
+test("getEpisodes: TMDB's episodes after TVMaze's whole list stay once they've aired", async () => {
+  const src = createEpisodeSource({
+    fetch: fakeFetch({ "/lookup/shows?imdb=tt1": { id: 5 }, "/shows/5/episodes": TVM_EPISODES }),
+    tmdbGet: fakeTmdb({ 77: {
+      1: [{ id: 901, episode_number: 1, air_date: "2026-01-05" }, { id: 909, episode_number: 9, air_date: "2025-12-01" }],
+      2: [{ id: 921, episode_number: 1, air_date: "2026-10-29" }, { id: 922, episode_number: 2, air_date: "2026-10-29" }],
+    } }),
+    minGapMs: 0,
+  });
+  const r = await src.getEpisodes({ tmdb: 77, imdb: "tt1" }, { now: Date.parse("2026-10-30T12:00:00Z") });
+  assert.deepEqual(r.episodes.map(e => `${e.season}-${e.episode}`), ["1-1", "1-2", "2-1", "2-2"], "aired S2 kept; TMDB's past 1-9 isn't");
+  assert.equal(r.upcomingFromOther, 2);
+});
+
 test("No source at all is reported, not thrown", async () => {
   const src = createEpisodeSource({ fetch: fakeFetch({}), tmdbGet: fakeTmdb({}), minGapMs: 0 });
   const r = await src.getEpisodes({ tmdb: 1, imdb: "tt0" });

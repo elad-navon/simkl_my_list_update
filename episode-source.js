@@ -356,8 +356,12 @@
       }
       if (tvm) {
         const linked = tmdb ? linkSources(tvm, tmdb) : { episodes: tvm, ...empty };
-        const filled = appendUpcoming(linked.episodes, tmdb, now);
-        return { source: "tvmaze", tvmazeId, ...linked, episodes: filled.episodes, upcomingFromOther: filled.added, errors };
+        // TMDB's episodes dated after TVMaze's whole list stay once they
+        // air: a new season TVMaze lists only as unnumbered specials (Ghosts
+        // S6's premiere) came from TMDB as upcoming, then vanished on air.
+        const later = appendAfter(linked.episodes, tmdb);
+        const filled = appendUpcoming(later.episodes, tmdb, now);
+        return { source: "tvmaze", tvmazeId, ...linked, episodes: filled.episodes, upcomingFromOther: later.added + filled.added, errors };
       }
       return { source: "none", tvmazeId, episodes: [], upcomingFromOther: 0, ...empty, errors };
     }
