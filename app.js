@@ -857,8 +857,11 @@ function withTvdbAirCheck(airTimes) {
     // TMDB settles it both ways: later only when it doesn't side with the
     // main source, earlier only when it sides with TheTVDB (its list is
     // already cached from the episode source's own lookup).
+    // No holding back at all for a streaming show: TVMaze's day is the day
+    // it comes out (EpisodeSource streamingHome).
     const tmdb = ids.tmdb != null ? ((await library.source.getSourceLists(ids).catch(() => null)) || {}).tmdb : null;
-    const held = EpisodeSource.holdForLaterDates(timed, check, now, { confirm: tmdb }).episodes;
+    const streaming = await library.source.streamingHome(ids).catch(() => null);
+    const held = streaming ? timed : EpisodeSource.holdForLaterDates(timed, check, now, { confirm: tmdb }).episodes;
     return tmdb ? EpisodeSource.advanceToEarlierDates(held, check, tmdb, now).episodes : held;
   };
 }
