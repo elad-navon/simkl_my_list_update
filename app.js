@@ -751,7 +751,7 @@ let library = null;
 let libraryCache = null;
 function libraryListCache() {
   if (!libraryCache) {
-    libraryCache = LibraryAdapter.idbCache({ persist: key => key.startsWith("tvmaze-") || key.startsWith("simkl-") });
+    libraryCache = LibraryAdapter.idbCache({ persist: key => key.startsWith("tvmaze-") || key.startsWith("simkl-") || key.startsWith("yes-") });
   }
   return libraryCache;
 }
@@ -797,6 +797,28 @@ function libraryAirTimes() {
     const shared = await sharedAirTimes();
     return AirTimes.applySharedTimes(eps, shared && shared[AirTimes.sharedKey(ids)]);
   };
+}
+
+// Air times from yes's TV guide for Israeli shows (see yes-times.js), for
+// the episodes still date-only after SIMKL's times. A show counts as Israeli
+// by TMDB's origin country or original language; its English and original
+// (Hebrew) names are what the guide's titles are matched against.
+function withYesAirTimes(airTimes) {
+  const yes = YesTimes.createYesAirTimes({
+    fetch: (...args) => fetch(...args),
+    cache: libraryListCache(),
+    showInfo: async ids => {
+      if (ids.tmdb == null) return null;
+      const cache = sharedCache || (sharedCache = new TmdbCache());
+      const d = await cache.getShow(ids.tmdb);
+      if (!d) return null;
+      return {
+        israeli: (d.origin_country || []).includes("IL") || d.original_language === "he",
+        names: [d.name, d.original_name],
+      };
+    },
+  });
+  return async (ids, eps) => yes(ids, airTimes ? await airTimes(ids, eps).catch(() => eps) : eps);
 }
 
 // The bridge's times (meta "airTimes"), read at most every 30 minutes;
@@ -988,7 +1010,7 @@ async function openLibrary() {
     library.adapter = LibraryAdapter.createLibraryAdapter({
       core: LibraryCore, store, source: library.source, appendAfter: EpisodeSource.appendAfter,
       showMeta: libraryShowMeta,
-      airTimes: withTvdbAirCheck(libraryAirTimes()),
+      airTimes: withTvdbAirCheck(withYesAirTimes(libraryAirTimes())),
       onProgress: (done, total) => {
         if (total > 5 && done < total) subtitle.textContent = `Loading episode lists… ${done}/${total}`;
       },
@@ -2669,7 +2691,7 @@ async function nextAiringEpisodeFromList(showId, episodeCache, fallbackMinutes) 
     const win = episodeAirWindow(ep, fallbackMinutes);
     if (win && win.start <= now && now < win.end) {
       if (!best || !best.onAir || win.start < best.ts) {
-        best = { ts: win.start, airDate: ep.date, season: ep.season, episode: ep.episode, onAir: true, airEnd: win.end };
+        best = { ts: win.start, airDate: ep.date, season: ep.season, episode: ep.episode, onAir: true, airEnd: win.end, timeFrom: ep.timeFrom || null };
       }
       continue;
     }
@@ -2678,7 +2700,7 @@ async function nextAiringEpisodeFromList(showId, episodeCache, fallbackMinutes) 
     const ts = episodeTimestamp(ep.date);
     if (isNaN(ts)) continue;
     if (!best || ts < best.ts) {
-      best = { ts, airDate: ep.date, season: ep.season, episode: ep.episode, airEnd: win ? win.end : null };
+      best = { ts, airDate: ep.date, season: ep.season, episode: ep.episode, airEnd: win ? win.end : null, timeFrom: ep.timeFrom || null };
     }
   }
   return best;
@@ -2917,6 +2939,9 @@ async function buildAiringRow(item, cache, episodeCache, requirePremiere) {
     airStart: hasTimeComponent(next.airDate) ? airDateToTimestamp(next.airDate) : null,
     airEnd: next.airEnd != null ? next.airEnd : null,
     airDay: next.airDate && !hasTimeComponent(next.airDate) ? next.airDate.slice(0, 10) : null,
+    // Where an exact time came from when it isn't the episode list's own:
+    // yes's TV guide gets a small mark on the chip (see yes-times.js).
+    airTimeFrom: hasTimeComponent(next.airDate) ? next.timeFrom || null : null,
     network,
     networkLogoPath: resolveNetworkLogoUrl(network, tmdbLogoPath),
   };
@@ -5722,7 +5747,8 @@ function airCountHtml(row) {
   const attrs = row.airStart != null
     ? `data-air-start="${row.airStart}"${row.airEnd != null ? ` data-air-end="${row.airEnd}"` : ""}`
     : `data-air-day="${row.airDay}"`;
-  return `<div class="air-count" ${attrs} hidden></div>`;
+  const fromYes = row.airStart != null && row.airTimeFrom === "yes";
+  return `<div class="air-count${fromYes ? " from-yes" : ""}" ${attrs}${fromYes ? ` title="Air time from yes's TV guide"` : ""} hidden></div>`;
 }
 
 function paintAirCount(el, now) {

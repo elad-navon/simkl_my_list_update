@@ -154,13 +154,13 @@
           itemFor(docId, show, withEpisodes ? await episodesFor(docId, show) : [])));
       },
 
-      // Like GET /tv/episodes/{id}: [{ season, episode, date, title, runtime }], or
+      // Like GET /tv/episodes/{id}: [{ season, episode, date, title, runtime, timeFrom }], or
       // null for a show that isn't in the library or has no list.
       async showEpisodes(docId) {
         const show = store.view().get(String(docId));
         if (!show) return null;
         const eps = await episodesFor(String(docId), show);
-        return eps.length ? eps.map(e => ({ season: e.season, episode: e.episode, date: e.date || null, title: e.title || null, runtime: e.runtime || null })) : null;
+        return eps.length ? eps.map(e => ({ season: e.season, episode: e.episode, date: e.date || null, title: e.title || null, runtime: e.runtime || null, timeFrom: e.timeFrom || null })) : null;
       },
 
       // Like findShowLibraryStatus: { status, item } or null.
