@@ -854,10 +854,11 @@ function withTvdbAirCheck(airTimes) {
     if (!near) return timed;
     const check = await tvdbRecentEpisodes(ids.tvdb).catch(() => null);
     if (!check) return timed;
-    const held = EpisodeSource.holdForLaterDates(timed, check, now).episodes;
-    // Earlier only with TMDB agreeing (its list is already cached from the
-    // episode source's own lookup).
+    // TMDB settles it both ways: later only when it doesn't side with the
+    // main source, earlier only when it sides with TheTVDB (its list is
+    // already cached from the episode source's own lookup).
     const tmdb = ids.tmdb != null ? ((await library.source.getSourceLists(ids).catch(() => null)) || {}).tmdb : null;
+    const held = EpisodeSource.holdForLaterDates(timed, check, now, { confirm: tmdb }).episodes;
     return tmdb ? EpisodeSource.advanceToEarlierDates(held, check, tmdb, now).episodes : held;
   };
 }

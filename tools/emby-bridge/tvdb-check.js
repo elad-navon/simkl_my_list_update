@@ -83,8 +83,8 @@ function createTvdbCheck({ key, EpisodeSource, source, inner, fetch = (...a) => 
     if (!near) return eps;
     const check = await recentEpisodes(ids.tvdb).catch(() => null);
     if (!check) return eps;
-    const held = EpisodeSource.holdForLaterDates(eps, check, at).episodes;
     const tmdb = ids.tmdb != null ? ((await source.getSourceLists(ids).catch(() => null)) || {}).tmdb : null;
+    const held = EpisodeSource.holdForLaterDates(eps, check, at, { confirm: tmdb }).episodes;
     return tmdb ? EpisodeSource.advanceToEarlierDates(held, check, tmdb, at).episodes : held;
   };
 }

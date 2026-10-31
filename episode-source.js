@@ -67,9 +67,13 @@
   // later day, keeping its time of day, so it isn't counted as aired (or
   // counted down to) before it really airs. Only ever later: a wrong early
   // date is the costly mistake, and a day apart is often just time zones.
+  // Not when TMDB (`confirm`) puts it within a day of the main source's
+  // date: two sources against one (Dexter: Resurrection, out on Paramount+
+  // on a Friday, was held to TheTVDB's Sunday cable airing).
   // `check` is [{ season, episode, date: "YYYY-MM-DD" }].
-  function holdForLaterDates(episodes, check, now, { windowDays = 14 } = {}) {
-    const later = new Map((check || []).filter(c => c && c.date).map(c => [`${c.season}-${c.episode}`, c.date.slice(0, 10)]));
+  function holdForLaterDates(episodes, check, now, { windowDays = 14, confirm = null } = {}) {
+    const dayMap = list => new Map((list || []).filter(c => c && c.date).map(c => [`${c.season}-${c.episode}`, c.date.slice(0, 10)]));
+    const later = dayMap(check), agree = dayMap(confirm);
     let moved = 0;
     const out = (episodes || []).map(ep => {
       if (!ep || !ep.date || ep.season == null || ep.season === 0) return ep;
@@ -77,6 +81,8 @@
       const own = ep.date.slice(0, 10);
       const diff = dayDiff(own, day);
       if (!day || day <= own || diff == null || diff < 2) return ep;
+      const sd = dayDiff(own, agree.get(`${ep.season}-${ep.episode}`));
+      if (sd != null && sd <= 1) return ep;
       const ts = ep.date.length > 10 ? Date.parse(ep.date) : Date.parse(own + "T00:00:00");
       if (isNaN(ts) || ts < now - windowDays * DAY_MS) return ep;
       moved++;
