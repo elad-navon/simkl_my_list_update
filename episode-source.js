@@ -236,6 +236,21 @@
       }, LOOKUP_TTL_MS));
     }
 
+    // The streaming service TVMaze files the show under (its webChannel,
+    // when it has no TV network), or null. Its TVMaze dates are the day the
+    // episode comes out there - the day it can be watched, even when TMDB
+    // and TheTVDB list a later cable airing (Dexter: Resurrection: Friday on
+    // Paramount+, Sunday on Showtime).
+    async function streamingHome(ids) {
+      const id = ids.tvmaze || ((ids.imdb || ids.tvdb) ? ((await lookupTvmaze(ids)) || {}).id : null);
+      if (!id) return null;
+      const key = `tvmaze-home:${id}`;
+      return once(key, () => cached(key, async () => {
+        const show = await tvmazeGet(`/shows/${id}`);
+        return show && show.webChannel && !show.network ? show.webChannel.name || "streaming" : null;
+      }, LOOKUP_TTL_MS));
+    }
+
     // { tvmazeId: last update, in seconds } for the past week, or null if
     // TVMaze couldn't say (then the plain ttlMs expiry applies).
     function recentUpdates() {
@@ -372,7 +387,7 @@
       return { source: "none", tvmazeId, episodes: [], upcomingFromOther: 0, ...empty, errors };
     }
 
-    return { getEpisodes, getSourceLists, lookupTvmaze, linkSources };
+    return { getEpisodes, getSourceLists, lookupTvmaze, linkSources, streamingHome };
   }
 
   // A simple in-memory cache with the { get(key, ttlMs), set } shape.

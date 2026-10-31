@@ -44,6 +44,20 @@ const TVM_EPISODES = [
   { id: 13, season: 1, number: null, name: "Special", airdate: "2026-01-15", airtime: "", airstamp: null, runtime: 30 },
 ];
 
+test("streamingHome: the streaming service a show is filed under on TVMaze, else null", async () => {
+  const src = createEpisodeSource({
+    fetch: fakeFetch({
+      "/lookup/shows?imdb=tt1": { id: 5, name: "Dexter: Resurrection" },
+      "/shows/5": { id: 5, network: null, webChannel: { name: "Paramount+" } },
+      "/shows/6": { id: 6, network: { name: "CBS" }, webChannel: { name: "Paramount+" } },
+    }),
+    tmdbGet: fakeTmdb({}), minGapMs: 0,
+  });
+  assert.equal(await src.streamingHome({ imdb: "tt1" }), "Paramount+");
+  assert.equal(await src.streamingHome({ tvmaze: 6 }), null, "a TV network's dates stay checked");
+  assert.equal(await src.streamingHome({}), null);
+});
+
 test("TVMaze episodes: exact time only when the air time is known; specials dropped", async () => {
   const src = createEpisodeSource({
     fetch: fakeFetch({ "/lookup/shows?imdb=tt1": { id: 5, name: "Show" }, "/shows/5/episodes": TVM_EPISODES }),
