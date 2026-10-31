@@ -364,6 +364,17 @@ test("holdForLaterDates: a date-only episode takes TheTVDB's day; no second opin
   assert.deepEqual(holdForLaterDates(pim, null, NOW_OCT20).episodes, pim);
 });
 
+test("holdForLaterDates: not when TMDB sides with the main source's date", () => {
+  // Dexter: Resurrection 2x1: Paramount+ on Friday, TheTVDB's Sunday on Showtime.
+  const eps = [{ season: 2, episode: 1, date: "2026-10-30T12:00:00+00:00" }, { season: 2, episode: 2, date: "2026-11-06T12:00:00+00:00" }];
+  const tvdb = [{ season: 2, episode: 1, date: "2026-11-01" }, { season: 2, episode: 2, date: "2026-11-08" }];
+  const tmdb = [{ season: 2, episode: 1, date: "2026-10-30" }, { season: 2, episode: 2, date: "2026-11-08" }];
+  const { episodes, moved } = holdForLaterDates(eps, tvdb, Date.parse("2026-10-31T12:00:00Z"), { confirm: tmdb });
+  assert.equal(moved, 1, "2x2: TMDB agrees with TheTVDB, so it waits");
+  assert.equal(episodes[0], eps[0]);
+  assert.equal(episodes[1].date, "2026-11-08T12:00:00.000Z");
+});
+
 test("advanceToEarlierDates: earlier only when TMDB agrees with TheTVDB, 2+ days, recent", () => {
   const { advanceToEarlierDates } = require("../episode-source.js");
   const eps = [
