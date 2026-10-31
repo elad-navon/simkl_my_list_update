@@ -15,6 +15,7 @@ const SHELL_FILES = [
   "./library-store.js",
   "./firebase-backend.js",
   "./air-times.js",
+  "./yes-times.js",
   "./library-adapter.js",
   "./manifest.json",
   "./icons/icon-192.png",
