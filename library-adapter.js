@@ -14,6 +14,19 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
+  // Where an episode's air date (and time, when it has one) came from:
+  // "simkl" or "yes" for a time taken from them (air-times.js,
+  // yes-times.js), "tvdb" for a date TheTVDB moved, "tvmaze" for TVMaze's
+  // exact time, else the list the episode came from ("tvmaze" or "tmdb").
+  function dateSource(e) {
+    if (e.timeFrom) return e.timeFrom;
+    if (e.heldBy) return "tvdb";
+    const keys = e.keys || [];
+    if (e.hasTime && keys.some(k => k.startsWith("tvmaze:"))) return "tvmaze";
+    const first = keys[0] ? keys[0].split(":")[0] : null;
+    return first === "tvmaze" || first === "tmdb" ? first : null;
+  }
+
   const OUTCOME_MESSAGES = {
     queued: "No connection - the change is kept on this device and will be saved once you're back online.",
     conflict: "Not saved - this show was changed on another device.",
@@ -154,13 +167,13 @@
           itemFor(docId, show, withEpisodes ? await episodesFor(docId, show) : [])));
       },
 
-      // Like GET /tv/episodes/{id}: [{ season, episode, date, title, runtime, timeFrom }], or
+      // Like GET /tv/episodes/{id}: [{ season, episode, date, title, runtime, from }], or
       // null for a show that isn't in the library or has no list.
       async showEpisodes(docId) {
         const show = store.view().get(String(docId));
         if (!show) return null;
         const eps = await episodesFor(String(docId), show);
-        return eps.length ? eps.map(e => ({ season: e.season, episode: e.episode, date: e.date || null, title: e.title || null, runtime: e.runtime || null, timeFrom: e.timeFrom || null })) : null;
+        return eps.length ? eps.map(e => ({ season: e.season, episode: e.episode, date: e.date || null, title: e.title || null, runtime: e.runtime || null, from: dateSource(e) })) : null;
       },
 
       // Like findShowLibraryStatus: { status, item } or null.
