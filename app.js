@@ -2691,7 +2691,7 @@ async function nextAiringEpisodeFromList(showId, episodeCache, fallbackMinutes) 
     const win = episodeAirWindow(ep, fallbackMinutes);
     if (win && win.start <= now && now < win.end) {
       if (!best || !best.onAir || win.start < best.ts) {
-        best = { ts: win.start, airDate: ep.date, season: ep.season, episode: ep.episode, onAir: true, airEnd: win.end, timeFrom: ep.timeFrom || null };
+        best = { ts: win.start, airDate: ep.date, season: ep.season, episode: ep.episode, onAir: true, airEnd: win.end, from: ep.from || null };
       }
       continue;
     }
@@ -2700,7 +2700,7 @@ async function nextAiringEpisodeFromList(showId, episodeCache, fallbackMinutes) 
     const ts = episodeTimestamp(ep.date);
     if (isNaN(ts)) continue;
     if (!best || ts < best.ts) {
-      best = { ts, airDate: ep.date, season: ep.season, episode: ep.episode, airEnd: win ? win.end : null, timeFrom: ep.timeFrom || null };
+      best = { ts, airDate: ep.date, season: ep.season, episode: ep.episode, airEnd: win ? win.end : null, from: ep.from || null };
     }
   }
   return best;
@@ -2939,9 +2939,9 @@ async function buildAiringRow(item, cache, episodeCache, requirePremiere) {
     airStart: hasTimeComponent(next.airDate) ? airDateToTimestamp(next.airDate) : null,
     airEnd: next.airEnd != null ? next.airEnd : null,
     airDay: next.airDate && !hasTimeComponent(next.airDate) ? next.airDate.slice(0, 10) : null,
-    // Where an exact time came from when it isn't the episode list's own:
-    // yes's TV guide gets a small mark on the chip (see yes-times.js).
-    airTimeFrom: hasTimeComponent(next.airDate) ? next.timeFrom || null : null,
+    // Where its date/time came from (LibraryAdapter's dateSource): a small
+    // tag under the chip names it.
+    airFrom: next.from || null,
     network,
     networkLogoPath: resolveNetworkLogoUrl(network, tmdbLogoPath),
   };
@@ -5742,13 +5742,15 @@ function renderPlanToWatchHtml(list) {
 
 // The corner chip on an Airing Next thumbnail: empty here, filled in (and
 // kept current) by tickAirCountdowns from the time or date it carries.
+// The tag under an Airing Next chip: where its date/time came from.
+const AIR_SOURCE_LABELS = { tvmaze: "TVMAZE", tmdb: "TMDB", simkl: "SIMKL", yes: "YES", tvdb: "TVDB" };
 function airCountHtml(row) {
   if (row.airStart == null && !row.airDay) return "";
   const attrs = row.airStart != null
     ? `data-air-start="${row.airStart}"${row.airEnd != null ? ` data-air-end="${row.airEnd}"` : ""}`
     : `data-air-day="${row.airDay}"`;
-  const fromYes = row.airStart != null && row.airTimeFrom === "yes";
-  return `<div class="air-count${fromYes ? " from-yes" : ""}" ${attrs}${fromYes ? ` title="Air time from yes's TV guide"` : ""} hidden></div>`;
+  const from = AIR_SOURCE_LABELS[row.airFrom] ? row.airFrom : null;
+  return `<div class="air-count${from ? ` from-${from}` : ""}" ${attrs}${from ? ` data-from="${AIR_SOURCE_LABELS[from]}"` : ""} hidden></div>`;
 }
 
 function paintAirCount(el, now) {
