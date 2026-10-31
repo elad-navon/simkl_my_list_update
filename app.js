@@ -1950,8 +1950,9 @@ async function estimateRemainingMinutes(item, tmdbId, showId, cache, episodeCach
   // (not just the next one) can carry its own premiere/finale badge.
   let identifiedEpisodes = [];
   const seasonMaxEpisode = new Map();
+  let showEpisodes = null;
   if (showId) {
-    const showEpisodes = await episodeCache.get(showId);
+    showEpisodes = await episodeCache.get(showId);
     if (showEpisodes) {
       for (const ep of showEpisodes) {
         if (ep.season == null || ep.season === 0 || ep.episode == null) continue;
@@ -2004,8 +2005,52 @@ async function estimateRemainingMinutes(item, tmdbId, showId, cache, episodeCach
   }
 
   const nextEpisodeMinutes = episodes.length ? episodes[0].runtime : avgRuntime;
+  const allEpisodes = listAllEpisodes(item, showEpisodes, tmdbEpisodeMap, avgRuntime, episodes, fallbackRuntime, episodeBadge);
 
-  return { totalMinutes: minutes, nextEpisodeMinutes, episodes };
+  return { totalMinutes: minutes, nextEpisodeMinutes, episodes, allEpisodes };
+}
+
+// Every episode of the show (specials excluded), in order, for the top
+// card's episodes modal: each one "watched", "left" (aired, not watched) or
+// "future" (not aired yet). The aired rule matches the episodes manager's:
+// a watched episode aired whatever its date says, and an undated one before
+// the last aired one did air too. Without a per-episode watched list, the
+// last watched code marks everything up to it, same as the manager.
+function listAllEpisodes(item, showEpisodes, tmdbEpisodeMap, avgRuntime, episodesLeft, fallbackRuntime, episodeBadge) {
+  if (!showEpisodes || !showEpisodes.length) return null;
+  const now = Date.now();
+  const eps = showEpisodes
+    .filter(ep => ep.season != null && ep.season !== 0 && ep.episode != null)
+    .map(ep => ({ season: ep.season, episode: ep.episode, date: ep.date || null, listTitle: ep.title, aired: episodeHasAired(ep, now, fallbackRuntime) }))
+    .sort((a, b) => a.season - b.season || a.episode - b.episode);
+  if (!eps.length) return null;
+
+  const watched = watchedEpisodeNumbersBySeason(item);
+  const hasWatchedDetail = Array.isArray(item.seasons) && item.seasons.length > 0;
+  const lastWatched = /^S(\d+)E(\d+)$/i.exec(item.last_watched || "");
+  const isWatched = ep => hasWatchedDetail
+    ? !!(watched[ep.season] && watched[ep.season].has(ep.episode))
+    : !!lastWatched && (ep.season < Number(lastWatched[1]) || (ep.season === Number(lastWatched[1]) && ep.episode <= Number(lastWatched[2])));
+
+  let lastAired = null;
+  for (const ep of eps) if (ep.aired) lastAired = ep;
+  const leftRuntime = new Map(episodesLeft.filter(e => e.season != null).map(e => [`${e.season}-${e.episode}`, e.runtime]));
+
+  return eps.map(ep => {
+    const key = `${ep.season}-${ep.episode}`;
+    const info = tmdbEpisodeMap.get(key);
+    const listTitle = ep.listTitle && !/^Episode\s+\d+$/i.test(String(ep.listTitle).trim()) ? String(ep.listTitle).trim() : null;
+    const done = isWatched(ep);
+    const aired = done || ep.aired || (!ep.date && !!lastAired && (ep.season < lastAired.season || (ep.season === lastAired.season && ep.episode < lastAired.episode)));
+    return {
+      season: ep.season, episode: ep.episode,
+      title: (info && info.title) || listTitle,
+      runtime: leftRuntime.get(key) || (info && info.runtime) || avgRuntime,
+      status: done ? "watched" : aired ? "left" : "future",
+      date: ep.date,
+      badge: episodeBadge(ep.season, ep.episode),
+    };
+  });
 }
 
 function airedMinusWatchedCount(item) {
@@ -2440,7 +2485,7 @@ async function getMyListRows(cache, episodeCache) {
     // source of truth for how many episodes remain. TMDB is used only to
     // estimate how long they'll take to watch.
     const remaining = Math.max(airedMinusWatchedCount(item), 1);
-    const { totalMinutes: remainingMinutes, nextEpisodeMinutes, episodes: episodesLeft } = await estimateRemainingMinutes(
+    const { totalMinutes: remainingMinutes, nextEpisodeMinutes, episodes: episodesLeft, allEpisodes } = await estimateRemainingMinutes(
       item, tmdbId, showId, cache, episodeCache, remaining, show.runtime
     );
 
@@ -2535,7 +2580,7 @@ async function getMyListRows(cache, episodeCache) {
       title, imdbId, imdbRating, ratings, showId, tmdbId, year: show.year, ...images, network, networkLogoPath,
       totalEpisodes, available, watched, remaining,
       hours, mins, nextHours, nextMins, nextLabel, nextSeason, nextEpisode, seasonEps, seasons, episodeTitle, nextAirDate, badge,
-      episodesLeft, lastWatchedAt: mostRecentWatchedAt(item), joinedAt, yearRangeLabel,
+      episodesLeft, allEpisodes, lastWatchedAt: mostRecentWatchedAt(item), joinedAt, yearRangeLabel,
       firstAirDate: showDetail && showDetail.first_air_date ? showDetail.first_air_date : null,
     };
     return { row, remaining, remainingMinutes };
@@ -3692,29 +3737,70 @@ window.appBackPressed = () => {
   return false;
 };
 
-// Per-episode breakdown of a top-card show's remaining watch time -
-// opened by clicking the "Xh Ym left" line. episodesLeft was already
-// computed alongside the total (see estimateRemainingMinutes), so this
-// is pure rendering, no extra fetch - IMDb links (desktop only, see
-// enrichEpisodesWithImdbLinks) are fetched lazily afterward instead.
+// Every episode of a top-card show, season by season - opened by clicking
+// the "Xh Ym left" line. Watched episodes are dimmed, the ones left to
+// watch stand out (the next one marked UP NEXT), and episodes that haven't
+// aired yet close each season with their air date. allEpisodes and the
+// remaining total were already computed alongside the card (see
+// estimateRemainingMinutes), so this is pure rendering, no extra fetch -
+// IMDb links (desktop only, see enrichEpisodesWithImdbLinks) are fetched
+// lazily afterward instead. A show with no episode list falls back to just
+// its remaining episodes.
 function openEpisodesModal(arrIdx) {
   const row = getCycleRows("main")[arrIdx];
   if (!row || !row.episodesLeft || !row.episodesLeft.length) return;
 
-  const rowsHtml = row.episodesLeft.map((ep, i) => {
-    const isNext = i === 0;
-    const code = ep.season != null && ep.episode != null
-      ? `S${String(ep.season).padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`
-      : "";
-    const badgeHtml = ep.badge ? `<span class="episode-badge${ep.badge === "SEASON FINALE" ? " finale" : ""}">${ep.badge}</span>` : "";
+  const pad = n => String(n).padStart(2, "0");
+  const episodeName = ep => ep.title || (ep.episode != null ? `Episode ${ep.episode}` : "Episode");
+  const badgeHtml = ep => ep.badge && ep.status !== "watched"
+    ? `<span class="episode-badge${ep.badge === "SEASON FINALE" ? " finale" : ""}">${ep.badge}</span>` : "";
+  const shortDate = date => {
+    const ts = date ? episodeTimestamp(date) : NaN;
+    return isNaN(ts) ? "TBA" : new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
+  const listed = row.allEpisodes && row.allEpisodes.length
+    ? row.allEpisodes
+    : row.episodesLeft.map(ep => ({ ...ep, status: "left" }));
+  const nextIdx = listed.findIndex(ep => ep.status === "left");
+
+  const rowHtml = (ep, i) => {
+    const code = ep.season != null && ep.episode != null ? `S${pad(ep.season)}E${pad(ep.episode)}` : "";
+    const isNext = i === nextIdx;
+    const right = ep.status === "future"
+      ? `<span class="episode-runtime episode-airs">${shortDate(ep.date)}</span>`
+      : `<span class="episode-runtime">${formatEpisodeRuntime(ep.runtime)}</span>`;
     return `
-      <div class="episode-row${isNext ? " is-next" : ""}">
+      <div class="episode-row is-${ep.status}${isNext ? " is-next" : ""}">
+        <span class="episode-mark" aria-label="${ep.status === "watched" ? "Watched" : ep.status === "left" ? "Not watched" : "Not aired yet"}">${EPISODE_MARK_SVG[ep.status]}</span>
         <span class="episode-code">${code}</span>
-        <span class="episode-name" data-ep-key="${i}">${ep.title || (ep.episode != null ? `Episode ${ep.episode}` : "Episode")}</span>
-        ${badgeHtml}
-        <span class="episode-runtime">${formatEpisodeRuntime(ep.runtime)}</span>
+        <span class="episode-name" data-ep-key="${i}">${episodeName(ep)}</span>
+        ${isNext ? `<span class="episode-badge up-next">UP NEXT</span>` : badgeHtml(ep)}
+        ${right}
       </div>`;
-  }).join("\n");
+  };
+
+  let rowsHtml = "";
+  if (row.allEpisodes && row.allEpisodes.length) {
+    const seasonNums = [...new Set(listed.map(ep => ep.season))];
+    for (const n of seasonNums) {
+      const eps = listed.map((ep, i) => [ep, i]).filter(([ep]) => ep.season === n);
+      const watched = eps.filter(([ep]) => ep.status === "watched").length;
+      const left = eps.filter(([ep]) => ep.status === "left").length;
+      const aired = watched + left;
+      const stat = aired === 0 ? "Not aired yet"
+        : left === 0 ? `Watched &middot; ${watched}/${eps.length}`
+        : `${watched}/${eps.length} watched &middot; ${left} left`;
+      const tone = aired === 0 ? "future" : left === 0 ? "done" : "left";
+      rowsHtml += `
+        <div class="episodes-season-head">
+          <span class="episodes-season-name">SEASON ${n}</span>
+          <span class="episodes-season-stat tone-${tone}">${stat}</span>
+        </div>
+        ${eps.map(([ep, i]) => rowHtml(ep, i)).join("")}`;
+    }
+  } else {
+    rowsHtml = listed.map(rowHtml).join("");
+  }
   const [totalH, totalM] = formatTime(row.episodesLeft.reduce((sum, ep) => sum + ep.runtime, 0));
 
   const overlay = document.createElement("div");
@@ -3724,7 +3810,7 @@ function openEpisodesModal(arrIdx) {
   overlay.innerHTML = `
     <div class="modal-box episodes-modal">
       <div class="episodes-modal-head">
-        <div class="list-panel-header">${LIST_ICON_SOLID_SVG}<span>EPISODES LEFT</span></div>
+        <div class="list-panel-header">${LIST_ICON_SOLID_SVG}<span>EPISODES</span></div>
         <button class="modal-close-btn" id="episodesModalCloseBtn">&times;</button>
       </div>
       <div class="episodes-modal-subtitle">${row.title}</div>
@@ -3741,21 +3827,38 @@ function openEpisodesModal(arrIdx) {
   overlay.addEventListener("click", e => { if (e.target === overlay) closeEpisodesModal(); });
   document.addEventListener("keydown", episodesModalEscHandler);
 
+  // Open on the episode up next rather than the top of season 1.
+  const nextEl = overlay.querySelector(".episode-row.is-next");
+  if (nextEl) {
+    const list = overlay.querySelector(".episodes-list");
+    const head = nextEl.previousElementSibling && nextEl.previousElementSibling.classList.contains("episodes-season-head")
+      ? nextEl.previousElementSibling : nextEl;
+    list.scrollTop = Math.max(head.offsetTop - list.offsetTop - 8, 0);
+  }
+
   if (!window.matchMedia("(max-width: 720px)").matches) {
-    enrichEpisodesWithImdbLinks(row);
+    enrichEpisodesWithImdbLinks(row, listed);
   }
 }
+
+// The status mark at the start of each row in the episodes modal.
+const EPISODE_MARK_SVG = {
+  watched: `<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#2f6b45"/><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#bff3d1" stroke-width="2.6"/></svg>`,
+  left: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/></svg>`,
+  future: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 7v5l3 2"/></svg>`,
+};
 
 // Turns each episode name into a link to its own IMDb page, once TMDB's
 // per-episode id lookup resolves - desktop only (see the matchMedia guard
 // at the call site), since it's an extra network request per episode and
 // this modal already lays out differently below the mobile breakpoint.
 // Cached persistently (see getEpisodeExternalIds), so this only costs a
-// real fetch the first time a given episode is looked up, ever.
-function enrichEpisodesWithImdbLinks(row) {
+// real fetch the first time a given episode is looked up, ever. Only the
+// episodes left to watch, so a long show doesn't fire hundreds at once.
+function enrichEpisodesWithImdbLinks(row, episodes) {
   if (!row.tmdbId || !sharedCache) return;
-  row.episodesLeft.forEach((ep, i) => {
-    if (ep.season == null || ep.episode == null) return;
+  episodes.forEach((ep, i) => {
+    if (ep.season == null || ep.episode == null || ep.status !== "left") return;
     sharedCache.getEpisodeExternalIds(row.tmdbId, ep.season, ep.episode).then(ids => {
       if (!ids || !ids.imdb_id) return;
       const overlay = document.getElementById("episodesModalOverlay");
@@ -6238,7 +6341,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
           <div class="card-fill-spacer">
             ${progressHtml}
           </div>
-          <div class="time-left" title="See every remaining episode" onclick="event.stopPropagation(); openEpisodesModal(${arrIdx})"><span class="time-icon">${CLOCK_ICON_SVG}</span>${timeText}</div>
+          <div class="time-left" title="See every episode" onclick="event.stopPropagation(); openEpisodesModal(${arrIdx})"><span class="time-icon">${CLOCK_ICON_SVG}</span>${timeText}</div>
         </div>
       </div>`;
   });

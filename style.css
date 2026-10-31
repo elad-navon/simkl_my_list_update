@@ -1528,6 +1528,40 @@
   .episode-runtime { flex: 0 0 auto; font-size: 0.82rem; color: var(--muted); font-weight: 600;
     font-variant-numeric: tabular-nums; width: 54px; text-align: right; white-space: nowrap; }
   .episode-row.is-next .episode-runtime { color: var(--gold); }
+  /* Every episode of the show, season by season: watched ones dimmed, the
+     ones left to watch bold in gold and white, not-aired ones muted with
+     their air date. */
+  .episodes-season-head {
+    display: flex; align-items: center; gap: 10px; margin: 12px 10px 6px; padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .episodes-season-head:first-child { margin-top: 2px; }
+  .episodes-season-name {
+    flex: 1 1 auto; font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif; font-weight: 700;
+    font-size: 1.1rem; letter-spacing: 0.03em; color: var(--text);
+  }
+  .episodes-season-stat { font-size: 0.75rem; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .episodes-season-stat.tone-done { color: #4ade80; }
+  .episodes-season-stat.tone-left { color: var(--gold); }
+  .episode-mark { flex: 0 0 auto; display: inline-flex; align-self: center; }
+  .episode-row .episode-code { width: 46px; }
+  .episode-row.is-watched { padding-top: 5px; padding-bottom: 5px; }
+  .episode-row.is-watched .episode-code,
+  .episode-row.is-watched .episode-name,
+  .episode-row.is-watched .episode-runtime { color: var(--muted); opacity: 0.7; font-weight: 500; }
+  .episode-row.is-watched .episode-name { font-size: 0.8rem; }
+  .episode-row.is-left .episode-mark { color: var(--gold); }
+  .episode-row.is-left .episode-code { color: var(--gold); font-size: 1rem; }
+  .episode-row.is-left .episode-name { color: var(--text); font-weight: 700; font-size: 0.88rem; }
+  .episode-row.is-left .episode-runtime { color: var(--gold); font-weight: 700; }
+  .episode-row.is-left.is-next { background: rgba(251,191,36,0.10); }
+  .episode-row.is-future .episode-mark,
+  .episode-row.is-future .episode-code,
+  .episode-row.is-future .episode-name,
+  .episode-row.is-future .episode-runtime { color: var(--muted); }
+  .episode-row.is-future .episode-name { font-style: italic; }
+  .episode-row .episode-runtime.episode-airs { width: auto; min-width: 54px; }
+  .episode-badge.up-next { background: transparent; color: var(--gold); border: 1px solid var(--gold); padding: 1px 6px; }
   .episodes-modal-foot {
     display: flex; align-items: center; justify-content: space-between;
     padding: 14px 22px; border-top: 1px solid var(--border); margin-top: 4px;
