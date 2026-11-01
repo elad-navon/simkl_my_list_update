@@ -2208,6 +2208,22 @@
   body.phone-portrait .list-row { --row-w: 100cqw; width: var(--row-w); scroll-snap-align: start; scroll-snap-stop: always; }
   body.phone-portrait .plan-menu-btn { top: calc(var(--row-w) * 9 / 16 + 8px); }
   body.phone-portrait .list-rows-paged .plan-menu-btn { top: calc(var(--row-w) * 9 / 16 + 16px); }
+  /* The cards' text two sizes up (about two fifths) - at the desktop sizes it
+     read too small on the phone. */
+  body.phone-portrait .card-body h3, body.phone-portrait .list-row .list-row-title { font-size: 1.45rem; }
+  body.phone-portrait .episode-title { font-size: 1.1rem; }
+  body.phone-portrait .next-up { font-size: 1.15rem; }
+  body.phone-portrait .watch-segs-label { font-size: 1rem; }
+  body.phone-portrait .watch-progress-text { font-size: 0.9rem; }
+  body.phone-portrait .time-left { font-size: 1.3rem; }
+  body.phone-portrait .list-row-sub { font-size: 1.05rem; }
+  body.phone-portrait .list-row-airdate { font-size: 1.15rem; }
+  body.phone-portrait .imdb-pill { font-size: 13px; }
+  body.phone-portrait .imdb-pill-rating { font-size: 1.15rem; }
+  /* The years under the name, only as wide as they are - not a bar
+     across the card (Plan to Watch). */
+  body.phone-portrait .title-with-year { flex-direction: column; align-items: flex-start; }
+  body.phone-portrait .title-with-year .premiere-badge.year-badge { flex-basis: auto; }
 
   /* Sideways: one slim header row - the logo, the panels as tabs, Search and
      Settings - and under it only the chosen tab's panel (app.js: showPhoneTab),
