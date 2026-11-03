@@ -799,8 +799,9 @@ function libraryAirTimes() {
   };
 }
 
-// Air times from yes's TV guide for Israeli shows (see yes-times.js), for
-// the episodes still date-only after SIMKL's times. A show counts as Israeli
+// Air times from yes's TV guide for Israeli shows (see yes-times.js): yes
+// goes first and its time wins over TVMaze's; SIMKL then fills only the
+// episodes yes left date-only. A show counts as Israeli
 // by TMDB's origin country or original language; its English and original
 // (Hebrew) names are what the guide's titles are matched against.
 function withYesAirTimes(airTimes) {
@@ -818,7 +819,10 @@ function withYesAirTimes(airTimes) {
       };
     },
   });
-  return async (ids, eps) => yes(ids, airTimes ? await airTimes(ids, eps).catch(() => eps) : eps);
+  return async (ids, eps) => {
+    const fromYes = await yes(ids, eps);
+    return airTimes ? airTimes(ids, fromYes).catch(() => fromYes) : fromYes;
+  };
 }
 
 // The bridge's times (meta "airTimes"), read at most every 30 minutes;
