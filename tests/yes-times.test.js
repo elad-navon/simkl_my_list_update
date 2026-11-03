@@ -147,3 +147,33 @@ test("enrich: yes failing leaves the list as it was", async () => {
   const eps = [dateOnly(1, 1, TOMORROW)];
   assert.deepEqual(await enrich({ tmdb: 3 }, eps), eps);
 });
+
+test("applyYesTimes: yes's time wins over a time the episode already had", () => {
+  const timed = { season: 1, episode: 5, date: "2026-11-02T19:30:00.000Z", hasTime: true, timeFrom: "simkl", title: "E5" };
+  const out = applyYesTimes([timed], {
+    [TOMORROW]: [item("זהו זה - פרק 5", "2026-11-02T20:50:00+02:00")],
+  }, ["Zehu Ze", "זהו זה"]);
+  assert.equal(out[0].date, "2026-11-02T18:50:00.000Z");
+  assert.equal(out[0].timeFrom, "yes");
+});
+
+test("applyYesTimes: a timed episode with no broadcast in yes keeps its time", () => {
+  const timed = { season: 1, episode: 5, date: "2026-11-02T19:30:00.000Z", hasTime: true, timeFrom: "tvmaze", title: "E5" };
+  const eps = [timed];
+  const out = applyYesTimes(eps, { [TOMORROW]: [item("חדשות 12", "2026-11-02T20:00:00+02:00")] }, ["Zehu Ze", "זהו זה"]);
+  assert.equal(out, eps);
+});
+
+test("enrich: a timed episode near today is looked up too", async () => {
+  const asked = [];
+  const enrich = createYesAirTimes({
+    fetch: async url => { asked.push(url); return { ok: true, json: async () => ({ items: url.includes("CH34") ? [{ title: "זהו זה - פרק 5", starts: "2026-11-02T20:50:00+02:00" }] : [] }) }; },
+    cache: memoryCache(),
+    showInfo: async () => ({ israeli: true, names: ["Zehu Ze", "זהו זה"] }),
+    now: () => NOW,
+  });
+  const out = await enrich({ tmdb: 1 }, [{ season: 1, episode: 5, date: "2026-11-02T19:30:00.000Z", hasTime: true, timeFrom: "simkl" }]);
+  assert.equal(asked.length, 3);
+  assert.equal(out[0].date, "2026-11-02T18:50:00.000Z");
+  assert.equal(out[0].timeFrom, "yes");
+});

@@ -13,7 +13,10 @@
 //     "ש.ח") never counts; a broadcast whose "פרק N" is the episode's number
 //     wins, the earliest that day; without a number, the day's broadcast is
 //     taken only when there is exactly one, in the evening (18:00-23:59) -
-//     anything less sure leaves the episode date-only, as it was.
+//     anything less sure leaves the episode as it was.
+// For an Israeli show yes is the surest source of the hour, so an episode
+// that already has a time (TVMaze's, SIMKL's) takes yes's instead when yes
+// has a broadcast for it that day; SIMKL only fills in what yes left.
 // Nothing else changes. Runs in the browser (window.YesTimes) and in Node for
 // tests.
 (function (root, factory) {
@@ -39,6 +42,15 @@
   const TIMEOUT_MS = 8000;
 
   const isDateOnly = ep => !!ep.date && ep.date.length === 10 && !ep.hasTime;
+
+  // The day an episode airs in Israel: its date, or the Israel day of its
+  // time; null when unreadable.
+  function episodeDay(ep) {
+    if (!ep || !ep.date) return null;
+    if (isDateOnly(ep)) return ep.date;
+    const ts = Date.parse(ep.date);
+    return isNaN(ts) ? null : israelDate(ts);
+  }
 
   // "2026-11-01" for a moment, in Israel.
   const dayFmt = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" });
@@ -89,16 +101,17 @@
     return keys.some(key => base.includes(` ${key} `));
   }
 
-  // The episodes, each date-only one with its broadcast's start time where
-  // the rules above find one. `schedules`: { "2026-11-01": [items] }.
+  // The episodes, each with its broadcast's start time where the rules above
+  // find one (replacing a time it had). `schedules`: { "2026-11-01": [items] }.
   function applyYesTimes(episodes, schedules, names) {
     const keys = nameKeys(names);
     if (!keys.length || !schedules) return episodes;
     let changed = 0;
     const out = episodes.map(ep => {
-      if (!isDateOnly(ep) || !schedules[ep.date]) return ep;
-      const mine = schedules[ep.date]
-        .filter(item => matchesShow(item, keys) && !isRerun(item) && israelDate(Date.parse(item.starts)) === ep.date)
+      const day = episodeDay(ep);
+      if (!day || !schedules[day]) return ep;
+      const mine = schedules[day]
+        .filter(item => matchesShow(item, keys) && !isRerun(item) && israelDate(Date.parse(item.starts)) === day)
         .sort((a, b) => Date.parse(a.starts) - Date.parse(b.starts));
       const numbered = mine.filter(item => episodeNumber(item) === ep.episode);
       const evening = item => Number(hourFmt.format(new Date(Date.parse(item.starts)))) >= EVENING_FROM_HOUR;
@@ -106,8 +119,10 @@
         : mine.length === 1 && episodeNumber(mine[0]) == null && evening(mine[0]) ? mine[0] : null;
       const ts = pick ? Date.parse(pick.starts) : NaN;
       if (isNaN(ts)) return ep;
+      const iso = new Date(ts).toISOString();
+      if (ep.hasTime && ep.timeFrom === "yes" && ep.date === iso) return ep;
       changed++;
-      return { ...ep, date: new Date(ts).toISOString(), hasTime: true, timeFrom: "yes" };
+      return { ...ep, date: iso, hasTime: true, timeFrom: "yes" };
     });
     return changed ? out : episodes;
   }
@@ -159,7 +174,7 @@
       const t = now();
       const from = israelDate(t - WINDOW_BEFORE_DAYS * DAY_MS);
       const to = israelDate(t + WINDOW_AFTER_DAYS * DAY_MS);
-      const dates = [...new Set(episodes.filter(ep => isDateOnly(ep) && ep.date >= from && ep.date <= to).map(ep => ep.date))];
+      const dates = [...new Set(episodes.map(episodeDay).filter(day => day && day >= from && day <= to))];
       if (!dates.length) return episodes;
       const work = (async () => {
         const info = await showInfo(ids);
