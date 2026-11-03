@@ -31,10 +31,10 @@
   // Kan 11, Keshet 12, Reshet 13 - yes's ids, as in Prime Time.
   const CHANNELS = ["CH30", "CH34", "CH36"];
   const TZ = "Asia/Jerusalem";
-  // Which date-only episodes are looked up: from yesterday to 3 days ahead
+  // Which episodes are looked up: from yesterday to 6 days ahead
   // (yes's guide goes about a week ahead).
   const WINDOW_BEFORE_DAYS = 1;
-  const WINDOW_AFTER_DAYS = 3;
+  const WINDOW_AFTER_DAYS = 6;
   // A day's schedule is read again after this long...
   const FRESH_MS = 3 * 3600 * 1000;
   // ...and kept this long, so an episode keeps its time after it airs.
