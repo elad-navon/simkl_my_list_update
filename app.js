@@ -1008,6 +1008,7 @@ async function openLibrary() {
     showLibrarySignIn();
     return false;
   }
+  loadProfilePhotoFromAccount();
   if (!library.store) {
     const store = LibraryStore.createLibraryStore({
       core: LibraryCore, backend: library.backend, storage: localStorage, onChange: renderSaveStatus,
@@ -1375,15 +1376,19 @@ function wireLibrarySettings() {
       showToast(`Restore failed: ${err.message}`, true);
     }
   };
-  document.getElementById("librarySignOutBtn").onclick = async () => {
-    if (library.store.status().pending && !confirm("Some changes aren't saved yet and will be lost. Sign out anyway?")) return;
-    await library.backend.signOut();
-    writePersistedCache(PANELS_SNAPSHOT_KEY, null); // not shown to whoever signs in next
-    library.store = null;
-    library.adapter = null;
-    main();
-  };
+  document.getElementById("librarySignOutBtn").onclick = signOutLibrary;
   document.getElementById("libraryCleanupBtn").onclick = showWatchingCleanup;
+}
+
+// Signing out (Settings, and the menu under the profile picture).
+async function signOutLibrary() {
+  if (library.store && library.store.status().pending && !confirm("Some changes aren't saved yet and will be lost. Sign out anyway?")) return;
+  await library.backend.signOut();
+  writePersistedCache(PANELS_SNAPSHOT_KEY, null); // not shown to whoever signs in next
+  safeRemoveProfilePhoto();
+  library.store = null;
+  library.adapter = null;
+  main();
 }
 
 // ---------------------------------------------------------------------
@@ -5778,9 +5783,165 @@ function paintAirCount(el, now) {
 function tickAirCountdowns() {
   const now = Date.now();
   document.querySelectorAll(".air-count").forEach(el => paintAirCount(el, now));
+  updateGreetingStatus(now); // the day may have turned
   // A report going stale ends the watch: its show goes back to its place.
   if (embyNow) syncWatchingOrder() || applyNowWatching();
 }
+
+// ---------------------------------------------------------------------
+// The greeting at the foot of the box on the left: under "Hi Elad" a line
+// with what's on today - how many episodes in Airing Next air today (a
+// button: it opens their list, each with its time) and how many shows are
+// Ready to Watch. The profile picture is a button: it opens a small menu - who is
+// signed in, change the picture (kept in the account, so every device
+// shows it), sign out.
+// ---------------------------------------------------------------------
+const LS_PROFILE_PHOTO = "profile_photo";
+const PROFILE_PHOTO_PX = 160;
+
+function localDayKey(ms) {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// The Airing Next rows that air today (this device's day), in air order.
+function airingToday(list, now) {
+  const today = localDayKey(now);
+  return (list || [])
+    .filter(r => r.airStart != null
+      ? localDayKey(r.airStart) === today || (r.airEnd != null && r.airStart <= now && now < r.airEnd)
+      : r.airDay === today)
+    .sort((a, b) => (a.airStart ?? Infinity) - (b.airStart ?? Infinity));
+}
+
+function updateGreetingStatus(now = Date.now()) {
+  const el = document.getElementById("greetingStatus");
+  if (!el) return;
+  if (!lastRows) { el.hidden = true; return; }
+  const today = airingToday(lastAiringPreview, now);
+  const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const timeOf = r => (r.airStart == null ? "Today"
+    : r.airEnd != null && r.airStart <= now && now < r.airEnd ? "NOW"
+    : new Date(r.airStart).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }));
+  const ready = `<b>${lastRows.length}</b> ready`;
+  el.innerHTML = today.length
+    ? `<button type="button" class="gs-sum gs-open" id="todayBtn" aria-haspopup="dialog" aria-expanded="${!todayPop().hidden}" title="What's on today"><b>${today.length}</b> today <span class="gs-caret">▴</span> · ${ready}</button>`
+    : `<span class="gs-sum">Nothing today · ${ready}</span>`;
+  el.hidden = false;
+  const pop = todayPop();
+  if (!today.length) { pop.hidden = true; return; }
+  pop.innerHTML = `<div class="today-pop-h">Today</div>`
+    + today.map(r => `<div class="today-pop-ep"><em>${timeOf(r)}</em><span>${esc(r.title)}</span></div>`).join("");
+}
+const todayPop = () => document.getElementById("todayPop");
+
+// The summary opens tonight's list above it; a click elsewhere or Esc
+// closes it (and the account menu closes it too).
+(function wireTodayPop() {
+  const status = document.getElementById("greetingStatus");
+  if (!status) return;
+  const close = () => {
+    todayPop().hidden = true;
+    const btn = document.getElementById("todayBtn");
+    if (btn) btn.setAttribute("aria-expanded", "false");
+  };
+  status.addEventListener("click", e => {
+    const btn = e.target.closest("#todayBtn");
+    if (!btn) return;
+    e.stopPropagation();
+    const pop = todayPop();
+    if (!pop.hidden) { close(); return; }
+    document.getElementById("profileMenu").hidden = true;
+    document.getElementById("profileMenuBtn").setAttribute("aria-expanded", "false");
+    pop.hidden = false;
+    btn.setAttribute("aria-expanded", "true");
+  });
+  todayPop().addEventListener("click", e => e.stopPropagation());
+  document.addEventListener("click", () => { if (!todayPop().hidden) close(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !todayPop().hidden) close(); });
+})();
+
+function applyProfilePhoto(src) {
+  const img = document.querySelector("#profileMenuBtn .profile-pic-small");
+  if (src && img && img.src !== src) img.src = src;
+}
+function safeRemoveProfilePhoto() {
+  try { localStorage.removeItem(LS_PROFILE_PHOTO); } catch (e) { /* storage blocked */ }
+}
+try { applyProfilePhoto(localStorage.getItem(LS_PROFILE_PHOTO)); } catch (e) { /* storage blocked */ }
+
+// The account's picture, once signed in (this device keeps a copy, so the
+// next load shows it at once).
+async function loadProfilePhotoFromAccount() {
+  try {
+    const doc = await library.backend.getMeta("profile");
+    if (doc && typeof doc.photo === "string" && doc.photo.startsWith("data:image/")) {
+      applyProfilePhoto(doc.photo);
+      safeSetItem(LS_PROFILE_PHOTO, doc.photo);
+    }
+  } catch (e) {
+    console.warn("Couldn't read the profile picture:", e.message);
+  }
+}
+
+// A picked image cropped to a centred square and shrunk, as a JPEG data URL.
+function squarePhotoDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const side = Math.min(img.naturalWidth, img.naturalHeight);
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = PROFILE_PHOTO_PX;
+      canvas.getContext("2d").drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side,
+        0, 0, PROFILE_PHOTO_PX, PROFILE_PHOTO_PX);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", 0.85));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("that file isn't an image")); };
+    img.src = url;
+  });
+}
+
+(function wireProfileMenu() {
+  const btn = document.getElementById("profileMenuBtn");
+  const menu = document.getElementById("profileMenu");
+  if (!btn || !menu) return;
+  const currentUser = () => (library && library.backend ? library.backend.currentUser() : null);
+  const close = () => { menu.hidden = true; btn.setAttribute("aria-expanded", "false"); };
+  const open = () => {
+    todayPop().hidden = true;
+    const user = currentUser();
+    document.getElementById("profileMenuWho").textContent = user ? `Signed in as ${user.email}` : "Not signed in";
+    document.getElementById("profilePhotoBtn").hidden = !user;
+    document.getElementById("profileSignOutBtn").hidden = !user;
+    menu.hidden = false;
+    btn.setAttribute("aria-expanded", "true");
+  };
+  btn.onclick = e => { e.stopPropagation(); if (menu.hidden) open(); else close(); };
+  menu.onclick = e => e.stopPropagation();
+  document.addEventListener("click", () => { if (!menu.hidden) close(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !menu.hidden) { close(); btn.focus(); } });
+
+  const input = document.getElementById("profilePhotoInput");
+  document.getElementById("profilePhotoBtn").onclick = () => input.click();
+  input.onchange = async () => {
+    const file = input.files && input.files[0];
+    input.value = "";
+    close();
+    if (!file || !currentUser()) return;
+    try {
+      const photo = await squarePhotoDataUrl(file);
+      applyProfilePhoto(photo);
+      safeSetItem(LS_PROFILE_PHOTO, photo);
+      await library.backend.setMeta("profile", { photo, savedAt: Date.now() });
+      showToast("Profile picture saved");
+    } catch (err) {
+      showToast(`Couldn't save the picture: ${err.message}`, true);
+    }
+  };
+  document.getElementById("profileSignOutBtn").onclick = () => { close(); signOutLibrary(); };
+})();
 
 // At the next moment something changes state - an episode starting (NOW in
 // Airing Next) or ending (it moves to My List) - the panels refresh quietly.
@@ -6266,6 +6427,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
     lastAiringPreview = airingPreview;
     syncEpisodeAlerts(airingPreview);
   }
+  updateGreetingStatus();
   rememberLoaderPosters();
   if (!panelsFromSnapshot) savePanelsSnapshotSoon();
   currentView = "list";
