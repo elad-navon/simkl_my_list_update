@@ -112,6 +112,33 @@
   .profile-greeting-inline { display: flex; align-items: center; gap: 8px; margin-left: 22px; }
   .profile-greeting-hi { font-size: 1.26rem; font-weight: 700; color: var(--text); white-space: nowrap; }
   .profile-pic-small { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; flex: 0 0 auto; }
+  .profile-greeting-inline { position: relative; }
+  /* The picture is a button (the account menu); in the top bar the name
+     stays left of it, as before. */
+  .profile-pic-btn {
+    flex: 0 0 auto; display: inline-flex; padding: 0; border: none; background: none;
+    border-radius: 50%; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .profile-pic-btn:hover { transform: scale(1.06); box-shadow: 0 0 0 2px var(--accent); }
+  .profile-pic-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .profile-greeting-text { order: -1; display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
+  /* What's on today - only in the box on the left (below). */
+  .profile-greeting-status { display: none; font-size: 0.92rem; font-weight: 700; color: var(--muted); white-space: nowrap; }
+  .profile-greeting-status b { color: var(--text); }
+  .profile-menu {
+    position: absolute; top: calc(100% + 8px); right: 0; z-index: 60; min-width: 230px;
+    display: flex; flex-direction: column; padding: 6px; border-radius: 10px;
+    background: var(--card); border: 1px solid var(--border); box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5);
+  }
+  .profile-menu[hidden] { display: none; }
+  .profile-menu-who { padding: 6px 10px 8px; font-size: 0.8rem; color: var(--muted); border-bottom: 1px solid var(--border); margin-bottom: 4px; overflow-wrap: anywhere; }
+  .profile-menu button {
+    display: block; width: 100%; text-align: left; padding: 8px 10px; border: none; border-radius: 6px;
+    background: none; color: var(--text); font: inherit; font-size: 0.98rem; font-weight: 600; cursor: pointer;
+  }
+  .profile-menu button:hover, .profile-menu button:focus-visible { background: var(--card-hover); outline: none; }
+  .profile-menu button[hidden] { display: none; }
+  .profile-menu .profile-menu-out { color: #f87171; }
   .theme-toggle {
     flex: 0 0 auto; width: 38px; height: 21px; border-radius: 20px;
     background: #334255; border: none; cursor: pointer; position: relative;
@@ -1171,6 +1198,36 @@
       margin: auto 0 0; padding-top: 14px; border-top: 1px solid var(--border);
       justify-content: center; gap: 10px;
     }
+    /* The greeting in the box: the picture (a button), then the name with
+       what's on today under it; its menu opens upwards, as wide as the box. */
+    body.equal-panels:not(.panels-scroll) .profile-greeting-inline { justify-content: center; }
+    /* (Never wider than this, so the picture and the lines stay centred;
+       a longer show's name ends in "...".) */
+    body.equal-panels:not(.panels-scroll) .profile-greeting-text { max-width: 150px; }
+    .gs-sum { overflow: hidden; text-overflow: ellipsis; }
+    body.equal-panels:not(.panels-scroll) .profile-greeting-text { order: 0; }
+    body.equal-panels:not(.panels-scroll) .profile-greeting-status:not([hidden]) { display: flex; flex-direction: column; gap: 1px; }
+    /* The summary as a button: a dotted underline and a caret, lit on hover. */
+    .gs-open {
+      padding: 0; border: none; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer;
+      text-decoration: underline dotted color-mix(in srgb, var(--accent) 60%, transparent); text-underline-offset: 3px;
+      transition: color 0.15s ease;
+    }
+    .gs-open:hover, .gs-open[aria-expanded="true"] { color: var(--accent); }
+    .gs-open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+    .gs-caret { font-size: 0.8em; }
+    /* Tonight's list, above the greeting, as wide as the box. */
+    .today-pop {
+      position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); z-index: 60;
+      display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border-radius: 10px;
+      background: var(--card); border: 1px solid var(--border); box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5);
+    }
+    .today-pop[hidden] { display: none; }
+    .today-pop-h { font-size: 0.8rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); padding-bottom: 4px; margin-bottom: 2px; }
+    .today-pop-ep { display: flex; gap: 8px; font-size: 1rem; font-weight: 700; color: var(--text); }
+    .today-pop-ep em { flex: none; font-style: normal; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+    .today-pop-ep span { min-width: 0; overflow-wrap: anywhere; }
+    body.equal-panels:not(.panels-scroll) .profile-menu { top: auto; bottom: calc(100% + 8px); left: 0; right: 0; min-width: 0; }
     /* A short screen: the box beside the top panel a little more compact,
        so all it holds still fits its height. */
     @media (max-height: 860px) {
