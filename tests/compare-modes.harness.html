@@ -13,7 +13,9 @@
      ?scenario=writes|ui: the changes, the screens around the panels (also
      onair, airtimes, posters - see each run*).
      ?panels=poster: the bottom panels with posters. ?show=library: just the page, full size, for a
-     screenshot. ?golden=library: what the page shows (to refresh the file). -->
+     screenshot. ?golden=library: what the page shows (to refresh the file).
+     All scenarios at once, with a summary: node tests/run-browser.mjs
+     (a few minutes - onair waits for real moments). -->
 <pre id="result"></pre>
 <script>
 "use strict";
@@ -343,10 +345,12 @@ async function runAirTimes() {
   const airRow = t => airing().find(r => r.title === t) || {};
   await waitFor(() => airing().length);
   check("the bridge's time is taken: hours, not TODAY", airRow("November").count === "3 HOURS", airRow("November"));
-  check("no time from the bridge: still TODAY", airRow("Sierra").count === "TODAY", airRow("Sierra"));
+  // A date-only episode counts from 10:00 that day; the fake world's "now" is
+  // noon here, so Sierra's is out already: in My List, not Airing Next.
+  const myList = () => (w.eval("lastRows") || []).map(r => r.title);
+  check("no time from the bridge: date only, out from 10:00 - in My List at noon",
+    myList().includes("Sierra") && !airing().some(r => r.title === "Sierra"), { myList: myList(), airing: airing().map(r => r.title) });
   check("the bridge's date three days off: the known date stays", airRow("Tango").count === "1 DAY", airRow("Tango"));
-  const order = airing().map(r => r.title);
-  check("the timed episode sorts before today's date-only one", order.indexOf("November") < order.indexOf("Sierra"), order);
   await rerender(w, () => w.eval("main")());
   check("after a refresh: still the bridge's time", airRow("November").count === "3 HOURS", airRow("November"));
   const asked = w.__calls.filter(c => c.startsWith("api.simkl.com"));
@@ -383,6 +387,11 @@ async function runPosters() {
     out.frames = [frame(doc.querySelector(".panel-pair > .list-row:nth-child(1) .list-thumb-wrap")), frame(doc.querySelector(".panel-pair > .list-row:nth-child(2) .list-row-body"))];
     const top = [frame(doc.querySelector(".poster-pair > .card:nth-child(1) .poster-wrap")), frame(doc.querySelector(".poster-pair > .card:nth-child(2) .card-body"))];
     out.topFrames = top;
+    // Recently Watched's first two rows, top of the first to bottom of the
+    // second (banners: the page's two stacked banner rows, frames included -
+    // each banner sits 2px inside its row's frame).
+    const two = [...doc.querySelectorAll(".list-panel--watched .list-row")].slice(0, 2).map(e => e.getBoundingClientRect());
+    out.stack = two.length === 2 ? Math.round(two[1].bottom - two[0].top) : null;
     return out;
   };
   const banner = await loadMode("library", false, "", "banner");
@@ -390,15 +399,21 @@ async function runPosters() {
   banner.frame.remove();
   const poster = await loadMode("library", false, "", "poster");
   const after = measure(poster.w);
-  const same = k => before[k].w === after[k].w && before[k].h === after[k].h;
-  check("the panels keep their size", same("watched") && same("airing") && same("plan"), { before, after });
+  // Heights stay; the widths are shared out anew (Airing Next one pair wide,
+  // the other two one show wide), the row as wide as before.
+  const sameH = ["watched", "airing", "plan"].every(k => before[k].h === after[k].h);
+  const rowW = m => m.watched.w + m.airing.w + m.plan.w;
+  check("the panels keep their height, the row its width", sameH && Math.abs(rowW(before) - rowW(after)) <= 3, { before, after });
   check("the top bar keeps its height", before.topbarH === after.topbarH, [before.topbarH, after.topbarH]);
-  check("Airing Next first, then Plan to Watch and Recently Watched", JSON.stringify(after.order) === JSON.stringify(["airing", "plan", "watched"]), after.order);
-  check("a poster, as tall as the two banners", after.thumb[0] === 187 && after.thumb[1] === 280, after.thumb);
+  check("Airing Next first, then Recently Watched and Plan to Watch", JSON.stringify(after.order) === JSON.stringify(["airing", "watched", "plan"]), after.order);
+  check("a 2:3 poster, as tall as the two banners", Math.abs(after.thumb[0] * 3 / 2 - after.thumb[1]) <= 2 && Math.abs(after.thumb[1] - before.stack) <= 2,
+    { poster: after.thumb, twoBanners: before.stack });
   check("the shows in pairs, a page per pair", after.pairs >= 3 && /^1 of /.test(after.watched.range) && /^1-2 of /.test(after.airing.range), after);
   check("the same frame colors as the top panel's pairs", after.frames[0] === "rgb(48, 156, 205)" && after.frames[1] === "rgb(203, 156, 35)", after.frames);
   // The narrow panels' arrows step one show at a time: the pair's second
-  // show stops where its details box starts, the next pair at its start.
+  // show stops where its details box starts (or, when the show is wider
+  // than the panel, with its poster whole at the right edge - trackStops),
+  // the next pair at its start.
   const w = poster.w;
   const panelEl = w.document.querySelector(".list-panel--watched");
   const track = panelEl.querySelector(".list-rows-paged");
@@ -418,17 +433,20 @@ async function runPosters() {
   lefts.push(at(second.querySelector(".list-thumb-wrap")));
   panelEl.querySelector(".list-pager-arrow.prev").click();
   await sleep(900);
-  const body2 = track.querySelectorAll(".list-row")[1].querySelector(".list-row-body");
-  lefts.push(at(body2));
+  const row2 = track.querySelectorAll(".list-row")[1];
+  lefts.push(at(row2.querySelector(".list-row-body")));
+  const thumb2 = row2.querySelector(".list-thumb-wrap").getBoundingClientRect();
+  const posterEnd = Math.round(thumb2.right - track.getBoundingClientRect().left - track.clientLeft);
+  const secondOk = Math.abs(lefts[1]) <= 1 || (lefts[1] < 0 && Math.abs(posterEnd - track.clientWidth) <= 1);
   check("narrow panels: each arrow click moves one show (poster + its details)",
-    /^1 of /.test(steps[0]) && /^2 of /.test(steps[1]) && /^3 of /.test(steps[2]) && Math.abs(lefts[0]) <= 1 && Math.abs(lefts[1]) <= 1,
-    { steps, lefts });
+    /^1 of /.test(steps[0]) && /^2 of /.test(steps[1]) && /^3 of /.test(steps[2]) && Math.abs(lefts[0]) <= 1 && secondOk,
+    { steps, lefts, posterEnd, trackWidth: track.clientWidth });
   const btn = () => w.document.getElementById("panelImagesBtn");
   check("the button offers the way back", /Panels to\s*Banners/.test(btn().textContent), btn().textContent);
   await rerender(w, () => btn().click());
   const back = measure(w);
   check("one click: banners again, two per page", back.watched.shown === 2 && /^1-2 of /.test(back.watched.range) &&
-    back.thumb[0] === 204 && !back.pairs && /Panels to\s*Posters/.test(btn().textContent), back);
+    back.thumb[0] === before.thumb[0] && back.thumb[1] === before.thumb[1] && !back.pairs && /Panels to\s*Posters/.test(btn().textContent), back);
   return results;
 }
 
