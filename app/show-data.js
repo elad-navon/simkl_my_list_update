@@ -95,107 +95,15 @@ function prunePersistedCache() {
 }
 
 
-class TmdbCache {
-  constructor() {
-    this.show = new Map(); this.season = new Map(); this.episodeIds = new Map();
-    this.credits = new Map(); this.personIds = new Map();
-  }
-  // Both methods store the in-flight PROMISE in the map (not just the
-  // resolved value), and do so synchronously before any await - so if the
-  // same id is requested again while the first fetch is still in flight
-  // (common now that callers run per-show work concurrently), the second
-  // call reuses the same promise instead of firing a duplicate request.
-  getShow(tmdbId) {
-    if (!this.show.has(tmdbId)) {
-      // Bumped from tmdbshow: to tmdbshow2: when content_ratings was added
-      // to append_to_response below - otherwise every show already
-      // persisted from before that change (up to 24h old, per
-      // CACHE_TTL_TMDB_SHOW_MS) would keep serving its old response, minus
-      // content_ratings, straight out of the cache until it naturally
-      // expired, silently hiding the new rating badge for up to a day.
-      const cacheKey = `tmdbshow2:${tmdbId}`;
-      // append_to_response=images,external_ids,content_ratings pulls ALL
-      // available posters/backdrops (for the cycle-through-alternates
-      // feature), this show's imdb id (for the search-detail modal's title
-      // link), and its age rating (TV-MA etc., shown on the Plan to Watch
-      // row - see extractContentRating) all in the one request every show
-      // already needs, rather than firing extra ones. include_image_language
-      // asks for
-      // English + untagged (no-language) + Hebrew images -
-      // English/no-language is preferred (see computeImages), Hebrew is
-      // used only as a fallback for shows that only have Hebrew-text
-      // artwork (some Israeli shows).
-      // TMDB is purely supplementary now (images/external id/runtime
-      // estimate only, never episode counts) - a failure here degrades
-      // gracefully to null rather than crashing whichever show triggered it.
-      const promise = readPersistedCache(cacheKey, CACHE_TTL_TMDB_SHOW_MS).then(cached => cached !== undefined ? cached : tmdbGet(`/tv/${tmdbId}`, {
-        append_to_response: "images,external_ids,content_ratings",
-        language: "en-US",
-        include_image_language: "en,null,he",
-      }).then(data => {
-        if (data) writePersistedCache(cacheKey, data);
-        return data;
-      })).catch(() => null);
-      this.show.set(tmdbId, promise);
-    }
-    return this.show.get(tmdbId);
-  }
-  getSeason(tmdbId, seasonNum) {
-    const key = `${tmdbId}:${seasonNum}`;
-    if (!this.season.has(key)) {
-      const cacheKey = `tmdbseason:${key}`;
-      const promise = readPersistedCache(cacheKey, CACHE_TTL_TMDB_SEASON_MS).then(cached => cached !== undefined ? cached : tmdbGet(`/tv/${tmdbId}/season/${seasonNum}`).then(data => {
-        if (data) writePersistedCache(cacheKey, data);
-        return data;
-      })).catch(() => null);
-      this.season.set(key, promise);
-    }
-    return this.season.get(key);
-  }
-  // TMDB has no bulk way to get every episode's IMDb id alongside the
-  // season data - it's a dedicated per-episode endpoint, so this is only
-  // called lazily (Episodes Left modal, desktop only) rather than as part
-  // of the normal per-show fetch every card already does.
-  getEpisodeExternalIds(tmdbId, season, episode) {
-    const key = `${tmdbId}:${season}:${episode}`;
-    if (!this.episodeIds.has(key)) {
-      const cacheKey = `tmdbepids:${key}`;
-      const promise = readPersistedCache(cacheKey, CACHE_TTL_TMDB_EPISODE_IDS_MS).then(cached => cached !== undefined ? cached : tmdbGet(`/tv/${tmdbId}/season/${season}/episode/${episode}/external_ids`).then(data => {
-        if (data) writePersistedCache(cacheKey, data);
-        return data;
-      })).catch(() => null);
-      this.episodeIds.set(key, promise);
-    }
-    return this.episodeIds.get(key);
-  }
-  // aggregate_credits (not the plain "credits" endpoint) sums a person's
-  // appearances across every season instead of just the latest one, so
-  // long-running main cast still rank near the top even in a show's later
-  // seasons - used for the cast modal's "main cast" list (see openCastModal).
-  getCredits(tmdbId) {
-    if (!this.credits.has(tmdbId)) {
-      const cacheKey = `tmdbcredits:${tmdbId}`;
-      const promise = readPersistedCache(cacheKey, CACHE_TTL_TMDB_CREDITS_MS).then(cached => cached !== undefined ? cached : tmdbGet(`/tv/${tmdbId}/aggregate_credits`).then(data => {
-        if (data) writePersistedCache(cacheKey, data);
-        return data;
-      })).catch(() => null);
-      this.credits.set(tmdbId, promise);
-    }
-    return this.credits.get(tmdbId);
-  }
-  // A cast member's IMDb id isn't in the credits response - same
-  // per-item-endpoint situation as getEpisodeExternalIds.
-  getPersonExternalIds(personId) {
-    if (!this.personIds.has(personId)) {
-      const cacheKey = `tmdbpersonids:${personId}`;
-      const promise = readPersistedCache(cacheKey, CACHE_TTL_TMDB_PERSON_IDS_MS).then(cached => cached !== undefined ? cached : tmdbGet(`/person/${personId}/external_ids`).then(data => {
-        if (data) writePersistedCache(cacheKey, data);
-        return data;
-      })).catch(() => null);
-      this.personIds.set(personId, promise);
-    }
-    return this.personIds.get(personId);
-  }
+// TMDB's details, seasons, credits and ids, kept per their own time
+// (outside-sources.js). `new TmdbCache()` as always.
+function TmdbCache() {
+  return OutsideSources.createTmdbClient({
+    get: tmdbGet,
+    persisted: { read: readPersistedCache, write: writePersistedCache },
+    ttl: { show: CACHE_TTL_TMDB_SHOW_MS, season: CACHE_TTL_TMDB_SEASON_MS, episodeIds: CACHE_TTL_TMDB_EPISODE_IDS_MS,
+      credits: CACHE_TTL_TMDB_CREDITS_MS, personIds: CACHE_TTL_TMDB_PERSON_IDS_MS },
+  });
 }
 
 function latestNetwork(showDetail) {
@@ -265,63 +173,16 @@ function resolveNetworkLogoUrl(networkName, tmdbLogoPath) {
 // mdblist.com (Settings); without one this quietly returns nothing and the
 // rest of the ratings still work.
 const CACHE_TTL_MDBLIST_MS = 24 * 60 * 60 * 1000;
-class MdblistCache {
-  constructor() {
-    this.map = new Map();
-    this.active = 0;
-    this.waiting = [];
-    this.disabled = false; // set after the key is rejected, so a bad key isn't retried per show
-  }
-  async acquire() {
-    if (this.active >= 5) await new Promise(r => this.waiting.push(r));
-    this.active++;
-  }
-  release() {
-    this.active--;
-    const next = this.waiting.shift();
-    if (next) next();
-  }
-  async fetchOne(imdbId, key) {
-    await this.acquire();
-    try {
-      const res = await fetch(`https://api.mdblist.com/imdb/show/${imdbId}?apikey=${encodeURIComponent(key)}`);
-      if (res.status === 401 || res.status === 403) {
-        if (!this.disabled) showToast("MDBList rejected the API key - check it in Settings.", true);
-        this.disabled = true;
-        return null;
-      }
-      // Unknown to MDBList: remember "nothing" rather than re-asking every load.
-      if (res.status === 404) return { imdb: null, tomatoes: null, popcorn: null, trakt: null };
-      if (!res.ok) return null;
-      const d = await res.json();
-      const by = {};
-      for (const r of d.ratings || []) if (r && typeof r.value === "number") by[r.source] = r.value;
-      return {
-        imdb: by.imdb != null ? by.imdb : null,
-        tomatoes: by.tomatoes != null ? by.tomatoes : null,
-        popcorn: by.popcorn != null ? by.popcorn : null,
-        trakt: by.trakt != null ? by.trakt : null,
-      };
-    } finally {
-      this.release();
-    }
-  }
-  // `recent`: a show in its first month is re-read more often (see isRecentShow).
-  get(imdbId, recent) {
-    const key = getConfig().mdblistKey;
-    if (!key || !imdbId || this.disabled) return Promise.resolve(null);
-    if (!this.map.has(imdbId)) {
-      const cacheKey = `mdblist:${imdbId}`;
-      const promise = readPersistedCache(cacheKey, recent ? CACHE_TTL_RECENT_SHOW_MS : CACHE_TTL_MDBLIST_MS)
-        .then(cached => cached !== undefined ? cached :
-          this.fetchOne(imdbId, key).then(data => { if (data) writePersistedCache(cacheKey, data); return data; }))
-        .catch(() => null);
-      this.map.set(imdbId, promise);
-    }
-    return this.map.get(imdbId);
-  }
-}
-const mdblistCache = new MdblistCache();
+// MDBList's ratings (outside-sources.js); `mdblistCache.disabled` after a
+// refused key, until a new one is saved.
+const mdblistCache = OutsideSources.createMdblist({
+  fetch: (...args) => fetch(...args),
+  key: () => getConfig().mdblistKey,
+  persisted: { read: readPersistedCache, write: writePersistedCache },
+  ttlMs: CACHE_TTL_MDBLIST_MS,
+  recentTtlMs: CACHE_TTL_RECENT_SHOW_MS,
+  onRejected: () => showToast("MDBList rejected the API key - check it in Settings.", true),
+});
 
 // Called right after a key is saved in Settings: one small request that says
 // whether MDBList accepts it (any known show works for that).

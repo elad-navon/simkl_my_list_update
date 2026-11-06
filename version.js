@@ -2,4 +2,4 @@
 // that day's date. The settings screen shows it (and whether a newer one is
 // live); the service worker names its cache after it, so every deploy
 // replaces the files kept for offline use.
-self.SITE_VERSION = { number: 48, date: "2026-11-07" };
+self.SITE_VERSION = { number: 49, date: "2026-11-07" };
