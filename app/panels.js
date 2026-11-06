@@ -22,7 +22,7 @@ function thumbCycleAttrs(row, source, idx) {
   if (altCount <= 1 && !row.imdbId) return { cycleableClass: "", attrs: "", mode };
   return {
     cycleableClass: " cycleable",
-    attrs: ` data-cycle-key="${source}-${idx}" title="Choose a different image" onclick="openImagePicker('${source}', ${idx}, '${mode}')"`,
+    attrs: ` data-cycle-key="${source}-${idx}" title="Choose a different image"${onClick("imagePicker", source, idx, mode)}`,
     mode,
   };
 }
@@ -33,8 +33,7 @@ function thumbCycleAttrs(row, source, idx) {
 function networkSubHtml(name, logoPath) {
   if (logoPath) {
     return `<div class="list-row-sub network-sub">
-        <img class="network-logo" loading="lazy" src="${esc(logoPath)}" alt="${esc(name || "")}"
-          onerror="this.style.display='none'; this.nextElementSibling.style.display='inline'">
+        <img class="network-logo" loading="lazy" src="${esc(logoPath)}" alt="${esc(name || "")}"${onError("networkLogoFailed")}>
         <span class="network-name-fallback" style="display:none">${esc(name || "")}</span>
       </div>`;
   }
@@ -47,7 +46,7 @@ function networkSubHtml(name, logoPath) {
 // entry point into that panel's "all shows" modal (openPanelShowsModal).
 function listPanelCountHtml(count, source) {
   const word = `Show${count === 1 ? "" : "s"}`;
-  return `<button type="button" class="list-panel-count" title="${count} ${word.toLowerCase()}" onclick="openPanelShowsModal('${source}')"><span class="list-panel-count-num">${count}</span><span class="list-panel-count-word"> ${word}</span></button>`;
+  return `<button type="button" class="list-panel-count" title="${count} ${word.toLowerCase()}"${onClick("panelShows", source)}><span class="list-panel-count-num">${count}</span><span class="list-panel-count-word"> ${word}</span></button>`;
 }
 
 // Exact inner content of a row's .list-row-title-wrap, factored out of the
@@ -60,9 +59,9 @@ function listPanelCountHtml(count, source) {
 function rowInfoWrapHtml(row, idx, source, mode) {
   const titleHtml = mode === "flip"
     ? (isImdbId(row.imdbId)
-        ? `<div class="list-row-title"><a href="https://www.imdb.com/title/${row.imdbId}/" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(row.title)}</a></div>`
+        ? `<div class="list-row-title"><a href="https://www.imdb.com/title/${row.imdbId}/" target="_blank" rel="noopener"${clickStop()}>${esc(row.title)}</a></div>`
         : `<div class="list-row-title">${esc(row.title)}</div>`)
-    : `<div class="list-row-title" title="View cast" onclick="event.stopPropagation(); openCastModal('${source}', ${idx})">${esc(row.title)}</div>`;
+    : `<div class="list-row-title" title="View cast"${onClickStop("cast", source, idx)}>${esc(row.title)}</div>`;
   // In the one-page layout the badges and IMDb rating sit on the thumbnail
   // (thumbBarHtml), so the row's text leaves them out; the flip-card back
   // face and the older scrolling layout keep them as text.
@@ -158,9 +157,9 @@ function pagedRangeLabel(start, end, total) {
 function pagerControlsHtml(firstLabel, hasMore) {
   return `
     <div class="list-pager">
-      <button type="button" class="list-pager-arrow prev off" title="Previous" onclick="pagerArrowClick(this, -1)">&lsaquo;</button>
+      <button type="button" class="list-pager-arrow prev off" title="Previous"${onClick("pager", -1)}>&lsaquo;</button>
       <span class="list-pager-range">${firstLabel}</span>
-      <button type="button" class="list-pager-arrow next${hasMore ? "" : " off"}" title="Next" onclick="pagerArrowClick(this, 1)">&rsaquo;</button>
+      <button type="button" class="list-pager-arrow next${hasMore ? "" : " off"}" title="Next"${onClick("pager", 1)}>&rsaquo;</button>
     </div>`;
 }
 
@@ -257,7 +256,7 @@ function renderRecentlyWatchedHtml(list) {
     const bannerSrc = panelThumbSrc(ep);
     const { cycleableClass, attrs, mode } = thumbCycleAttrs(ep, "watched", idx);
     const thumbHtml = bannerSrc
-      ? `<img class="list-thumb" loading="lazy" src="${esc(bannerSrc)}" alt="${esc(ep.title)}" onerror="handleThumbError(this, 'watched', ${idx}, '${mode}')">`
+      ? `<img class="list-thumb" loading="lazy" src="${esc(bannerSrc)}" alt="${esc(ep.title)}"${onError("thumbError", "watched", idx, mode)}>`
       : `<div class="list-thumb placeholder">${esc((ep.title[0] || "?").toUpperCase())}</div>`;
     return `
       <div class="list-row ${rowToneClass(idx)}">
@@ -286,14 +285,14 @@ function renderPlanToWatchHtml(list) {
     const bannerSrc = panelThumbSrc(row);
     const { cycleableClass, attrs, mode } = thumbCycleAttrs(row, "plan", idx);
     const thumbHtml = bannerSrc
-      ? `<img class="list-thumb" loading="lazy" src="${esc(bannerSrc)}" alt="${esc(row.title)}" onerror="handleThumbError(this, 'plan', ${idx}, '${mode}')">`
+      ? `<img class="list-thumb" loading="lazy" src="${esc(bannerSrc)}" alt="${esc(row.title)}"${onError("thumbError", "plan", idx, mode)}>`
       : `<div class="list-thumb placeholder">${esc((row.title[0] || "?").toUpperCase())}</div>`;
     return `
       <div class="list-row ${rowToneClass(idx)}">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}${scroll ? "" : thumbBarHtml(imdbButtonHtml(row.imdbId, row.imdbRating, row.ratings))}</div>
         ${rowDetailsHtml(rowInfoWrapHtml(row, idx, "plan", "row"), bannerSrc)}
         ${scroll ? `<span class="list-check">${STAR_ICON_SVG}</span>` : ""}
-        <button class="card-menu-btn plan-menu-btn" title="Manage" onclick="event.stopPropagation(); openPlanCardMenu(${idx}, this)">&#8942;</button>
+        <button class="card-menu-btn plan-menu-btn" title="Manage"${onClickStop("planMenu", idx)}>&#8942;</button>
       </div>`;
   };
   const { pagerHtml, rowsWrapHtml } = scroll ? scrollPanelHtml(list, rowHtmlFn) : panelPosters() ? pairedPanelHtml(list, rowHtmlFn, { byShow: true }) : pagedPanelHtml(list, 2, rowHtmlFn);

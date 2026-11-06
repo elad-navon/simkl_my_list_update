@@ -15,6 +15,48 @@
 const esc = t => String(t == null ? "" : t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const isImdbId = id => /^tt\d+$/.test(String(id || ""));
 
+// Element actions, instead of on*="code" inside the page's HTML: an element
+// names its action and arguments, and the action is a function registered
+// with pageAction(name, fn) - fn(element, event, ...args). onClick("cast",
+// "main", 3) gives ` data-onclick="cast" data-args="[&quot;main&quot;,3]"`;
+// onClickStop also keeps the click from reaching what's around the element
+// (a button on a card that opens something else); clickStop() only that;
+// onError(...) for a picture that fails to load.
+// An element gets its own click listener the first time a click comes its
+// way (caught on the way down, before it gets there), so clicks run in the
+// same order the attributes ran in. A picture's error doesn't bubble: it's
+// caught on the way down too.
+const PAGE_ACTIONS = Object.create(null);
+function pageAction(name, fn) { PAGE_ACTIONS[name] = fn; }
+const actionArgs = args => (args.length ? ` data-args="${esc(JSON.stringify(args))}"` : "");
+const onClick = (name, ...args) => ` data-onclick="${name}"${actionArgs(args)}`;
+const onClickStop = (name, ...args) => `${onClick(name, ...args)} data-stop="1"`;
+const clickStop = () => ` data-stop="1"`;
+const onError = (name, ...args) => ` data-onerror="${name}"${actionArgs(args)}`;
+function runPageAction(el, event, type) {
+  if (type === "click" && el.dataset.stop) event.stopPropagation();
+  const fn = PAGE_ACTIONS[el.dataset[`on${type}`]];
+  if (!fn) return;
+  let args = [];
+  try { args = JSON.parse(el.dataset.args || "[]"); } catch (e) { /* none */ }
+  fn(el, event, ...args);
+}
+document.addEventListener("click", e => {
+  for (let n = e.target; n && n.nodeType === 1; n = n.parentElement) {
+    if (!n.__actionWired && (n.dataset.onclick || n.dataset.stop)) {
+      n.__actionWired = true;
+      n.addEventListener("click", ev => runPageAction(n, ev, "click"));
+    }
+  }
+}, true);
+document.addEventListener("error", e => {
+  const el = e.target;
+  if (el && el.dataset && el.dataset.onerror) runPageAction(el, e, "error");
+}, true);
+// Small ones used in several places.
+pageAction("remove", el => el.remove());
+pageAction("openUrl", (el, e, url) => window.open(url, "_blank"));
+
 // ---------------------------------------------------------------------
 // Config - not hardcoded. Stored only in this browser's localStorage,
 // so this HTML file itself never contains your keys (safe to commit).
@@ -97,7 +139,7 @@ function filmLoaderHtml() {
   if (!Array.isArray(urls)) urls = [];
   const frames = urls.length ? urls.slice(0, 12) : [""];
   while (frames.length < 10) frames.push(...frames.slice(0, 10 - frames.length));
-  const round = frames.map(u => `<div class="film-frame">${u ? `<img src="${u}" alt="" onerror="this.remove()">` : ""}</div>`).join("");
+  const round = frames.map(u => `<div class="film-frame">${u ? `<img src="${u}" alt=""${onError("remove")}>` : ""}</div>`).join("");
   return `
     <div class="film-loader" role="status">
       <div class="film-strip"><div class="film-track" style="--frames:${frames.length}">${round}${round}</div></div>

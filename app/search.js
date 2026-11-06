@@ -333,7 +333,7 @@ function renderShowDetail(show, libraryMatch) {
   const imdbId = [show.ids && show.ids.imdb, libraryShowIds && libraryShowIds.imdb].find(isImdbId) || null;
   const titleText = esc(show.title || "Unknown");
   const detailTitleHtml = imdbId
-    ? `<a class="detail-title" href="https://www.imdb.com/title/${imdbId}/" target="_blank" rel="noopener" title="Open on IMDb" onclick="event.stopPropagation()">${titleText}</a>`
+    ? `<a class="detail-title" href="https://www.imdb.com/title/${imdbId}/" target="_blank" rel="noopener" title="Open on IMDb"${clickStop()}>${titleText}</a>`
     : `<div class="detail-title">${titleText}</div>`;
 
   body.innerHTML = `

@@ -895,7 +895,7 @@ function statsTabTaste(data) {
 }
 const statsGenreText = (v, by) => (by === "shows" ? `${statsNum(v)} shows` : statsDur(v));
 function statsFlagImg(code) {
-  return `<img class="sx-flag" loading="lazy" src="https://flagcdn.com/w40/${code.toLowerCase()}.png" alt="" onerror="this.remove()">`;
+  return `<img class="sx-flag" loading="lazy" src="https://flagcdn.com/w40/${code.toLowerCase()}.png" alt=""${onError("remove")}>`;
 }
 
 function statsTabQueue(data) {
