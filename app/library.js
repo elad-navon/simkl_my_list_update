@@ -273,6 +273,8 @@ async function openLibrary() {
     if (library.backend.watchMeta) {
       library.backend.watchMeta("emby", data => { embyNow = data; syncWatchingOrder() || applyNowWatching(); });
       library.backend.watchMeta("embyMarked", onEmbyMarked);
+      // The computer bridge's pulse, for the dot on the Settings button.
+      library.backend.watchMeta(BridgeStatus.META, data => { bridgeStatusDoc = data; paintBridgeAlert(); });
     }
   }
   library.adapter.reset();
@@ -597,6 +599,23 @@ function librarySettingsHtml() {
         <button class="pill" id="librarySignOutBtn">Sign out</button>
         <input type="file" id="libraryRestoreInput" accept="application/json,.json" hidden>
       </div>`;
+}
+
+// The computer bridge's pulse on the main page: a dot on the Settings button
+// only while something's wrong - amber with a problem, red when the bridge
+// hasn't been heard from - its tooltip saying what; Settings has the
+// details. Followed live (watchMeta); repainted on the countdown tick too,
+// since "not heard from" comes with time, not with a new document.
+let bridgeStatusDoc; // undefined until first read
+function paintBridgeAlert() {
+  const btn = document.getElementById("settingsBtn");
+  if (!btn || bridgeStatusDoc === undefined) return;
+  const s = BridgeStatus.summarizeBridgeStatus(bridgeStatusDoc, Date.now());
+  const level = s.level === "warn" || s.level === "down" ? s.level : null;
+  btn.classList.toggle("bridge-warn", level === "warn");
+  btn.classList.toggle("bridge-down", level === "down");
+  const title = level ? [s.text, ...s.problems].join("\n") : "Settings";
+  if (btn.title !== title) btn.title = title;
 }
 
 // The computer bridge's pulse (meta "bridgeStatus", bridge-status.js): one
