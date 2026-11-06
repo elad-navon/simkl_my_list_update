@@ -12,7 +12,6 @@ const isImdbId = id => /^tt\d+$/.test(String(id || ""));
 // Config - not hardcoded. Stored only in this browser's localStorage,
 // so this HTML file itself never contains your keys (safe to commit).
 // ---------------------------------------------------------------------
-const SIMKL_BASE = "https://api.simkl.com";
 const TMDB_BASE = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w342";
 const TMDB_BACKDROP_BASE = "https://image.tmdb.org/t/p/w780";
@@ -32,8 +31,6 @@ const LOCAL_NETWORK_LOGOS = [
   // Cropped from a real Keshet 12 brand mark supplied by the user (12.jpg) - TMDB has no logo for this network either, same gap as the three above.
   { names: ["קשת", "קשת 12", "Keshet", "Keshet 12"], logo: "data:image/png;base64,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" },
 ];
-const APP_NAME = "my-list-summary-web";
-const APP_VERSION = "1.0";
 
 // ---------------------------------------------------------------------
 // Nav bar icon - only this one needs to be rebuilt dynamically (its
@@ -47,19 +44,16 @@ const ICON_POSTER_SHAPE = `<svg viewBox="0 0 24 24" width="23" height="23" fill=
 const ICON_BANNER_SHAPE = `<svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect></svg>`;
 // The "simkl_" prefix on several keys below is historical; they're kept so
 // existing settings and preferences carry over.
-const LS_CLIENT_ID = "simkl_client_id"; // SIMKL sign-in: only for air times (libraryAirTimes)
+// SIMKL app ids, kept with the account keys: the computer's Emby bridge signs
+// in to SIMKL with them for exact air times (tools/emby-bridge). The old V1
+// id is no longer shown in Settings but stays with the account.
+const LS_CLIENT_ID = "simkl_client_id";
 const LS_TMDB_KEY = "tmdb_api_key";
-const LS_TOKEN = "simkl_access_token";
-// AUTH V2 (see the "SIMKL auth" section): its own client id, plus one JSON
-// blob {access, refresh, expiresAt, refreshExpiresAt} instead of a single
-// never-expiring token string. While a V2 client id is set it takes over
-// from the V1 PIN flow above; V1 stops working around April 2027.
 const LS_CLIENT_ID_V2 = "simkl_client_id_v2";
 const LS_MDBLIST_KEY = "mdblist_api_key"; // optional: Rotten Tomatoes + Trakt ratings
 const LS_FANART_KEY = "fanart_api_key";   // optional: extra posters/banners in the image picker
 const LS_TVDB_KEY = "tvdb_api_key";       // optional: TheTVDB posters/backgrounds in the image picker
 const LS_TVDB_TOKEN = "tvdb_token";       // {key, token, at}: TheTVDB's month-long read token for that key
-const LS_AUTH_V2 = "simkl_auth_v2";
 const LS_IMAGE_MODE = "simkl_image_mode"; // "poster" | "banner"
 const LS_THEME = "simkl_theme"; // "light" | "dark"
 const LS_PANEL_LAYOUT = "simkl_panel_layout"; // "paged" (one-page, default) | "scroll" (older vertically scrolling panels)
@@ -294,16 +288,10 @@ function showSettings(afterSaveCallback) {
         you sign in) - never written into the site's files, so it's safe to
         keep them in a public repo.
       </p>
-      <label>SIMKL Client ID &mdash; optional, only for episodes' air times &mdash; AUTH V2
-        (<a href="https://simkl.com/settings/developer/new/" target="_blank">create an app</a>,
-        type &ldquo;TV, devices &amp; command line&rdquo;)</label>
-      <input type="text" id="clientIdV2Input" value="${cfg.clientIdV2}">
-      <label>SIMKL Client ID &mdash; old AUTH V1 (stops working around April 2027)</label>
-      <input type="text" id="clientIdInput" value="${cfg.clientId}">
-      <div class="simkl-connect">
-        <span id="simklStatus" style="color:var(--muted);font-size:0.85rem">${simklConnected() ? "SIMKL: connected" : "SIMKL: not connected"}</span>
-        <button class="pill" id="simklConnectBtn">${simklConnected() ? "Disconnect SIMKL" : "Connect SIMKL"}</button>
-      </div>
+      <label>SIMKL Client ID &mdash; optional: exact air times for streaming episodes, taken from SIMKL by the
+        computer's Emby bridge (<a href="https://simkl.com/settings/developer/new/" target="_blank">create an app</a>,
+        type &ldquo;TV, devices &amp; command line&rdquo;; then on that computer: <code>node run.js --simkl-login</code>)</label>
+      <input type="text" id="clientIdV2Input" value="${esc(cfg.clientIdV2)}">
       <label>TMDB API Key
         (<a href="https://www.themoviedb.org/settings/api" target="_blank">get a free key</a>)</label>
       <input type="text" id="tmdbKeyInput" value="${cfg.tmdbKey}">
@@ -336,7 +324,6 @@ function showSettings(afterSaveCallback) {
   `;
   subtitle.textContent = "Setup required";
   document.getElementById("saveSettingsBtn").onclick = () => {
-    const clientId = document.getElementById("clientIdInput").value.trim();
     const clientIdV2 = document.getElementById("clientIdV2Input").value.trim();
     const tmdbKey = document.getElementById("tmdbKeyInput").value.trim();
     const mdblistKey = document.getElementById("mdblistKeyInput").value.trim();
@@ -346,10 +333,6 @@ function showSettings(afterSaveCallback) {
       document.getElementById("settingsError").textContent = "The TMDB key is required.";
       return;
     }
-    // A different V2 id means a different app registration, so any stored
-    // V2 tokens belong to the old one and can't be reused.
-    if (clientIdV2 !== cfg.clientIdV2) localStorage.removeItem(LS_AUTH_V2);
-    safeSetItem(LS_CLIENT_ID, clientId);
     safeSetItem(LS_CLIENT_ID_V2, clientIdV2);
     safeSetItem(LS_TMDB_KEY, tmdbKey);
     safeSetItem(LS_MDBLIST_KEY, mdblistKey);
@@ -386,360 +369,13 @@ function showSettings(afterSaveCallback) {
   };
   updateLayoutToggleButton();
   wireLibrarySettings();
-  // Connecting asks SIMKL for a one-time approval (the code screen), using
-  // the Client ID typed above; it's only needed on one device - what it
-  // copies goes into the shared library.
-  document.getElementById("simklConnectBtn").onclick = async () => {
-    if (simklConnected()) {
-      localStorage.removeItem(LS_AUTH_V2);
-      localStorage.removeItem(LS_TOKEN);
-      showToast("Disconnected from SIMKL");
-      showSettings(afterSaveCallback);
-      return;
-    }
-    const v2 = document.getElementById("clientIdV2Input").value.trim();
-    const v1 = document.getElementById("clientIdInput").value.trim();
-    if (!v2 && !v1) {
-      document.getElementById("settingsError").textContent = "Enter a SIMKL Client ID first.";
-      return;
-    }
-    safeSetItem(LS_CLIENT_ID_V2, v2);
-    safeSetItem(LS_CLIENT_ID, v1);
-    try {
-      await getAccessToken();
-      showToast("Connected to SIMKL - episodes marked there will be copied into your list");
-      main();
-    } catch (err) {
-      showToast(`SIMKL: ${err.message}`, true);
-      showSettings(afterSaveCallback);
-    }
-  };
   checkLiveVersion();
   if (canCancel) {
     document.getElementById("settingsCloseBtn").onclick = returnToPreviousView;
   }
 }
 
-// ---------------------------------------------------------------------
-// SIMKL auth (V2 device flow, or the older V1 PIN flow) + reading - used
-// only by the auto-marking bridge (simkl-bridge.js), which copies episodes
-// marked watched on SIMKL into the library. Nothing is written to SIMKL.
-// ---------------------------------------------------------------------
-async function simklRequest(url) {
-  let res;
-  try {
-    res = await fetch(url);
-  } catch (e) {
-    throw new Error(
-      "Network/CORS error reaching SIMKL. Your browser may be blocking " +
-      "cross-origin requests to api.simkl.com. Original error: " + e.message
-    );
-  }
-  if (!res.ok && res.status !== 404) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`SIMKL request failed (${res.status}): ${body.slice(0, 300)}`);
-  }
-  if (res.status === 404) return null;
-  const text = await res.text();
-  return text ? JSON.parse(text) : null;
-}
-
-// Which sign-in is active: a V2 client id (set in Settings) switches the
-// whole app over to AUTH V2; otherwise the old V1 PIN flow keeps working.
-function authMode() {
-  return getConfig().clientIdV2 ? "v2" : "v1";
-}
-
-function activeClientId() {
-  const cfg = getConfig();
-  return cfg.clientIdV2 || cfg.clientId;
-}
-
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-// ---- AUTH V2 token storage + refresh --------------------------------------
-function readAuthV2() {
-  try {
-    const auth = JSON.parse(localStorage.getItem(LS_AUTH_V2) || "null");
-    return auth && auth.access ? auth : null;
-  } catch (e) {
-    return null;
-  }
-}
-
-// Stores a token-endpoint response. SIMKL access tokens last 7 days and
-// refresh tokens 180 (renewed on every use); a refresh response that omits
-// a new refresh token keeps the previous one.
-function writeAuthV2(tok) {
-  const now = Date.now();
-  const prev = readAuthV2();
-  const auth = {
-    access: tok.access_token,
-    refresh: tok.refresh_token || (prev && prev.refresh) || null,
-    expiresAt: now + (tok.expires_in || 604800) * 1000,
-    refreshExpiresAt: now + 180 * 24 * 60 * 60 * 1000,
-  };
-  safeSetItem(LS_AUTH_V2, JSON.stringify(auth));
-  return auth;
-}
-
-// The OAuth endpoints answer with a JSON error body on 4xx (e.g.
-// authorization_pending), so unlike simklGet this hands back the status and
-// parsed body instead of throwing. Form-encoded is a "simple" CORS request,
-// so it needs no preflight.
-async function oauthPost(path, fields) {
-  let res;
-  try {
-    res = await fetch(`${SIMKL_BASE}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams(fields),
-    });
-  } catch (e) {
-    throw new Error("Network/CORS error reaching SIMKL: " + e.message);
-  }
-  const text = await res.text().catch(() => "");
-  let data = null;
-  try { data = text ? JSON.parse(text) : null; } catch (e) { /* non-JSON body */ }
-  return { status: res.status, ok: res.ok, data };
-}
-
-// One refresh at a time: several requests can hit an expired token at once,
-// and a rotating refresh token would be invalidated by the second attempt.
-let refreshPromise = null;
-function refreshV2Token() {
-  if (!refreshPromise) {
-    refreshPromise = (async () => {
-      const auth = readAuthV2();
-      if (!auth || !auth.refresh || auth.refreshExpiresAt < Date.now()) {
-        throw new Error("SIMKL session expired. Refresh the page to sign in again.");
-      }
-      const r = await oauthPost("/oauth2/token", {
-        grant_type: "refresh_token", refresh_token: auth.refresh, client_id: activeClientId(),
-      });
-      if (r.ok && r.data && r.data.access_token) return writeAuthV2(r.data);
-      // A definite rejection means the refresh token is dead; anything else
-      // (server hiccup) keeps the stored session for the next attempt.
-      if (r.status === 400 || r.status === 401) localStorage.removeItem(LS_AUTH_V2);
-      throw new Error("SIMKL session expired. Refresh the page to sign in again.");
-    })().finally(() => { refreshPromise = null; });
-  }
-  return refreshPromise;
-}
-
-// The token to use for a request right now. Under V2 it's looked up per
-// call (never captured once at page load) and refreshed ahead of time when
-// less than a day is left. Null when signed out.
-async function currentToken() {
-  if (authMode() === "v1") return localStorage.getItem(LS_TOKEN);
-  let auth = readAuthV2();
-  if (!auth) return null;
-  if (auth.expiresAt - Date.now() < 24 * 60 * 60 * 1000) {
-    try {
-      auth = await refreshV2Token();
-    } catch (e) {
-      if (auth.expiresAt <= Date.now()) return null; // truly expired
-    }
-  }
-  return auth.access;
-}
-
-// Whether this browser holds a SIMKL sign-in (for the auto-marking).
-function simklConnected() {
-  return authMode() === "v2" ? !!readAuthV2() : !!localStorage.getItem(LS_TOKEN);
-}
-function dropStoredToken() {
-  localStorage.removeItem(authMode() === "v2" ? LS_AUTH_V2 : LS_TOKEN);
-}
-
-async function getAccessToken() {
-  return authMode() === "v2" ? getAccessTokenV2() : getAccessTokenV1();
-}
-
-// AUTH V2 device flow (RFC 8628): same on-screen experience as the V1 PIN,
-// but with no redirect back to this page - so it also works from an
-// installed home-screen app, where a redirect could land in a browser with
-// separate storage.
-async function getAccessTokenV2() {
-  const existing = await currentToken();
-  if (existing) return existing;
-
-  const clientId = activeClientId();
-  const dev = await oauthPost("/oauth2/device", { client_id: clientId, scope: "media:read media:write" });
-  if (!dev.ok || !dev.data || !dev.data.device_code) {
-    throw new Error(`SIMKL sign-in could not start (${dev.status}): ${(dev.data && (dev.data.error_description || dev.data.error)) || "no details"}`);
-  }
-  const { device_code: deviceCode, user_code: userCode } = dev.data;
-  const verificationUrl = dev.data.verification_uri || "https://simkl.com/pin";
-  const openUrl = dev.data.verification_uri_complete || verificationUrl;
-  let intervalMs = (dev.data.interval || 5) * 1000;
-  const expiresIn = dev.data.expires_in || 900;
-
-  app.innerHTML = `
-    <div class="center-box">
-      <h2>One-time authorization</h2>
-      <p>1. Go to <a href="${esc(openUrl)}" target="_blank" rel="noopener">${esc(verificationUrl)}</a></p>
-      <p>2. Enter this code:</p>
-      <div class="pin-code">${userCode}</div>
-      <div class="spinner"></div>
-      <p style="color:var(--muted);font-size:0.85rem">Waiting for approval&hellip;</p>
-    </div>
-  `;
-  subtitle.textContent = "Waiting for authorization";
-
-  const deadline = Date.now() + expiresIn * 1000;
-  while (Date.now() < deadline) {
-    await sleep(intervalMs);
-    let r;
-    try {
-      r = await oauthPost("/oauth2/token", {
-        grant_type: "urn:ietf:params:oauth:grant-type:device_code", client_id: clientId, device_code: deviceCode,
-      });
-    } catch (e) {
-      continue; // keep polling through transient network errors
-    }
-    if (r.ok && r.data && r.data.access_token) {
-      writeAuthV2(r.data);
-      localStorage.removeItem(LS_TOKEN); // the old V1 token is dead weight now
-      return r.data.access_token;
-    }
-    const err = r.data && r.data.error;
-    if (err === "authorization_pending") continue;
-    if (err === "slow_down") { intervalMs += 5000; continue; }
-    if (err === "access_denied") throw new Error("Authorization was denied on simkl.com. Refresh the page to try again.");
-    if (err === "expired_token") break;
-    throw new Error(`SIMKL sign-in failed (${r.status}): ${(r.data && (r.data.error_description || r.data.error)) || "no details"}`);
-  }
-  throw new Error("Timed out waiting for approval. Refresh the page to try again.");
-}
-
-async function getAccessTokenV1() {
-  const cached = localStorage.getItem(LS_TOKEN);
-  if (cached) return cached;
-
-  const { clientId } = getConfig();
-  const pinParams = new URLSearchParams({
-    client_id: clientId, "app-name": APP_NAME, "app-version": APP_VERSION,
-  });
-  const pinData = await simklRequest(`${SIMKL_BASE}/oauth/pin?${pinParams}`);
-  const userCode = pinData.user_code;
-  const verificationUrl = pinData.verification_url || "https://simkl.com/pin";
-  const intervalSec = pinData.interval || 5;
-  const expiresIn = pinData.expires_in || 900;
-
-  app.innerHTML = `
-    <div class="center-box">
-      <h2>One-time authorization</h2>
-      <p>1. Go to <a href="${esc(verificationUrl)}" target="_blank">${esc(verificationUrl)}</a></p>
-      <p>2. Enter this code:</p>
-      <div class="pin-code">${userCode}</div>
-      <div class="spinner"></div>
-      <p style="color:var(--muted);font-size:0.85rem">Waiting for approval&hellip;</p>
-    </div>
-  `;
-  subtitle.textContent = "Waiting for authorization";
-
-  const deadline = Date.now() + expiresIn * 1000;
-  while (Date.now() < deadline) {
-    await new Promise(r => setTimeout(r, intervalSec * 1000));
-    const pollParams = new URLSearchParams({
-      client_id: clientId, "app-name": APP_NAME, "app-version": APP_VERSION,
-    });
-    let poll;
-    try {
-      poll = await simklRequest(`${SIMKL_BASE}/oauth/pin/${userCode}?${pollParams}`);
-    } catch (e) {
-      continue; // keep polling through transient errors
-    }
-    if (poll && poll.result === "OK" && poll.access_token) {
-      safeSetItem(LS_TOKEN, poll.access_token);
-      return poll.access_token;
-    }
-  }
-  throw new Error("Timed out waiting for PIN approval. Refresh the page to try again.");
-}
-
-// ---- Request pacing ---------------------------------------------------------
-// On top of the daily allowance, SIMKL caps requests per second: 10 GETs and
-// 1 POST. A cold page load fires dozens of per-show lookups at once, and
-// saving several seasons posts back to back - both would trip that.
-// Stays a notch under each limit (9 GETs per rolling second, 1.1s between
-// POSTs); light use never waits.
-const recentGets = [];
-async function throttleGet() {
-  for (;;) {
-    const now = Date.now();
-    while (recentGets.length && now - recentGets[0] >= 1000) recentGets.shift();
-    if (recentGets.length < 9) { recentGets.push(now); return; }
-    await sleep(1000 - (now - recentGets[0]) + 5);
-  }
-}
-let nextPostAt = 0;
-async function throttlePost() {
-  const now = Date.now();
-  const at = Math.max(now, nextPostAt);
-  nextPostAt = at + 1100;
-  if (at > now) await sleep(at - now);
-}
-
-// One authenticated call to SIMKL's API. Under V2 the token comes from
-// currentToken() per attempt, and a 401 gets one refresh-and-retry; a 429 is
-// either the daily allowance (reported as such) or a per-second burst
-// (waits it out once).
-async function simklApi(method, path, token, { params, body } = {}) {
-  // SIMKL is read for air times and nothing else: nothing is ever sent to it.
-  if (method !== "GET") throw new Error("SIMKL is read-only here");
-  const qs = new URLSearchParams({
-    client_id: activeClientId(), "app-name": APP_NAME, "app-version": APP_VERSION,
-    ...(params || {}),
-  });
-  let refreshed = false, waitedOnce = false;
-  for (;;) {
-    if (method === "GET") await throttleGet(); else await throttlePost();
-    const bearer = (await currentToken()) || token;
-    let res;
-    try {
-      res = await fetch(`${SIMKL_BASE}${path}?${qs}`, {
-        method,
-        headers: body !== undefined
-          ? { Authorization: `Bearer ${bearer}`, "Content-Type": "application/json" }
-          : { Authorization: `Bearer ${bearer}` },
-        body: body !== undefined ? JSON.stringify(body) : undefined,
-      });
-    } catch (e) {
-      throw new Error("Network/CORS error reaching SIMKL: " + e.message);
-    }
-    if (res.status === 401) {
-      if (!refreshed && authMode() === "v2") {
-        refreshed = true;
-        try { await refreshV2Token(); continue; } catch (e) { /* fall through to sign-out */ }
-      }
-      dropStoredToken();
-      throw new Error("SIMKL access expired or was revoked - connect again in Settings (only needed to copy episodes marked on SIMKL).");
-    }
-    if (res.status === 429) {
-      const info = await res.clone().json().catch(() => null);
-      const retryAfter = Number(res.headers.get("Retry-After")) || 0;
-      if (info && info.error === "user_limit_exceeded") {
-        const hours = Math.floor(retryAfter / 3600), mins = Math.ceil((retryAfter % 3600) / 60);
-        throw new Error(`SIMKL's daily request limit for your account is used up. It resets at midnight US Eastern${retryAfter ? ` (in about ${hours}h ${mins}m)` : ""}.`);
-      }
-      if (!waitedOnce) { waitedOnce = true; await sleep(Math.max(1, retryAfter) * 1000); continue; }
-    }
-    return res;
-  }
-}
-
-async function simklGet(path, token, extraParams) {
-  const res = await simklApi("GET", path, token, { params: extraParams });
-  if (res.status === 404) return null;
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`SIMKL request failed (${res.status}): ${body.slice(0, 300)}`);
-  }
-  const text = await res.text();
-  return text ? JSON.parse(text) : null;
-}
 
 // ---------------------------------------------------------------------
 // The library
@@ -791,17 +427,11 @@ function libraryEpisodeSource() {
 }
 
 // Air times from SIMKL for episodes the lists know only the date of (see
-// air-times.js): asked of SIMKL while this browser is connected to it, else
-// the ones the computer's bridge took from SIMKL and keeps in the account -
-// so the phone app shows the same times as the computer.
+// air-times.js): the computer's Emby bridge signs in to SIMKL, takes them,
+// and keeps them in the account (meta "airTimes"), so every device - the
+// phone app too - shows the same times without a SIMKL sign-in of its own.
 function libraryAirTimes() {
-  const simkl = AirTimes.createSimklAirTimes({
-    get: (path, params) => simklGet(path, null, params),
-    cache: libraryListCache(),
-    connected: simklConnected,
-  });
   return async (ids, eps) => {
-    if (simklConnected()) return simkl(ids, eps);
     const shared = await sharedAirTimes();
     return AirTimes.applySharedTimes(eps, shared && shared[AirTimes.sharedKey(ids)]);
   };
@@ -1239,8 +869,8 @@ function syncEpisodeAlerts(rows) {
   episodeAlertsModule.then(m => m.sync(rows || [])).catch(e => console.warn("Episode alerts:", e && e.message));
 }
 
-// Watches marked on SIMKL never reach the library: the auto-marking bridge
-// (simkl-bridge.js) no longer runs here - a mark made on SIMKL's own site
+// Watches marked on SIMKL never reach the library: the auto-marking from
+// SIMKL was removed - a mark made on SIMKL's own site
 // can't be told from one its Emby plugin made. Emby marks come straight in
 // through tools/emby-bridge.
 

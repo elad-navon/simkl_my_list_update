@@ -1,6 +1,5 @@
 // Fake world for tests/compare-modes.harness.html: one set of synthetic
-// shows, served the way the library + TMDB + TVMaze serve it (and, for the
-// auto-marking bridge, the way SIMKL reports changes), with no real
+// shows, served the way the library + TMDB + TVMaze serve it, with no real
 // network. Loaded into the page before app.js; window.__BASE fixes "now"
 // for the dates, so every run sees the same data. (The SIMKL list answers
 // are what tests/golden/panels.json was taken from, while the site could
@@ -80,21 +79,21 @@
     );
   }
   // ?scenario=airtimes: episodes TVMaze knows only the date of, and the
-  // time SIMKL gives each (`simklDate`): November's real time 3 hours in
-  // (taken), Sierra's midnight in SIMKL's timezone ("some time that day" -
-  // not taken), Tango's two days off the known date (a disagreement - not
-  // taken).
+  // time the computer's bridge took from SIMKL for each and keeps in the
+  // account (`sharedTime`, meta "airTimes"): November's 3 hours in (taken);
+  // Sierra has none (SIMKL's midnight is no time, so the bridge kept none);
+  // Tango's three days off the known date (a disagreement - not taken).
   if (window.__SCENARIO === "airtimes") {
     const ep = (number, x) => ({ season: 1, number, ...x });
     SHOWS.push(
       { title: "November", simkl: 28, tmdb: 118, tvmaze: 1018, status: "watching", ended: false,
-        eps: [ep(1, { day: -7 }), ep(2, { day: 0, dateOnly: true, simklDate: new Date(BASE + 3 * 3600000).toISOString() }), ep(3, { day: 7, dateOnly: true })],
+        eps: [ep(1, { day: -7 }), ep(2, { day: 0, dateOnly: true, sharedTime: new Date(BASE + 3 * 3600000).toISOString() }), ep(3, { day: 7, dateOnly: true })],
         watched: [[1, 1, -6]] },
       { title: "Sierra", simkl: 29, tmdb: 119, tvmaze: 1019, status: "watching", ended: false,
-        eps: [ep(1, { day: -7 }), ep(2, { day: 0, dateOnly: true, simklDate: `${localDate(stamp(0))}T00:00:00-04:00` })],
+        eps: [ep(1, { day: -7 }), ep(2, { day: 0, dateOnly: true })],
         watched: [[1, 1, -6]] },
       { title: "Tango", simkl: 30, tmdb: 120, tvmaze: 1020, status: "watching", ended: false,
-        eps: [ep(1, { day: -7 }), ep(2, { day: 1, dateOnly: true, simklDate: `${localDate(stamp(3))}T21:00:00-04:00` })],
+        eps: [ep(1, { day: -7 }), ep(2, { day: 1, dateOnly: true, sharedTime: `${localDate(stamp(4))}T21:00:00-04:00` })],
         watched: [[1, 1, -6]] },
     );
   }
@@ -196,19 +195,9 @@
       if ((m = /^\/sync\/all-items\/shows\/(\w+)$/.exec(p))) return json(SHOWS.filter(s => s.status === m[1]).map(simklItem));
       if ((m = /^\/tv\/episodes\/(\d+)$/.exec(p))) {
         const s = SHOWS.find(x => String(x.simkl) === m[1]);
-        return json(s.eps.map(e => ({ type: "episode", season: e.season, episode: e.number, date: e.simklDate || e.airstamp, title: e.name })));
+        return json(s.eps.map(e => ({ type: "episode", season: e.season, episode: e.number, date: e.airstamp, title: e.name })));
       }
       if (/^\/tv\/\d+$/.test(p)) return json({});
-      // ?scenario=bridge: Emby marked Alpha S02E02 watched on SIMKL an hour ago.
-      if (window.__SCENARIO === "bridge") {
-        const alpha = SHOWS.find(x => x.title === "Alpha");
-        if (p === "/sync/activities") return json({ all: new Date(BASE).toISOString(), tv_shows: { all: new Date(BASE).toISOString() } });
-        if (p === "/sync/all-items/shows") {
-          const it = simklItem(alpha);
-          it.seasons.find(x => x.number === 2).episodes.push({ number: 2, watched_at: new Date(BASE - 3600000).toISOString() });
-          return json([it]);
-        }
-      }
       return json({ error: "unexpected" }, 500);
     }
     if (url.host === "api.themoviedb.org") {
@@ -250,7 +239,17 @@
       { docId: "103", tmdb: 103, s: 1, e: 6, pos: 12 * 60, len: 45 * 60, paused: true }],
     resume: [{ docId: "108", tmdb: 108, s: 1, e: 1, pos: 5 * 60, len: 45 * 60 }],
   } : null;
-  window.__fakeFirebaseCreate = () => Object.assign(LibraryStore.memoryBackend(window.__libraryDocs), {
+  // The air times the computer's bridge keeps in the account (meta
+  // "airTimes"), from each episode's `sharedTime`.
+  const sharedShows = {};
+  for (const s of SHOWS) for (const e of s.eps) {
+    if (e.sharedTime) (sharedShows[`tmdb:${s.tmdb}`] || (sharedShows[`tmdb:${s.tmdb}`] = {}))[`${e.season}-${e.number}`] = e.sharedTime;
+  }
+  const withSharedTimes = backend => {
+    if (Object.keys(sharedShows).length) backend.meta.set("airTimes", { json: JSON.stringify({ v: 1, updatedAt: new Date(BASE).toISOString(), shows: sharedShows }) });
+    return backend;
+  };
+  window.__fakeFirebaseCreate = () => Object.assign(withSharedTimes(LibraryStore.memoryBackend(window.__libraryDocs)), {
     watchMeta(name, cb) { setTimeout(() => cb(name === "emby" ? embyMeta : null), 0); return () => {}; },
     ready: async () => {},
     currentUser: () => (signedIn ? user : null),
@@ -260,6 +259,4 @@
 
   // ---- Settings both modes start from ---------------------------------------
   localStorage.setItem("tmdb_api_key", "fake");
-  localStorage.setItem("simkl_client_id", "fake");
-  localStorage.setItem("simkl_access_token", "fake");
 })();
