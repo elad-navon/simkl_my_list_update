@@ -32,6 +32,7 @@ const AirTimes = require("../../air-times.js");
 const YesTimes = require("../../yes-times.js");
 const AirTimeChain = require("../../air-time-chain.js");
 const BridgeStatus = require("../../bridge-status.js");
+const LibrarySync = require("../../library-sync.js");
 const { compareRules, liveRulesGetter } = require("./rules-check.js");
 const { createSimklClient } = require("./simkl-client.js");
 const { createSharedAirTimes } = require("./shared-air-times.js");
@@ -122,14 +123,31 @@ function embyClient({ embyUrl, embyApiKey, embyUser }) {
 }
 
 // ---- The library (Firestore, through a service account) -----------------
-function adminBackend(db, uid) {
+// Loads read only what changed since the last one, kept in memory between
+// them - everything once a day, and after a restart (library-sync.js): the
+// bridge loads the library every half hour. Every write is stamped with the
+// server's time, and a removal noted, as the site's are.
+function adminBackend(db, uid, admin) {
   const shows = () => db.collection("users").doc(uid).collection("shows");
   const meta = name => db.collection("users").doc(uid).collection("meta").doc(name);
+  const { FieldValue, Timestamp } = admin.firestore;
+  const rows = snap => { const out = []; snap.forEach(d => out.push({ id: d.id, ...LibrarySync.splitStamp(d.data()) })); return out; };
+  let copy = null;
+  const load = LibrarySync.createIncrementalLoad({
+    fetchAll: async () => rows(await shows().get()),
+    fetchChanged: async sinceMs => rows(await shows().where(LibrarySync.SYNC_FIELD, ">", Timestamp.fromMillis(sinceMs)).get()),
+    fetchRemoved: async () => {
+      const s = await meta(LibrarySync.REMOVED_META).get();
+      return Object.fromEntries(Object.entries(s.exists ? s.data() : {}).map(([id, t]) => [id, t && t.toMillis ? t.toMillis() : 0]));
+    },
+    readCopy: () => copy,
+    writeCopy: c => { copy = c; },
+    state: LibrarySync.memoryState(),
+  });
   return {
     async loadAll() {
-      const snap = await shows().get();
-      const docs = {};
-      snap.forEach(d => { docs[d.id] = d.data(); });
+      const { docs, full, changed } = await load();
+      if (full) log(`Library: all ${changed} shows read (full load, once a day).`);
       return { docs };
     },
     // Same contract as firebase-backend.js: Firestore re-runs `update` if the
@@ -138,11 +156,15 @@ function adminBackend(db, uid) {
       const doc = await db.runTransaction(async tx => {
         const ref = shows().doc(docId);
         const snap = await tx.get(ref);
-        const current = snap.exists ? snap.data() : null;
+        const current = snap.exists ? LibrarySync.splitStamp(snap.data()).data : null;
         const out = update(current);
         if (out.skip) return current;
-        if (out.write === null) { tx.delete(ref); return null; }
-        tx.set(ref, out.write);
+        if (out.write === null) {
+          tx.delete(ref);
+          tx.set(meta(LibrarySync.REMOVED_META), { [docId]: FieldValue.serverTimestamp() }, { merge: true });
+          return null;
+        }
+        tx.set(ref, { ...out.write, [LibrarySync.SYNC_FIELD]: FieldValue.serverTimestamp() });
         return out.write;
       });
       return { doc };
@@ -168,7 +190,7 @@ async function openLibrary(cfg) {
     if (users.length !== 1) throw new Error(`The project has ${users.length} users - set uid in config.json.`);
     uid = users[0].uid;
   }
-  return { db, uid, admin, backend: adminBackend(db, uid) };
+  return { db, uid, admin, backend: adminBackend(db, uid, admin) };
 }
 
 function tmdbGetter(key) {

@@ -18,6 +18,8 @@
     appId: "1:680461200363:web:210430a6e9953e49fd87ae",
   };
   const SDK = "https://www.gstatic.com/firebasejs/10.14.1";
+  // Loads that read only what changed (library-sync.js).
+  const Sync = root.LibrarySync || (typeof require === "function" ? require("./library-sync.js") : null);
 
   // Network-type failures (worth retrying); anything else - e.g. the rules
   // refusing access, or the day's free quota used up - is permanent.
@@ -56,7 +58,9 @@
 
   // `sdk` (tests only) stands in for the Firebase modules; `nativeAuth`
   // (tests only) for loadNativeAuth - null in a browser.
-  function create(config = FIREBASE_CONFIG, { sdk: testSdk, nativeAuth = isNativeApp() ? loadNativeAuth : null } = {}) {
+  // `storage` keeps where the last load got to (per user); `now` - tests only.
+  function create(config = FIREBASE_CONFIG, { sdk: testSdk, nativeAuth = isNativeApp() ? loadNativeAuth : null,
+    storage = typeof localStorage !== "undefined" ? localStorage : null, now = () => Date.now() } = {}) {
     let native = null;
     const nativeAuthPlugin = async () => (native = native || (nativeAuth ? await nativeAuth() : null));
     let sdk = null;
@@ -93,6 +97,38 @@
     }
     const showsCol = () => sdk.collection(db, "users", requireUser(), "shows");
     const showRef = id => sdk.doc(db, "users", requireUser(), "shows", id);
+    const removedRef = () => sdk.doc(db, "users", requireUser(), "meta", Sync.REMOVED_META);
+    // What every write adds: the server's time (library-sync.js).
+    const stamped = data => ({ ...data, [Sync.SYNC_FIELD]: sdk.serverTimestamp() });
+    const rows = snap => { const out = []; snap.forEach(d => out.push({ id: d.id, ...Sync.splitStamp(d.data()) })); return out; };
+
+    // One incremental loader per signed-in user.
+    let loader = null, loaderUid = null;
+    function libraryLoader() {
+      const uid = requireUser();
+      if (loader && loaderUid === uid) return loader;
+      loaderUid = uid;
+      loader = Sync.createIncrementalLoad({
+        fetchAll: async () => rows(await sdk.getDocs(showsCol())),
+        fetchChanged: async sinceMs => rows(await sdk.getDocs(sdk.query(showsCol(),
+          sdk.where(Sync.SYNC_FIELD, ">", sdk.Timestamp.fromMillis(sinceMs))))),
+        fetchRemoved: async () => {
+          const snap = await sdk.getDoc(removedRef());
+          const out = {};
+          for (const [id, t] of Object.entries(snap.exists() ? snap.data() : {})) out[id] = t && t.toMillis ? t.toMillis() : 0;
+          return out;
+        },
+        // The database's own offline copy (persistentLocalCache) - free to read.
+        readCopy: async () => {
+          const copy = {};
+          for (const r of rows(await sdk.getDocsFromCache(showsCol()))) copy[r.id] = { data: r.data, syncMs: r.syncMs };
+          return copy;
+        },
+        state: storage ? Sync.storageState(storage, `library_sync_v1:${uid}`) : Sync.memoryState(),
+        now,
+      });
+      return loader;
+    }
 
     return {
       ready,
@@ -130,29 +166,36 @@
         if (nativeApp) await nativeApp.plugin.signOut().catch(() => {});
       },
 
+      // Only what changed since the last load, on top of the offline copy;
+      // everything once a day (library-sync.js).
       async loadAll() {
         await ready();
         try {
-          const snap = await sdk.getDocs(showsCol());
-          const docs = {};
-          snap.forEach(d => { docs[d.id] = d.data(); });
+          const { docs, full, changed } = await libraryLoader()();
+          console.info(full ? `Library: ${changed} shows read (full load)` : `Library: ${changed} changed show(s) read, the rest from the offline copy`);
           return { docs };
         } catch (e) { throw classify(e); }
       },
 
       // Firestore re-runs the function if the document changed between the
-      // read and the write, so `update` always sees the latest copy.
+      // read and the write, so `update` always sees the latest copy. Every
+      // write is stamped with the server's time; a removal is noted in meta
+      // "removed", in the same transaction (library-sync.js).
       async transact(docId, update) {
         await ready();
         try {
           const doc = await sdk.runTransaction(db, async tx => {
             const ref = showRef(docId);
             const snap = await tx.get(ref);
-            const current = snap.exists() ? snap.data() : null;
+            const current = snap.exists() ? Sync.splitStamp(snap.data()).data : null;
             const out = update(current);
             if (out.skip) return current;
-            if (out.write === null) { tx.delete(ref); return null; }
-            tx.set(ref, out.write);
+            if (out.write === null) {
+              tx.delete(ref);
+              tx.set(removedRef(), { [docId]: sdk.serverTimestamp() }, { merge: true });
+              return null;
+            }
+            tx.set(ref, stamped(out.write));
             return out.write;
           });
           return { doc };
@@ -175,9 +218,18 @@
         await ready();
         const existing = await sdk.getDocs(showsCol()).catch(e => { throw classify(e); });
         const ops = [];
-        existing.forEach(d => { if (!(d.id in map)) ops.push({ id: d.id, size: 100, fields: 1, run: b => b.delete(d.ref) }); });
+        // Stamped and noted like every other write (library-sync.js), so
+        // other devices' quick loads see the new library too.
+        existing.forEach(d => {
+          if (!(d.id in map)) {
+            ops.push({ id: d.id, size: 200, fields: 2, run: b => {
+              b.delete(d.ref);
+              b.set(removedRef(), { [d.id]: sdk.serverTimestamp() }, { merge: true });
+            } });
+          }
+        });
         for (const [id, data] of Object.entries(map)) {
-          ops.push({ id, size: JSON.stringify(data).length + id.length, fields: countFields(data), run: b => b.set(showRef(id), data) });
+          ops.push({ id, size: JSON.stringify(data).length + id.length, fields: countFields(data) + 1, run: b => b.set(showRef(id), stamped(data)) });
         }
         let done = 0;
         const commit = async list => {
