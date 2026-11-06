@@ -242,6 +242,6 @@ this work.
 ## Publishing
 
 The site is served by GitHub Pages from `main` at
-[elad-navon.github.io/simkl_my_list_update](https://elad-navon.github.io/simkl_my_list_update/).
+[elad-navon.github.io/my-watch-list](https://elad-navon.github.io/my-watch-list/).
 A snapshot of an older UI stays at
-[/legacy/](https://elad-navon.github.io/simkl_my_list_update/legacy/).
+[/legacy/](https://elad-navon.github.io/my-watch-list/legacy/).

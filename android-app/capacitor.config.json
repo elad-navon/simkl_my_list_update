@@ -3,7 +3,7 @@
   "appName": "My Watch List",
   "webDir": "android-shell",
   "server": {
-    "url": "https://elad-navon.github.io/simkl_my_list_update/",
+    "url": "https://elad-navon.github.io/my-watch-list/",
     "errorPath": "index.html"
   },
   "android": {
