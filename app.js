@@ -1,5 +1,13 @@
 "use strict";
 
+// Text from outside (show and episode titles, cast, networks, image URLs,
+// error messages) goes into the page's HTML through esc(), never as is:
+// TMDB titles are open to anyone's edits, and a title with markup in it
+// would otherwise run as part of the page. IMDb ids go into links and
+// onclick strings, so only a real one ("tt" + digits) is used.
+const esc = t => String(t == null ? "" : t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const isImdbId = id => /^tt\d+$/.test(String(id || ""));
+
 // ---------------------------------------------------------------------
 // Config - not hardcoded. Stored only in this browser's localStorage,
 // so this HTML file itself never contains your keys (safe to commit).
@@ -570,7 +578,7 @@ async function getAccessTokenV2() {
   app.innerHTML = `
     <div class="center-box">
       <h2>One-time authorization</h2>
-      <p>1. Go to <a href="${openUrl}" target="_blank" rel="noopener">${verificationUrl}</a></p>
+      <p>1. Go to <a href="${esc(openUrl)}" target="_blank" rel="noopener">${esc(verificationUrl)}</a></p>
       <p>2. Enter this code:</p>
       <div class="pin-code">${userCode}</div>
       <div class="spinner"></div>
@@ -622,7 +630,7 @@ async function getAccessTokenV1() {
   app.innerHTML = `
     <div class="center-box">
       <h2>One-time authorization</h2>
-      <p>1. Go to <a href="${verificationUrl}" target="_blank">${verificationUrl}</a></p>
+      <p>1. Go to <a href="${esc(verificationUrl)}" target="_blank">${esc(verificationUrl)}</a></p>
       <p>2. Enter this code:</p>
       <div class="pin-code">${userCode}</div>
       <div class="spinner"></div>
@@ -1201,7 +1209,6 @@ function showCornerToast(lines) {
     el.addEventListener("click", () => el.classList.remove("show"));
     document.body.appendChild(el);
   }
-  const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const code = (a, b) => `S${String(a).padStart(2, "0")}E${String(b).padStart(2, "0")}`;
   el.replaceChildren(...lines.map(l => {
     const item = document.createElement("div");
@@ -1461,10 +1468,10 @@ async function showWatchingCleanup() {
     <label class="cleanup-row">
       <input type="checkbox" class="cleanup-check" data-idx="${i}" checked>
       <span class="cleanup-text">
-        <span class="cleanup-title">${s.title}</span>
+        <span class="cleanup-title">${esc(s.title)}</span>
         <span class="cleanup-reason">${s.reason}</span>
       </span>
-      <select class="cleanup-status" data-idx="${i}" aria-label="Move ${s.title} to">
+      <select class="cleanup-status" data-idx="${i}" aria-label="Move ${esc(s.title)} to">
         ${options.map(o => `<option value="${o.value}"${o.value === s.status ? " selected" : ""}>${o.label}</option>`).join("")}
       </select>
     </label>`).join("");
@@ -3146,13 +3153,13 @@ function renderSearchResults(results) {
   }
   container.innerHTML = results.map((r, i) => {
     const posterHtml = r.posterUrl
-      ? `<img class="search-result-poster" loading="lazy" src="${r.posterUrl}" alt="${r.title || ""}">`
-      : `<div class="search-result-poster placeholder">${((r.title || "?")[0] || "?").toUpperCase()}</div>`;
+      ? `<img class="search-result-poster" loading="lazy" src="${esc(r.posterUrl)}" alt="${esc(r.title || "")}">`
+      : `<div class="search-result-poster placeholder">${esc(((r.title || "?")[0] || "?").toUpperCase())}</div>`;
     return `
       <div class="search-result-row" data-idx="${i}">
         ${posterHtml}
         <div class="search-result-info">
-          <div class="search-result-title">${r.title || "Unknown"}</div>
+          <div class="search-result-title">${esc(r.title || "Unknown")}</div>
           <div class="search-result-year">${r.year || ""}</div>
         </div>
       </div>`;
@@ -3213,7 +3220,7 @@ function wireSearchInput() {
         renderSearchResults(lastSearchResults);
       } catch (err) {
         if (queryAtRequestTime !== lastSearchQuery) return;
-        document.getElementById("searchResults").innerHTML = `<div class="error-box">${err.message}</div>`;
+        document.getElementById("searchResults").innerHTML = `<div class="error-box">${esc(err.message)}</div>`;
       }
     }, 400);
   };
@@ -3280,7 +3287,7 @@ async function openShowDetail(show) {
   } catch (err) {
     body.innerHTML = `
       <button class="modal-back-btn" id="detailBackBtn">&larr; Back to search</button>
-      <div class="error-box">${err.message}</div>`;
+      <div class="error-box">${esc(err.message)}</div>`;
     document.getElementById("detailBackBtn").onclick = renderSearchStep;
     return;
   }
@@ -3292,8 +3299,8 @@ function renderShowDetail(show, libraryMatch) {
   const body = document.getElementById("modalBody");
   if (!body) return;
   const posterHtml = show.posterUrl
-    ? `<img class="detail-poster" src="${show.posterUrl}" alt="${show.title || ""}">`
-    : `<div class="detail-poster placeholder">${((show.title || "?")[0] || "?").toUpperCase()}</div>`;
+    ? `<img class="detail-poster" src="${esc(show.posterUrl)}" alt="${esc(show.title || "")}">`
+    : `<div class="detail-poster placeholder">${esc(((show.title || "?")[0] || "?").toUpperCase())}</div>`;
 
   let statusHtml;
   if (!libraryMatch) {
@@ -3327,8 +3334,8 @@ function renderShowDetail(show, libraryMatch) {
   // in from TMDB's details when it can); a show already in the library
   // carries one - falls back to no link at all rather than a dead one.
   const libraryShowIds = libraryMatch && libraryMatch.item.show && libraryMatch.item.show.ids;
-  const imdbId = (show.ids && show.ids.imdb) || (libraryShowIds && libraryShowIds.imdb) || null;
-  const titleText = show.title || "Unknown";
+  const imdbId = [show.ids && show.ids.imdb, libraryShowIds && libraryShowIds.imdb].find(isImdbId) || null;
+  const titleText = esc(show.title || "Unknown");
   const detailTitleHtml = imdbId
     ? `<a class="detail-title" href="https://www.imdb.com/title/${imdbId}/" target="_blank" rel="noopener" title="Open on IMDb" onclick="event.stopPropagation()">${titleText}</a>`
     : `<div class="detail-title">${titleText}</div>`;
@@ -3811,7 +3818,7 @@ function openEpisodesModal(arrIdx) {
       <div class="episode-row is-${ep.status}${isNext ? " is-next" : ""}">
         <span class="episode-mark" aria-label="${ep.status === "watched" ? "Watched" : ep.status === "left" ? "Not watched" : "Not aired yet"}">${EPISODE_MARK_SVG[ep.status]}</span>
         <span class="episode-code">${code}</span>
-        <span class="episode-name" data-ep-key="${i}">${episodeName(ep)}</span>
+        <span class="episode-name" data-ep-key="${i}">${esc(episodeName(ep))}</span>
         ${isNext ? `<span class="episode-badge up-next">UP NEXT</span>` : badgeHtml(ep)}
         ${right}
       </div>`;
@@ -3851,7 +3858,7 @@ function openEpisodesModal(arrIdx) {
         <div class="list-panel-header">${LIST_ICON_SOLID_SVG}<span>EPISODES</span></div>
         <button class="modal-close-btn" id="episodesModalCloseBtn">&times;</button>
       </div>
-      <div class="episodes-modal-subtitle">${row.title}</div>
+      <div class="episodes-modal-subtitle">${esc(row.title)}</div>
       <div class="episodes-list">${rowsHtml}</div>
       <div class="episodes-modal-foot">
         <span class="label">Total remaining</span>
@@ -4007,16 +4014,16 @@ async function openCastModal(source, idx) {
   const gridHtml = top.length
     ? top.map((person, i) => {
         const photoHtml = person.profile_path
-          ? `<img class="cast-photo" loading="lazy" src="${TMDB_PROFILE_BASE}${person.profile_path}" alt="${person.name}">`
-          : `<div class="cast-photo placeholder">${(person.name[0] || "?").toUpperCase()}</div>`;
+          ? `<img class="cast-photo" loading="lazy" src="${TMDB_PROFILE_BASE}${esc(person.profile_path)}" alt="${esc(person.name)}">`
+          : `<div class="cast-photo placeholder">${esc((person.name[0] || "?").toUpperCase())}</div>`;
         const character = (person.roles && person.roles[0] && person.roles[0].character) || "";
         const epCount = person.epCount || person.total_episode_count || 0;
         return `
           <div class="cast-item">
             ${photoHtml}
             <div class="cast-info">
-              <span class="cast-name" data-person-idx="${i}">${person.name}</span>
-              ${character ? `<span class="cast-character">${character}</span>` : ""}
+              <span class="cast-name" data-person-idx="${i}">${esc(person.name)}</span>
+              ${character ? `<span class="cast-character">${esc(character)}</span>` : ""}
               ${epCount ? `<span class="cast-episodes">${epCount} episode${epCount === 1 ? "" : "s"}</span>` : ""}
             </div>
           </div>`;
@@ -4032,7 +4039,7 @@ async function openCastModal(source, idx) {
         </div>
         <button class="modal-close-btn" id="castModalCloseBtn">&times;</button>
       </div>
-      <div class="episodes-modal-subtitle">${row.title}</div>
+      <div class="episodes-modal-subtitle">${esc(row.title)}</div>
       <div class="cast-grid" id="castGrid">${gridHtml}</div>
       <div class="cast-episodes-tab" id="castEpisodes" hidden></div>
     </div>`;
@@ -4160,8 +4167,8 @@ function openPanelShowsModal(source) {
   const itemsHtml = rows.map((row, idx) => {
     const posterSrc = row.posterUrl || row.bannerUrl;
     const thumbHtml = posterSrc
-      ? `<img class="list-thumb" loading="lazy" src="${posterSrc}" alt="${row.title}">`
-      : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
+      ? `<img class="list-thumb" loading="lazy" src="${esc(posterSrc)}" alt="${esc(row.title)}">`
+      : `<div class="list-thumb placeholder">${esc((row.title[0] || "?").toUpperCase())}</div>`;
     const infoHtml = rowInfoWrapHtml(row, idx, source, "flip");
     // Landscape banner (not the portrait poster - already used on the
     // front) as a lightly blurred backdrop behind the back face's text, so
@@ -4171,7 +4178,7 @@ function openPanelShowsModal(source) {
     // still shows through when neither is available.
     const backBannerSrc = row.bannerUrl || row.posterUrl;
     const backBgHtml = backBannerSrc
-      ? `<div class="panel-shows-flip-back-bg" style="background-image:url('${backBannerSrc}')"></div>`
+      ? `<div class="panel-shows-flip-back-bg" style="background-image:url('${esc(backBannerSrc)}')"></div>`
       : "";
     return `
       <div class="panel-shows-item" onclick="togglePanelShowsFlip(this)">
@@ -4639,12 +4646,12 @@ function displaySrcFor(source, row) {
 // side it touches - the same image, blown up and blurred, fading out across
 // the box (.pp-glow).
 function posterGlowHtml(src) {
-  return src ? `<div class="pp-glow" aria-hidden="true"><i style="background-image:url('${src}')"></i></div>` : "";
+  return src ? `<div class="pp-glow" aria-hidden="true"><i style="background-image:url('${esc(src)}')"></i></div>` : "";
 }
 // The same poster as a variable on the text box itself: the rounded inside
 // corner (the box's ::before, just outside it) paints its glass from it.
 function posterGlowStyle(src) {
-  return src ? ` style="--pp-img:url('${src}')"` : "";
+  return src ? ` style="--pp-img:url('${esc(src)}')"` : "";
 }
 
 // Updates every currently-rendered <img> for a show directly, in place -
@@ -4739,7 +4746,7 @@ const IMDB_LOGO_SVG_INVERTED = `<svg viewBox="0 0 64 32" width="34" height="17" 
 </svg>`;
 
 function imdbButtonHtml(imdbId, rating, ratings) {
-  if (!imdbId) return "";
+  if (!isImdbId(imdbId)) return "";
   const url = `https://www.imdb.com/title/${imdbId}/`;
   const ratingHtml = (typeof rating === "number" && !isNaN(rating))
     ? `<span class="imdb-rating">${rating.toFixed(1)}</span>`
@@ -4759,7 +4766,7 @@ function imdbButtonHtml(imdbId, rating, ratings) {
 function imdbPillHtml(rating, imdbId, ratings) {
   const text = (typeof rating === "number" && !isNaN(rating)) ? rating.toFixed(1) : "N/A";
   const inner = `<span class="imdb-pill">IMDb</span><span class="imdb-pill-rating">${text}</span>`;
-  if (!imdbId) return inner;
+  if (!isImdbId(imdbId)) return inner;
   const url = `https://www.imdb.com/title/${imdbId}/`;
   const attr = ratingsAttr(ratings);
   return `<button class="imdb-pill-btn"${attr || ' title="Open on IMDb"'} onclick="event.stopPropagation(); window.open('${url}', '_blank')">${inner}</button>`;
@@ -4893,7 +4900,7 @@ function ratingTilesHtml(r) {
       <div class="rt-icon">${e.icon}</div>
       <div class="rt-text">
         <div class="rt-val">${e.html || e.text}</div>
-        <div class="rt-label">${e.label}</div>
+        <div class="rt-label">${esc(e.label)}</div>
       </div>
     </div>`).join("")}</div>${ratingsKeyHintHtml(entries)}`;
 }
@@ -4994,8 +5001,8 @@ function cardImageBits(row, mode, arrIdx, extraOverlayHtml) {
   const imageUrl = mode === "banner" ? (row.bannerUrl || row.posterUrl) : row[cfg.urlKey];
   const posterClass = "poster" + cfg.extraClass;
   const posterHtml = imageUrl
-    ? `<img class="${posterClass}" loading="lazy" src="${imageUrl}" alt="${row.title}" onerror="handleThumbError(this, 'main', ${arrIdx}, '${mode}')">`
-    : `<div class="${posterClass} placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
+    ? `<img class="${posterClass}" loading="lazy" src="${esc(imageUrl)}" alt="${esc(row.title)}" onerror="handleThumbError(this, 'main', ${arrIdx}, '${mode}')">`
+    : `<div class="${posterClass} placeholder">${esc((row.title[0] || "?").toUpperCase())}</div>`;
   const altCount = (row[cfg.pathsKey] || []).length;
   const cycleable = altCount > 1 || !!row.imdbId;
   const cycleAttrs = cycleable
@@ -5012,7 +5019,7 @@ function cardImageBits(row, mode, arrIdx, extraOverlayHtml) {
   // falls back to the nearest ancestor's title instead of showing nothing.
   const badgeHtml = row.networkLogoPath
     ? `<div class="badge network-badge" data-idx="${row.index}" title="">
-        <img class="network-badge-logo" loading="lazy" src="${row.networkLogoPath}" alt="${row.network || ""}"
+        <img class="network-badge-logo" loading="lazy" src="${esc(row.networkLogoPath)}" alt="${esc(row.network || "")}"
           onerror="this.parentElement.classList.add('logo-failed')">
       </div>`
     : "";
@@ -5089,6 +5096,7 @@ async function tvmazePickerGet(url, timeoutMs) {
 
 // Metahub: at most one poster and one background per show, by IMDb id.
 function metahubImages(imdbId) {
+  if (!isImdbId(imdbId)) return { poster: [], banner: [] };
   const meta = `https://images.metahub.space`;
   return {
     poster: [{ url: resizedImage(`${meta}/poster/medium/${imdbId}/img`, 342), thumb: `${meta}/poster/small/${imdbId}/img`, src: "Metahub" }],
@@ -5329,8 +5337,8 @@ function openImagePicker(source, idx, mode) {
   let pendingEntry = null;
   const previewSrc = originalUrl || row.posterUrl;
   const identityHtml = previewSrc
-    ? `<img id="imagePickerPreview" src="${previewSrc}" alt="${row.title}">`
-    : `<div class="picker-ident-placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
+    ? `<img id="imagePickerPreview" src="${esc(previewSrc)}" alt="${esc(row.title)}">`
+    : `<div class="picker-ident-placeholder">${esc((row.title[0] || "?").toUpperCase())}</div>`;
   const tmdbEntries = paths.map((p, i) => ({ url: cfg.base + p, thumb: thumbBase + p, index: i }));
   let extras = [];
   let extrasState = row.imdbId ? "loading" : "done";
@@ -5348,7 +5356,7 @@ function openImagePicker(source, idx, mode) {
       <div class="picker-cols">
         <div class="picker-ident">
           <div class="picker-ident-img is-${noun}">${identityHtml}</div>
-          <div class="picker-ident-name">${row.title}</div>
+          <div class="picker-ident-name">${esc(row.title)}</div>
           ${year ? `<div class="picker-ident-year">${year}</div>` : ""}
         </div>
         <div class="picker-main">
@@ -5378,9 +5386,9 @@ function openImagePicker(source, idx, mode) {
     const current = pendingUrl;
     grid.innerHTML = all().map((e, i) => `
       <button class="picker-th${e.url === current ? " cur" : ""}" data-i="${i}" aria-label="${noun} ${i + 1}">
-        <img loading="lazy" alt="" src="${e.thumb}" onerror="this.closest('.picker-th').remove()">
+        <img loading="lazy" alt="" src="${esc(e.thumb)}" onerror="this.closest('.picker-th').remove()">
         ${e.url === current ? `<span class="picker-tag">${e.url === originalUrl ? "Current" : "Selected"}</span>` : ""}
-        ${e.src ? `<span class="picker-src">${e.src}</span>` : ""}
+        ${e.src ? `<span class="picker-src">${esc(e.src)}</span>` : ""}
       </button>`).join("");
     grid.scrollTop = scroll;
     renderCount();
@@ -5477,12 +5485,12 @@ function thumbCycleAttrs(row, source, idx) {
 function networkSubHtml(name, logoPath) {
   if (logoPath) {
     return `<div class="list-row-sub network-sub">
-        <img class="network-logo" loading="lazy" src="${logoPath}" alt="${name || ""}"
+        <img class="network-logo" loading="lazy" src="${esc(logoPath)}" alt="${esc(name || "")}"
           onerror="this.style.display='none'; this.nextElementSibling.style.display='inline'">
-        <span class="network-name-fallback" style="display:none">${name || ""}</span>
+        <span class="network-name-fallback" style="display:none">${esc(name || "")}</span>
       </div>`;
   }
-  return name ? `<div class="list-row-sub">${name}</div>` : "";
+  return name ? `<div class="list-row-sub">${esc(name)}</div>` : "";
 }
 
 // Right-aligned show count for a bottom panel's header row - same
@@ -5503,10 +5511,10 @@ function listPanelCountHtml(count, source) {
 // since the cast modal doesn't make sense floating over a poster grid).
 function rowInfoWrapHtml(row, idx, source, mode) {
   const titleHtml = mode === "flip"
-    ? (row.imdbId
-        ? `<div class="list-row-title"><a href="https://www.imdb.com/title/${row.imdbId}/" target="_blank" rel="noopener" onclick="event.stopPropagation()">${row.title}</a></div>`
-        : `<div class="list-row-title">${row.title}</div>`)
-    : `<div class="list-row-title" title="View cast" onclick="event.stopPropagation(); openCastModal('${source}', ${idx})">${row.title}</div>`;
+    ? (isImdbId(row.imdbId)
+        ? `<div class="list-row-title"><a href="https://www.imdb.com/title/${row.imdbId}/" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(row.title)}</a></div>`
+        : `<div class="list-row-title">${esc(row.title)}</div>`)
+    : `<div class="list-row-title" title="View cast" onclick="event.stopPropagation(); openCastModal('${source}', ${idx})">${esc(row.title)}</div>`;
   // In the one-page layout the badges and IMDb rating sit on the thumbnail
   // (thumbBarHtml), so the row's text leaves them out; the flip-card back
   // face and the older scrolling layout keep them as text.
@@ -5514,7 +5522,7 @@ function rowInfoWrapHtml(row, idx, source, mode) {
 
   if (source === "watched") {
     const episodeCode = `S${String(row.season).padStart(2, "0")}E${String(row.episode).padStart(2, "0")}`;
-    const episodeTitleHtml = row.episodeTitle ? `<div class="episode-title">${row.episodeTitle}</div>` : "";
+    const episodeTitleHtml = row.episodeTitle ? `<div class="episode-title">${esc(row.episodeTitle)}</div>` : "";
     const badgeModifier = row.badge === "SEASON FINALE" ? " finale" : row.badge === "DROPPED" ? " dropped" : "";
     const badgeHtml = (rich && row.badge) ? `<div class="premiere-badge${badgeModifier}">${badgeText(row)}</div>` : "";
     return `
@@ -5537,7 +5545,7 @@ function rowInfoWrapHtml(row, idx, source, mode) {
     const contentMetaHtml = (row.contentRating || row.genreLabel)
       ? `<div class="content-meta-row">
           ${row.contentRating ? `<span class="content-rating-badge">${row.contentRating}</span>` : ""}
-          ${row.genreLabel ? `<span class="genre-label">${row.genreLabel}</span>` : ""}
+          ${row.genreLabel ? `<span class="genre-label">${esc(row.genreLabel)}</span>` : ""}
         </div>`
       : "";
     const imdbHtml = rich ? `<div class="list-imdb">${imdbPillHtml(row.imdbRating, row.imdbId, row.ratings)}</div>` : "";
@@ -5557,7 +5565,7 @@ function rowInfoWrapHtml(row, idx, source, mode) {
     // The top panel's own "My Watch List" row shape (renderRows) - a
     // progress/remaining-episode count instead of an "aired" badge, no
     // genre/content-rating (that's Plan to Watch only).
-    const episodeTitleHtml = row.episodeTitle ? `<div class="episode-title">${row.episodeTitle}</div>` : "";
+    const episodeTitleHtml = row.episodeTitle ? `<div class="episode-title">${esc(row.episodeTitle)}</div>` : "";
     const badgeHtml = row.badge
       ? `<div class="premiere-badge${row.badge === "SEASON FINALE" ? " finale" : ""}">${badgeText(row)}</div>`
       : "";
@@ -5576,7 +5584,7 @@ function rowInfoWrapHtml(row, idx, source, mode) {
 
   // source === "airing", or source === "main" while showing the Airing
   // Next view (renderAiringRows) - both share the exact same row shape.
-  const episodeTitle = row.nextEpisodeTitle ? `<div class="episode-title">${row.nextEpisodeTitle}</div>` : "";
+  const episodeTitle = row.nextEpisodeTitle ? `<div class="episode-title">${esc(row.nextEpisodeTitle)}</div>` : "";
   const badgeHtml = (rich && row.badge)
     ? `<div class="premiere-badge${row.badge === "SEASON FINALE" ? " finale" : ""}">${badgeText(row)}</div>`
     : "";
@@ -5701,8 +5709,8 @@ function renderRecentlyWatchedHtml(list) {
     const bannerSrc = panelThumbSrc(ep);
     const { cycleableClass, attrs, mode } = thumbCycleAttrs(ep, "watched", idx);
     const thumbHtml = bannerSrc
-      ? `<img class="list-thumb" loading="lazy" src="${bannerSrc}" alt="${ep.title}" onerror="handleThumbError(this, 'watched', ${idx}, '${mode}')">`
-      : `<div class="list-thumb placeholder">${(ep.title[0] || "?").toUpperCase()}</div>`;
+      ? `<img class="list-thumb" loading="lazy" src="${esc(bannerSrc)}" alt="${esc(ep.title)}" onerror="handleThumbError(this, 'watched', ${idx}, '${mode}')">`
+      : `<div class="list-thumb placeholder">${esc((ep.title[0] || "?").toUpperCase())}</div>`;
     return `
       <div class="list-row ${rowToneClass(idx)}">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}${scroll ? "" : thumbBarHtml("", ep)}</div>
@@ -5730,8 +5738,8 @@ function renderPlanToWatchHtml(list) {
     const bannerSrc = panelThumbSrc(row);
     const { cycleableClass, attrs, mode } = thumbCycleAttrs(row, "plan", idx);
     const thumbHtml = bannerSrc
-      ? `<img class="list-thumb" loading="lazy" src="${bannerSrc}" alt="${row.title}" onerror="handleThumbError(this, 'plan', ${idx}, '${mode}')">`
-      : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
+      ? `<img class="list-thumb" loading="lazy" src="${esc(bannerSrc)}" alt="${esc(row.title)}" onerror="handleThumbError(this, 'plan', ${idx}, '${mode}')">`
+      : `<div class="list-thumb placeholder">${esc((row.title[0] || "?").toUpperCase())}</div>`;
     return `
       <div class="list-row ${rowToneClass(idx)}">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}${scroll ? "" : thumbBarHtml(imdbButtonHtml(row.imdbId, row.imdbRating, row.ratings))}</div>
@@ -5819,7 +5827,6 @@ function updateGreetingStatus(now = Date.now()) {
   if (!el) return;
   if (!lastRows) { el.hidden = true; return; }
   const today = airingToday(lastAiringPreview, now);
-  const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const timeOf = r => (r.airStart == null ? "Today"
     : r.airEnd != null && r.airStart <= now && now < r.airEnd ? "NOW"
     : new Date(r.airStart).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }));
@@ -6003,8 +6010,8 @@ function renderAiringNextPreviewHtml(list) {
     const bannerSrc = panelThumbSrc(row);
     const { cycleableClass, attrs, mode } = thumbCycleAttrs(row, "airing", idx);
     const thumbHtml = bannerSrc
-      ? `<img class="list-thumb" loading="lazy" src="${bannerSrc}" alt="${row.title}" onerror="handleThumbError(this, 'airing', ${idx}, '${mode}')">`
-      : `<div class="list-thumb placeholder">${(row.title[0] || "?").toUpperCase()}</div>`;
+      ? `<img class="list-thumb" loading="lazy" src="${esc(bannerSrc)}" alt="${esc(row.title)}" onerror="handleThumbError(this, 'airing', ${idx}, '${mode}')">`
+      : `<div class="list-thumb placeholder">${esc((row.title[0] || "?").toUpperCase())}</div>`;
     return `
       <div class="list-row ${rowToneClass(idx, true)}">
         <div class="list-thumb-wrap${cycleableClass}"${attrs}>${thumbHtml}${scroll ? "" : thumbBarHtml(imdbButtonHtml(row.imdbId, row.imdbRating, row.ratings), row)}${airCountHtml(row)}</div>
@@ -6484,7 +6491,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
     // Always reserved as its own line (blank when there's no title), so a
     // card without one doesn't collapse and throw off the progress bar's
     // position relative to sibling cards in the same row - see .card-fill-spacer.
-    const episodeTitle = `<div class="episode-title">${row.episodeTitle || "&nbsp;"}</div>`;
+    const episodeTitle = `<div class="episode-title">${row.episodeTitle ? esc(row.episodeTitle) : "&nbsp;"}</div>`;
     const progressPct = row.available > 0 ? Math.min(100, Math.round((row.watched / row.available) * 100)) : 0;
     // A ring for the season you're in (a bar for the whole show barely
     // moves on a long one), the season and the show's share beside it -
@@ -6528,7 +6535,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
         <div class="card-body"${pairPosters ? posterGlowStyle(displaySrcFor("main", row)) : ""}>
           ${pairPosters ? posterGlowHtml(displaySrcFor("main", row)) : ""}
           <div class="card-title-row">
-            <h3 title="View cast" onclick="event.stopPropagation(); openCastModal('main', ${arrIdx})">${row.title}</h3>
+            <h3 title="View cast" onclick="event.stopPropagation(); openCastModal('main', ${arrIdx})">${esc(row.title)}</h3>
             <button class="card-menu-btn" title="Manage" onclick="event.stopPropagation(); openCardMenu(${arrIdx}, this)">&#8942;</button>
           </div>
           <div class="next-up-row">
@@ -6664,9 +6671,9 @@ function renderAiringRows(rows) {
       <div class="card">
         ${wrapHtml}
         <div class="card-body">
-          <h3 title="View cast" onclick="event.stopPropagation(); openCastModal('main', ${arrIdx})">${row.title}</h3>
+          <h3 title="View cast" onclick="event.stopPropagation(); openCastModal('main', ${arrIdx})">${esc(row.title)}</h3>
           <div class="next-up">Next: ${row.nextLabel}</div>
-          ${row.nextEpisodeTitle ? `<div class="episode-title">${row.nextEpisodeTitle}</div>` : ""}
+          ${row.nextEpisodeTitle ? `<div class="episode-title">${esc(row.nextEpisodeTitle)}</div>` : ""}
           <div class="air-date">&#128197; ${airDateText(row)}</div>
         </div>
       </div>`;
@@ -6686,7 +6693,7 @@ function showError(err) {
   app.innerHTML = `
     <div class="center-box">
       <h2>Something went wrong</h2>
-      <div class="error-box">${(err && err.message) || err}</div>
+      <div class="error-box">${esc((err && err.message) || err)}</div>
     </div>
   `;
   subtitle.textContent = "Error";
