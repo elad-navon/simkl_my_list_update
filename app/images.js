@@ -581,23 +581,10 @@ function cardImageBits(row, mode, arrIdx, extraOverlayHtml) {
 // A pick is only applied when Done is pressed.
 const TMDB_PICKER_THUMB_POSTER = "https://image.tmdb.org/t/p/w185";
 const TMDB_PICKER_THUMB_BACKDROP = "https://image.tmdb.org/t/p/w300";
-const CACHE_TTL_EXTRA_IMAGES_MS = 7 * 24 * 60 * 60 * 1000;
 
-// wsrv.nl: a free, caching image resizer. Some sources only serve huge
-// originals (TVMaze backgrounds are 1920x1080, 400-500 KB each), which would
-// make a gallery of them slow and heavy - resized, a thumbnail is ~8 KB and
-// the banner actually shown ~45 KB.
-function resizedImage(url, width) {
-  return `https://wsrv.nl/?output=jpg&q=75&w=${width}&url=${encodeURIComponent(url)}`;
-}
+// Pictures resized by wsrv.nl (outside-sources.js says why).
+const resizedImage = OutsideSources.resizedImage;
 
-// Extra posters/backgrounds for a show, from sources that need no API key.
-// Returns { poster, banner, tvdbId }; the lists hold { url, thumb, src }:
-// `url` is what's shown on the card once picked, `thumb` what the gallery shows.
-//   - TVMaze: many posters and 16:9 backgrounds (found by IMDb id).
-//   - Metahub: at most one poster and one background, and it doesn't have
-//     every show (a tile whose image fails to load is simply dropped).
-// Cached for a week per show; a network failure isn't cached.
 // The picker's extra sources are other people's servers, and one of them now
 // and then just doesn't answer: every request to them gives up after
 // EXTRA_IMAGES_TIMEOUT_MS (a failure, so nothing is cached and the next
@@ -629,173 +616,26 @@ async function tvmazePickerGet(url, timeoutMs) {
   }
 }
 
-// Metahub: at most one poster and one background per show, by IMDb id.
-function metahubImages(imdbId) {
-  if (!isImdbId(imdbId)) return { poster: [], banner: [] };
-  const meta = `https://images.metahub.space`;
-  return {
-    poster: [{ url: resizedImage(`${meta}/poster/medium/${imdbId}/img`, 342), thumb: `${meta}/poster/small/${imdbId}/img`, src: "Metahub" }],
-    banner: [{ url: resizedImage(`${meta}/background/medium/${imdbId}/img`, 780), thumb: resizedImage(`${meta}/background/medium/${imdbId}/img`, 300), src: "Metahub" }],
-  };
-}
-
-async function fetchKeylessImages(imdbId) {
-  const out = { poster: [], banner: [], tvdbId: null };
-  if (!imdbId) return out;
-  const cacheKey = `extraimages2:${imdbId}`; // 2: TVMaze poster tiles from the full-size file
-  const cached = await readPersistedCache(cacheKey, CACHE_TTL_EXTRA_IMAGES_MS);
-  if (cached !== undefined) return cached;
-  let partial = false;
-  try {
-    const lookup = await tvmazePickerGet(`https://api.tvmaze.com/lookup/shows?imdb=${imdbId}`);
-    if (lookup.ok) {
-      const show = await lookup.json();
-      out.tvdbId = (show.externals && show.externals.thetvdb) || null; // lets Fanart.tv find the show too
-      // TVMaze builds a show's image list on the first request in a while,
-      // which takes 5-10 seconds (then it's quick): a longer wait for this one.
-      const res = await tvmazePickerGet(`https://api.tvmaze.com/shows/${show.id}/images`, 25000);
-      if (res.ok) {
-        for (const img of await res.json()) {
-          const original = img.resolutions && img.resolutions.original && img.resolutions.original.url;
-          if (!original) continue;
-          if (img.type === "poster") {
-            // The gallery tile is made from the same full-size file the card
-            // will show, not TVMaze's ready small copy: TVMaze has dropped the
-            // full size of some posters but kept the small one, which made a
-            // fine-looking tile that broke once picked. Now such a tile fails
-            // to load and drops out of the gallery.
-            out.poster.push({ url: resizedImage(original, 342), thumb: resizedImage(original, 200), src: "TVMaze" });
-          } else if (img.type === "background") {
-            out.banner.push({ url: resizedImage(original, 780), thumb: resizedImage(original, 300), src: "TVMaze" });
-          }
-        }
-      } else {
-        partial = true; // shown, but not kept: the next opening asks TVMaze again
-      }
-    } else if (lookup.status !== 404) {
-      return out; // TVMaze hiccup: show what we have, try again next time
-    }
-  } catch (e) {
-    return out; // offline / blocked
-  }
-  const meta = metahubImages(imdbId);
-  out.poster.push(...meta.poster);
-  out.banner.push(...meta.banner);
-  if (!partial) writePersistedCache(cacheKey, out);
-  return out;
-}
-
-// Fanart.tv: community-curated artwork, by far the richest of the extra
-// sources (Dexter: 12 posters, 36 backgrounds, 23 wide thumbs). Needs a free
-// key from fanart.tv (Settings) and the show's TheTVDB id; without either it
-// simply contributes nothing. It hands out full-size originals (a poster is
-// >1 MB) plus a small /preview/ variant for the gallery.
-const CACHE_TTL_FANART_MS = 7 * 24 * 60 * 60 * 1000;
-let fanartKeyRejected = false;
-async function fetchFanartImages(tvdbId) {
-  const out = { poster: [], banner: [] };
-  const key = getConfig().fanartKey;
-  if (!key || !tvdbId || fanartKeyRejected) return out;
-  const cacheKey = `fanart:${tvdbId}`;
-  const cached = await readPersistedCache(cacheKey, CACHE_TTL_FANART_MS);
-  if (cached !== undefined) return cached;
-  try {
-    const res = await fetchWithTimeout(`https://webservice.fanart.tv/v3/tv/${tvdbId}?api_key=${encodeURIComponent(key)}`);
-    if (res.status === 401 || res.status === 403) {
-      fanartKeyRejected = true;
-      showToast("Fanart.tv rejected the API key - check it in Settings.", true);
-      return out;
-    }
-    if (res.status === 404) { writePersistedCache(cacheKey, out); return out; } // not in their database
-    if (!res.ok) return out;
-    const d = await res.json();
-    const usable = x => x && x.url;
-    const english = x => !x.lang || x.lang === "en" || x.lang === "00";
-    const byLikes = (a, b) => (Number(b.likes) || 0) - (Number(a.likes) || 0);
-    const preview = u => u.replace("/fanart/", "/preview/");
-    for (const img of (d.tvposter || []).filter(usable).filter(english).sort(byLikes)) {
-      out.poster.push({ url: resizedImage(img.url, 342), thumb: preview(img.url), src: "Fanart.tv" });
-    }
-    // Backgrounds and the 16:9 "thumbs" both work as banners.
-    for (const img of (d.showbackground || []).concat(d.tvthumb || []).filter(usable).sort(byLikes)) {
-      out.banner.push({ url: resizedImage(img.url, 780), thumb: preview(img.url), src: "Fanart.tv" });
-    }
-    writePersistedCache(cacheKey, out);
-  } catch (e) {
-    // offline / blocked: no Fanart.tv images this time
-  }
-  return out;
-}
-
-// TheTVDB: the artwork SIMKL and Emby show (often the newest key art, before
-// TMDB or Fanart.tv have it). Needs a free key (Settings) and the show's
-// TheTVDB id. The key buys a read token valid for a month, kept with the key
-// it belongs to; a 401 means the token ran out, so one fresh login and retry.
-// Posters (type 2) and 16:9 backgrounds (type 3) only - their "banners"
-// (type 1) are 758x140 strips that a 16:9 card would crop to nothing. Their
-// terms ask for a credit with a link, which the picker shows under the grid.
-const CACHE_TTL_TVDB_MS = 7 * 24 * 60 * 60 * 1000;
-const TVDB_API = "https://api4.thetvdb.com/v4";
-const TVDB_TOKEN_MS = 25 * 24 * 60 * 60 * 1000;
-let tvdbKeyRejected = false;
-// Several lookups at once share one login rather than each logging in.
-let tvdbLoginPending = null;
-async function tvdbToken(key, fresh) {
-  let saved = null;
-  try { saved = JSON.parse(localStorage.getItem(LS_TVDB_TOKEN) || "null"); } catch (e) { /* unreadable */ }
-  if (!fresh && saved && saved.key === key && saved.token && Date.now() - saved.at < TVDB_TOKEN_MS) return saved.token;
-  if (!tvdbLoginPending) tvdbLoginPending = tvdbLogin(key).finally(() => { tvdbLoginPending = null; });
-  return tvdbLoginPending;
-}
-async function tvdbLogin(key) {
-  const res = await fetchWithTimeout(`${TVDB_API}/login`, {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ apikey: key }),
-  });
-  if (res.status === 401 || res.status === 403) {
-    tvdbKeyRejected = true;
-    showToast("TheTVDB rejected the API key - check it in Settings.", true);
-    return null;
-  }
-  if (!res.ok) return null;
-  const token = ((await res.json()).data || {}).token;
-  if (token) safeSetItem(LS_TVDB_TOKEN, JSON.stringify({ key, token, at: Date.now() }));
-  return token || null;
-}
-async function fetchTvdbImages(tvdbId) {
-  const out = { poster: [], banner: [] };
-  const key = getConfig().tvdbKey;
-  if (!key || !tvdbId || tvdbKeyRejected) return out;
-  const cacheKey = `tvdb:${tvdbId}`;
-  const cached = await readPersistedCache(cacheKey, CACHE_TTL_TVDB_MS);
-  if (cached !== undefined) return cached;
-  try {
-    let token = await tvdbToken(key, false);
-    if (!token) return out;
-    const artworks = async type => {
-      const url = `${TVDB_API}/series/${tvdbId}/artworks?type=${type}`;
-      let res = await fetchWithTimeout(url, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.status === 401 && (token = await tvdbToken(key, true))) {
-        res = await fetchWithTimeout(url, { headers: { Authorization: `Bearer ${token}` } });
-      }
-      if (res.status === 404) return []; // not in their database
-      if (!res.ok) throw new Error(`TheTVDB ${res.status}`);
-      return ((await res.json()).data || {}).artworks || [];
-    };
-    const [posters, backgrounds] = await Promise.all([artworks(2), artworks(3)]);
-    const usable = x => x && x.image && (!x.language || x.language === "eng");
-    const byScore = (a, b) => (Number(b.score) || 0) - (Number(a.score) || 0);
-    for (const img of posters.filter(usable).sort(byScore)) {
-      out.poster.push({ url: resizedImage(img.image, 342), thumb: img.thumbnail || resizedImage(img.image, 200), src: "TheTVDB" });
-    }
-    for (const img of backgrounds.filter(usable).sort(byScore)) {
-      out.banner.push({ url: resizedImage(img.image, 780), thumb: img.thumbnail || resizedImage(img.image, 300), src: "TheTVDB" });
-    }
-    writePersistedCache(cacheKey, out);
-  } catch (e) {
-    // offline / blocked: no TheTVDB images this time
-  }
-  return out;
-}
+// The picker's extra sources (outside-sources.js): TVMaze and Metahub with no
+// key, Fanart.tv and TheTVDB with the keys from Settings.
+const metahubImages = OutsideSources.metahubImages;
+const imageSources = OutsideSources.createImageSources({
+  fetchWithTimeout,
+  tvmazeGet: tvmazePickerGet,
+  persisted: { read: readPersistedCache, write: writePersistedCache },
+  fanartKey: () => getConfig().fanartKey,
+  tvdbKey: () => getConfig().tvdbKey,
+  tokenStore: {
+    read() { try { return JSON.parse(localStorage.getItem(LS_TVDB_TOKEN) || "null"); } catch (e) { return null; } },
+    write(v) { safeSetItem(LS_TVDB_TOKEN, JSON.stringify(v)); },
+  },
+  onRejected: name => showToast(`${name} rejected the API key - check it in Settings.`, true),
+});
+const fetchKeylessImages = imageSources.keyless;
+const fetchFanartImages = imageSources.fanart;
+const fetchTvdbImages = imageSources.tvdb;
+const tvdbToken = imageSources.tvdbToken;
+const TVDB_API = "https://api4.thetvdb.com/v4"; // also for the air-date check (library.js)
 
 // All extra images for the picker: Fanart.tv first (curated), then TheTVDB,
 // then TVMaze and Metahub. The same picture can come from more than one of

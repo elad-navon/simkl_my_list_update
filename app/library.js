@@ -111,7 +111,7 @@ function libraryTvdbCheck() {
     EpisodeSource,
     source: { getSourceLists: ids => library.source.getSourceLists(ids), streamingHome: ids => library.source.streamingHome(ids) },
     recentEpisodes: tvdbRecentEpisodes,
-    enabled: () => !!getConfig().tvdbKey && !tvdbKeyRejected,
+    enabled: () => !!getConfig().tvdbKey && !imageSources.rejected("tvdb"),
   });
 }
 

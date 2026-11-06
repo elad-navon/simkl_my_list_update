@@ -344,9 +344,8 @@ function showSettings(afterSaveCallback) {
     safeSetItem(LS_TMDB_KEY, tmdbKey);
     safeSetItem(LS_MDBLIST_KEY, mdblistKey);
     safeSetItem(LS_FANART_KEY, fanartKey);
-    fanartKeyRejected = false;
     safeSetItem(LS_TVDB_KEY, tvdbKey);
-    tvdbKeyRejected = false;
+    imageSources.resetRejected(); // new keys: Fanart.tv and TheTVDB are asked again
     if (mdblistKey !== cfg.mdblistKey) {
       mdblistCache.disabled = false;
       if (mdblistKey) {
