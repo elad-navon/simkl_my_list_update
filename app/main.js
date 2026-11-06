@@ -8,6 +8,25 @@
 // loads may use only what earlier files define.
 
 // ---------------------------------------------------------------------
+// The page's element actions (pageAction in core.js): what a
+// data-onclick / data-onerror name on an element does.
+// ---------------------------------------------------------------------
+pageAction("imagePicker", (el, e, source, idx, mode) => openImagePicker(source, idx, mode));
+pageAction("thumbError", (el, e, source, idx, mode) => handleThumbError(el, source, idx, mode));
+pageAction("cast", (el, e, source, idx) => openCastModal(source, idx));
+pageAction("episodes", (el, e, idx) => openEpisodesModal(idx));
+pageAction("cardMenu", (el, e, idx) => openCardMenu(idx, el));
+pageAction("planMenu", (el, e, idx) => openPlanCardMenu(idx, el));
+pageAction("panelShows", (el, e, source) => openPanelShowsModal(source));
+pageAction("panelShowsFlip", el => togglePanelShowsFlip(el));
+pageAction("pager", (el, e, dir) => pagerArrowClick(el, dir));
+pageAction("carouselScroll", (el, e, by) => document.getElementById("myListCarouselTrack").scrollBy({ left: by, behavior: "smooth" }));
+// A network logo that doesn't load: its name instead (the next element).
+pageAction("networkLogoFailed", el => { el.style.display = "none"; el.nextElementSibling.style.display = "inline"; });
+pageAction("logoFailed", el => el.parentElement.classList.add("logo-failed"));
+pageAction("removePickerTile", el => { const tile = el.closest(".picker-th"); if (tile) tile.remove(); });
+
+// ---------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------
 async function main() {

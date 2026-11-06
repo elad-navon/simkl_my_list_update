@@ -292,7 +292,7 @@ function imdbButtonHtml(imdbId, rating, ratings) {
   // through instead (an absent title falls back to the nearest ancestor's).
   const attr = ratingsAttr(ratings);
   return `<button class="imdb-btn"${attr ? attr + ' title=""' : ' title="Open on IMDb"'}
-              onclick="event.stopPropagation(); window.open('${url}', '_blank')">${IMDB_LOGO_SVG_INVERTED}${ratingHtml}</button>`;
+             ${onClickStop("openUrl", url)}>${IMDB_LOGO_SVG_INVERTED}${ratingHtml}</button>`;
 }
 
 // Plain (non-link) IMDb pill used inline in the My List card scrim and the
@@ -304,7 +304,7 @@ function imdbPillHtml(rating, imdbId, ratings) {
   if (!isImdbId(imdbId)) return inner;
   const url = `https://www.imdb.com/title/${imdbId}/`;
   const attr = ratingsAttr(ratings);
-  return `<button class="imdb-pill-btn"${attr || ' title="Open on IMDb"'} onclick="event.stopPropagation(); window.open('${url}', '_blank')">${inner}</button>`;
+  return `<button class="imdb-pill-btn"${attr || ' title="Open on IMDb"'}${onClickStop("openUrl", url)}>${inner}</button>`;
 }
 
 // ---------------------------------------------------------------------
@@ -536,12 +536,12 @@ function cardImageBits(row, mode, arrIdx, extraOverlayHtml) {
   const imageUrl = mode === "banner" ? (row.bannerUrl || row.posterUrl) : row[cfg.urlKey];
   const posterClass = "poster" + cfg.extraClass;
   const posterHtml = imageUrl
-    ? `<img class="${posterClass}" loading="lazy" src="${esc(imageUrl)}" alt="${esc(row.title)}" onerror="handleThumbError(this, 'main', ${arrIdx}, '${mode}')">`
+    ? `<img class="${posterClass}" loading="lazy" src="${esc(imageUrl)}" alt="${esc(row.title)}"${onError("thumbError", "main", arrIdx, mode)}>`
     : `<div class="${posterClass} placeholder">${esc((row.title[0] || "?").toUpperCase())}</div>`;
   const altCount = (row[cfg.pathsKey] || []).length;
   const cycleable = altCount > 1 || !!row.imdbId;
   const cycleAttrs = cycleable
-    ? ` data-cycle-key="main-${arrIdx}" title="Choose a different image" onclick="openImagePicker('main', ${arrIdx}, '${mode}')"`
+    ? ` data-cycle-key="main-${arrIdx}" title="Choose a different image"${onClick("imagePicker", "main", arrIdx, mode)}`
     : "";
   // Network logo sits in the corner when known - the dark scrim keeps
   // colorful logos from blending into bright poster art underneath. Falls
@@ -554,8 +554,7 @@ function cardImageBits(row, mode, arrIdx, extraOverlayHtml) {
   // falls back to the nearest ancestor's title instead of showing nothing.
   const badgeHtml = row.networkLogoPath
     ? `<div class="badge network-badge" data-idx="${row.index}" title="">
-        <img class="network-badge-logo" loading="lazy" src="${esc(row.networkLogoPath)}" alt="${esc(row.network || "")}"
-          onerror="this.parentElement.classList.add('logo-failed')">
+        <img class="network-badge-logo" loading="lazy" src="${esc(row.networkLogoPath)}" alt="${esc(row.network || "")}"${onError("logoFailed")}>
       </div>`
     : "";
   // Year range in the opposite top corner - also doubles as an at-a-glance
@@ -761,7 +760,7 @@ function openImagePicker(source, idx, mode) {
     const current = pendingUrl;
     grid.innerHTML = all().map((e, i) => `
       <button class="picker-th${e.url === current ? " cur" : ""}" data-i="${i}" aria-label="${noun} ${i + 1}">
-        <img loading="lazy" alt="" src="${esc(e.thumb)}" onerror="this.closest('.picker-th').remove()">
+        <img loading="lazy" alt="" src="${esc(e.thumb)}"${onError("removePickerTile")}>
         ${e.url === current ? `<span class="picker-tag">${e.url === originalUrl ? "Current" : "Selected"}</span>` : ""}
         ${e.src ? `<span class="picker-src">${esc(e.src)}</span>` : ""}
       </button>`).join("");

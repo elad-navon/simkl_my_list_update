@@ -466,7 +466,7 @@ function openPanelShowsModal(source) {
       ? `<div class="panel-shows-flip-back-bg" style="background-image:url('${esc(backBannerSrc)}')"></div>`
       : "";
     return `
-      <div class="panel-shows-item" onclick="togglePanelShowsFlip(this)">
+      <div class="panel-shows-item"${onClick("panelShowsFlip")}>
         <div class="panel-shows-flip-inner">
           <div class="panel-shows-flip-face panel-shows-flip-front">${thumbHtml}</div>
           <div class="panel-shows-flip-face panel-shows-flip-back">

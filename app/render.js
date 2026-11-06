@@ -67,7 +67,7 @@ function renderAiringNextPreviewHtml(list) {
     const bannerSrc = panelThumbSrc(row);
     const { cycleableClass, attrs, mode } = thumbCycleAttrs(row, "airing", idx);
     const thumbHtml = bannerSrc
-      ? `<img class="list-thumb" loading="lazy" src="${esc(bannerSrc)}" alt="${esc(row.title)}" onerror="handleThumbError(this, 'airing', ${idx}, '${mode}')">`
+      ? `<img class="list-thumb" loading="lazy" src="${esc(bannerSrc)}" alt="${esc(row.title)}"${onError("thumbError", "airing", idx, mode)}>`
       : `<div class="list-thumb placeholder">${esc((row.title[0] || "?").toUpperCase())}</div>`;
     return `
       <div class="list-row ${rowToneClass(idx, true)}">
@@ -592,8 +592,8 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
         <div class="card-body"${pairPosters ? posterGlowStyle(displaySrcFor("main", row)) : ""}>
           ${pairPosters ? posterGlowHtml(displaySrcFor("main", row)) : ""}
           <div class="card-title-row">
-            <h3 title="View cast" onclick="event.stopPropagation(); openCastModal('main', ${arrIdx})">${esc(row.title)}</h3>
-            <button class="card-menu-btn" title="Manage" onclick="event.stopPropagation(); openCardMenu(${arrIdx}, this)">&#8942;</button>
+            <h3 title="View cast"${onClickStop("cast", "main", arrIdx)}>${esc(row.title)}</h3>
+            <button class="card-menu-btn" title="Manage"${onClickStop("cardMenu", arrIdx)}>&#8942;</button>
           </div>
           <div class="next-up-row">
             <span class="next-up">Next: ${row.nextLabel}</span>
@@ -603,7 +603,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
           <div class="card-fill-spacer">
             ${progressHtml}
           </div>
-          <div class="time-left" title="See every episode" onclick="event.stopPropagation(); openEpisodesModal(${arrIdx})"><span class="time-icon">${CLOCK_ICON_SVG}</span>${timeText}</div>
+          <div class="time-left" title="See every episode"${onClickStop("episodes", arrIdx)}><span class="time-icon">${CLOCK_ICON_SVG}</span>${timeText}</div>
         </div>
       </div>`;
   });
@@ -614,7 +614,7 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
       <div class="series-panel-header">
         <div class="list-panel-header series-panel-title">${titleIcons(READY_ICON_SVG, "ready")}<span>Ready to Watch</span></div>
         <div class="series-panel-header-left">
-          <button type="button" class="series-panel-stat-group series-panel-stat-clickable" onclick="openPanelShowsModal('main')">
+          <button type="button" class="series-panel-stat-group series-panel-stat-clickable"${onClick("panelShows", "main")}>
             ${withCineIcon(STAT_TV_ICON_SVG, CINE_STAT_ICONS.tv)}
             <div class="series-panel-stat"><span class="num">${rows.length}</span><span class="label">Shows</span></div>
           </button>
@@ -632,11 +632,9 @@ function renderRows(rows, totalRemainingEps, totalRemainingMinutes, recentlyWatc
         <span class="series-panel-updated" hidden></span>
       </div>
       <div class="carousel-wrap">
-        <button class="carousel-arrow left" title="Scroll left" style="top:${carouselArrowTop}"
-          onclick="document.getElementById('myListCarouselTrack').scrollBy({left:-420,behavior:'smooth'})">${CAROUSEL_ARROW_LEFT_ICON_SVG}</button>
+        <button class="carousel-arrow left" title="Scroll left" style="top:${carouselArrowTop}"${onClick("carouselScroll", -420)}>${CAROUSEL_ARROW_LEFT_ICON_SVG}</button>
         <div class="carousel-track" id="myListCarouselTrack">${cards}<div class="carousel-watermark"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="15" rx="3.5" fill="none" stroke="var(--accent)" stroke-width="1.8"/><polygon points="10,7.8 10,13.2 14.6,10.5" fill="var(--accent)"/><line x1="9" y1="21" x2="15" y2="21" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"/></svg></div></div>
-        <button class="carousel-arrow" title="Scroll right" style="top:${carouselArrowTop}"
-          onclick="document.getElementById('myListCarouselTrack').scrollBy({left:420,behavior:'smooth'})">${CAROUSEL_ARROW_ICON_SVG}</button>
+        <button class="carousel-arrow" title="Scroll right" style="top:${carouselArrowTop}"${onClick("carouselScroll", 420)}>${CAROUSEL_ARROW_ICON_SVG}</button>
       </div>
     </div>
     ${bottomPanelsWrapped}
@@ -728,7 +726,7 @@ function renderAiringRows(rows) {
       <div class="card">
         ${wrapHtml}
         <div class="card-body">
-          <h3 title="View cast" onclick="event.stopPropagation(); openCastModal('main', ${arrIdx})">${esc(row.title)}</h3>
+          <h3 title="View cast"${onClickStop("cast", "main", arrIdx)}>${esc(row.title)}</h3>
           <div class="next-up">Next: ${row.nextLabel}</div>
           ${row.nextEpisodeTitle ? `<div class="episode-title">${esc(row.nextEpisodeTitle)}</div>` : ""}
           <div class="air-date">&#128197; ${airDateText(row)}</div>
