@@ -1524,6 +1524,15 @@
   .bridge-status.is-down .bridge-status-line::before { background: var(--danger); }
   .bridge-status.is-down .bridge-status-line { color: var(--danger); }
   .bridge-status-problem { margin-top: 3px; font-size: 0.8rem; color: #f5a524; }
+  /* The same, on the main page (paintBridgeAlert): a dot on the Settings
+     icon's corner while something's wrong, like a notification badge. */
+  #settingsBtn .nav-icon { position: relative; }
+  #settingsBtn.bridge-warn .nav-icon::after, #settingsBtn.bridge-down .nav-icon::after {
+    content: ""; position: absolute; top: -3px; right: -4px; z-index: 2;
+    width: 10px; height: 10px; border-radius: 50%; border: 2px solid #111820;
+    background: #f5a524; box-shadow: 0 0 6px rgba(245, 165, 36, 0.7);
+  }
+  #settingsBtn.bridge-down .nav-icon::after { background: var(--danger); box-shadow: 0 0 6px rgba(255, 107, 107, 0.7); }
   /* Settings > Clean up Watching: one row per suggested show - tick, name
      and why, and where it goes. */
   .cleanup-box { max-width: 680px; text-align: left; }

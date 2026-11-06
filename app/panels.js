@@ -343,6 +343,7 @@ function tickAirCountdowns() {
   const now = Date.now();
   document.querySelectorAll(".air-count").forEach(el => paintAirCount(el, now));
   updateGreetingStatus(now); // the day may have turned
+  paintBridgeAlert(); // the bridge may have gone quiet
   // A report going stale ends the watch: its show goes back to its place.
   if (embyNow) syncWatchingOrder() || applyNowWatching();
 }
