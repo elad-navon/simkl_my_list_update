@@ -330,10 +330,13 @@ function paintAirCount(el, now) {
   el.classList.toggle("live", !!(c && c.live));
   el.classList.toggle("day", !!(c && c.dateOnly));
   if (!c) return;
-  const ends = c.live ? new Date(end).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }) : "";
+  const clock = ms => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+  // An episode with an exact time shows it small under the count (the
+  // panels' date line has no room for it with long titles).
+  const at = !c.live && !c.dateOnly && start != null ? `<span class="air-count-t">${clock(start)}</span>` : "";
   el.innerHTML = c.live
-    ? `<span class="air-count-n"><span class="air-dot"></span>NOW</span><span class="air-count-u">ends ${ends}</span>`
-    : `<span class="air-count-n">${c.n}</span>${c.unit ? `<span class="air-count-u">${c.unit}</span>` : ""}`;
+    ? `<span class="air-count-n"><span class="air-dot"></span>NOW</span><span class="air-count-u">ends ${clock(end)}</span>`
+    : `<span class="air-count-n">${c.n}</span>${c.unit ? `<span class="air-count-u">${c.unit}</span>` : ""}${at}`;
 }
 
 function tickAirCountdowns() {

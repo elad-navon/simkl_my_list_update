@@ -25,6 +25,7 @@ const SHELL_FILES = [
   "./firebase-backend.js",
   "./air-times.js",
   "./yes-times.js",
+  "./air-time-chain.js",
   "./library-adapter.js",
   "./manifest.json",
   "./icons/icon-192.png",

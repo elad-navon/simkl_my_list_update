@@ -1,26 +1,21 @@
-// TheTVDB as a second opinion on air dates, as the site does it
-// (withTvdbAirCheck in app.js): a show with an episode out in the past two
-// weeks or due in the next two has TheTVDB's dates looked up; an episode they
-// put days later waits for that day (EpisodeSource.holdForLaterDates), one they
-// put days earlier - with TMDB agreeing - comes forward to it
-// (advanceToEarlierDates). Without it the widget's dates were TVMaze's raw
-// ones and could differ from the app's. Without the key, or the show's
-// TheTVDB id, nothing changes.
-//
-// `inner`: SIMKL's times first (AirTimes.createSimklAirTimes), as on the site.
+// TheTVDB's episode dates for the bridge's air-time check: logs in with the
+// account's TheTVDB key and reads a show's episodes. What's done with them -
+// which shows are checked, and when a date is held back or brought forward -
+// is AirTimeChain.createTvdbCheck (air-time-chain.js), the same as the site's.
 "use strict";
 
 const TVDB_API = "https://api4.thetvdb.com/v4";
 const DAY_MS = 86400000;
-const CHECK_NEAR_MS = 14 * DAY_MS;
 // As the site's: TheTVDB fixes dates of episodes days away, and an old copy
 // holds an episode back to a day they've already dropped.
 const CACHE_TTL_MS = 3 * 3600 * 1000;
 const TIMEOUT_MS = 15000;
 
-// createTvdbCheck({ key, EpisodeSource, source, inner, fetch, now })
-// Returns airTimes(ids, episodes) for createLibraryAdapter.
-function createTvdbCheck({ key, EpisodeSource, source, inner, fetch = (...a) => globalThis.fetch(...a), now = () => Date.now() }) {
+// createTvdbClient({ key, fetch, now }) -> { recentEpisodes, rejected }
+// - recentEpisodes(tvdbId): the show's episodes on TheTVDB from a month back
+//   on, as [{ season, episode, date }]; null if TheTVDB couldn't answer
+// - rejected(): whether TheTVDB refused the key
+function createTvdbClient({ key, fetch = (...a) => globalThis.fetch(...a), now = () => Date.now() }) {
   let token = null;
   let loginPending = null;
   let rejected = false;
@@ -48,8 +43,6 @@ function createTvdbCheck({ key, EpisodeSource, source, inner, fetch = (...a) => 
     return token;
   }
 
-  // The show's episodes on TheTVDB from a month back on, as
-  // [{ season, episode, date }]; null if TheTVDB couldn't answer.
   async function recentEpisodes(tvdbId) {
     const hit = cache.get(tvdbId);
     if (hit && now() - hit.at < CACHE_TTL_MS) return hit.list;
@@ -75,19 +68,7 @@ function createTvdbCheck({ key, EpisodeSource, source, inner, fetch = (...a) => 
     return out;
   }
 
-  return async function airTimes(ids, listed) {
-    const eps = inner ? await inner(ids, listed).catch(() => listed) : listed;
-    if (!key || rejected || !ids.tvdb) return eps;
-    const at = now();
-    const near = eps.some(ep => ep.date && ep.season && Math.abs(Date.parse(ep.date.length > 10 ? ep.date : ep.date + "T00:00:00") - at) < CHECK_NEAR_MS);
-    if (!near) return eps;
-    const check = await recentEpisodes(ids.tvdb).catch(() => null);
-    if (!check) return eps;
-    const tmdb = ids.tmdb != null ? ((await source.getSourceLists(ids).catch(() => null)) || {}).tmdb : null;
-    const streaming = await source.streamingHome(ids).catch(() => null);
-    const held = streaming ? eps : EpisodeSource.holdForLaterDates(eps, check, at, { confirm: tmdb }).episodes;
-    return tmdb ? EpisodeSource.advanceToEarlierDates(held, check, tmdb, at).episodes : held;
-  };
+  return { recentEpisodes, rejected: () => rejected };
 }
 
-module.exports = { createTvdbCheck };
+module.exports = { createTvdbClient };

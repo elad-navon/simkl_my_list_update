@@ -67,30 +67,24 @@ function libraryAirTimes() {
   };
 }
 
-// Air times from yes's TV guide for Israeli shows (see yes-times.js): yes
-// goes first and its time wins over TVMaze's; SIMKL then fills only the
-// episodes yes left date-only. A show counts as Israeli
-// by TMDB's origin country or original language; its English and original
-// (Hebrew) names are what the guide's titles are matched against.
-function withYesAirTimes(airTimes) {
-  const yes = YesTimes.createYesAirTimes({
+// Air times from yes's TV guide for Israeli shows (see yes-times.js); the
+// order of the steps is AirTimeChain's.
+function libraryYesTimes() {
+  return YesTimes.createYesAirTimes({
     fetch: (...args) => fetch(...args),
     cache: libraryListCache(),
     showInfo: async ids => {
       if (ids.tmdb == null) return null;
       const cache = sharedCache || (sharedCache = new TmdbCache());
-      const d = await cache.getShow(ids.tmdb);
-      if (!d) return null;
-      return {
-        israeli: (d.origin_country || []).includes("IL") || d.original_language === "he",
-        names: [d.name, d.original_name],
-      };
+      return AirTimeChain.israeliShowInfo(await cache.getShow(ids.tmdb));
     },
   });
-  return async (ids, eps) => {
-    const fromYes = await yes(ids, eps);
-    return airTimes ? airTimes(ids, fromYes).catch(() => fromYes) : fromYes;
-  };
+}
+
+// Every air-time step, in AirTimeChain's order: yes, then SIMKL (the
+// bridge's shared times), then TheTVDB's check.
+function libraryAirTimeChain() {
+  return AirTimeChain.createAirTimeChain({ yes: libraryYesTimes(), simkl: libraryAirTimes(), tvdb: libraryTvdbCheck() });
 }
 
 // The bridge's times (meta "airTimes"), read at most every 30 minutes;
@@ -109,33 +103,16 @@ function sharedAirTimes() {
 }
 
 // TheTVDB (the source SIMKL uses) as a second opinion on air dates, with
-// the TheTVDB key from Settings: a show with an episode out in the past two
-// weeks or due in the next two has TheTVDB's dates looked up. An episode
-// they put days later waits for that day (holdForLaterDates), so a wrong
-// early date on TVMaze doesn't put it on Ready to Watch too soon; one they
-// put days earlier - with TMDB agreeing - comes forward to that day
-// (advanceToEarlierDates), so a wrong late date doesn't hold it back.
-// Without the key, or the show's TheTVDB id, nothing changes.
-const TVDB_CHECK_NEAR_MS = 14 * 24 * 60 * 60 * 1000;
-function withTvdbAirCheck(airTimes) {
-  return async (ids, eps) => {
-    const timed = airTimes ? await airTimes(ids, eps).catch(() => eps) : eps;
-    if (!ids.tvdb || !getConfig().tvdbKey || tvdbKeyRejected) return timed;
-    const now = Date.now();
-    const near = timed.some(ep => ep.date && ep.season && Math.abs(Date.parse(ep.date.length > 10 ? ep.date : ep.date + "T00:00:00") - now) < TVDB_CHECK_NEAR_MS);
-    if (!near) return timed;
-    const check = await tvdbRecentEpisodes(ids.tvdb).catch(() => null);
-    if (!check) return timed;
-    // TMDB settles it both ways: later only when it doesn't side with the
-    // main source, earlier only when it sides with TheTVDB (its list is
-    // already cached from the episode source's own lookup).
-    // No holding back at all for a streaming show: TVMaze's day is the day
-    // it comes out (EpisodeSource streamingHome).
-    const tmdb = ids.tmdb != null ? ((await library.source.getSourceLists(ids).catch(() => null)) || {}).tmdb : null;
-    const streaming = await library.source.streamingHome(ids).catch(() => null);
-    const held = streaming ? timed : EpisodeSource.holdForLaterDates(timed, check, now, { confirm: tmdb }).episodes;
-    return tmdb ? EpisodeSource.advanceToEarlierDates(held, check, tmdb, now).episodes : held;
-  };
+// the TheTVDB key from Settings (AirTimeChain.createTvdbCheck says how).
+// TMDB's list it compares with is already cached from the episode source's
+// own lookup.
+function libraryTvdbCheck() {
+  return AirTimeChain.createTvdbCheck({
+    EpisodeSource,
+    source: { getSourceLists: ids => library.source.getSourceLists(ids), streamingHome: ids => library.source.streamingHome(ids) },
+    recentEpisodes: tvdbRecentEpisodes,
+    enabled: () => !!getConfig().tvdbKey && !tvdbKeyRejected,
+  });
 }
 
 // A show's episodes on TheTVDB from a month back on, as
@@ -287,7 +264,7 @@ async function openLibrary() {
     library.adapter = LibraryAdapter.createLibraryAdapter({
       core: LibraryCore, store, source: library.source, appendAfter: EpisodeSource.appendAfter,
       showMeta: libraryShowMeta,
-      airTimes: withTvdbAirCheck(withYesAirTimes(libraryAirTimes())),
+      airTimes: libraryAirTimeChain(),
       onProgress: (done, total) => {
         if (total > 5 && done < total) subtitle.textContent = `Loading episode lists… ${done}/${total}`;
       },
