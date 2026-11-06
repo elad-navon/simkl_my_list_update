@@ -589,7 +589,8 @@ function librarySettingsHtml() {
   const user = library.backend.currentUser();
   return `
       <div class="library-settings">
-        <p style="color:var(--muted);font-size:0.85rem;margin:0 0 8px">Library: signed in as ${user ? user.email : "?"}</p>
+        <p style="color:var(--muted);font-size:0.85rem;margin:0 0 8px">Library: signed in as ${esc(user ? user.email : "?")}</p>
+        <div class="bridge-status" id="bridgeStatus" hidden></div>
         <button class="pill" id="libraryCleanupBtn">Clean up Watching</button>
         <button class="pill" id="libraryBackupBtn">Download backup</button>
         <button class="pill" id="libraryRestoreBtn">Restore from backup</button>
@@ -598,9 +599,31 @@ function librarySettingsHtml() {
       </div>`;
 }
 
+// The computer bridge's pulse (meta "bridgeStatus", bridge-status.js): one
+// line with a colored dot, and what's wrong under it, if anything.
+async function showBridgeStatus() {
+  const el = document.getElementById("bridgeStatus");
+  if (!el) return;
+  const doc = await library.backend.getMeta(BridgeStatus.META).catch(() => undefined);
+  if (doc === undefined || !el.isConnected) return; // couldn't read it: say nothing
+  const s = BridgeStatus.summarizeBridgeStatus(doc, Date.now());
+  el.className = `bridge-status is-${s.level}`;
+  const line = document.createElement("div");
+  line.className = "bridge-status-line";
+  line.textContent = s.text;
+  el.replaceChildren(line, ...s.problems.map(p => {
+    const d = document.createElement("div");
+    d.className = "bridge-status-problem";
+    d.textContent = p;
+    return d;
+  }));
+  el.hidden = false;
+}
+
 function wireLibrarySettings() {
   const backupBtn = document.getElementById("libraryBackupBtn");
   if (!backupBtn) return;
+  showBridgeStatus();
   backupBtn.onclick = () => downloadJson(backupFileName("tv-library-backup"), library.store.exportBackup());
   const input = document.getElementById("libraryRestoreInput");
   document.getElementById("libraryRestoreBtn").onclick = () => input.click();

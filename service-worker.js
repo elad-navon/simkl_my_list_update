@@ -26,6 +26,7 @@ const SHELL_FILES = [
   "./air-times.js",
   "./yes-times.js",
   "./air-time-chain.js",
+  "./bridge-status.js",
   "./library-adapter.js",
   "./manifest.json",
   "./icons/icon-192.png",
