@@ -10,7 +10,7 @@
 //   (its own rule - stopping past 90%, or marked by hand) - so a watch
 //   while this bridge wasn't running still gets in, with its real time.
 // Either way the episode goes in under the SIMKL bridge's rules
-// (simkl-bridge.js createShowTaker): matched by the series' TMDB / IMDb /
+// (show-taker.js createShowTaker): matched by the series' TMDB / IMDb /
 // TheTVDB ids, Plan to Watch / On Hold move to Watching, a series not in
 // the library is added as Watching, nothing is recorded twice (the record
 // says it came from Emby: by "emby"). How far the safety net has read is
@@ -27,7 +27,7 @@
 // open on a screen says so for a few seconds.
 "use strict";
 
-const { createShowTaker } = require("../../simkl-bridge.js");
+const { createShowTaker } = require("../../show-taker.js");
 
 const META = "embyBridge";
 const NOW_META = "emby";

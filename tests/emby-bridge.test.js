@@ -130,6 +130,19 @@ test("Plan to Watch moves to Watching; a series not in the library is added as W
   assert.equal(backend.docs.get("9").status, "watching");
 });
 
+test("On Hold moves to Watching; Completed and Dropped keep their status", async () => {
+  const { bridge, backend, emby } = await setup({ 1: libShow(1, "completed"), 2: libShow(2, "hold") });
+  await bridge.run();
+  emby.state.played = [
+    embyEp("a", "s1", 1, 3, { UserData: { LastPlayedDate: iso(NOW + MIN) } }),
+    embyEp("b", "s2", 1, 1, { UserData: { LastPlayedDate: iso(NOW + MIN) } }),
+  ];
+  const r = await bridge.run();
+  assert.equal(backend.docs.get("1").status, "completed");
+  assert.equal(backend.docs.get("2").status, "watching");
+  assert.equal(r.added, 2);
+});
+
 test("an episode the library doesn't list is kept by its number, never dropped", async () => {
   const { bridge, backend, emby } = await setup({ 1: libShow(1, "watching") });
   await bridge.run();
