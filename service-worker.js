@@ -22,6 +22,7 @@ const SHELL_FILES = [
   "./library-core.js",
   "./episode-source.js",
   "./library-store.js",
+  "./library-sync.js",
   "./firebase-backend.js",
   "./air-times.js",
   "./yes-times.js",
