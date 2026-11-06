@@ -49,9 +49,28 @@ document.addEventListener("click", e => {
     }
   }
 }, true);
+// A picture resized by wsrv.nl (OutsideSources.resizedImage) that fails to
+// load: first the original it was made from - wsrv.nl being away for a while
+// mustn't make a picture picked in the image picker give way to TMDB's next
+// one (handleThumbError keeps that as the new pick). Only if the original
+// fails too does the picture's own error action run. True when it retried.
+function retryWithoutResizer(img) {
+  if (img.tagName !== "IMG" || img.dataset.resizerSkipped) return false;
+  let original = null;
+  try {
+    const u = new URL(img.currentSrc || img.src);
+    if (u.hostname === "wsrv.nl") original = u.searchParams.get("url");
+  } catch (e) { /* not a URL */ }
+  if (!original || !/^https?:\/\//.test(original)) return false;
+  img.dataset.resizerSkipped = "1";
+  img.src = original;
+  return true;
+}
 document.addEventListener("error", e => {
   const el = e.target;
-  if (el && el.dataset && el.dataset.onerror) runPageAction(el, e, "error");
+  if (!el || !el.dataset) return;
+  if (retryWithoutResizer(el)) return;
+  if (el.dataset.onerror) runPageAction(el, e, "error");
 }, true);
 // Small ones used in several places.
 pageAction("remove", el => el.remove());
