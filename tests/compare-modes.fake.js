@@ -81,7 +81,8 @@
   // ?scenario=airtimes: episodes TVMaze knows only the date of, and the
   // time the computer's bridge took from SIMKL for each and keeps in the
   // account (`sharedTime`, meta "airTimes"): November's 3 hours in (taken);
-  // Sierra has none (SIMKL's midnight is no time, so the bridge kept none);
+  // Sierra has none (SIMKL's midnight is no time, so the bridge kept none -
+  // date only, so out from 10:00 that day);
   // Tango's three days off the known date (a disagreement - not taken).
   if (window.__SCENARIO === "airtimes") {
     const ep = (number, x) => ({ season: 1, number, ...x });
