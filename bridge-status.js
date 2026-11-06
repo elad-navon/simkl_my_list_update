@@ -30,6 +30,8 @@
   // - simkl(state, error|null): "signedIn" | "signedOut", and the last SIMKL
   //   failure (e.g. the sign-in expired), or null after a good answer
   // - tvdbRejected(bool): TheTVDB refused the key
+  // - rulesDiffer(bool): the database's live security rules aren't the
+  //   repo's firestore.rules (tools/emby-bridge/rules-check.js)
   // - tick(): writes the document if it's due or something changed;
   //   resolves to true when it wrote
   function createHeartbeat({ backend, now = () => Date.now(), startedAt = now(), host = null }) {
@@ -37,12 +39,12 @@
     const state = {
       v: 1, startedAt: iso(startedAt), host,
       lastPass: null, lastAiring: null,
-      simkl: "signedOut", simklError: null, tvdbRejected: false,
+      simkl: "signedOut", simklError: null, tvdbRejected: false, rulesDiffer: false,
     };
     let lastWrite = 0;
     let lastKey = null;
     // What a write is due for at once: the problems, not the times.
-    const keyOf = s => JSON.stringify([s.simkl, s.simklError, s.tvdbRejected,
+    const keyOf = s => JSON.stringify([s.simkl, s.simklError, s.tvdbRejected, s.rulesDiffer,
       s.lastPass && s.lastPass.error, s.lastAiring && s.lastAiring.error]);
     const message = e => (e ? String((e && e.message) || e).slice(0, 200) : null);
 
@@ -51,6 +53,7 @@
       airing(error) { state.lastAiring = { at: iso(now()), error: message(error) }; },
       simkl(signedIn, error = null) { state.simkl = signedIn; state.simklError = message(error); },
       tvdbRejected(rejected) { state.tvdbRejected = !!rejected; },
+      rulesDiffer(differ) { state.rulesDiffer = !!differ; },
       async tick() {
         const key = keyOf(state);
         if (now() - lastWrite < WRITE_EVERY_MS && key === lastKey) return false;
@@ -87,6 +90,7 @@
     if (doc.simkl !== "signedIn") problems.push("SIMKL isn't signed in - on the computer: node run.js --simkl-login");
     else if (doc.simklError) problems.push(`SIMKL: ${doc.simklError}`);
     if (doc.tvdbRejected) problems.push("TheTVDB refused the key in Settings");
+    if (doc.rulesDiffer) problems.push("The database's security rules aren't the repo's firestore.rules - on the computer: node run.js --check");
     if (doc.lastPass && doc.lastPass.error) problems.push(`Emby: ${doc.lastPass.error}`);
     if (doc.lastAiring && doc.lastAiring.error) problems.push(`Airing Next for the widget: ${doc.lastAiring.error}`);
     const simkl = doc.simkl === "signedIn" && !doc.simklError ? "SIMKL signed in" : "SIMKL not working";
