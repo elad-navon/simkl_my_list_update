@@ -350,4 +350,22 @@ if ("serviceWorker" in navigator) {
       });
     }).catch(() => {});
   });
+  // A new version took over (the page opens from the service worker's copy,
+  // so it's still running the old one): reload when it won't be in the way -
+  // once the page is out of sight, or after 5 minutes without a touch or a
+  // key with no window open over it (a screen left on Airing Next). Not on
+  // the very first install, when nothing was running before it.
+  if (navigator.serviceWorker.controller) {
+    let reloadDue = false, lastInput = Date.now();
+    const reloadNow = () => { if (reloadDue) { reloadDue = false; location.reload(); } };
+    ["pointerdown", "keydown", "wheel"].forEach(t => addEventListener(t, () => { lastInput = Date.now(); }, { passive: true }));
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      reloadDue = true;
+      if (document.visibilityState === "hidden") reloadNow();
+    });
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") reloadNow(); });
+    setInterval(() => {
+      if (reloadDue && Date.now() - lastInput > 5 * 60 * 1000 && !document.querySelector(".modal-overlay")) reloadNow();
+    }, 30000);
+  }
 }
