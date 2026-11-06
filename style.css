@@ -1511,6 +1511,19 @@
   .save-status[data-state="error"], .save-status[data-state="conflict"] { color: var(--danger); }
   .library-settings { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
   .library-settings p { flex: 1 0 100%; }
+  /* The computer bridge's pulse (showBridgeStatus): a dot - green, amber
+     with a problem, red when not heard from - and the problems under it. */
+  .bridge-status { flex: 1 0 100%; margin: -2px 0 8px; font-size: 0.85rem; color: var(--muted); }
+  .bridge-status[hidden] { display: none; }
+  .bridge-status-line::before {
+    content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    margin-right: 7px; vertical-align: 1px; background: var(--muted);
+  }
+  .bridge-status.is-ok .bridge-status-line::before { background: #4fc28a; }
+  .bridge-status.is-warn .bridge-status-line::before { background: #f5a524; }
+  .bridge-status.is-down .bridge-status-line::before { background: var(--danger); }
+  .bridge-status.is-down .bridge-status-line { color: var(--danger); }
+  .bridge-status-problem { margin-top: 3px; font-size: 0.8rem; color: #f5a524; }
   /* Settings > Clean up Watching: one row per suggested show - tick, name
      and why, and where it goes. */
   .cleanup-box { max-width: 680px; text-align: left; }

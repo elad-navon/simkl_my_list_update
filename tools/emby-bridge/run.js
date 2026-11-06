@@ -19,6 +19,7 @@
 "use strict";
 
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const core = require("../../library-core.js");
 const { createLibraryStore } = require("../../library-store.js");
@@ -30,6 +31,7 @@ const { createTvdbClient } = require("./tvdb-check.js");
 const AirTimes = require("../../air-times.js");
 const YesTimes = require("../../yes-times.js");
 const AirTimeChain = require("../../air-time-chain.js");
+const BridgeStatus = require("../../bridge-status.js");
 const { createSimklClient } = require("./simkl-client.js");
 const { createSharedAirTimes } = require("./shared-air-times.js");
 
@@ -197,6 +199,16 @@ async function main() {
     return;
   }
 
+  // The bridge's pulse in the account (bridge-status.js), shown in the
+  // site's Settings: written every 10 minutes, at once when a problem
+  // appears or goes away.
+  const heartbeat = BridgeStatus.createHeartbeat({ backend, host: os.hostname() });
+  let heartbeatFailed = false;
+  const beat = () => heartbeat.tick().then(() => { heartbeatFailed = false; }, e => {
+    if (!heartbeatFailed) log(`Status not saved: ${e.message}`);
+    heartbeatFailed = true;
+  });
+
   const store = createLibraryStore({ core, backend, storage: null });
   await store.load();
   // The TMDB key: config.json's, else the one the site keeps in the account
@@ -228,9 +240,14 @@ async function main() {
     process.exit(0);
   }
   if (!simkl.signedIn()) log("Not signed in to SIMKL - air times without it (sign in: node run.js --simkl-login).");
+  heartbeat.simkl(simkl.signedIn() ? "signedIn" : "signedOut");
+  // Every SIMKL answer says whether the sign-in still works.
+  const simklGet = (p, params) => simkl.get(p, params).then(
+    r => { heartbeat.simkl("signedIn", null); return r; },
+    e => { heartbeat.simkl(simkl.signedIn() ? "signedIn" : "signedOut", e); throw e; });
   const shared = createSharedAirTimes({ AirTimes, backend });
   const simklTimes = shared.recording(AirTimes.createSimklAirTimes({
-    get: (p, params) => simkl.get(p, params), cache: EpisodeSource.memoryCache(), connected: () => simkl.signedIn(),
+    get: simklGet, cache: EpisodeSource.memoryCache(), connected: () => simkl.signedIn(),
   }));
   // yes needs TMDB's details of a show (Israeli or not, its names), kept a day.
   const showDetails = new Map();
@@ -267,11 +284,15 @@ async function main() {
       const r = await airing.run({ dryRun });
       if (r.written) log(`Airing Next for the widget: ${r.shows.length} shows written.`);
       if (!dryRun && await shared.save().catch(e => { log(`Air times not saved: ${e.message}`); return false; })) log("Air times for the phone saved.");
+      heartbeat.airing(null);
       return r;
     } catch (e) {
       log(`Airing Next skipped: ${e.message}`); // the document keeps the last good list
+      heartbeat.airing(e);
     } finally {
       airingRunning = false;
+      if (tvdb) heartbeat.tvdbRejected(tvdb.rejected());
+      if (!dryRun) await beat();
     }
   };
 
@@ -298,10 +319,13 @@ async function main() {
       if (r.unplaced.length) log(`Kept by number (not in the episode list): ${r.unplaced.join(", ")}`);
       for (const p of r.problems) log(`Problem: ${p}`);
       if ((r.marked || []).length || r.created.length || r.moved.length) airingPass();
+      heartbeat.pass(null);
     } catch (e) {
       log(`Pass skipped: ${e.message}`); // Emby or the internet away: next minute
+      heartbeat.pass(e);
     } finally {
       running = false;
+      await beat();
     }
   };
 
