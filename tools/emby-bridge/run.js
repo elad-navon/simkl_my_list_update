@@ -32,6 +32,7 @@ const AirTimes = require("../../air-times.js");
 const YesTimes = require("../../yes-times.js");
 const AirTimeChain = require("../../air-time-chain.js");
 const BridgeStatus = require("../../bridge-status.js");
+const { compareRules, liveRulesGetter } = require("./rules-check.js");
 const { createSimklClient } = require("./simkl-client.js");
 const { createSharedAirTimes } = require("./shared-air-times.js");
 
@@ -167,7 +168,7 @@ async function openLibrary(cfg) {
     if (users.length !== 1) throw new Error(`The project has ${users.length} users - set uid in config.json.`);
     uid = users[0].uid;
   }
-  return { db, uid, backend: adminBackend(db, uid) };
+  return { db, uid, admin, backend: adminBackend(db, uid) };
 }
 
 function tmdbGetter(key) {
@@ -186,7 +187,8 @@ async function main() {
   const cfg = readConfig();
   const airingOnly = args.includes("--airing");
   const emby = airingOnly ? null : embyClient(cfg);
-  const { backend, uid } = await openLibrary(cfg);
+  const { backend, uid, admin } = await openLibrary(cfg);
+  const checkRules = () => compareRules({ getLive: liveRulesGetter(admin) });
 
   if (args.includes("--check")) {
     const embyUser = await emby.user();
@@ -196,6 +198,8 @@ async function main() {
     log(`Emby: OK (user ${embyUser}, ${sessions.length} playing now)`);
     log(`Library: OK (user ${uid}, ${Object.keys(docs).length} shows)`);
     log(`Read point: ${m && m.since ? m.since : "not started yet - the first pass starts it from now"}`);
+    const rules = await checkRules().catch(e => ({ error: e.message }));
+    log(rules.error ? `Security rules: couldn't read them (${rules.error})` : rules.same ? "Security rules: the same as firestore.rules" : `Security rules: DIFFERENT from firestore.rules - ${rules.firstDifference}`);
     return;
   }
 
@@ -208,6 +212,16 @@ async function main() {
     if (!heartbeatFailed) log(`Status not saved: ${e.message}`);
     heartbeatFailed = true;
   });
+
+  // The live security rules against the repo's firestore.rules (rules-check.js):
+  // at start and once a day; a difference goes into the pulse.
+  const rulesPass = async () => {
+    const r = await checkRules().catch(e => { log(`Security rules not checked: ${e.message}`); return null; });
+    if (!r) return;
+    if (!r.same) log(`Security rules differ from firestore.rules - ${r.firstDifference}`);
+    heartbeat.rulesDiffer(!r.same);
+  };
+  if (!airingOnly) { await rulesPass(); setInterval(rulesPass, 24 * 3600 * 1000); }
 
   const store = createLibraryStore({ core, backend, storage: null });
   await store.load();
