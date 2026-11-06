@@ -63,11 +63,16 @@ function createSimklClient({ clientId, file, fetch = (...a) => globalThis.fetch(
         if (!auth || !auth.refresh || auth.refreshExpiresAt < now()) throw new Error("SIMKL sign-in expired - run: node run.js --simkl-login");
         const r = await oauthPost("/oauth2/token", { grant_type: "refresh_token", refresh_token: auth.refresh, client_id: clientId });
         if (r.ok && r.data && r.data.access_token) return save(r.data);
+        // SIMKL's own words, kept: the bridge lost its sign-in twice without
+        // a clue why (likely another sign-in with the same app id - the site's,
+        // before v40 - replacing it).
+        const why = `${r.status}${r.data && (r.data.error_description || r.data.error) ? ` ${r.data.error_description || r.data.error}` : ""}`;
         if (r.status === 400 || r.status === 401) {
           auth = null;
           try { fs.unlinkSync(file); } catch (e) { /* already gone */ }
+          log(`SIMKL refused to renew the sign-in (${why}) - run: node run.js --simkl-login`);
         }
-        throw new Error("SIMKL sign-in expired - run: node run.js --simkl-login");
+        throw new Error(`SIMKL sign-in expired (SIMKL: ${why}) - run: node run.js --simkl-login`);
       })().finally(() => { refreshing = null; });
     }
     return refreshing;
