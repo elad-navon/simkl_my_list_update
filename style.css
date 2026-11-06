@@ -1051,9 +1051,12 @@
     background: #ffffff; border-bottom-left-radius: 6px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
     /* One size for every chip - MIN, HOURS, DAYS, TODAY or NOW - its
-       content centred, so the chips line up from row to row. */
-    box-sizing: border-box; width: 60px; height: 42px; padding: 3px 4px;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
+       content centred, so the chips line up from row to row: the number and
+       its unit on one line ("5 DAYS"), the time of day under them. */
+    box-sizing: border-box; width: 64px; height: 32px; padding: 3px 4px;
+    white-space: nowrap;
+    display: flex; flex-flow: row wrap; align-items: baseline; align-content: center; justify-content: center;
+    column-gap: 3px; row-gap: 2px;
     text-align: center; line-height: 1;
     font-variant-numeric: tabular-nums; pointer-events: none;
   }
@@ -1072,18 +1075,25 @@
   .air-count.from-yes::after { background: #fbbf24; }
   .air-count.from-tvdb::after { background: #c4b5fd; }
   .air-count-n {
-    display: flex; align-items: center; justify-content: center; gap: 3px;
+    display: inline-flex; align-items: center; gap: 3px;
     font-family: "Barlow Condensed", "Segoe UI", Arial, sans-serif;
-    font-weight: 700; font-size: 1.05rem; color: #111820;
+    font-weight: 700; font-size: 0.92rem; color: #111820;
   }
-  /* The unit (MINUTES / HOURS / DAYS) in a strong blue, big enough to read
-     at a glance next to the number. */
+  /* The unit (MIN / HOURS / DAYS) in a strong blue, beside the number. */
   .air-count-u {
-    display: block; margin-top: 2px;
-    font-family: "Montserrat", sans-serif; font-weight: 900; font-size: 11px;
-    letter-spacing: 0.04em; text-transform: uppercase; color: #0b63a8;
+    font-family: "Montserrat", sans-serif; font-weight: 900; font-size: 9.5px;
+    letter-spacing: 0.02em; text-transform: uppercase; color: #0b63a8;
   }
-  .air-count.live .air-count-n { color: #dc2626; font-size: 0.95rem; }
+  /* The episode's time of day, when it has one (paintAirCount), on its own
+     line under the count. */
+  .air-count-t {
+    flex-basis: 100%;
+    font-family: "Montserrat", sans-serif; font-weight: 800; font-size: 9px;
+    letter-spacing: 0.03em; color: #4a5868;
+  }
+  .air-count.live .air-count-n { color: #dc2626; font-size: 0.85rem; }
+  /* NOW, then "ends 21:30" under it - too long for one line. */
+  .air-count.live .air-count-u { flex-basis: 100%; font-size: 8.5px; letter-spacing: 0; }
   .air-count.day .air-count-n { color: #1d6fa5; }
   .air-dot {
     width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex: 0 0 auto;

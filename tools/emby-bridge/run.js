@@ -26,8 +26,10 @@ const EpisodeSource = require("../../episode-source.js");
 const { createLibraryAdapter } = require("../../library-adapter.js");
 const { createEmbyBridge } = require("./emby-bridge.js");
 const { createAiringNext } = require("./airing-next.js");
-const { createTvdbCheck } = require("./tvdb-check.js");
+const { createTvdbClient } = require("./tvdb-check.js");
 const AirTimes = require("../../air-times.js");
+const YesTimes = require("../../yes-times.js");
+const AirTimeChain = require("../../air-time-chain.js");
 const { createSimklClient } = require("./simkl-client.js");
 const { createSharedAirTimes } = require("./shared-air-times.js");
 
@@ -213,10 +215,12 @@ async function main() {
     const ext = d.external_ids || {};
     return { title: d.name || d.original_name || null, year: d.first_air_date ? d.first_air_date.slice(0, 4) : null, imdb: ext.imdb_id || null, tvdb: ext.tvdb_id || null };
   } : undefined;
-  // Air times as the site works them out: SIMKL's exact times for date-only
-  // episodes (the bridge's own SIMKL sign-in, with the site's SIMKL app id),
-  // then TheTVDB's check on the dates - so the widget's dates are the
-  // computer's. The SIMKL times also go to the account for the phone app.
+  // Air times as the site works them out, through the same chain
+  // (air-time-chain.js): yes's TV guide for Israeli shows, SIMKL's exact
+  // times for episodes still date-only (the bridge's own SIMKL sign-in, with
+  // the site's SIMKL app id), then TheTVDB's check on the dates - so the
+  // widget's dates are the site's. The SIMKL times also go to the account
+  // for the phone app.
   const simkl = createSimklClient({ clientId: accountKeys.clientIdV2 || accountKeys.clientId, file: SIMKL_TOKEN_FILE, log });
   if (args.includes("--simkl-login")) {
     await simkl.login();
@@ -228,7 +232,26 @@ async function main() {
   const simklTimes = shared.recording(AirTimes.createSimklAirTimes({
     get: (p, params) => simkl.get(p, params), cache: EpisodeSource.memoryCache(), connected: () => simkl.signedIn(),
   }));
-  const airTimes = accountKeys.tvdbKey ? createTvdbCheck({ key: accountKeys.tvdbKey, EpisodeSource, source, inner: simklTimes }) : simklTimes;
+  // yes needs TMDB's details of a show (Israeli or not, its names), kept a day.
+  const showDetails = new Map();
+  const yesTimes = tmdbKey ? YesTimes.createYesAirTimes({
+    fetch: (...a) => fetch(...a),
+    cache: EpisodeSource.memoryCache(),
+    showInfo: async ids => {
+      if (ids.tmdb == null) return null;
+      const hit = showDetails.get(ids.tmdb);
+      if (hit && Date.now() - hit.at < 24 * 3600 * 1000) return hit.info;
+      const info = AirTimeChain.israeliShowInfo(await tmdbGet(`/tv/${ids.tmdb}`));
+      showDetails.set(ids.tmdb, { at: Date.now(), info });
+      return info;
+    },
+  }) : null;
+  const tvdb = accountKeys.tvdbKey ? createTvdbClient({ key: accountKeys.tvdbKey }) : null;
+  const airTimes = AirTimeChain.createAirTimeChain({
+    yes: yesTimes,
+    simkl: simklTimes,
+    tvdb: tvdb && AirTimeChain.createTvdbCheck({ EpisodeSource, source, recentEpisodes: tvdb.recentEpisodes, enabled: () => !tvdb.rejected() }),
+  });
   const adapter = createLibraryAdapter({ core, store, source, appendAfter: EpisodeSource.appendAfter, showMeta, airTimes });
   const airing = createAiringNext({ core, adapter, backend, tmdbGet: tmdbKey ? tmdbGet : null });
   let airingRunning = false;

@@ -100,6 +100,15 @@ function collect(w) {
 }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+// An Airing Next row's countdown as shown ("5 DAYS", "NOW ENDS 21:30"),
+// without the time of day under it (.air-count-t - read on its own).
+function airCountText(row) {
+  const el = row.querySelector(".air-count:not([hidden])");
+  if (!el) return "";
+  const at = el.querySelector(".air-count-t");
+  const text = el.innerText.replace(/\s+/g, " ").trim();
+  return at && text.endsWith(at.innerText.trim()) ? text.slice(0, -at.innerText.trim().length).trim() : text;
+}
 async function waitFor(fn, ms = 30000) {
   for (let t = 0; t < ms; t += 100) {
     try { if (fn()) return true; } catch (e) { /* not there yet */ }
@@ -302,7 +311,8 @@ async function runOnAir() {
   const doc = w.document;
   const airing = () => [...doc.querySelectorAll(".list-panel--airing .list-row")].map(r => ({
     title: r.querySelector(".list-row-title").textContent.trim(),
-    count: (r.querySelector(".air-count:not([hidden])") || { innerText: "" }).innerText.replace(/\s+/g, " ").trim(),
+    count: airCountText(r),
+    at: (r.querySelector(".air-count:not([hidden]) .air-count-t") || { textContent: "" }).textContent,
   }));
   const card = t => [...doc.querySelectorAll(".carousel-card")].find(c => c.querySelector("h3").textContent.trim() === t);
   const airRow = t => airing().find(r => r.title === t) || {};
@@ -340,7 +350,8 @@ async function runAirTimes() {
   const doc = w.document;
   const airing = () => [...doc.querySelectorAll(".list-panel--airing .list-row")].map(r => ({
     title: r.querySelector(".list-row-title").textContent.trim(),
-    count: (r.querySelector(".air-count:not([hidden])") || { innerText: "" }).innerText.replace(/\s+/g, " ").trim(),
+    count: airCountText(r),
+    at: (r.querySelector(".air-count:not([hidden]) .air-count-t") || { textContent: "" }).textContent,
   }));
   const airRow = t => airing().find(r => r.title === t) || {};
   await waitFor(() => airing().length);
@@ -351,6 +362,10 @@ async function runAirTimes() {
   check("no time from the bridge: date only, out from 10:00 - in My List at noon",
     myList().includes("Sierra") && !airing().some(r => r.title === "Sierra"), { myList: myList(), airing: airing().map(r => r.title) });
   check("the bridge's date three days off: the known date stays", airRow("Tango").count === "1 DAY", airRow("Tango"));
+  // The time of day, small under the count - only when there is one.
+  const novemberAt = new Date(BASE + 3 * 3600000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+  check("an exact time shows under the count; a date-only episode shows none",
+    airRow("November").at === novemberAt && airRow("Tango").at === "", { november: airRow("November"), expected: novemberAt, tango: airRow("Tango") });
   await rerender(w, () => w.eval("main")());
   check("after a refresh: still the bridge's time", airRow("November").count === "3 HOURS", airRow("November"));
   const asked = w.__calls.filter(c => c.startsWith("api.simkl.com"));
