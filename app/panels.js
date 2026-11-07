@@ -381,10 +381,12 @@ function updateGreetingStatus(now = Date.now()) {
   const timeOf = r => (r.airStart == null ? "Today"
     : r.airEnd != null && r.airStart <= now && now < r.airEnd ? "NOW"
     : new Date(r.airStart).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }));
-  const ready = `<b>${lastRows.length}</b> ready`;
-  el.innerHTML = today.length
-    ? `<button type="button" class="gs-sum gs-open" id="todayBtn" aria-haspopup="dialog" aria-expanded="${!todayPop().hidden}" title="What's on today"><b>${today.length}</b> today <span class="gs-caret">▴</span> · ${ready}</button>`
-    : `<span class="gs-sum">Nothing today · ${ready}</span>`;
+  // Two lines under "Hi Elad": what's on today (opens tonight's list), and
+  // how many shows are ready to watch.
+  const ready = `<span class="gs-sum gs-ready"><b>${lastRows.length}</b> ready to watch</span>`;
+  el.innerHTML = (today.length
+    ? `<button type="button" class="gs-sum gs-open" id="todayBtn" aria-haspopup="dialog" aria-expanded="${!todayPop().hidden}" title="What's on today"><b>${today.length}</b> on today <span class="gs-caret">▴</span></button>`
+    : `<span class="gs-sum">Nothing on today</span>`) + ready;
   el.hidden = false;
   const pop = todayPop();
   if (!today.length) { pop.hidden = true; return; }
