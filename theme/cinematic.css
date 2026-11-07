@@ -179,6 +179,17 @@ body:not(.light-theme) .topbar .nav-label { font-size: 1.1rem; }
 /* (The gold tiles are taller than the plain icons: a little less padding
    round each button, so the greeting keeps its room at the box's foot.) */
 body:not(.light-theme).equal-panels:not(.panels-scroll) .topbar .nav-item { padding-top: 6px; padding-bottom: 6px; }
+/* Each button in the middle between the rule above it and its own rule
+   below: the room between them (the list's 10px gap) goes inside, half above
+   and half below, instead of all of it above - the same height in all. */
+body:not(.light-theme).equal-panels:not(.panels-scroll) .topbar .navbar-nav { gap: 0; }
+body:not(.light-theme).equal-panels:not(.panels-scroll) .topbar .nav-item { padding-top: 10px; padding-bottom: 10px; }
+/* The first one's rule above is the gold one under the slogan, already 8px
+   up (5px on a short screen - see .topbar-left::after): that much less. */
+body:not(.light-theme).equal-panels:not(.panels-scroll) .topbar .navbar-nav > .nav-item:first-child { padding-top: 2px; }
+@media (max-height: 860px) {
+  body:not(.light-theme).equal-panels:not(.panels-scroll) .topbar .navbar-nav > .nav-item:first-child { padding-top: 5px; }
+}
 
 /* The logo ("TV Series" and its play mark) on a gold brush stroke like the
    box titles, in their ink - the stroke drawn round it (::before), so the
